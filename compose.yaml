@@ -1,0 +1,59 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: kidsfit_crm
+      MYSQL_USER: kidsfit_crm
+      MYSQL_PASSWORD: kidsfit_secret
+      MYSQL_ROOT_PASSWORD: kidsfit_root_secret
+      TZ: UTC
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci", "--default-time-zone=+00:00"]
+    ports:
+      - "3306:3306"
+    volumes:
+      - kidsfit_mysql_net10:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pkidsfit_root_secret"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api-migrate:
+    build: ./backend
+    restart: "no"
+    environment: &api-environment
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__MySql: Server=mysql;Port=3306;Database=kidsfit_crm;User=kidsfit_crm;Password=kidsfit_secret;Character Set=utf8mb4;
+      Jwt__Issuer: KidsfitCRM.Api
+      Jwt__Audience: KidsfitCRM.Web
+      Jwt__Key: local-docker-key-change-before-production-2026
+      Cors__Origins__0: http://localhost:3000
+      Seed__DemoEnabled: "true"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: ["--migrate"]
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment: *api-environment
+    ports:
+      - "8000:8080"
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  kidsfit_mysql_net10:

@@ -2,6 +2,14 @@
 
 Repository mã nguồn: https://github.com/KidsfitEdu/KidsfitCRM
 
+Demo đã xuất bản riêng tư:
+https://kidsfit-crm-demo-20261024.manhtuong0503.chatgpt.site
+
+Site project ID: `appgprj_6adc5c8b3df0819197d26d7ec5aa1ecc`.
+Source commit của Site: `2a9ea0cfa7cd99746ca158b94f10001d8898a5e0`.
+Khi cập nhật demo, mở lại đúng Site này và giữ nguyên audience; không tạo Site
+mới hoặc tự bật truy cập công khai. Bản source Site độc lập với repository CRM.
+
 ## Giới hạn demo hosted
 
 - Bản demo chạy giao diện React/Vinext với dữ liệu minh họa, không kết nối API

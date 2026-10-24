@@ -1,6 +1,7 @@
 # Kidsfit CRM
 
 Mã nguồn: [KidsfitEdu/KidsfitCRM](https://github.com/KidsfitEdu/KidsfitCRM).
+Demo giao diện riêng tư, dữ liệu mẫu: [Mở Kidsfit CRM Demo](https://kidsfit-crm-demo-20261024.manhtuong0503.chatgpt.site).
 Phạm vi demo, quyền truy cập và dữ liệu không đưa lên Git: [hướng dẫn demo](docs/DEMO_DEPLOYMENT.md).
 
 CRM hiện đại cho vận hành giáo dục và đội ngũ bán/triển khai CHECKEE: quản lý lead, học viên, lớp học, học phí, khách hàng doanh nghiệp, quyền bảo vệ, hợp đồng, doanh thu và hoa hồng.

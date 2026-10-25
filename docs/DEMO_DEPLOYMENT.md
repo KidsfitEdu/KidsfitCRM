@@ -72,6 +72,17 @@ Hai kiểm thử artifact xác nhận base path/tệp asset tồn tại, chỉ c
 không source map, API local, canary hoặc tài khoản đăng nhập local thật trong bundle.
 12 kiểm thử demo hiện có tiếp tục kiểm tra 9 tài khoản, session và danh bạ mẫu.
 
+Đã phát hành thành công ngày 25/10/2026 từ commit
+`f6288f005250dd61eab96eb0a57eb93bc4a765ea`:
+[GitHub Actions run](https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/40202220682).
+Clean install trên Linux, 14 kiểm thử, lint, TypeScript và static build đều đạt.
+Build Vinext local hiện có cũng đạt (còn cảnh báo sourcemap/bundle như trước).
+Đã mở URL production trực tiếp, thử đăng nhập CHECKEE, tải phân hệ trường học và
+đăng xuất trở lại màn hình tài khoản mẫu; không còn lớp đăng nhập ChatGPT.
+
+Tham khảo cấu hình cài đặt có lockfile:
+[npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/).
+
 ## Đăng nhập giả lập (25/10/2026)
 
 Sau lớp truy cập ChatGPT riêng tư của Site, giao diện có màn hình chọn một trong

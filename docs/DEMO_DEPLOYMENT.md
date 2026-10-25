@@ -62,6 +62,12 @@ chỉ upload artifact tĩnh rồi deploy với quyền `pages:write`/OIDC trong 
 Không dùng PAT tùy chỉnh hay publish mã nguồn. GitHub Actions được pin commit SHA.
 Giữ repository private; không đổi visibility hoặc mua/nâng gói để vượt giới hạn Pages.
 
+`frontend/.npmrc` ghi nhận `legacy-peer-deps=true`, giống cấu hình cài đặt local
+đã tạo lockfile hiện có. Clean CI phải dùng cùng chế độ này (theo hướng dẫn npm ci),
+thay vì tự giải lại dependency hoặc dùng `--force`. Peer optional giữa Wrangler và
+Workers types là chênh lệch đã có của tooling Sites, không phải API của bản static;
+việc nâng/đồng bộ phiên bản tooling đó là một thay đổi riêng cần kiểm thử.
+
 Hai kiểm thử artifact xác nhận base path/tệp asset tồn tại, chỉ có tệp static,
 không source map, API local, canary hoặc tài khoản đăng nhập local thật trong bundle.
 12 kiểm thử demo hiện có tiếp tục kiểm tra 9 tài khoản, session và danh bạ mẫu.

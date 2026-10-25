@@ -6,7 +6,7 @@ Demo đã xuất bản riêng tư:
 https://kidsfit-crm-demo-20261024.manhtuong0503.chatgpt.site
 
 Site project ID: `appgprj_6adc5c8b3df0819197d26d7ec5aa1ecc`.
-Source commit của Site: `2a9ea0cfa7cd99746ca158b94f10001d8898a5e0`.
+Source commit của Site: `3439cebcf2dfd4a8c1eb203ee1af633d180bad9b`.
 Khi cập nhật demo, mở lại đúng Site này và giữ nguyên audience; không tạo Site
 mới hoặc tự bật truy cập công khai. Bản source Site độc lập với repository CRM.
 
@@ -21,6 +21,38 @@ mới hoặc tự bật truy cập công khai. Bản source Site độc lập v�
 - Site mới giữ quyền truy cập riêng tư. Chưa tự mở công khai hoặc chia sẻ cho nhóm.
 - Checkout demo riêng nằm ở `sites/kidsfit-crm-demo` (không đưa vào repository CRM).
   Mã nguồn tương ứng của Site được lưu bởi hệ thống Sites khi phát hành.
+
+## Đăng nhập giả lập (25/10/2026)
+
+Sau lớp truy cập ChatGPT riêng tư của Site, giao diện có màn hình chọn một trong
+chín vai trò và đăng nhập bằng tài khoản công khai `@demo.kidsfit.example`.
+Ví dụ `admin@demo.kidsfit.example`, `sales@demo.kidsfit.example`,
+`accountant@demo.kidsfit.example`, `checkee@demo.kidsfit.example`.
+Mật khẩu chung: `Demo@2026`. Có thể chọn vai trò để tự điền cả email/mật khẩu.
+
+Đây là mô phỏng UX trên trình duyệt, không phải một cơ chế bảo mật. Tài khoản,
+mật khẩu và dữ liệu mẫu có thể xem trong mã frontend. Không dùng tài khoản hệ
+thống thật, không nhập PII, không gọi API/JWT hay lưu thông tin đăng nhập thật.
+Menu và nút thao tác dùng các permission bundle mẫu; chưa mô phỏng đầy đủ phạm vi
+tổ chức, đối soát, quản lý đội ngũ, nhập Excel và quy trình chi trả có backend.
+
+Chỉ ID tài khoản demo được giữ ở `sessionStorage` dưới key
+`kidsfit_demo_profile_v1`; không lưu mật khẩu/quyền/token. Tải lại trang giữ vai
+trò nhưng đặt lại dữ liệu mẫu. Đăng xuất/đổi tài khoản hủy workspace và thay đổi
+thử, kể cả modal hoặc cache đang mở. Nếu trình duyệt chặn storage, đăng nhập vẫn
+hoạt động trong bộ nhớ và không tự khôi phục khi tải lại.
+
+Frontend chỉ bật màn hình này khi API bị tắt (chẳng hạn
+`NEXT_PUBLIC_DEMO_MODE=true`). Bản chạy local có `NEXT_PUBLIC_API_URL` và không
+bật demo vẫn dùng đăng nhập API thật; không fallback sang tài khoản giả khi API lỗi.
+Lớp truy cập ChatGPT và audience owner-private của Site không thay đổi.
+
+Kiểm tra ngày 25/10/2026: 12/12 demo tests, format check, lint, TypeScript và
+production builds đạt. Đã kiểm tra trên trình duyệt: báo sai mật khẩu, chọn vai
+trò, khôi phục phiên, menu chỉ xem của Ban giám đốc, ẩn tài chính với CHECKEE và
+tạo lead thử -> đăng xuất -> đăng nhập lại không còn lead thử. Không thay đổi
+backend/schema; không chạy lại bộ integration MySQL cho thay đổi giao diện này.
+Build vẫn có các cảnh báo công cụ về sourcemap và kích thước bundle như bản trước.
 
 ## Dữ liệu không đưa lên Git
 

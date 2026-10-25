@@ -51,6 +51,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DemoAccess } from '@/components/crm/demo-access';
+import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import {
   demoChannelSalesWorkspace,
@@ -284,7 +286,32 @@ async function request<T>(
 }
 
 export function CrmApp() {
-  const [view, setView] = useState<View>('dashboard');
+  if (apiBase) return <CrmWorkspace />;
+  return (
+    <DemoAccess>
+      {(account, logout) => (
+        <CrmWorkspace
+          key={account.id}
+          demoAccount={account}
+          onDemoLogout={logout}
+        />
+      )}
+    </DemoAccess>
+  );
+}
+
+function CrmWorkspace({
+  demoAccount,
+  onDemoLogout,
+}: {
+  demoAccount?: DemoAccount;
+  onDemoLogout?: () => void;
+}) {
+  const [view, setView] = useState<View>(
+    demoAccount && !demoAccount.abilities.includes('crm.dashboard.view')
+      ? 'channel-sales'
+      : 'dashboard',
+  );
   const [search, setSearch] = useState('');
   const [dark, setDark] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -295,8 +322,10 @@ export function CrmApp() {
   const [notice, setNotice] = useState('');
   const [token, setToken] = useState('');
   const [ready, setReady] = useState(!apiBase);
-  const [userName, setUserName] = useState('Minh Anh');
-  const [abilities, setAbilities] = useState<string[]>(apiBase ? [] : ['*']);
+  const [userName, setUserName] = useState(demoAccount?.name ?? 'Minh Anh');
+  const [abilities, setAbilities] = useState<string[]>(
+    demoAccount?.abilities ?? [],
+  );
   const [loading, setLoading] = useState(false);
   const [leads, setLeads] = useState<Lead[]>(demoLeads);
   const [students, setStudents] = useState<Student[]>(demoStudents);
@@ -361,6 +390,7 @@ export function CrmApp() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
+    return () => document.documentElement.classList.remove('dark');
   }, [dark]);
 
   useEffect(() => {
@@ -486,6 +516,10 @@ export function CrmApp() {
   };
 
   const logout = async () => {
+    if (onDemoLogout) {
+      onDemoLogout();
+      return;
+    }
     if (token)
       await request('/logout', token, { method: 'POST' }).catch(
         () => undefined,
@@ -986,7 +1020,7 @@ export function CrmApp() {
 
   const activeCopy = viewCopy[view];
   const can = (ability: string) =>
-    !apiBase || abilities.includes('*') || abilities.includes(ability);
+    abilities.includes('*') || abilities.includes(ability);
   const visibleNav = nav.filter((item) => {
     if (item.id === 'dashboard') return can('crm.dashboard.view');
     if (item.id === 'channel-sales') return can('channel_sales.customer.view');
@@ -1044,10 +1078,10 @@ export function CrmApp() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{userName}</p>
             <p className="text-[11px] text-slate-400">
-              {apiBase ? 'Kết nối MySQL' : 'Chế độ demo'}
+              {demoAccount?.roleLabel ?? 'Kết nối MySQL'}
             </p>
           </div>
-          {apiBase && (
+          {(apiBase || demoAccount) && (
             <button
               onClick={logout}
               aria-label="Đăng xuất"
@@ -1104,6 +1138,28 @@ export function CrmApp() {
         </header>
 
         <div className="mx-auto max-w-[1480px] space-y-7 px-5 py-7 sm:px-8">
+          {demoAccount && (
+            <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100">
+              <div>
+                <p className="font-semibold">
+                  Bản demo giả lập · {demoAccount.roleLabel}
+                </p>
+                <p className="mt-1 text-xs leading-5 opacity-80">
+                  Dữ liệu mẫu dùng chung để minh họa. Quyền chỉ mô phỏng trên
+                  giao diện, không phải bảo mật thật. Đăng xuất sẽ xóa thay đổi
+                  thử.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={logout}
+                className="shrink-0"
+              >
+                <LogOut className="size-4" /> Đổi tài khoản demo
+              </Button>
+            </aside>
+          )}
           <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <Badge className="mb-3 bg-[#e9e6ff] text-[#6558d3] hover:bg-[#e9e6ff] dark:bg-[#6558d3]/20 dark:text-[#c6beff]">
@@ -1163,7 +1219,11 @@ export function CrmApp() {
                     customerView={(onOpenCustomer) => (
                       <ChannelSalesView
                         onOpenCustomer={onOpenCustomer}
-                        workspace={channelSales}
+                        workspace={
+                          demoAccount
+                            ? presentDemoWorkspace(channelSales, demoAccount)
+                            : channelSales
+                        }
                         search={search}
                         setSearch={setSearch}
                         canRegister={can('channel_sales.approach.register')}

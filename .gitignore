@@ -4,6 +4,7 @@ backend/**/obj/
 frontend/.env.local
 frontend/.vinext/
 frontend/dist/
+frontend/dist-pages/
 frontend/node_modules/
 .idea/
 .vscode/

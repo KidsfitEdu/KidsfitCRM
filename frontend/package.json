@@ -8,10 +8,13 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "build:pages": "vite build --config vite.pages.config.ts",
+    "preview:pages": "vite preview --config vite.pages.config.ts",
     "start": "wrangler dev --config dist/server/wrangler.json",
-    "lint": "oxlint -A react/react-compiler app components/crm lib",
+    "lint": "oxlint -A react/react-compiler app components/crm lib demo vite.pages.config.ts",
     "format": "oxfmt",
-    "test:demo": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test:demo": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:pages": "node --test tests/pages/*.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

@@ -1,0 +1,5 @@
+:root {
+  --font-geist-sans:
+    'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-geist-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+}

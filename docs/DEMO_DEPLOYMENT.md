@@ -2,7 +2,13 @@
 
 Repository mã nguồn: https://github.com/KidsfitEdu/KidsfitCRM
 
-Demo đã xuất bản riêng tư:
+Demo công khai trên GitHub Pages (được người dùng chấp thuận ngày 25/10/2026):
+https://kidsfitedu.github.io/KidsfitCRM/
+
+Repository CRM vẫn riêng tư. Chỉ artifact giao diện/dữ liệu giả lập được đưa lên
+Pages, không công khai toàn bộ mã nguồn hoặc tài liệu thật của CRM.
+
+Bản Site cũ vẫn được giữ riêng tư, không bị xóa hoặc thay đổi audience:
 https://kidsfit-crm-demo-20261024.manhtuong0503.chatgpt.site
 
 Site project ID: `appgprj_6adc5c8b3df0819197d26d7ec5aa1ecc`.
@@ -21,6 +27,44 @@ mới hoặc tự bật truy cập công khai. Bản source Site độc lập v�
 - Site mới giữ quyền truy cập riêng tư. Chưa tự mở công khai hoặc chia sẻ cho nhóm.
 - Checkout demo riêng nằm ở `sites/kidsfit-crm-demo` (không đưa vào repository CRM).
   Mã nguồn tương ứng của Site được lưu bởi hệ thống Sites khi phát hành.
+
+## GitHub Pages
+
+Trang công khai không sử dụng lớp đăng nhập ChatGPT; chỉ có màn hình đăng nhập
+giả lập. Không coi `noindex` hay tài khoản mẫu là cơ chế bảo mật hoặc giới hạn truy cập.
+Không dùng bản Pages để lưu PII, hợp đồng, doanh thu hay mật khẩu thật.
+
+`frontend/vite.pages.config.ts` là target static riêng, không đổi build Vinext/
+Sites hoặc API .NET. Nó buộc `NEXT_PUBLIC_DEMO_MODE=true`, API rỗng, không đọc
+`.env*`, không copy thư mục public đại trà và không xuất source map. Chỉ import
+favicon cần thiết. Font dùng bộ font hệ thống, không cần dịch vụ bên ngoài.
+
+Trong `frontend`:
+
+```text
+npm ci
+npm run test:demo
+npm run lint
+npx tsc --noEmit
+npm run build:pages
+npm run test:pages
+npm run preview:pages
+```
+
+Output duy nhất để deploy: `frontend/dist-pages/`; không upload workspace,
+`dist/server`, `.env*`, backend, MySQL, tài liệu PDF/Excel gốc hay `.runtime`.
+Base path cố định `/KidsfitCRM/` theo tên repository. Không có route pathname con:
+điều hướng phân hệ là state React nên refresh trang gốc hoạt động trên Pages.
+
+Workflow `.github/workflows/demo-pages.yml` chạy khi main thay đổi frontend hoặc
+workflow, và có nút chạy thủ công. Nó kiểm tra demo/build, thử API URL canary giả,
+chỉ upload artifact tĩnh rồi deploy với quyền `pages:write`/OIDC trong job deploy.
+Không dùng PAT tùy chỉnh hay publish mã nguồn. GitHub Actions được pin commit SHA.
+Giữ repository private; không đổi visibility hoặc mua/nâng gói để vượt giới hạn Pages.
+
+Hai kiểm thử artifact xác nhận base path/tệp asset tồn tại, chỉ có tệp static,
+không source map, API local, canary hoặc tài khoản đăng nhập local thật trong bundle.
+12 kiểm thử demo hiện có tiếp tục kiểm tra 9 tài khoản, session và danh bạ mẫu.
 
 ## Đăng nhập giả lập (25/10/2026)
 

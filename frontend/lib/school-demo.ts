@@ -1,8 +1,8 @@
 // Fictional, read-only presentation fixtures. Never read the user's source workbook.
 const names = [
-  'Trường Mầm non Demo Ánh Dương',
-  'Trường Mầm non Demo Mây Xanh',
-  'Trường Mầm non Demo Hạt Nắng',
+  'Trường Mầm non Ánh Dương',
+  'Trường Mầm non Mây Xanh',
+  'Trường Mầm non Hạt Nắng',
 ];
 
 export async function readSchoolDemo<T>(path: string): Promise<T> {
@@ -14,10 +14,10 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
   const schools = names.map((display_name, index) => ({
     id: index + 1,
     customer_id: index + 1001,
-    school_code: `DEMO-SCH-00${index + 1}`,
+    school_code: `SCH-00${index + 1}`,
     display_name,
-    province: 'Khu vực demo',
-    ward: ['Phường Demo A', 'Phường Demo B', 'Phường Demo C'][index],
+    province: 'Khu vực minh họa',
+    ward: ['Phường A', 'Phường B', 'Phường C'][index],
     branches: [2, 1, 0][index],
     visible_status: ['AVAILABLE', 'APPROACHING', 'CONTRACTED'][index],
     protected_until:
@@ -37,7 +37,7 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
         {
           id: 1,
           name: 'CTV minh họa',
-          organization_name: 'Đối tác demo',
+          organization_name: 'Đối tác triển khai',
           school_approach_limit: 10,
           active: 1,
           history: [],
@@ -82,12 +82,12 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
     units: Array.from({ length: school.branches + 1 }, (_, index) => ({
       id: school.id * 10 + index,
       unit_type: index === 0 ? 'MAIN' : 'BRANCH',
-      name: index === 0 ? school.display_name : `Phân hiệu demo ${index}`,
+      name: index === 0 ? school.display_name : `Phân hiệu ${index}`,
       province: school.province,
       ward: school.ward,
       address: null,
       contact_name: 'Đầu mối minh họa',
-      contact_position: 'Đại diện trường (demo)',
+      contact_position: 'Đại diện trường',
       contact_phone: null,
       school_phone: null,
       email: null,
@@ -97,7 +97,7 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
       ? [
           {
             id: 3001,
-            contract_code: 'DEMO-CONTRACT-001',
+            contract_code: 'CHK-2026-001',
             status: 'ACTIVE',
             verified_at: verifiedAt.toISOString(),
             protection_until: protectionUntil.toISOString(),
@@ -112,7 +112,7 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
             {
               activity_type: 'DEMO',
               content:
-                'Minh họa: đã giới thiệu CHECKEE và thống nhất lịch demo tiếp theo.',
+                'Minh họa: đã giới thiệu CHECKEE và thống nhất lịch trình diễn tiếp theo.',
               created_at: now.toISOString(),
               next_follow_up_at: approachUntil,
             },

@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   authenticateDemo,
   demoAccounts,
+  demoLoginEmail,
   DEMO_PASSWORD,
   DEMO_SESSION_KEY,
   readDemoSession,
@@ -44,6 +45,18 @@ test('invalid, real-system and blank credentials do not enter the mock workspace
     authenticateDemo(` ${demoAccounts[0].email.toUpperCase()} `, DEMO_PASSWORD),
     demoAccounts[0],
   );
+});
+
+test('neutral public names and email aliases preserve all legacy logins', () => {
+  for (const account of demoAccounts) {
+    assert.doesNotMatch(account.name, /demo/i);
+    assert.doesNotMatch(demoLoginEmail(account), /demo/i);
+    assert.equal(
+      authenticateDemo(demoLoginEmail(account), DEMO_PASSWORD),
+      account,
+    );
+    assert.equal(authenticateDemo(account.email, DEMO_PASSWORD), account);
+  }
 });
 
 test('session restores only a catalog ID, never stored abilities or a real token', () => {

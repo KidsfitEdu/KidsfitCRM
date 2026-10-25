@@ -5,9 +5,12 @@ import { readSchoolDemo } from '../lib/school-demo.ts';
 test('demo directory has fictional schools with readonly actions', async () => {
   const result = await readSchoolDemo('/schools?page=1');
   assert.equal(result.total, 3);
-  assert.deepEqual(result.data.map(s => s.visible_status), ['AVAILABLE', 'APPROACHING', 'CONTRACTED']);
+  assert.deepEqual(
+    result.data.map((s) => s.visible_status),
+    ['AVAILABLE', 'APPROACHING', 'CONTRACTED'],
+  );
   for (const school of result.data) {
-    assert.match(school.school_code, /^DEMO-SCH-/);
+    assert.match(school.school_code, /^SCH-/);
     assert.equal(school.can_register, false);
   }
 });
@@ -15,7 +18,10 @@ test('demo search and empty results behave consistently', async () => {
   const result = await readSchoolDemo('/schools?search=anh%20duong');
   assert.equal(result.total, 1);
   assert.equal(result.data[0].id, 1);
-  assert.equal((await readSchoolDemo('/schools?search=unknown-school')).total, 0);
+  assert.equal(
+    (await readSchoolDemo('/schools?search=unknown-school')).total,
+    0,
+  );
   assert.equal((await readSchoolDemo('/schools?page=2')).data.length, 0);
 });
 test('demo details preserve branch grouping without real contacts', async () => {
@@ -39,4 +45,34 @@ test('demo contract is readonly and does not expose verification actions', async
 test('demo does not implement upload or unknown customer endpoints', async () => {
   await assert.rejects(() => readSchoolDemo('/schools/import/commit'));
   await assert.rejects(() => readSchoolDemo('/schools/999'));
+});
+
+test('public school labels are neutral without changing readonly workflow flags', async () => {
+  const schools = await readSchoolDemo('/schools');
+  for (const school of schools.data) {
+    assert.doesNotMatch(
+      [
+        school.display_name,
+        school.school_code,
+        school.province,
+        school.ward,
+      ].join(' '),
+      /demo/i,
+    );
+    assert.equal(school.can_register, false);
+    const detail = await readSchoolDemo(`/schools/${school.id}`);
+    for (const unit of detail.units) {
+      assert.doesNotMatch(
+        [unit.name, unit.contact_position, unit.province, unit.ward].join(' '),
+        /demo/i,
+      );
+    }
+    for (const contract of detail.contracts)
+      assert.doesNotMatch(contract.contract_code, /demo/i);
+    for (const activity of detail.activities)
+      assert.doesNotMatch(activity.content, /demo/i);
+  }
+  const capacities = await readSchoolDemo('/school-capacities');
+  for (const capacity of capacities.data)
+    assert.doesNotMatch(capacity.organization_name, /demo/i);
 });

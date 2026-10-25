@@ -52,7 +52,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'admin',
     email: 'admin@demo.kidsfit.example',
-    name: 'Minh Anh Demo',
+    name: 'Minh Anh',
     roleLabel: 'Quản trị viên',
     description: 'Khám phá toàn bộ giao diện và thao tác mẫu.',
     abilities: [
@@ -69,7 +69,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'board',
     email: 'board@demo.kidsfit.example',
-    name: 'Ban Giám đốc Demo',
+    name: 'Ban Giám đốc',
     roleLabel: 'Ban giám đốc',
     description: 'Xem dữ liệu CHECKEE mẫu, không chỉnh sửa.',
     abilities: [
@@ -81,7 +81,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'accountant',
     email: 'accountant@demo.kidsfit.example',
-    name: 'Kế toán Demo',
+    name: 'Kế toán',
     roleLabel: 'Kế toán',
     description: 'Xem và thử ghi nhận doanh thu CHECKEE.',
     abilities: [
@@ -98,7 +98,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'manager',
     email: 'manager@demo.kidsfit.example',
-    name: 'Quản lý Demo',
+    name: 'Quản lý bán hàng',
     roleLabel: 'Quản lý bán hàng',
     description: 'Theo dõi và thử quy trình tiếp cận khách hàng.',
     abilities: [
@@ -111,7 +111,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'care',
     email: 'care@demo.kidsfit.example',
-    name: 'Chăm sóc khách hàng Demo',
+    name: 'Chăm sóc khách hàng',
     roleLabel: 'Chăm sóc khách hàng',
     description: 'Xem khách hàng và ghi nhận hoạt động hỗ trợ.',
     abilities: [
@@ -123,7 +123,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'sales',
     email: 'sales@demo.kidsfit.example',
-    name: 'Lan Phương Demo',
+    name: 'Lan Phương',
     roleLabel: 'Nhân viên bán hàng',
     description: 'Trải nghiệm lead, lớp học và CHECKEE Sales.',
     abilities: [
@@ -137,7 +137,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'checkee',
     email: 'checkee@demo.kidsfit.example',
-    name: 'CHECKEE Demo',
+    name: 'CHECKEE',
     roleLabel: 'CHECKEE',
     description: 'Xem khách hàng mẫu; không xem hoa hồng nội bộ.',
     abilities: [
@@ -149,7 +149,7 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'partner',
     email: 'partner@demo.kidsfit.example',
-    name: 'Đối tác Demo',
+    name: 'Đối tác triển khai',
     roleLabel: 'Đối tác triển khai',
     description: 'Khám phá góc nhìn đối tác bán hàng.',
     abilities: [
@@ -164,12 +164,17 @@ export const demoAccounts: DemoAccount[] = [
   {
     id: 'ctv',
     email: 'ctv@demo.kidsfit.example',
-    name: 'Cộng tác viên Demo',
+    name: 'Cộng tác viên',
     roleLabel: 'CTV đối tác',
     description: 'Thử đăng ký tiếp cận và theo dõi khách hàng mẫu.',
     abilities: [...salesActions],
   },
 ];
+
+// Public-facing alias only; preserve legacy credentials and session IDs.
+export function demoLoginEmail(account: DemoAccount): string {
+  return account.email.replace('@demo.', '@');
+}
 
 export function authenticateDemo(
   email: string,
@@ -178,7 +183,9 @@ export function authenticateDemo(
   if (password !== DEMO_PASSWORD) return null;
   return (
     demoAccounts.find(
-      (account) => account.email === email.trim().toLowerCase(),
+      (account) =>
+        account.email === email.trim().toLowerCase() ||
+        demoLoginEmail(account) === email.trim().toLowerCase(),
     ) ?? null
   );
 }

@@ -26,6 +26,7 @@ async function filesIn(directory) {
 test('Pages HTML resolves every asset under the project subpath', async () => {
   const html = await readFile(path.join(output, 'index.html'), 'utf8');
   assert.match(html, /<html lang="vi">/);
+  assert.doesNotMatch(html, /demo/i);
   assert.match(html, /name="robots" content="noindex, nofollow"/);
   const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(
     (match) => match[1],

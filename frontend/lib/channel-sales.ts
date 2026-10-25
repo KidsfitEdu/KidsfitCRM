@@ -103,7 +103,7 @@ export const demoChannelSalesWorkspace: ChannelSalesWorkspace = {
   data: [
     {
       id: 1,
-      code: 'CUS-DEMO-AVAILABLE',
+      code: 'CUS-00001',
       display_name: 'Trung tâm Mầm non Mặt Trời',
       customer_type: 'ORGANIZATION',
       tax_code: '0319001001',
@@ -129,7 +129,7 @@ export const demoChannelSalesWorkspace: ChannelSalesWorkspace = {
     },
     {
       id: 2,
-      code: 'CUS-DEMO-APPROACH',
+      code: 'CUS-00002',
       display_name: 'Hệ thống Anh ngữ BlueSky',
       customer_type: 'ORGANIZATION',
       tax_code: '0319001002',
@@ -155,7 +155,7 @@ export const demoChannelSalesWorkspace: ChannelSalesWorkspace = {
     },
     {
       id: 3,
-      code: 'CUS-DEMO-CONTRACT',
+      code: 'CUS-00003',
       display_name: 'Trường Mầm non Happy House',
       customer_type: 'ORGANIZATION',
       tax_code: '0319001003',

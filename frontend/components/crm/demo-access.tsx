@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import {
   authenticateDemo,
   demoAccounts,
+  demoLoginEmail,
   DEMO_PASSWORD,
   readDemoSession,
   saveDemoSession,
@@ -18,7 +19,7 @@ import {
 
 const schema = z.object({
   email: z.email('Vui lòng nhập email hợp lệ.'),
-  password: z.string().min(1, 'Vui lòng nhập mật khẩu demo.'),
+  password: z.string().min(1, 'Vui lòng nhập mật khẩu.'),
 });
 
 // This entry only renders when the real API is disabled. It never issues a JWT.
@@ -48,7 +49,7 @@ export function DemoAccess({
   if (!ready)
     return (
       <output className="grid min-h-screen place-items-center text-sm text-muted-foreground">
-        Đang mở bản demo…
+        Đang mở không gian làm việc…
       </output>
     );
   if (account) return children(account, () => updateSession(null));
@@ -59,18 +60,18 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
   const [selected, setSelected] = useState(demoAccounts[0]);
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { email: selected.email, password: DEMO_PASSWORD },
+    defaultValues: { email: demoLoginEmail(selected), password: DEMO_PASSWORD },
   });
   const choose = (account: DemoAccount) => {
     setSelected(account);
-    form.reset({ email: account.email, password: DEMO_PASSWORD });
+    form.reset({ email: demoLoginEmail(account), password: DEMO_PASSWORD });
   };
   const submit = form.handleSubmit((values) => {
     const account = authenticateDemo(values.email, values.password);
     if (!account) {
       form.setError('root', {
         message:
-          'Email hoặc mật khẩu demo không đúng. Chọn một vai trò bên cạnh để điền lại.',
+          'Email hoặc mật khẩu không đúng. Chọn một vai trò bên cạnh để điền lại.',
       });
       return;
     }
@@ -97,7 +98,7 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
               <p className="text-xs text-slate-400">Giáo dục & CHECKEE</p>
             </div>
             <span className="ml-auto rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-xs font-medium text-violet-200">
-              Interactive demo
+              CRM Workspace
             </span>
           </div>
           <h1 className="max-w-lg text-3xl font-semibold leading-tight tracking-[-.045em] sm:text-4xl">
@@ -136,7 +137,7 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
           </p>
         </section>
         <section
-          aria-label="Đăng nhập demo"
+          aria-label="Đăng nhập"
           className="self-center rounded-[28px] border border-white/10 bg-white p-6 text-[#172238] shadow-2xl sm:p-9"
         >
           <div className="mb-6 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#7768d9]">
@@ -144,7 +145,7 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
             02 · Đăng nhập giả lập
           </div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Chào mừng anh đến với demo
+            Chào mừng anh đến với Kidsfit CRM
           </h2>
           <p className="mt-2 min-h-10 text-sm leading-5 text-slate-500">
             {selected.description}
@@ -152,7 +153,7 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
           <form onSubmit={submit} noValidate className="mt-6 space-y-4">
             <div className="space-y-2">
               <label htmlFor="demo-email" className="text-sm font-medium">
-                Email demo
+                Email
               </label>
               <Input
                 id="demo-email"
@@ -180,7 +181,7 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
             </div>
             <div className="space-y-2">
               <label htmlFor="demo-password" className="text-sm font-medium">
-                Mật khẩu demo
+                Mật khẩu
               </label>
               <Input
                 id="demo-password"
@@ -194,10 +195,7 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
                 className="h-12 rounded-xl border-slate-200 bg-slate-50 text-[#172238]"
               />
               <p id="demo-password-help" className="text-xs text-slate-500">
-                Mật khẩu chung, công khai:{' '}
-                <span className="font-semibold text-[#6558d3]">
-                  {DEMO_PASSWORD}
-                </span>
+                Thông tin đăng nhập đã được điền sẵn theo vai trò.
               </p>
               <p
                 id="demo-password-error"
@@ -221,8 +219,8 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
               className="h-12 w-full rounded-xl bg-[#6558d3] text-white shadow-lg shadow-violet-500/15 hover:bg-[#594cc8]"
             >
               {form.formState.isSubmitting
-                ? 'Đang mở demo…'
-                : 'Vào không gian demo'}
+                ? 'Đang mở không gian làm việc…'
+                : 'Đăng nhập'}
               <ArrowRight className="size-4" />
             </Button>
           </form>

@@ -831,7 +831,7 @@ function CrmWorkspace({
             }
           : {
               id: Date.now(),
-              code: `CUS-DEMO-${Date.now()}`,
+              code: `CUS-${Date.now()}`,
               display_name: input.display_name ?? 'Khách hàng mới',
               customer_type: input.customer_type ?? 'ORGANIZATION',
               tax_code: input.tax_code ?? null,
@@ -1142,7 +1142,7 @@ function CrmWorkspace({
             <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100">
               <div>
                 <p className="font-semibold">
-                  Bản demo giả lập · {demoAccount.roleLabel}
+                  Không gian trải nghiệm · {demoAccount.roleLabel}
                 </p>
                 <p className="mt-1 text-xs leading-5 opacity-80">
                   Dữ liệu mẫu dùng chung để minh họa. Quyền chỉ mô phỏng trên
@@ -1156,7 +1156,7 @@ function CrmWorkspace({
                 onClick={logout}
                 className="shrink-0"
               >
-                <LogOut className="size-4" /> Đổi tài khoản demo
+                <LogOut className="size-4" /> Đổi tài khoản
               </Button>
             </aside>
           )}

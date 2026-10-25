@@ -85,6 +85,13 @@ Tham khảo cấu hình cài đặt có lockfile:
 
 ## Đăng nhập giả lập (25/10/2026)
 
+Cập nhật cách trình bày public: bỏ chữ DEMO ở tiêu đề, nhãn, tên tài khoản và
+dữ liệu minh họa. Màn hình dùng email rút gọn `admin@kidsfit.example` (tương tự
+cho tám vai trò còn lại); email cũ `admin@demo.kidsfit.example` vẫn được chấp nhận.
+Mật khẩu và session ID giữ nguyên, được tự điền nhưng không in mật khẩu ra màn
+hình. Các cảnh báo dữ liệu giả lập, quyền chỉ mô phỏng và không nhập thông tin thật
+vẫn hiện. Không biến đăng nhập giả lập thành xác thực hệ thống thật.
+
 Sau lớp truy cập ChatGPT riêng tư của Site, giao diện có màn hình chọn một trong
 chín vai trò và đăng nhập bằng tài khoản công khai `@demo.kidsfit.example`.
 Ví dụ `admin@demo.kidsfit.example`, `sales@demo.kidsfit.example`,

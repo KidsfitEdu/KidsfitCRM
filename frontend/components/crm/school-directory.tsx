@@ -824,7 +824,7 @@ function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
           <option value="CALL">Cuộc gọi</option>
           <option value="ZALO">Zalo tổ chức</option>
           <option value="MEETING">Gặp trường</option>
-          <option value="DEMO">Demo</option>
+          <option value="DEMO">Trình diễn</option>
           <option value="NOTE">Ghi chú</option>
         </select>
       </Field>

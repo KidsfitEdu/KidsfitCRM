@@ -13,8 +13,31 @@ https://kidsfit-crm-demo-20261024.manhtuong0503.chatgpt.site
 
 Site project ID: `appgprj_6adc5c8b3df0819197d26d7ec5aa1ecc`.
 Source commit của Site: `3439cebcf2dfd4a8c1eb203ee1af633d180bad9b`.
-Khi cập nhật demo, mở lại đúng Site này và giữ nguyên audience; không tạo Site
-mới hoặc tự bật truy cập công khai. Bản source Site độc lập với repository CRM.
+Chỉ khi được yêu cầu cập nhật bản Site cũ mới mở lại đúng Site này và giữ nguyên
+audience; không tạo Site mới hoặc tự bật truy cập công khai. Bản source Site độc
+lập với repository CRM. Bản public hiện tại dùng GitHub Pages và workflow bên dưới.
+
+## Cập nhật Vận hành từ Notes — 27/10/2026
+
+Đã phát hành frontend public từ commit
+`9a91c11c785e24f58d9c075c50854f24fd95396c`:
+[GitHub Actions run thành công](https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/40372693293).
+
+- Có **CHECKEE Sales → Vận hành** với đề xuất, phân bổ, gia hạn, tranh chấp,
+  CSKH, bàn giao, hủy/hoàn, chính sách và giám sát. Các tình huống mới dùng dữ
+  liệu giả lập, chỉ đọc; không ghi hồ sơ hoặc giao dịch lên máy chủ.
+- Chính sách SLA/gia hạn hiển thị là gợi ý `DRAFT`, chưa tự kích hoạt.
+- Clean install trên Linux, 18 unit test, 2 kiểm thử artifact, lint, TypeScript,
+  static build và deploy đều qua. Artifact không gồm API, tài liệu nguồn,
+  cấu hình riêng tư, dữ liệu MySQL hoặc source map.
+- Đã kiểm tra URL production trả HTTP 200, các asset HTML tham chiếu đều tải
+  thành công, khôi phục phiên tài khoản mẫu, mở tab Vận hành và hồ sơ gia hạn.
+- Mã nguồn backend và tài liệu Notes cũng đã lưu trong repository private.
+  Workflow Pages chỉ triển khai frontend; backend .NET 10/MySQL vẫn là môi
+  trường nội bộ. Bộ 77 kiểm thử backend đã qua ở đợt triển khai Notes trước đó.
+
+Chi tiết 39 yêu cầu và các quyết định còn mở:
+[CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md](CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md).
 
 ## Giới hạn demo hosted
 
@@ -124,8 +147,8 @@ Build vẫn có các cảnh báo công cụ về sourcemap và kích thước bu
 
 ## Dữ liệu không đưa lên Git
 
-`.env.local`, `.runtime`, dữ liệu MySQL, node_modules, output build và hai tài liệu
-nguồn PDF/Excel được giữ trên máy. Đặc biệt Excel có thông tin liên hệ thật.
+`.env.local`, `.runtime`, dữ liệu MySQL, node_modules, output build và các tài liệu
+nguồn PDF/Excel/DOCX được giữ trên máy. Đặc biệt Excel có thông tin liên hệ thật.
 Tài liệu tham chiếu đã tổng hợp cho skill và các kế hoạch vẫn được đưa lên Git.
 
 Bộ kiểm thử nhập liệu giả lập luôn có trong repository. Kiểm thử đọc Excel gốc

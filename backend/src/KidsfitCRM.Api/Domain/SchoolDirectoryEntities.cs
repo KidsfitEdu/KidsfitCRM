@@ -8,6 +8,7 @@ public sealed class DirectorySchool : EntityBase
 
 public sealed class SchoolUnit : EntityBase
 {
+    public int Version { get; set; }
     public long DirectorySchoolId { get; set; }
     public string ContentHash { get; set; } = "";
     public string UnitType { get; set; } = "MAIN";

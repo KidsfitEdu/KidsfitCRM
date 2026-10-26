@@ -7,6 +7,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { readSchoolDemo } from '@/lib/school-demo';
 import {
+  workflowDate,
+  workflowLabels,
+  workflowFormValue,
+  vietnamDateTimeInput,
+  type SchoolOperationsWorkspace,
+} from '@/lib/school-operations';
+import { SchoolActionForm, type SchoolAction } from './school-action-form';
+import { EvidenceReference } from './school-operations';
+import {
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -94,9 +103,14 @@ type Detail = {
   protected_until: string | null;
   can_report_contract: boolean;
   can_activity: boolean;
+  can_request_extension?: boolean;
+  can_allocate?: boolean;
+  can_dispute?: boolean;
   packages: { id: number; name: string; list_price: number }[];
   units: {
     id: number;
+    version: number;
+    can_edit: boolean;
     unit_type: string;
     name: string;
     province: string;
@@ -117,12 +131,18 @@ type Detail = {
     protection_until: string | null;
     can_review: boolean;
     can_grant: boolean;
+    evidence_reference?: string | null;
   }[];
   activities: {
     activity_type: string;
     content: string;
     created_at: string;
     next_follow_up_at: string | null;
+    occurred_at?: string | null;
+    contact_name?: string | null;
+    contact_position?: string | null;
+    feedback?: string | null;
+    commitment?: string | null;
   }[];
 };
 type Command = { path: string; body?: unknown; method?: string };
@@ -565,6 +585,8 @@ export function SchoolDirectory({
           ) : (
             detail.data && (
               <SchoolDetail
+                apiBase={apiBase}
+                token={token}
                 data={detail.data}
                 run={run}
                 busy={mutation.isPending}
@@ -608,16 +630,358 @@ export function SchoolDirectory({
 }
 
 function SchoolDetail({
+  apiBase,
+  token,
   data,
   run,
   busy,
 }: {
+  apiBase: string;
+  token: string;
   data: Detail;
   run: (command: Command) => Promise<unknown>;
   busy: boolean;
 }) {
+  const [action, setAction] = useState<SchoolAction | null>(null);
+  const [historyUnit, setHistoryUnit] = useState<number | null>(null);
+  const [showRights, setShowRights] = useState(false);
+  const options = useQuery({
+    queryKey: [...channelQueryKeys.all, 'school-operations'],
+    queryFn: () =>
+      channelRequest<SchoolOperationsWorkspace>(
+        apiBase,
+        token,
+        '/school-operations',
+      ),
+    enabled: !!apiBase && !!data.can_allocate,
+  });
+  const revisions = useQuery({
+    queryKey: [...channelQueryKeys.all, 'school-unit-history', historyUnit],
+    queryFn: () =>
+      channelRequest<{
+        data: {
+          id: number;
+          version: number;
+          reason: string;
+          before_values: string;
+          after_values: string;
+          created_at: string;
+          actor_name: string;
+        }[];
+      }>(apiBase, token, '/school-units/' + historyUnit + '/history'),
+    enabled: !!apiBase && historyUnit !== null,
+  });
+  const rights = useQuery({
+    queryKey: [...channelQueryKeys.all, 'school-rights', data.id],
+    queryFn: () =>
+      channelRequest<{
+        data: {
+          id: number | null;
+          owner_name: string;
+          registered_at: string;
+          protected_until: string;
+          status: string;
+        }[];
+        allocations: {
+          id: number;
+          status: string;
+          reason: string;
+          response_reason: string | null;
+          assigned_by: string;
+          assignee_name: string;
+        }[];
+      }>(apiBase, token, '/schools/' + data.id + '/rights'),
+    enabled: !!apiBase && showRights,
+  });
+  const editUnit = (unit: Detail['units'][number]) =>
+    setAction({
+      title: 'Chỉnh dữ liệu đơn vị',
+      path: '/school-units/' + unit.id,
+      method: 'PATCH',
+      description:
+        'Lưu lý do và phiên bản trước/sau. Nếu có người sửa trước, hệ thống yêu cầu tải lại để đối chiếu.',
+      preset: { expected_version: unit.version },
+      fields: [
+        { name: 'name', label: 'Tên đơn vị', value: unit.name },
+        { name: 'province', label: 'Tỉnh / thành phố', value: unit.province },
+        { name: 'ward', label: 'Phường / xã', value: unit.ward },
+        {
+          name: 'address',
+          label: 'Địa chỉ',
+          optional: true,
+          value: unit.address ?? '',
+        },
+        {
+          name: 'contact_name',
+          label: 'Người liên hệ',
+          optional: true,
+          value: unit.contact_name ?? '',
+        },
+        {
+          name: 'contact_position',
+          label: 'Chức vụ',
+          optional: true,
+          value: unit.contact_position ?? '',
+        },
+        {
+          name: 'contact_phone',
+          label: 'Điện thoại liên hệ',
+          optional: true,
+          value: unit.contact_phone ?? '',
+        },
+        {
+          name: 'school_phone',
+          label: 'Điện thoại trường',
+          optional: true,
+          value: unit.school_phone ?? '',
+        },
+        {
+          name: 'email',
+          label: 'Email',
+          type: 'email',
+          optional: true,
+          value: unit.email ?? '',
+        },
+        {
+          name: 'note',
+          label: 'Ghi chú',
+          type: 'textarea',
+          optional: true,
+          value: unit.note ?? '',
+        },
+        { name: 'reason', label: 'Lý do chỉnh sửa', type: 'textarea' },
+      ],
+    });
+  if (action)
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => setAction(null)}>
+          ← Quay lại hồ sơ
+        </Button>
+        <SchoolActionForm
+          key={action.path + action.title}
+          action={action}
+          inline
+          save={async (command) => {
+            await run(command);
+            setAction(null);
+          }}
+        />
+      </div>
+    );
   return (
     <div className="space-y-5">
+      {!!apiBase && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowRights((v) => !v)}
+          >
+            Lịch sử quyền & phân bổ
+          </Button>
+          {data.can_request_extension && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setAction({
+                  title: 'Xin gia hạn tiếp cận',
+                  path:
+                    '/approaches/' +
+                    data.registration_id +
+                    '/extension-requests',
+                  description:
+                    'Gửi trước khi hết hạn. Chờ duyệt không giữ chỗ; cần có tiến độ, bằng chứng và lịch hẹn.',
+                  fields: [
+                    {
+                      name: 'requested_until',
+                      label: 'Xin gia hạn đến',
+                      type: 'datetime-local',
+                    },
+                    {
+                      name: 'review_due_at',
+                      label: 'Đề nghị phản hồi trước',
+                      type: 'datetime-local',
+                    },
+                    {
+                      name: 'next_appointment_at',
+                      label: 'Lịch hẹn / giới thiệu sản phẩm',
+                      type: 'datetime-local',
+                    },
+                    {
+                      name: 'evidence_reference',
+                      label: 'Mã chứng từ / tham chiếu bằng chứng',
+                    },
+                    {
+                      name: 'progress',
+                      label: 'Tiến độ và lý do cần gia hạn',
+                      type: 'textarea',
+                    },
+                  ],
+                })
+              }
+            >
+              Xin gia hạn
+            </Button>
+          )}
+          {data.can_allocate && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!options.data}
+              onClick={() =>
+                setAction({
+                  title: 'Mời nhân sự nhận trường',
+                  path: '/school-invitations',
+                  description:
+                    'Lời mời chưa tạo quyền bảo vệ. Người nhận cần phản hồi và còn đủ hạn mức.',
+                  preset: { school_id: data.id },
+                  fields: [
+                    {
+                      name: 'assignee_member',
+                      label: 'Nhân sự nhận trường',
+                      type: 'number',
+                      options: options
+                        .data!.team.filter((m) => m.can_receive_school)
+                        .map((m) => ({
+                          value: String(m.id),
+                          label:
+                            m.name +
+                            ' · ' +
+                            (options.data!.organizations.find(
+                              (o) => o.id === m.organization_id,
+                            )?.name ?? ''),
+                        })),
+                    },
+                    {
+                      name: 'respond_by',
+                      label: 'Hạn phản hồi đề nghị',
+                      type: 'datetime-local',
+                    },
+                    {
+                      name: 'reason',
+                      label: 'Lý do phân bổ',
+                      type: 'textarea',
+                    },
+                  ],
+                  prepare: (body) => {
+                    const member = options.data!.team.find(
+                      (m) => m.id === body.assignee_member,
+                    );
+                    if (!member)
+                      throw new Error('Cần chọn nhân sự nhận trường.');
+                    return {
+                      ...body,
+                      assignee_user_id: member.user_id,
+                      organization_id: member.organization_id,
+                    };
+                  },
+                })
+              }
+            >
+              Phân bổ trường
+            </Button>
+          )}
+          {data.can_allocate && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!options.data}
+              onClick={() =>
+                setAction({
+                  title: 'Lên lịch rà soát trường',
+                  path: '/school-deferrals',
+                  description:
+                    'Dùng khi trường xa hoặc chưa có người nhận; không giữ quyền tiếp cận.',
+                  preset: { school_id: data.id },
+                  fields: [
+                    {
+                      name: 'organization_id',
+                      label: 'Tổ chức phụ trách',
+                      type: 'number',
+                      options: options.data!.organizations.map((o) => ({
+                        value: String(o.id),
+                        label: o.name,
+                      })),
+                    },
+                    {
+                      name: 'review_at',
+                      label: 'Rà soát lại vào',
+                      type: 'datetime-local',
+                    },
+                    {
+                      name: 'reason',
+                      label: 'Lý do / phương án tư vấn từ xa',
+                      type: 'textarea',
+                    },
+                  ],
+                })
+              }
+            >
+              Hẹn rà soát
+            </Button>
+          )}
+          {data.can_dispute && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                setAction({
+                  title: 'Phản ánh quyền / phân bổ',
+                  path: '/school-disputes',
+                  description:
+                    'Ban giám đốc xem lịch sử, bằng chứng và lưu kết luận. Gửi phản ánh không tự thay đổi quyền hiện tại.',
+                  preset: { customer_id: data.customer_id },
+                  fields: [
+                    {
+                      name: 'reason',
+                      label: 'Nội dung phản ánh',
+                      type: 'textarea',
+                    },
+                    {
+                      name: 'evidence_reference',
+                      label: 'Bằng chứng / hồ sơ tham chiếu',
+                    },
+                  ],
+                })
+              }
+            >
+              Gửi phản ánh
+            </Button>
+          )}
+        </div>
+      )}
+      {options.error && <ErrorText>{options.error.message}</ErrorText>}
+      {showRights && (
+        <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
+          <h3 className="font-semibold">Lịch sử quyền tiếp cận</h3>
+          {rights.isPending && <p>Đang tải…</p>}
+          {rights.error && <ErrorText>{rights.error.message}</ErrorText>}
+          {rights.data?.data.map((r, i) => (
+            <p key={r.id ?? i} className="text-sm">
+              {r.owner_name} · {workflowDate(r.registered_at)} →{' '}
+              {workflowDate(r.protected_until)} ·{' '}
+              {workflowLabels[r.status] ?? r.status}
+            </p>
+          ))}
+          {rights.data?.allocations.map((a) => (
+            <p key={a.id} className="border-t pt-2 text-sm">
+              {a.assigned_by} → {a.assignee_name} ·{' '}
+              {workflowLabels[a.status] ?? a.status}
+              <span className="block text-xs text-muted-foreground">
+                {a.reason}
+                {a.response_reason ? ' · ' + a.response_reason : ''}
+              </span>
+            </p>
+          ))}
+          {rights.data?.data.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Trường chưa có lượt tiếp cận.
+            </p>
+          )}
+        </section>
+      )}
       <div className="space-y-2">
         {data.units.map((unit) => (
           <section key={unit.id} className="rounded-xl border p-4">
@@ -627,6 +991,26 @@ function SchoolDetail({
                 {unit.unit_type === 'MAIN' ? 'Trường chính' : 'Phân hiệu'}
               </span>
             </p>
+            {unit.can_edit && (
+              <div className="mt-3 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => editUnit(unit)}
+                >
+                  Chỉnh thông tin
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setHistoryUnit(historyUnit === unit.id ? null : unit.id)
+                  }
+                >
+                  Lịch sử chỉnh sửa
+                </Button>
+              </div>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">
               {unit.address ?? `${unit.ward}, ${unit.province}`}
             </p>
@@ -645,6 +1029,21 @@ function SchoolDetail({
           </section>
         ))}
       </div>
+      {historyUnit !== null && (
+        <section className="space-y-4 rounded-xl border p-4">
+          <h3 className="font-semibold">Lịch sử chỉnh dữ liệu</h3>
+          {revisions.isPending && <p>Đang tải…</p>}
+          {revisions.error && <ErrorText>{revisions.error.message}</ErrorText>}
+          {revisions.data?.data.map((r) => (
+            <Revision key={r.id} item={r} />
+          ))}
+          {revisions.data?.data.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Chưa có lần chỉnh sửa sau nhập.
+            </p>
+          )}
+        </section>
+      )}
       {data.contracts.map((c) => (
         <section
           key={c.id}
@@ -654,6 +1053,11 @@ function SchoolDetail({
             <ShieldCheck className="size-4" /> {c.contract_code}
           </h3>
           <p className="mt-2 text-sm">{labels[c.status] ?? c.status}</p>
+          {c.evidence_reference && (
+            <div className="mt-2">
+              <EvidenceReference value={c.evidence_reference} />
+            </div>
+          )}
           {c.protection_until ? (
             <p className="mt-1 text-xs">
               Bảo vệ đến {channelDate(c.protection_until)}
@@ -709,7 +1113,7 @@ function SchoolDetail({
           save={(body) =>
             run({
               path: `/approach-registrations/${data.registration_id}/report-contract`,
-              body: { ...body, idempotency_key: key() },
+              body,
             })
           }
         />
@@ -724,8 +1128,20 @@ function SchoolDetail({
                 className="border-l-2 border-violet-200 pl-3"
               >
                 <p className="whitespace-pre-wrap text-sm">{a.content}</p>
+                {a.contact_name && (
+                  <p className="mt-1 text-xs">
+                    Trao đổi với {a.contact_name}
+                    {a.contact_position ? ' · ' + a.contact_position : ''}
+                  </p>
+                )}
+                {a.feedback && (
+                  <p className="mt-1 text-xs">Phản hồi: {a.feedback}</p>
+                )}
+                {a.commitment && (
+                  <p className="mt-1 text-xs">Cam kết: {a.commitment}</p>
+                )}
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {channelDate(a.created_at)}
+                  {workflowDate(a.occurred_at ?? a.created_at)}
                   {a.next_follow_up_at &&
                     ` · Hẹn tiếp ${channelDate(a.next_follow_up_at)}`}
                 </p>
@@ -735,6 +1151,79 @@ function SchoolDetail({
         </section>
       )}
     </div>
+  );
+}
+function Revision({
+  item,
+}: {
+  item: {
+    version: number;
+    reason: string;
+    before_values: string;
+    after_values: string;
+    actor_name: string;
+    created_at: string;
+  };
+}) {
+  const display = (value: unknown) =>
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+      ? String(value)
+      : '—';
+  let before: Record<string, unknown> = {},
+    after: Record<string, unknown> = {};
+  try {
+    before = JSON.parse(item.before_values);
+    after = JSON.parse(item.after_values);
+  } catch {
+    return <p>Không đọc được phiên bản lịch sử này.</p>;
+  }
+  const labels: Record<string, string> = {
+    Name: 'Tên đơn vị',
+    Province: 'Tỉnh / thành phố',
+    Ward: 'Phường / xã',
+    Address: 'Địa chỉ',
+    ContactName: 'Người liên hệ',
+    ContactPosition: 'Chức vụ',
+    ContactPhone: 'Điện thoại liên hệ',
+    Email: 'Email',
+    SchoolPhone: 'Điện thoại trường',
+    Note: 'Ghi chú',
+  };
+  return (
+    <article className="space-y-2 border-t pt-3">
+      <p className="text-sm font-medium">
+        Phiên bản {item.version} · {item.actor_name}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {workflowDate(item.created_at)} · {item.reason}
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr>
+              <th className="p-2">Thông tin</th>
+              <th className="p-2">Trước</th>
+              <th className="p-2">Sau</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(after)
+              .filter((field) => before[field] !== after[field])
+              .map((field) => (
+                <tr key={field} className="border-t">
+                  <td className="p-2">{labels[field] ?? 'Thông tin'}</td>
+                  <td className="break-words p-2 text-muted-foreground">
+                    {display(before[field])}
+                  </td>
+                  <td className="break-words p-2">{display(after[field])}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </article>
   );
 }
 const capacitySchema = z.object({
@@ -788,6 +1277,11 @@ const activitySchema = z.object({
   activity_type: z.string(),
   content: z.string().trim().min(3, 'Nhập báo cáo làm việc.').max(4000),
   next_follow_up_at: z.string(),
+  occurred_at: z.string(),
+  contact_name: z.string().max(500),
+  contact_position: z.string().max(120),
+  feedback: z.string().max(2000),
+  commitment: z.string().max(2000),
 });
 function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
   const form = useForm({
@@ -796,6 +1290,11 @@ function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
       activity_type: 'CALL',
       content: '',
       next_follow_up_at: '',
+      occurred_at: vietnamDateTimeInput(new Date().toISOString()),
+      contact_name: '',
+      contact_position: '',
+      feedback: '',
+      commitment: '',
     },
   });
   return (
@@ -805,6 +1304,11 @@ function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
         try {
           await save({
             ...values,
+            occurred_at: workflowFormValue(
+              'datetime-local',
+              values.occurred_at,
+              true,
+            ),
             next_follow_up_at: values.next_follow_up_at
               ? new Date(`${values.next_follow_up_at}:00+07:00`).toISOString()
               : null,
@@ -816,6 +1320,17 @@ function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
       })}
     >
       <h3 className="font-semibold">Báo cáo lần làm việc</h3>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Thời điểm trao đổi (giờ Việt Nam)">
+          <Input type="datetime-local" {...form.register('occurred_at')} />
+        </Field>
+        <Field label="Người trao đổi">
+          <Input {...form.register('contact_name')} />
+        </Field>
+        <Field label="Chức vụ">
+          <Input {...form.register('contact_position')} />
+        </Field>
+      </div>
       <Field label="Kênh liên hệ">
         <select
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
@@ -836,6 +1351,12 @@ function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
       </Field>
       <Field label="Lịch hẹn tiếp theo (giờ Việt Nam)">
         <Input type="datetime-local" {...form.register('next_follow_up_at')} />
+      </Field>
+      <Field label="Phản hồi của nhà trường">
+        <Input {...form.register('feedback')} />
+      </Field>
+      <Field label="Cam kết cần theo dõi / bàn giao">
+        <Input {...form.register('commitment')} />
       </Field>
       <FormErrors errors={form.formState.errors} />
       <Button
@@ -864,8 +1385,11 @@ function ContractForm({
   save,
 }: {
   data: Detail;
-  save: (body: z.infer<typeof contractSchema>) => Promise<unknown>;
+  save: (
+    body: z.infer<typeof contractSchema> & { idempotency_key: string },
+  ) => Promise<unknown>;
 }) {
+  const [requestKey] = useState(key);
   const form = useForm({
     resolver: zodResolver(contractSchema),
     defaultValues: {
@@ -880,7 +1404,9 @@ function ContractForm({
     <form
       className="space-y-3 rounded-xl border p-4"
       onSubmit={form.handleSubmit(async (values) => {
-        await save(values).catch(() => undefined);
+        await save({ ...values, idempotency_key: requestKey }).catch(
+          () => undefined,
+        );
       })}
     >
       <h3 className="font-semibold">Báo cáo hợp đồng để xác minh</h3>

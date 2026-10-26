@@ -154,7 +154,22 @@ public static class Permissions
     public const string SchoolCapacityManage = "channel_sales.school.capacity.manage";
     public const string SchoolContractReview = "channel_sales.school.contract.review";
     public const string SchoolProtectionGrant = "channel_sales.school.protection.grant";
-    public static readonly string[] All = [SchoolDirectoryManage, SchoolCapacityManage, SchoolContractReview, SchoolProtectionGrant, DashboardView, LeadView, LeadCreate, LeadUpdate, LeadAssign, StudentView, StudentUpdate, CourseView, CourseManage, PaymentView, PaymentCreate, ReportView, ChannelSalesView, ChannelSalesRegister, ChannelSalesActivity, ChannelSalesReportContract, ChannelSalesRecordRevenue, ChannelSalesCommissionView, ChannelSalesReconcile, ChannelSalesManage, ChannelSalesOrganizationScope, ChannelSalesAllScope, ChannelSalesPayoutCreate, ChannelSalesPayoutApprove, ChannelSalesPayoutComplete, ChannelSalesPolicyManage, ChannelSalesTeamManage, ChannelSalesIdentityManage, ChannelSalesCommissionAdjust];
+    public const string SchoolProposalSubmit = "channel_sales.school.proposal.submit";
+    public const string SchoolProposalReview = "channel_sales.school.proposal.review";
+    public const string SchoolAllocationManage = "channel_sales.school.allocation.manage";
+    public const string SchoolExtensionReview = "channel_sales.school.extension.review";
+    public const string SchoolDisputeResolve = "channel_sales.school.dispute.resolve";
+    public const string SchoolEscalationResolve = "channel_sales.school.escalation.resolve";
+    public const string SchoolHandoverManage = "channel_sales.school.handover.manage";
+    public const string SchoolCareAssign = "channel_sales.school.care.assign";
+    public const string SchoolSupportManage = "channel_sales.school.support.manage";
+    public const string SchoolWorkflowPolicyManage = "channel_sales.school.workflow_policy.manage";
+    public const string ChannelSalesContractCancel = "channel_sales.contract.cancel";
+    public const string ChannelSalesRevenueRefund = "channel_sales.revenue.refund";
+    public static readonly string[] SchoolOperations = [SchoolProposalSubmit, SchoolProposalReview, SchoolAllocationManage, SchoolExtensionReview,
+        SchoolDisputeResolve, SchoolEscalationResolve, SchoolHandoverManage, SchoolCareAssign, SchoolSupportManage, SchoolWorkflowPolicyManage,
+        ChannelSalesContractCancel, ChannelSalesRevenueRefund];
+    public static readonly string[] All = [.. SchoolOperations, SchoolDirectoryManage, SchoolCapacityManage, SchoolContractReview, SchoolProtectionGrant, DashboardView, LeadView, LeadCreate, LeadUpdate, LeadAssign, StudentView, StudentUpdate, CourseView, CourseManage, PaymentView, PaymentCreate, ReportView, ChannelSalesView, ChannelSalesRegister, ChannelSalesActivity, ChannelSalesReportContract, ChannelSalesRecordRevenue, ChannelSalesCommissionView, ChannelSalesReconcile, ChannelSalesManage, ChannelSalesOrganizationScope, ChannelSalesAllScope, ChannelSalesPayoutCreate, ChannelSalesPayoutApprove, ChannelSalesPayoutComplete, ChannelSalesPolicyManage, ChannelSalesTeamManage, ChannelSalesIdentityManage, ChannelSalesCommissionAdjust];
 }
 
 public partial class Program;

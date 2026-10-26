@@ -1,5 +1,20 @@
 # Triển khai CRM trường học từ hai tài liệu
 
+## Cập nhật từ Notes — 27/10/2026
+
+Đợt `KidsfitCRM_Notes.docx` đã bổ sung đề xuất qua Quản lý/Admin, lời mời phân bổ,
+xin/duyệt gia hạn có chính sách, hàng chờ quá hạn, tranh chấp, tạm hoãn, bàn giao,
+chỉnh sửa trường có lịch sử, CSKH, hủy/hoàn tiền và chính sách hoa hồng theo nhóm
+nhân sự. Chi tiết 39 yêu cầu, thay đổi, kiểm thử và gợi ý chính sách `DRAFT` nằm tại
+[CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md](CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md).
+
+Các phần bên dưới giữ nguyên làm lịch sử của đợt 24/10. Danh sách backlog cũ
+không còn phản ánh trạng thái hiện tại; dùng tài liệu Notes để xác định phần đã
+triển khai và phần còn chờ duyệt. Không tự giữ quyền khi đang chờ gia hạn hoặc
+tự trừ hoa hồng khi hủy hợp đồng.
+
+## Lịch sử triển khai 24/10/2026
+
 Nguồn: `CRM_Report.pdf` (7 trang), `CRM_Import_Truong_Hoc.xlsx`
 (`DANH_SACH_TRUONG!A1:L317`). Tài liệu chuẩn cho Codex nằm tại
 `.agents/skills/kidsfit-crm-development/references/school-directory-workflows.md`.

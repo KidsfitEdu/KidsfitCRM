@@ -140,6 +140,10 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         }
         if (registration.Status != "ACTIVE") throw new ApiConflictException("Chỉ có thể cập nhật lượt tiếp cận đang hoạt động.");
 
+        var occurredAt = request.OccurredAt?.ToUniversalTime() ?? now;
+        if (occurredAt > now) throw ApiValidationException.For("occurred_at", "Thời gian hoạt động không được ở tương lai.");
+        if (request.NextFollowUpAt?.ToUniversalTime() < occurredAt) throw ApiValidationException.For("next_follow_up_at", "Lịch theo dõi không được trước hoạt động.");
+
         var activity = new CustomerActivity
         {
             CustomerId = registration.CustomerId,
@@ -148,6 +152,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             ActivityType = activityType,
             Content = content,
             NextFollowUpAt = request.NextFollowUpAt?.ToUniversalTime(),
+            OccurredAt = occurredAt,
+            ContactName = CleanOptional(request.ContactName, 500),
+            ContactPosition = CleanOptional(request.ContactPosition, 120),
+            Feedback = CleanOptional(request.Feedback, 2000),
+            Commitment = CleanOptional(request.Commitment, 2000),
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -210,6 +219,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 ApproachRegistrationId = registration.Id,
                 OwnerUserId = registration.OwnerUserId,
                 OwnerOrganizationId = registration.OwnerOrganizationId,
+                OwnerPersonnelType = CommissionPersonnelTypes.Normalize(await db.OrganizationMemberships.Where(x => x.UserId == registration.OwnerUserId && x.OrganizationId == registration.OwnerOrganizationId).Select(x => x.MembershipType).SingleOrDefaultAsync(cancellationToken)),
                 ReportedByUserId = actorId,
                 ContractCode = contractCode,
                 SignedOn = signedOn,
@@ -343,7 +353,17 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             }
             await EnsureOrganizationScope(contract.OwnerOrganizationId, actorId, cancellationToken);
             if (contract.Status != "ACTIVE") throw new ApiConflictException("Chỉ có thể ghi nhận thu cho hợp đồng đang hoạt động.");
+            if (contract.OwnerPersonnelType is null)
+            {
+                // Legacy contracts acquire a group snapshot at their first subsequent receipt.
+                // Existing commission entries and their policy versions remain unchanged.
+                contract.OwnerPersonnelType = CommissionPersonnelTypes.Normalize(await db.OrganizationMemberships
+                    .Where(x => x.UserId == contract.OwnerUserId && x.OrganizationId == contract.OwnerOrganizationId)
+                    .Select(x => x.MembershipType).SingleOrDefaultAsync(cancellationToken));
+                contract.UpdatedAt = now;
+            }
             var collected = await db.RevenueReceipts.Where(x => x.ContractId == contract.Id && x.Status == "COMPLETED").SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0;
+            collected -= await db.RevenueRefunds.Where(x => x.ContractId == contract.Id).SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0;
             var amount = decimal.Round(request.Amount, 0);
             if (collected + amount > contract.TotalValue) throw ApiValidationException.For("amount", "Khoản thu vượt giá trị còn phải thu của hợp đồng.");
 
@@ -380,9 +400,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             var receiptDate = ChannelSalesValidation.BusinessDate(receivedAt);
             var policy = await db.CommissionPolicyVersions
                 .Where(x => x.Status == "ACTIVE" && (x.OrganizationId == contract.OwnerOrganizationId || x.OrganizationId == null)
-                    && x.EffectiveFrom <= receiptDate)
+                    && x.EffectiveFrom <= receiptDate && (x.PersonnelType == null || x.PersonnelType == contract.OwnerPersonnelType))
                 .OrderByDescending(x => x.OrganizationId == contract.OwnerOrganizationId)
+                .ThenByDescending(x => x.PersonnelType != null)
                 .ThenByDescending(x => x.EffectiveFrom)
+                .ThenByDescending(x => x.Id)
                 .FirstOrDefaultAsync(cancellationToken);
             if (policy is null || policy.EffectiveUntil < receiptDate) throw new ApiConflictException("Chưa có chính sách hoa hồng hiệu lực cho ngày thu này. Vui lòng cấu hình trước khi ghi nhận thu.");
             if (policy is not null)
@@ -425,8 +447,10 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
     public async Task Reconcile(long caseId, bool confirm, ReconcileContractRequest request, long actorId, HttpContext http, CancellationToken cancellationToken)
     {
         await RequirePermission(actorId, Permissions.ChannelSalesReconcile, cancellationToken);
+        var contractId = await db.ReconciliationCases.Where(x => x.Id == caseId).Select(x => (long?)x.ContractId).SingleOrDefaultAsync(cancellationToken) ?? throw new KeyNotFoundException();
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var now = DateTime.UtcNow;
+        var schoolContract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {contractId} FOR UPDATE").SingleAsync(cancellationToken);
         var reconciliation = await db.ReconciliationCases.FromSqlInterpolated($"SELECT * FROM reconciliation_cases WHERE id = {caseId} FOR UPDATE").SingleOrDefaultAsync(cancellationToken) ?? throw new KeyNotFoundException();
         await EnsureOrganizationScope(reconciliation.CheckeeOrganizationId, actorId, cancellationToken);
         var reason = CleanOptional(request.Reason, 2000);
@@ -438,11 +462,10 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         }
         if (reconciliation.Status is "CONFIRMED" or "RESOLVED") throw new ApiConflictException("Hồ sơ đối soát đã kết thúc.");
         var previous = reconciliation.Status;
-        var schoolContract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {reconciliation.ContractId} FOR UPDATE").SingleAsync(cancellationToken);
-        if (schoolContract.RequiresSchoolVerification)
+        if (schoolContract.RequiresSchoolVerification && schoolContract.Status != "CANCELLED")
         {
             if (schoolContract.ManagerReviewedAt is null) throw new ApiConflictException("Cần quản lý kiểm tra trước khi CHECKEE xác minh.");
-            if (confirm)
+            if (confirm && schoolContract.VerifiedAt is null)
             {
                 schoolContract.VerifiedAt = now;
                 schoolContract.Status = "PENDING_KIDSFIT";

@@ -9,6 +9,7 @@ public static class SchoolEndpoints
 {
     public static void MapSchoolDirectory(this RouteGroupBuilder group)
     {
+        group.MapSchoolOperations();
         group.MapGet("/schools", List).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/schools/{id:long}", Detail).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-capacities", Capacities).RequireAuthorization(Permissions.ChannelSalesView);
@@ -109,20 +110,30 @@ public static class SchoolEndpoints
         var registrations = await db.ApproachRegistrations.AsNoTracking().Where(x => x.CustomerId == school.CustomerId).OrderByDescending(x => x.RegisteredAt).ToArrayAsync(ct);
         var now = DateTime.UtcNow;
         var current = registrations.FirstOrDefault(x => x.Status == "ACTIVE" && x.ProtectedUntil > now);
-        var contracts = await access.Contracts(db).AsNoTracking().Where(x => x.CustomerId == school.CustomerId).ToArrayAsync(ct);
+        var scopedContractIds = access.Contracts(db).Select(c => c.Id);
+        var contracts = await db.SalesContracts.AsNoTracking().Where(x => x.CustomerId == school.CustomerId
+            && (scopedContractIds.Contains(x.Id) || (access.Has(Permissions.ChannelSalesReconcile) && db.ReconciliationCases.Any(r => r.ContractId == x.Id && access.OrganizationIds.Contains(r.CheckeeOrganizationId))))).ToArrayAsync(ct);
         var pii = access.All || (current is not null && access.CanManage(current.OwnerUserId, current.OwnerOrganizationId)) || (contracts.Length > 0 && access.Has(Permissions.ChannelSalesActivity));
         var canWork = current is not null && access.CanManage(current.OwnerUserId, current.OwnerOrganizationId);
         var units = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == id).OrderBy(x => x.SourceRow).ToArrayAsync(ct);
-        var activities = pii ? await db.CustomerActivities.AsNoTracking().Where(x => x.CustomerId == school.CustomerId).OrderByDescending(x => x.CreatedAt).Take(50).Select(x => new { x.ActivityType, x.Content, x.NextFollowUpAt, x.CreatedAt }).ToArrayAsync(ct) : [];
+        var activities = pii ? await db.CustomerActivities.AsNoTracking().Where(x => x.CustomerId == school.CustomerId).OrderByDescending(x => x.CreatedAt).Take(50)
+            .Select(x => new { x.ActivityType, x.Content, x.OccurredAt, x.ContactName, x.ContactPosition, x.Feedback, x.Commitment, x.NextFollowUpAt, x.CreatedAt }).ToArrayAsync(ct) : [];
+        var available = !await db.CustomerProtections.AnyAsync(x => x.CustomerId == school.CustomerId && x.Status == "ACTIVE" && x.EffectiveUntil > now, ct);
+        var canEdit = access.All && access.Has(Permissions.SchoolDirectoryManage) && await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && access.OrganizationIds.Contains(x.Id), ct);
         var packages = await db.CheckeeProductPackages.AsNoTracking().Where(x => x.Status == "ACTIVE").Select(x => new { x.Id, x.Name, x.ListPrice }).ToArrayAsync(ct);
         return Results.Ok(new { school.Id, school.SchoolCode, school.CustomerId, customer.DisplayName,
             registration_id = canWork ? current!.Id : (long?)null, protected_until = current?.ProtectedUntil,
+            registration_organization_id = canWork ? current!.OwnerOrganizationId : (long?)null,
             can_report_contract = canWork && access.Has(Permissions.ChannelSalesReportContract) && !contracts.Any(c => c.ApproachRegistrationId == current!.Id),
             can_activity = canWork && access.Has(Permissions.ChannelSalesActivity), activities, packages,
-            units = units.Select(x => new { x.Id, x.UnitType, x.Name, x.Province, x.Ward, x.Address,
+            can_request_extension = current is not null && current.OwnerUserId == access.UserId && access.Has(Permissions.ChannelSalesRegister)
+                && !await db.SchoolExtensionRequests.AnyAsync(x => x.ApproachRegistrationId == current.Id && x.Status == "PENDING", ct),
+            can_allocate = available && access.Has(Permissions.SchoolAllocationManage),
+            can_dispute = access.Has(Permissions.ChannelSalesRegister) || access.Has(Permissions.ChannelSalesReconcile) || access.Has(Permissions.SchoolDisputeResolve),
+            units = units.Select(x => new { x.Id, x.Version, can_edit = canEdit, x.UnitType, x.Name, x.Province, x.Ward, x.Address,
                 contact_name = pii ? x.ContactName : null, contact_position = pii ? x.ContactPosition : null, contact_phone = pii ? x.ContactPhone : null,
                 school_phone = pii ? x.SchoolPhone : null, email = pii ? x.Email : null, note = pii ? x.Note : null }),
-            contracts = contracts.Select(x => new { x.Id, x.ContractCode, x.Status, x.VerifiedAt,
+            contracts = contracts.Select(x => new { x.Id, x.ContractCode, x.Status, x.VerifiedAt, x.EvidenceReference,
                 protection_until = x.Status == "ACTIVE" ? x.ProtectionUntil : (DateTime?)null,
                 can_review = x.Status == "PENDING_REVIEW" && access.Has(Permissions.SchoolContractReview) && access.CanManageOrganization(x.OwnerOrganizationId),
                 can_grant = x.Status == "PENDING_KIDSFIT" && access.Has(Permissions.SchoolProtectionGrant) }) });

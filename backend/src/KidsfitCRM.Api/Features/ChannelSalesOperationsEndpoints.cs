@@ -48,8 +48,9 @@ public static class ChannelSalesOperationsEndpoints
         var internalScope = access.All || access.OrganizationIds.Contains(customer.OrganizationId)
             || await access.Contracts(db).AnyAsync(x => x.CustomerId == id, ct);
         var canSeeMoney = access.Has(Permissions.ChannelSalesCommissionView) || access.Has(Permissions.ChannelSalesRecordRevenue);
+        var scopedContractIds = access.Contracts(db).Select(x => x.Id);
         var contracts = await db.SalesContracts.AsNoTracking().Where(x => x.CustomerId == id
-            && (access.All || (access.OrganizationIds.Contains(x.OwnerOrganizationId) && (access.Organization || x.OwnerUserId == access.UserId))
+            && (scopedContractIds.Contains(x.Id)
                 || (access.Has(Permissions.ChannelSalesReconcile) && db.ReconciliationCases.Any(r => r.ContractId == x.Id && access.OrganizationIds.Contains(r.CheckeeOrganizationId)))))
             .OrderByDescending(x => x.SignedOn).Select(x => new { x.Id, x.ContractCode, x.SignedOn, x.Status, x.ProtectionUntil, x.EvidenceReference, total_value = canSeeMoney ? (decimal?)x.TotalValue : null }).Take(30).ToArrayAsync(ct);
         var activities = await (from activity in db.CustomerActivities.AsNoTracking()
@@ -141,11 +142,15 @@ public static class ChannelSalesOperationsEndpoints
                 withholding = await paidInMonth.SumAsync(x => (decimal?)x.WithholdingAmount, ct) ?? 0,
                 take_home = await paidInMonth.SumAsync(x => (decimal?)x.NetAmount, ct) ?? 0,
                 collected_revenue = await db.RevenueReceipts.Where(x => contracts.Contains(x.ContractId) && x.Status == "COMPLETED" && x.ReceivedAt >= start && x.ReceivedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
+                refunded_revenue = await db.RevenueRefunds.Where(x => contracts.Contains(x.ContractId) && x.RefundedAt >= start && x.RefundedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
+                net_collected_revenue = (await db.RevenueReceipts.Where(x => contracts.Contains(x.ContractId) && x.Status == "COMPLETED" && x.ReceivedAt >= start && x.ReceivedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0)
+                    - (await db.RevenueRefunds.Where(x => contracts.Contains(x.ContractId) && x.RefundedAt >= start && x.RefundedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0),
             },
             ledger = await ledgerQuery.Take(200).ToArrayAsync(ct),
             ledger_total = await entries.CountAsync(ct),
             payouts = await payouts.Take(100).ToArrayAsync(ct),
-            policies = await policies.OrderByDescending(x => x.EffectiveFrom).Take(100).Select(x => new { x.Id, x.OrganizationId, x.Code, x.Name, x.RatePercent, x.EffectiveFrom, x.EffectiveUntil, x.Status }).ToArrayAsync(ct),
+            policies = await policies.OrderByDescending(x => x.EffectiveFrom).Take(100).Select(x => new { x.Id, x.OrganizationId, x.Code, x.Name, x.PersonnelType, x.RatePercent, x.EffectiveFrom, x.EffectiveUntil, x.Status }).ToArrayAsync(ct),
+            personnel_types = CommissionPersonnelTypes.Specific,
             organizations = await organizations.Select(x => new { x.Id, x.Code, x.Name, x.CommissionRateCeiling }).ToArrayAsync(ct),
         });
     }
@@ -178,7 +183,7 @@ public static class ChannelSalesOperationsEndpoints
                               reconciliation.DisputeReason,
                               reconciliation.OpenedAt,
                               reconciliation.ResolvedAt,
-                              can_reconcile = access.Has(Permissions.ChannelSalesReconcile) && (access.All || access.OrganizationIds.Contains(reconciliation.CheckeeOrganizationId)) && (!contract.RequiresSchoolVerification || contract.ManagerReviewedAt != null),
+                              can_reconcile = access.Has(Permissions.ChannelSalesReconcile) && (access.All || access.OrganizationIds.Contains(reconciliation.CheckeeOrganizationId)) && (!contract.RequiresSchoolVerification || contract.ManagerReviewedAt != null || contract.Status == "CANCELLED"),
                               events = db.ReconciliationEvents.Where(x => x.ReconciliationCaseId == reconciliation.Id).OrderBy(x => x.CreatedAt).Select(x => new { x.Id, x.EventType, x.Reason, x.CreatedAt }).ToArray(),
                           }).Take(100).ToArrayAsync(ct);
         return Results.Ok(new { data = rows, total = await query.CountAsync(ct) });

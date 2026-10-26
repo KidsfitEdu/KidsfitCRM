@@ -1,4 +1,5 @@
 export type FinanceWorkspace = {
+  personnel_types?: string[];
   period: string;
   summary: {
     accrued: number;
@@ -8,6 +9,8 @@ export type FinanceWorkspace = {
     withholding: number;
     take_home: number;
     collected_revenue: number;
+    refunded_revenue: number;
+    net_collected_revenue: number;
   };
   ledger_total: number;
   ledger: {
@@ -54,6 +57,7 @@ export type FinanceWorkspace = {
     effective_from: string;
     effective_until: string | null;
     status: string;
+    personnel_type?: string | null;
   }[];
   organizations: {
     id: number;

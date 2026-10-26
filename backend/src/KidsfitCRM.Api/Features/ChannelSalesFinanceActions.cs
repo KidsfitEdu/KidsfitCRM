@@ -131,6 +131,9 @@ public sealed partial class ChannelSalesActions
         if (request.EffectiveFrom <= today) throw ApiValidationException.For("effective_from", "Chính sách mới có hiệu lực sớm nhất từ ngày mai để tránh áp hồi tố.");
         if (request.EffectiveUntil < request.EffectiveFrom) throw ApiValidationException.For("effective_until", "Ngày kết thúc phải từ ngày bắt đầu trở đi.");
         var code = Validation.Required(request.Code, "code", "Vui lòng nhập mã phiên bản.", 48).ToUpperInvariant();
+        var personnelType = CommissionPersonnelTypes.Normalize(CleanOptional(request.PersonnelType, 32));
+        if (personnelType is not null && !CommissionPersonnelTypes.Specific.Contains(personnelType))
+            throw ApiValidationException.For("personnel_type", "Nhóm nhân sự áp dụng không hợp lệ.");
         var name = Validation.Required(request.Name, "name", "Vui lòng nhập tên chính sách.", 190);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var organization = await db.Organizations.FromSqlInterpolated($"SELECT * FROM organizations WHERE id = {request.OrganizationId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
@@ -144,6 +147,7 @@ public sealed partial class ChannelSalesActions
             Code = code,
             Name = name,
             RatePercent = request.RatePercent,
+            PersonnelType = personnelType,
             EffectiveFrom = request.EffectiveFrom,
             EffectiveUntil = request.EffectiveUntil,
             Status = "ACTIVE",
@@ -155,7 +159,7 @@ public sealed partial class ChannelSalesActions
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { throw new ApiConflictException("Mã phiên bản chính sách đã tồn tại."); }
         Audit.Add(db, actorId, "CREATE_COMMISSION_POLICY", nameof(CommissionPolicyVersion), policy.Id, null,
-            new { policy.Code, policy.OrganizationId, policy.RatePercent, policy.EffectiveFrom, policy.EffectiveUntil }, http);
+            new { policy.Code, policy.OrganizationId, policy.PersonnelType, policy.RatePercent, policy.EffectiveFrom, policy.EffectiveUntil }, http);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return policy.Id;
@@ -267,10 +271,12 @@ public sealed partial class ChannelSalesActions
         if (status is not ("ACTIVE" or "SUSPENDED")) throw ApiValidationException.For("status", "Trạng thái không hợp lệ.");
         var previous = membership.Status;
         if (previous == status) return;
-        membership.Status = status;
-        membership.UpdatedAt = DateTime.UtcNow;
-        Audit.Add(db, actorId, "CHANGE_CHANNEL_MEMBERSHIP", nameof(OrganizationMembership), id, new { status = previous }, new { membership.Status }, http);
-        await db.SaveChangesAsync(ct);
+        if (status == "SUSPENDED")
+        {
+            await CompleteSchoolHandover(id, new(request.IdempotencyKey, request.Reason, request.Summary, false), actorId, http, ct);
+            return;
+        }
+        await ReactivateSchoolMembership(id, new(request.Reason ?? "Khôi phục thành viên theo quản lý tài khoản."), actorId, http, ct);
     }
 
     private async Task<Payout> LockPayout(long id, CancellationToken ct) => await db.Payouts.FromSqlInterpolated($"SELECT * FROM payouts WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();

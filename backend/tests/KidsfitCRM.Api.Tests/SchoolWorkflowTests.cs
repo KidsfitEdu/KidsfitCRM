@@ -76,6 +76,7 @@ public sealed class LocalSchoolWorkbookFactAttribute : FactAttribute
     }
 }
 
+[Collection("MySQLIntegration")]
 public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : IClassFixture<ChannelMySqlFixture>
 {
     private static readonly CancellationToken Ct = CancellationToken.None;

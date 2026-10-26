@@ -23,6 +23,10 @@ public static class SchoolWorkbookReader
     private static readonly string[] Headers = ["Mã trường chính", "Loại đơn vị", "Tên đơn vị", "Tỉnh / Thành phố", "Phường / Xã", "Địa chỉ", "Người liên hệ", "Chức vụ", "Số điện thoại", "Email", "SĐT trường", "Ghi chú"];
     private static readonly XNamespace S = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
+    internal static string ProposedMainFingerprint(string code, string name, string province, string ward, string? address,
+        string? contactName, string? contactPosition, string? contactPhone, string? email) =>
+        ChannelSalesValidation.Fingerprint(new string?[] { code, "Trường chính", name, province, ward, address, contactName, contactPosition, contactPhone, email, null, null });
+
     public static ParsedSchoolWorkbook Read(byte[] bytes)
     {
         if (bytes.Length == 0 || bytes.Length > MaxFileBytes) throw Invalid("Chỉ nhận file .xlsx tối đa 2 MB.");
@@ -86,8 +90,8 @@ public static class SchoolWorkbookReader
                 var code = values[0]!.ToUpperInvariant();
                 if (!Regex.IsMatch(code, "^[A-Z0-9_-]{1,64}$")) throw Invalid($"Dòng {rowNumber}: mã trường không hợp lệ.");
                 var kind = values[1] switch { "Trường chính" => "MAIN", "Phân hiệu" => "BRANCH", _ => throw Invalid($"Dòng {rowNumber}: loại đơn vị không hợp lệ.") };
-                if (kind == "MAIN" && values[2]!.Length > 190) throw Invalid($"Dòng {rowNumber}: tên trường chính tối đa 190 ký tự.");
-                if (kind == "MAIN" && values[6]?.Length > 190) throw Invalid($"Dòng {rowNumber}: người liên hệ trường chính tối đa 190 ký tự.");
+                if (kind == "MAIN" && values[2]!.Length > 500) throw Invalid($"Dòng {rowNumber}: tên trường chính tối đa 500 ký tự.");
+                if (kind == "MAIN" && values[6]?.Length > 500) throw Invalid($"Dòng {rowNumber}: người liên hệ trường chính tối đa 500 ký tự.");
                 if (values[6] is not null && values[6]!.All(char.IsDigit)) warnings.Add(new(rowNumber, "CONTACT_COLUMN_REVIEW", "Người liên hệ có dạng số; cần kiểm tra lệch cột."));
                 if (values[2]!.Contains("Phân hiệu 2-", StringComparison.OrdinalIgnoreCase)) warnings.Add(new(rowNumber, "COMBINED_BRANCH", "Có thể chứa nhiều phân hiệu trong một ô; giữ nguyên để rà soát."));
                 if (values[8] is null && values[10] is null) warnings.Add(new(rowNumber, "MISSING_PHONE", "Chưa có số điện thoại liên hệ hoặc số trường."));

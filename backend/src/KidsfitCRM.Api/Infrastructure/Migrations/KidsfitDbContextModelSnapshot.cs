@@ -182,8 +182,8 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnName("code");
 
                     b.Property<string>("ContactName")
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
                         .HasColumnName("contact_name");
 
                     b.Property<string>("ContactPosition")
@@ -207,8 +207,8 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
                         .HasColumnName("display_name");
 
                     b.Property<string>("District")
@@ -616,6 +616,12 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("organization_id");
 
+                    b.Property<string>("PersonnelType")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("personnel_type")
+                        .UseCollation("utf8mb4_bin");
+
                     b.Property<decimal>("RatePercent")
                         .HasPrecision(9, 4)
                         .HasColumnType("decimal(9,4)")
@@ -640,7 +646,148 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId", "Status", "EffectiveFrom");
 
+                    b.HasIndex("OrganizationId", "PersonnelType", "Status", "EffectiveFrom");
+
                     b.ToTable("commission_policy_versions");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractCancellation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<long>("ContractId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DecisionReference")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("decision_reference");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("PreviousStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("previous_status");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("ContractId")
+                        .IsUnique();
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("contract_cancellations");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractCareHandover", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<long>("AssignedUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assigned_user_id");
+
+                    b.Property<long>("CareOrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("care_organization_id");
+
+                    b.Property<long>("ContractId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long?>("PreviousUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("previous_user_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("CareOrganizationId");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("PreviousUserId");
+
+                    b.ToTable("contract_care_handovers");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.Course", b =>
@@ -714,6 +861,21 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("approach_registration_id");
 
+                    b.Property<string>("Commitment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("commitment");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("contact_name");
+
+                    b.Property<string>("ContactPosition")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("contact_position");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("longtext")
@@ -727,9 +889,22 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("customer_id");
 
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("feedback");
+
                     b.Property<DateTime?>("NextFollowUpAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("next_follow_up_at");
+
+                    b.Property<DateTime?>("OccurredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<long?>("SupportCaseId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("support_case_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)")
@@ -742,6 +917,8 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApproachRegistrationId");
+
+                    b.HasIndex("SupportCaseId");
 
                     b.HasIndex("UserId");
 
@@ -870,6 +1047,98 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasIndex("OwnerUserId", "Status", "EffectiveUntil");
 
                     b.ToTable("customer_protections");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.CustomerSupportCase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long>("AssignedUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assigned_user_id");
+
+                    b.Property<long>("ContractId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Outcome")
+                        .HasColumnType("text")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(190)
+                        .HasColumnType("varchar(190)")
+                        .HasColumnName("subject");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("customer_support_cases");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.DirectorySchool", b =>
@@ -2287,6 +2556,91 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("revenue_receipts");
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.RevenueRefund", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(19)
+                        .HasColumnType("decimal(19,0)")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("ContractId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DecisionReference")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("decision_reference");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("RecordedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<string>("ReferenceCode")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("reference_code")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("RefundedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("refunded_at");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("RevenueReceiptId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revenue_receipt_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("RecordedByUserId");
+
+                    b.HasIndex("ReferenceCode")
+                        .IsUnique();
+
+                    b.HasIndex("RevenueReceiptId");
+
+                    b.ToTable("revenue_refunds");
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.RevenueSchedule", b =>
                 {
                     b.Property<long>("Id")
@@ -2379,6 +2733,14 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("approach_registration_id");
 
+                    b.Property<long?>("CareOrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("care_organization_id");
+
+                    b.Property<long?>("CareUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("care_user_id");
+
                     b.Property<string>("ContractCode")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -2427,6 +2789,12 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.Property<long>("OwnerOrganizationId")
                         .HasColumnType("bigint")
                         .HasColumnName("owner_organization_id");
+
+                    b.Property<string>("OwnerPersonnelType")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("owner_personnel_type")
+                        .UseCollation("utf8mb4_bin");
 
                     b.Property<long>("OwnerUserId")
                         .HasColumnType("bigint")
@@ -2480,6 +2848,10 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApproachRegistrationId");
+
+                    b.HasIndex("CareOrganizationId");
+
+                    b.HasIndex("CareUserId");
 
                     b.HasIndex("ContractCode")
                         .IsUnique();
@@ -2599,6 +2971,368 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("school_capacity_changes");
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolDeferral", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("DirectorySchoolId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("directory_school_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("ManagerUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("manager_user_id");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("ReviewAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("review_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DirectorySchoolId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ManagerUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("school_deferrals");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolDispute", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Decision")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("decision");
+
+                    b.Property<string>("DecisionReason")
+                        .HasColumnType("text")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("OpenedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("opened_by_user_id");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<long?>("ResolvedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("resolved_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OpenedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ResolvedByUserId");
+
+                    b.ToTable("school_disputes");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolExtensionRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ApproachRegistrationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approach_registration_id");
+
+                    b.Property<DateTime?>("ApprovedUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("approved_until");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DecisionReason")
+                        .HasColumnType("text")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("ManagerUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("manager_user_id");
+
+                    b.Property<DateTime>("NextAppointmentAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("next_appointment_at");
+
+                    b.Property<DateTime?>("NextReviewAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("next_review_at");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTime>("OriginalProtectedUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("original_protected_until");
+
+                    b.Property<long?>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<string>("Progress")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("progress");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<DateTime>("RequestedUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("requested_until");
+
+                    b.Property<DateTime>("ReviewDueAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("review_due_at");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<long?>("ReviewedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("PolicyVersionId");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("ApproachRegistrationId", "Status");
+
+                    b.HasIndex("ManagerUserId", "Status", "ReviewDueAt");
+
+                    b.ToTable("school_extension_requests");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolHandover", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AccountSuspended")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("account_suspended");
+
+                    b.Property<long>("CompletedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("completed_by_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("MembershipId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("membership_id");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<int>("RevokedRegistrations")
+                        .HasColumnType("int")
+                        .HasColumnName("revoked_registrations");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("summary");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletedByUserId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("MembershipId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("school_handovers");
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolImportBatch", b =>
                 {
                     b.Property<long>("Id")
@@ -2654,6 +3388,239 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("school_import_batches");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolInvitation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long?>("ApproachRegistrationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approach_registration_id");
+
+                    b.Property<long>("AssignedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assigned_by_user_id");
+
+                    b.Property<long>("AssigneeUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assignee_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("DirectorySchoolId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("directory_school_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("RespondBy")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("respond_by");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("responded_at");
+
+                    b.Property<string>("ResponseReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("response_reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApproachRegistrationId");
+
+                    b.HasIndex("AssignedByUserId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("AssigneeUserId", "Status");
+
+                    b.HasIndex("DirectorySchoolId", "Status", "RespondBy");
+
+                    b.ToTable("school_invitations");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolProposal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("contact_name");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasColumnName("contact_phone");
+
+                    b.Property<string>("ContactPosition")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("contact_position");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DecisionReason")
+                        .HasColumnType("text")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<long?>("DirectorySchoolId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("directory_school_id");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(190)
+                        .HasColumnType("varchar(190)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("idempotency_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime?>("ManagerReviewedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("manager_reviewed_at");
+
+                    b.Property<long>("ManagerUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("manager_user_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("province");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("ReviewDueAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("review_due_at");
+
+                    b.Property<long?>("ReviewedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("SchoolCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("school_code")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Ward")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ward");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DirectorySchoolId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("SubmittedByUserId");
+
+                    b.HasIndex("Status", "ReviewDueAt");
+
+                    b.HasIndex("ManagerUserId", "Status", "ReviewDueAt");
+
+                    b.ToTable("school_proposals");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolUnit", b =>
@@ -2738,6 +3705,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("updated_at");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
                     b.Property<string>("Ward")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2750,6 +3722,142 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("school_units");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolUnitRevision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<string>("AfterValues")
+                        .IsRequired()
+                        .HasColumnType("json")
+                        .HasColumnName("after_values");
+
+                    b.Property<string>("BeforeValues")
+                        .IsRequired()
+                        .HasColumnType("json")
+                        .HasColumnName("before_values");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("SchoolUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("school_unit_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("SchoolUnitId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("school_unit_revisions");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolWorkflowPolicyVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AdminReviewHours")
+                        .HasColumnType("int")
+                        .HasColumnName("admin_review_hours");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("DecisionReference")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("decision_reference")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<int>("InvitationHours")
+                        .HasColumnType("int")
+                        .HasColumnName("invitation_hours");
+
+                    b.Property<int>("ManagerReviewHours")
+                        .HasColumnType("int")
+                        .HasColumnName("manager_review_hours");
+
+                    b.Property<int>("MaxExtensionCount")
+                        .HasColumnType("int")
+                        .HasColumnName("max_extension_count");
+
+                    b.Property<int>("MaxExtensionDays")
+                        .HasColumnType("int")
+                        .HasColumnName("max_extension_days");
+
+                    b.Property<int>("MaxTotalExtensionDays")
+                        .HasColumnType("int")
+                        .HasColumnName("max_total_extension_days");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_fingerprint")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OrganizationId", "DecisionReference")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("school_workflow_policies");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.Student", b =>
@@ -3155,6 +4263,53 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractCancellation", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.SalesContract", null)
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractCareHandover", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("CareOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.SalesContract", null)
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("PreviousUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.CustomerActivity", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.ApproachRegistration", null)
@@ -3167,6 +4322,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.CustomerSupportCase", null)
+                        .WithMany()
+                        .HasForeignKey("SupportCaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
                         .WithMany()
@@ -3211,6 +4371,39 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
                         .WithMany()
                         .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.CustomerSupportCase", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.SalesContract", null)
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -3596,6 +4789,27 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.RevenueRefund", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.SalesContract", null)
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.RevenueReceipt", null)
+                        .WithMany()
+                        .HasForeignKey("RevenueReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.RevenueSchedule", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.SalesContract", null)
@@ -3612,6 +4826,16 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasForeignKey("ApproachRegistrationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("CareOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("CareUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
                         .WithMany()
@@ -3673,6 +4897,117 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolDeferral", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.DirectorySchool", null)
+                        .WithMany()
+                        .HasForeignKey("DirectorySchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ManagerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolDispute", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("OpenedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolExtensionRequest", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.ApproachRegistration", null)
+                        .WithMany()
+                        .HasForeignKey("ApproachRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ManagerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.SchoolWorkflowPolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("PolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolHandover", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("CompletedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.OrganizationMembership", null)
+                        .WithMany()
+                        .HasForeignKey("MembershipId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolImportBatch", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
@@ -3688,11 +5023,104 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolInvitation", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.ApproachRegistration", null)
+                        .WithMany()
+                        .HasForeignKey("ApproachRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("AssigneeUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.DirectorySchool", null)
+                        .WithMany()
+                        .HasForeignKey("DirectorySchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolProposal", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.DirectorySchool", null)
+                        .WithMany()
+                        .HasForeignKey("DirectorySchoolId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ManagerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolUnit", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.DirectorySchool", null)
                         .WithMany()
                         .HasForeignKey("DirectorySchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolUnitRevision", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.SchoolUnit", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolWorkflowPolicyVersion", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -33,7 +33,8 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
     }
 
     public IQueryable<SalesContract> Contracts(KidsfitDbContext db) => All ? db.SalesContracts : db.SalesContracts.Where(x =>
-        OrganizationIds.Contains(x.OwnerOrganizationId) && (Organization || x.OwnerUserId == UserId));
+        (OrganizationIds.Contains(x.OwnerOrganizationId) && (Organization || x.OwnerUserId == UserId))
+        || (HasCareAccess && x.CareUserId == UserId && x.CareOrganizationId.HasValue && OrganizationIds.Contains(x.CareOrganizationId.Value)));
 
     public IQueryable<CommissionLedgerEntry> Commissions(KidsfitDbContext db) => All ? db.CommissionLedgerEntries : db.CommissionLedgerEntries.Where(x =>
         OrganizationIds.Contains(x.BeneficiaryOrganizationId) && (Organization || x.BeneficiaryUserId == UserId));
@@ -49,14 +50,22 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
             (Organization && OrganizationIds.Contains(x.OrganizationId))
             || db.ApproachRegistrations.Any(r => r.CustomerId == x.Id && OrganizationIds.Contains(r.OwnerOrganizationId) && (Organization || r.OwnerUserId == UserId))
             || db.SalesContracts.Any(c => c.CustomerId == x.Id && OrganizationIds.Contains(c.OwnerOrganizationId) && (Organization || c.OwnerUserId == UserId))
+            || (HasCareAccess && db.SalesContracts.Any(c => c.CustomerId == x.Id && c.CareUserId == UserId && c.CareOrganizationId.HasValue && OrganizationIds.Contains(c.CareOrganizationId.Value)))
             || (OrganizationIds.Contains(x.OrganizationId) && !db.CustomerProtections.Any(p => p.CustomerId == x.Id && p.Status == "ACTIVE" && p.EffectiveUntil > now))
             || (HasReconciliation && db.ReconciliationCases.Any(r => r.CustomerId == x.Id && OrganizationIds.Contains(r.CheckeeOrganizationId))));
         if (!Has(Permissions.ChannelSalesRegister) && !HasReconciliation && !Has(Permissions.ChannelSalesRecordRevenue) && !Has(Permissions.ChannelSalesCommissionView))
-            scoped = scoped.Where(x => x.LifecycleStatus == "CONTRACTED");
+        {
+            scoped = scoped.Where(x => x.LifecycleStatus == "CONTRACTED" || (HasCareAccess && db.SalesContracts.Any(c => c.CustomerId == x.Id && c.CareUserId == UserId && c.CareOrganizationId.HasValue && OrganizationIds.Contains(c.CareOrganizationId.Value))));
+            if (HasCareAccess)
+                scoped = scoped.Where(x => db.SalesContracts.Any(c => c.CustomerId == x.Id
+                    && ((Organization && OrganizationIds.Contains(c.OwnerOrganizationId))
+                        || (c.CareUserId == UserId && c.CareOrganizationId.HasValue && OrganizationIds.Contains(c.CareOrganizationId.Value)))));
+        }
         return scoped;
     }
 
     private bool HasReconciliation => Has(Permissions.ChannelSalesReconcile);
+    private bool HasCareAccess => Has(Permissions.SchoolSupportManage);
 }
 
 public static class ChannelSalesValidation

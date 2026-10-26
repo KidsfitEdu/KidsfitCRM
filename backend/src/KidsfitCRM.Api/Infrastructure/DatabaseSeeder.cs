@@ -181,6 +181,18 @@ public static class DatabaseSeeder
             (Permissions.SchoolCapacityManage, "Điều chỉnh hạn mức trường của CTV"),
             (Permissions.SchoolContractReview, "Kiểm tra hợp đồng trường học"),
             (Permissions.SchoolProtectionGrant, "Ghi nhận bảo vệ trường đã xác minh"),
+            (Permissions.SchoolProposalSubmit, "Đề xuất trường qua quản lý"),
+            (Permissions.SchoolProposalReview, "Xét đề xuất của nhân sự"),
+            (Permissions.SchoolAllocationManage, "Phân bổ và rà soát trường"),
+            (Permissions.SchoolExtensionReview, "Xét gia hạn tiếp cận"),
+            (Permissions.SchoolDisputeResolve, "Kết luận tranh chấp trường"),
+            (Permissions.SchoolEscalationResolve, "Xử lý công việc trường quá hạn"),
+            (Permissions.SchoolHandoverManage, "Bàn giao nhân sự ngưng hoạt động"),
+            (Permissions.SchoolCareAssign, "Phân công và bàn giao CSKH"),
+            (Permissions.SchoolSupportManage, "Quản lý yêu cầu hỗ trợ khách hàng"),
+            (Permissions.SchoolWorkflowPolicyManage, "Xác nhận chính sách vận hành trường"),
+            (Permissions.ChannelSalesContractCancel, "Ghi nhận quyết định hủy hợp đồng"),
+            (Permissions.ChannelSalesRevenueRefund, "Ghi nhận khoản hoàn tiền thực tế"),
         };
         var existingPermissionCodes = await db.Permissions.Where(x => x.Code.StartsWith("channel_sales.")).Select(x => x.Code).ToArrayAsync();
         db.Permissions.AddRange(channelPermissionSeeds.Where(x => !existingPermissionCodes.Contains(x.Code)).Select(x => new Permission
@@ -230,7 +242,13 @@ public static class DatabaseSeeder
         };
         var currentLinks = await db.PermissionRoles.Select(x => new { x.RoleId, x.PermissionId }).ToListAsync();
         foreach (var managerRole in new[] { "SALES_MANAGER", "PARTNER_ADMIN" })
-            rolePermissions[managerRole] = [.. rolePermissions[managerRole], Permissions.SchoolContractReview];
+            rolePermissions[managerRole] = [.. rolePermissions[managerRole], Permissions.SchoolContractReview, Permissions.SchoolProposalReview,
+                Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage, Permissions.SchoolCareAssign];
+        foreach (var salesRole in new[] { "SALES", "CHANNEL_SALES", "PARTNER_COLLABORATOR" })
+            rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
+        rolePermissions["BOARD"] = [.. rolePermissions["BOARD"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve];
+        rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund];
+        rolePermissions["CUSTOMER_CARE"] = [.. rolePermissions["CUSTOMER_CARE"], Permissions.SchoolSupportManage];
         foreach (var bundle in rolePermissions)
         {
             if (!roleByCode.TryGetValue(bundle.Key, out var role)) continue;
@@ -298,7 +316,9 @@ public static class DatabaseSeeder
             });
         }
         await EnsureMembership(kidsfit, admin, "ADMIN", true);
-        await EnsureMembership(kidsfit, sales, "SALES", true, admin.Id);
+        await EnsureMembership(kidsfit, sales, "SALES", true, manager.Id);
+        var sampleSalesMembership = await db.OrganizationMemberships.SingleOrDefaultAsync(x => x.UserId == sales.Id && x.OrganizationId == kidsfit.Id);
+        if (sampleSalesMembership?.ManagerUserId == admin.Id) sampleSalesMembership.ManagerUserId = manager.Id;
         await EnsureMembership(kidsfit, accountant, "ACCOUNTANT", true, admin.Id);
         await EnsureMembership(kidsfit, board, "BOARD", true, admin.Id);
         await EnsureMembership(kidsfit, manager, "SALES_MANAGER", true, admin.Id);

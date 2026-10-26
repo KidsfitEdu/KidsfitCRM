@@ -72,6 +72,12 @@ public sealed class ApproachRegistration : EntityBase
 
 public sealed class CustomerActivity : EntityBase
 {
+    public long? SupportCaseId { get; set; }
+    public DateTime? OccurredAt { get; set; }
+    public string? ContactName { get; set; }
+    public string? ContactPosition { get; set; }
+    public string? Feedback { get; set; }
+    public string? Commitment { get; set; }
     public long CustomerId { get; set; }
     public long? ApproachRegistrationId { get; set; }
     public long UserId { get; set; }
@@ -91,6 +97,9 @@ public sealed class CheckeeProductPackage : EntityBase
 
 public sealed class SalesContract : EntityBase
 {
+    public string? OwnerPersonnelType { get; set; }
+    public long? CareUserId { get; set; }
+    public long? CareOrganizationId { get; set; }
     public bool RequiresSchoolVerification { get; set; }
     public DateTime? ManagerReviewedAt { get; set; }
     public long? ManagerReviewedByUserId { get; set; }
@@ -161,6 +170,7 @@ public sealed class RevenueReceipt : EntityBase
 
 public sealed class CommissionPolicyVersion : EntityBase
 {
+    public string? PersonnelType { get; set; }
     public long? OrganizationId { get; set; }
     public string Code { get; set; } = "";
     public string Name { get; set; } = "";

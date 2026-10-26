@@ -113,9 +113,10 @@ public static class ChannelSalesEndpoints
             .OrderByDescending(x => x.SourceType == "CONTRACT")
             .ThenByDescending(x => x.EffectiveUntil)
             .ToListAsync(cancellationToken);
+        var scopedContractIds = access.Contracts(db).Select(x => x.Id);
         var contracts = await db.SalesContracts.AsNoTracking()
             .Where(x => customerIds.Contains(x.CustomerId) && x.Status == "ACTIVE")
-            .Where(x => allScope || (organizationIds.Contains(x.OwnerOrganizationId) && (hasOrganizationScope || x.OwnerUserId == actorId)) || reconciliationScopeCustomerIds.Contains(x.CustomerId))
+            .Where(x => scopedContractIds.Contains(x.Id) || reconciliationScopeCustomerIds.Contains(x.CustomerId))
             .OrderByDescending(x => x.SignedOn)
             .ToListAsync(cancellationToken);
         var contractIds = contracts.Select(x => x.Id).ToArray();
@@ -129,6 +130,8 @@ public static class ChannelSalesEndpoints
             .GroupBy(x => x.ContractId)
             .Select(x => new { ContractId = x.Key, Total = x.Sum(row => row.Amount) })
             .ToDictionaryAsync(x => x.ContractId, x => x.Total, cancellationToken);
+        var refunds = await db.RevenueRefunds.AsNoTracking().Where(x => contractIds.Contains(x.ContractId)).GroupBy(x => x.ContractId)
+            .Select(x => new { ContractId = x.Key, Total = x.Sum(row => row.Amount) }).ToDictionaryAsync(x => x.ContractId, x => x.Total, cancellationToken);
         var reconciliations = await db.ReconciliationCases.AsNoTracking()
             .Where(x => contractIds.Contains(x.ContractId))
             .ToDictionaryAsync(x => x.ContractId, cancellationToken);
@@ -158,7 +161,7 @@ public static class ChannelSalesEndpoints
                 reconciliationOnly ? null : customer.Email, reconciliationOnly ? null : customer.ContactName, reconciliationOnly ? null : customer.Source, visibleStatus, customer.LifecycleStatus,
                 canManageApproach ? registration?.Id : null, registration?.Status, protection is null ? null : owners.GetValueOrDefault(protection.OwnerUserId),
                 protection?.EffectiveUntil, reconciliationOnly ? null : followUps.GetValueOrDefault(customer.Id), contract?.Id, contract?.ContractCode,
-                contract?.TotalValue ?? 0, !canSeeRevenue || contract is null ? 0 : receipts.GetValueOrDefault(contract.Id),
+                contract is null || (!canSeeRevenue && !access.Has(Permissions.ChannelSalesReconcile)) ? 0 : contract.TotalValue, !canSeeRevenue || contract is null ? 0 : receipts.GetValueOrDefault(contract.Id) - refunds.GetValueOrDefault(contract.Id),
                 !canSeeCommission || contract is null ? 0 : commissions.GetValueOrDefault(contract.Id),
                 contract is null ? null : reconciliations.GetValueOrDefault(contract.Id)?.Status,
                 canManageApproach, canRecordCustomerRevenue);
@@ -178,7 +181,7 @@ public static class ChannelSalesEndpoints
         var packages = await db.CheckeeProductPackages.AsNoTracking().Where(x => x.Status == "ACTIVE")
             .OrderBy(x => x.ListPrice).Select(x => new { x.Id, x.Code, x.Name, x.Description, x.ListPrice }).ToListAsync(cancellationToken);
         var pendingReconciliations = await db.ReconciliationCases.AsNoTracking()
-            .Where(x => visibleContractIds.Contains(x.ContractId) && (x.Status == "PENDING" || x.Status == "DISPUTED"))
+            .Where(x => visibleContractIds.Contains(x.ContractId) && (x.Status == "PENDING" || x.Status == "DISPUTED" || x.Status == "REVIEW_REQUIRED"))
             .OrderByDescending(x => x.OpenedAt)
             .Select(x => new { x.Id, x.CustomerId, x.ContractId, x.Status, x.DisputeReason, x.OpenedAt })
             .ToListAsync(cancellationToken);

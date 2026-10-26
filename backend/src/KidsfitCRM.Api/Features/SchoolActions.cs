@@ -119,6 +119,8 @@ public sealed partial class ChannelSalesActions
         if (!contract.RequiresSchoolVerification || !access.CanManageOrganization(contract.OwnerOrganizationId)) throw new KeyNotFoundException();
         if (contract.ManagerReviewedAt is not null) return;
         if (contract.Status != "PENDING_REVIEW") throw new ApiConflictException("Hợp đồng không ở bước quản lý kiểm tra.");
+        if (string.IsNullOrWhiteSpace(contract.EvidenceReference) || !await db.SalesContractItems.AnyAsync(x => x.ContractId == contract.Id && x.Quantity > 0 && x.Amount > 0, ct))
+            throw new ApiConflictException("Hồ sơ cần đủ hợp đồng, gói sản phẩm và tham chiếu bằng chứng trước khi chuyển xác minh.");
         contract.Status = "MANAGER_REVIEWED";
         contract.ManagerReviewedAt = DateTime.UtcNow;
         contract.ManagerReviewedByUserId = actorId;

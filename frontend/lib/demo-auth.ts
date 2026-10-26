@@ -48,6 +48,37 @@ const channelAdmin = [
   'channel_sales.school.protection.grant',
 ];
 
+const schoolManagerAbilities = [
+  'channel_sales.school.proposal.review',
+  'channel_sales.school.allocation.manage',
+  'channel_sales.school.extension.review',
+  'channel_sales.school.handover.manage',
+  'channel_sales.school.care.assign',
+];
+const schoolAbilitiesByProfile: Record<string, string[]> = {
+  admin: [
+    ...schoolManagerAbilities,
+    'channel_sales.school.proposal.submit',
+    'channel_sales.school.dispute.resolve',
+    'channel_sales.school.escalation.resolve',
+    'channel_sales.school.support.manage',
+    'channel_sales.school.workflow_policy.manage',
+    'channel_sales.contract.cancel',
+    'channel_sales.revenue.refund',
+  ],
+  board: [
+    'channel_sales.school.dispute.resolve',
+    'channel_sales.school.escalation.resolve',
+  ],
+  accountant: ['channel_sales.contract.cancel', 'channel_sales.revenue.refund'],
+  manager: schoolManagerAbilities,
+  care: ['channel_sales.school.support.manage'],
+  sales: ['channel_sales.school.proposal.submit'],
+  checkee: [],
+  partner: schoolManagerAbilities,
+  ctv: ['channel_sales.school.proposal.submit'],
+};
+
 export const demoAccounts: DemoAccount[] = [
   {
     id: 'admin',
@@ -169,7 +200,15 @@ export const demoAccounts: DemoAccount[] = [
     description: 'Thử đăng ký tiếp cận và theo dõi khách hàng mẫu.',
     abilities: [...salesActions],
   },
-];
+].map((account) => ({
+  ...account,
+  abilities: [
+    ...new Set([
+      ...account.abilities,
+      ...(schoolAbilitiesByProfile[account.id] ?? []),
+    ]),
+  ],
+}));
 
 // Public-facing alias only; preserve legacy credentials and session IDs.
 export function demoLoginEmail(account: DemoAccount): string {

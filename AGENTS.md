@@ -6,6 +6,7 @@
 - For KidsfitCRM domain, schema, workflow, API, UI, architecture, security, or review work, use the repository skill at `.agents/skills/kidsfit-crm-development/SKILL.md` and load only its relevant references. Database work must also load `references/mysql-conventions.md`.
 - For every CHECKEE, customer-protection, partner/CTV, contract, revenue, commission, payout, or reconciliation request, also load `.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md` before planning or editing.
 - For school directory/import, branch, CTV capacity, assignment, proposal, extension, or school-contract verification work, also load `.agents/skills/kidsfit-crm-development/references/school-directory-workflows.md`.
+- For workflows from `KidsfitCRM_Notes.docx`, also read `docs/CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md`. Its `DRAFT` recommendations are proposals, not approved runtime rules. Keep its requirement matrix and verification evidence accurate when changing these workflows.
 - Resolve conflicts in this order: the current user request, accepted product decisions and tests, existing code/schema contracts, then the baseline skill references. Call out breaking conflicts rather than silently choosing one.
 
 ## Product invariants

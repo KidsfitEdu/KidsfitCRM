@@ -56,13 +56,22 @@ public sealed class ChannelMySqlFixture : IAsyncLifetime
         if (string.IsNullOrWhiteSpace(adminConnection) || ConnectionString == "") return;
         if (!Regex.IsMatch(databaseName, "^kidsfit_it_[a-f0-9]{32}$")) throw new InvalidOperationException("Unexpected test database name.");
         var builder = new MySqlConnectionStringBuilder(adminConnection) { Database = "mysql" };
-        MySqlConnection.ClearAllPools();
+        // Each fixture owns a distinct database/pool. Clearing every pool can interrupt
+        // another concurrently running fixture and strand its asynchronous command.
+        await using var ownedPool = new MySqlConnection(ConnectionString);
+        MySqlConnection.ClearPool(ownedPool);
         await using var connection = new MySqlConnection(builder.ConnectionString);
         await connection.OpenAsync();
         await new MySqlCommand($"DROP DATABASE `{databaseName}`", connection).ExecuteNonQueryAsync();
     }
 }
 
+[CollectionDefinition("MySQLIntegration", DisableParallelization = true)]
+public sealed class MySqlIntegrationCollection;
+
+// Serialize create/migrate/drop fixture lifecycles on the local server.
+// Race-condition tests still run their competing actions with Task.WhenAll.
+[Collection("MySQLIntegration")]
 public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClassFixture<ChannelMySqlFixture>
 {
     private static readonly CancellationToken Ct = CancellationToken.None;
@@ -315,7 +324,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.False(access.Has(Permissions.ChannelSalesIdentityManage));
         Assert.True(access.Has(Permissions.ChannelSalesRegister));
         var membershipId = await db.OrganizationMemberships.Where(x => x.UserId == userId).Select(x => x.Id).SingleAsync();
-        await actions.ChangeMembershipStatus(membershipId, new("SUSPENDED"), partner, Http(), Ct);
+        await actions.ChangeMembershipStatus(membershipId, new("SUSPENDED", "CTV ngưng hợp tác", "Không có lịch hẹn hoặc cam kết chưa bàn giao.", Key()), partner, Http(), Ct);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.RegisterCustomerApproach(Approach(), userId, Http(), Ct));
     }
 

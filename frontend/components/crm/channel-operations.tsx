@@ -12,8 +12,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SchoolDirectory } from './school-directory';
+import { EvidenceReference, SchoolOperations } from './school-operations';
+import { SchoolActionForm } from './school-action-form';
 import {
   BadgeCheck,
+  ClipboardList,
   Building2,
   Check,
   ChevronRight,
@@ -53,7 +56,13 @@ type Props = {
   customerView: (onOpenCustomer?: (id: number) => void) => ReactNode;
   onChanged: () => Promise<void>;
 };
-type Panel = 'customers' | 'schools' | 'reconciliation' | 'finance' | 'team';
+type Panel =
+  | 'customers'
+  | 'schools'
+  | 'operations'
+  | 'reconciliation'
+  | 'finance'
+  | 'team';
 type Command = { path: string; body?: unknown; method?: string };
 
 export function ChannelOperations(props: Props) {
@@ -128,6 +137,12 @@ function OperationsContent({
     await mutation.mutateAsync(command);
   };
   const tabs = [
+    {
+      id: 'operations' as Panel,
+      label: 'Vận hành',
+      icon: ClipboardList,
+      show: true,
+    },
     {
       id: 'schools' as Panel,
       label: 'Trường học',
@@ -204,6 +219,14 @@ function OperationsContent({
         customerView(connected ? setCustomerId : undefined)}
       {panel === 'schools' && (
         <SchoolDirectory
+          apiBase={apiBase}
+          token={token}
+          abilities={abilities}
+          onChanged={onChanged}
+        />
+      )}
+      {panel === 'operations' && (
+        <SchoolOperations
           apiBase={apiBase}
           token={token}
           abilities={abilities}
@@ -306,14 +329,14 @@ function OperationsContent({
                         </Button>
                         <Button
                           disabled={mutation.isPending}
-                          onClick={() =>
+                          onClick={() => {
                             run({
                               path: `/reconciliation-cases/${item.id}/confirm`,
                               body: {
                                 reason: 'Đã kiểm tra hồ sơ và quyền bảo vệ.',
                               },
-                            }).catch(() => undefined)
-                          }
+                            }).catch(() => undefined);
+                          }}
                         >
                           <BadgeCheck /> Xác nhận
                         </Button>
@@ -431,7 +454,40 @@ function OperationsContent({
                           variant="outline"
                           size="sm"
                           disabled={mutation.isPending}
-                          onClick={() =>
+                          onClick={() => {
+                            if (member.status === 'ACTIVE') {
+                              setModal(
+                                <SchoolActionForm
+                                  action={{
+                                    title: 'Bàn giao và ngưng thành viên',
+                                    description:
+                                      'Thu hồi quyền chưa ký, giữ hợp đồng và hoa hồng hợp lệ.',
+                                    path: '/team/' + member.id + '/status',
+                                    method: 'PATCH',
+                                    preset: { status: 'SUSPENDED' },
+                                    danger: true,
+                                    fields: [
+                                      {
+                                        name: 'reason',
+                                        label: 'Lý do ngưng hoạt động',
+                                        type: 'textarea',
+                                      },
+                                      {
+                                        name: 'summary',
+                                        label:
+                                          'Lịch hẹn, cam kết và nội dung bàn giao',
+                                        type: 'textarea',
+                                      },
+                                    ],
+                                  }}
+                                  save={async (command) => {
+                                    await run(command);
+                                    setModal(null);
+                                  }}
+                                />,
+                              );
+                              return;
+                            }
                             run({
                               path: `/team/${member.id}/status`,
                               method: 'PATCH',
@@ -441,8 +497,8 @@ function OperationsContent({
                                     ? 'SUSPENDED'
                                     : 'ACTIVE',
                               },
-                            }).catch(() => undefined)
-                          }
+                            }).catch(() => undefined);
+                          }}
                         >
                           {member.status === 'ACTIVE'
                             ? 'Tạm ngưng'
@@ -506,9 +562,11 @@ function OperationsContent({
                       {channelDate(contract.protection_until)}
                     </p>
                     {contract.evidence_reference && (
-                      <p className="mt-2 break-all text-xs text-muted-foreground">
-                        Tham chiếu: {contract.evidence_reference}
-                      </p>
+                      <div className="mt-2">
+                        <EvidenceReference
+                          value={contract.evidence_reference}
+                        />
+                      </div>
                     )}
                   </div>
                 ))}
@@ -605,7 +663,9 @@ function FinancePanel({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card p-4">
         <p className="text-sm text-muted-foreground">
-          Thực thu {money(data.summary.collected_revenue)} · Đã chi{' '}
+          Thực thu gộp {money(data.summary.collected_revenue)} · Đã hoàn{' '}
+          {money(data.summary.refunded_revenue)} · Thu ròng{' '}
+          {money(data.summary.net_collected_revenue)} · Đã chi{' '}
           {money(data.summary.paid)} · Khấu trừ{' '}
           {money(data.summary.withholding)}
         </p>
@@ -851,6 +911,12 @@ function FinancePanel({
                   {policy.rate_percent}%
                 </span>
               </div>
+              <p className="mt-1 text-xs font-medium text-violet-600">
+                {policy.personnel_type
+                  ? (personnelCopy[policy.personnel_type] ??
+                    policy.personnel_type)
+                  : 'Áp dụng chung trong phạm vi chính sách'}
+              </p>
               <p className="mt-2 text-xs text-muted-foreground">
                 {policy.code} · Từ {channelDate(policy.effective_from)}
                 {policy.effective_until
@@ -1065,6 +1131,7 @@ const policySchema = z.object({
   name: z.string().trim().min(2).max(190),
   rate_percent: z.coerce.number<number>().min(0).max(100),
   effective_from: z.string().min(10),
+  personnel_type: z.string(),
 });
 function PolicyForm({
   data,
@@ -1081,6 +1148,7 @@ function PolicyForm({
       name: '',
       rate_percent: 0,
       effective_from: '',
+      personnel_type: '',
     },
   });
   const [error, setError] = useState('');
@@ -1100,6 +1168,16 @@ function PolicyForm({
       <DialogDescription>
         Ngày hiệu lực sớm nhất từ ngày mai; tỷ lệ không vượt hạn mức được giao.
       </DialogDescription>
+      <Label text="Nhóm nhân sự áp dụng">
+        <Select {...form.register('personnel_type')}>
+          <option value="">Chính sách chung</option>
+          {data.personnel_types?.map((code) => (
+            <option key={code} value={code}>
+              {personnelCopy[code] ?? code}
+            </option>
+          ))}
+        </Select>
+      </Label>
       <Label text="Tổ chức">
         <Select {...form.register('organization_id', { valueAsNumber: true })}>
           {data.organizations.map((item) => (
@@ -1406,6 +1484,8 @@ function StateBadge({ value }: { value: string }) {
 const errorMessage = (cause: unknown) =>
   cause instanceof Error ? cause.message : 'Không thể lưu dữ liệu.';
 const stateCopy: Record<string, string> = {
+  REVIEW_REQUIRED: 'Cần đối soát lại',
+  CANCELLED: 'Đã hủy',
   ACTIVE: 'Hoạt động',
   SUSPENDED: 'Tạm ngưng',
   PENDING: 'Chờ xác nhận',
@@ -1416,6 +1496,12 @@ const stateCopy: Record<string, string> = {
   APPROVED: 'Đã duyệt',
   PAID: 'Đã chi',
   ACCRUED: 'Phát sinh',
+};
+const personnelCopy: Record<string, string> = {
+  SALES: 'Nhân viên bán hàng',
+  COLLABORATOR: 'Cộng tác viên',
+  SALES_MANAGER: 'Quản lý bán hàng',
+  PARTNER_ADMIN: 'Quản lý đối tác',
 };
 const eventCopy: Record<string, string> = {
   OPENED: 'Mở đối soát',

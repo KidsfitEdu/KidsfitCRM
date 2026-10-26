@@ -161,6 +161,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
 
         ConfigureChannelSales(modelBuilder);
         ConfigureSchools(modelBuilder);
+        ConfigureSchoolOperations(modelBuilder);
 
         ConfigureForeignKeys(modelBuilder);
 
@@ -189,7 +190,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<OrganizationMembership>().Property(x => x.Status).HasMaxLength(24);
 
         b.Entity<ChannelCustomer>().Property(x => x.CustomerType).HasMaxLength(24);
-        b.Entity<ChannelCustomer>().Property(x => x.DisplayName).HasMaxLength(190);
+        b.Entity<ChannelCustomer>().Property(x => x.DisplayName).HasMaxLength(500);
         b.Entity<ChannelCustomer>().Property(x => x.LegalName).HasMaxLength(190);
         b.Entity<ChannelCustomer>().Property(x => x.TaxCode).HasMaxLength(32);
         b.Entity<ChannelCustomer>().Property(x => x.Phone).HasMaxLength(40);
@@ -199,7 +200,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<ChannelCustomer>().Property(x => x.CheckeeCustomerCode).HasMaxLength(64);
         b.Entity<ChannelCustomer>().Property(x => x.Province).HasMaxLength(100);
         b.Entity<ChannelCustomer>().Property(x => x.District).HasMaxLength(100);
-        b.Entity<ChannelCustomer>().Property(x => x.ContactName).HasMaxLength(190);
+        b.Entity<ChannelCustomer>().Property(x => x.ContactName).HasMaxLength(500);
         b.Entity<ChannelCustomer>().Property(x => x.ContactPosition).HasMaxLength(120);
         b.Entity<ChannelCustomer>().Property(x => x.Source).HasMaxLength(80);
         b.Entity<ChannelCustomer>().Property(x => x.LifecycleStatus).HasMaxLength(24);
@@ -228,6 +229,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Money<CheckeeProductPackage>(b, x => x.ListPrice);
 
         b.Entity<SalesContract>().Property(x => x.ContractCode).HasMaxLength(64).UseCollation("utf8mb4_bin");
+        b.Entity<SalesContract>().Property(x => x.OwnerPersonnelType).HasMaxLength(32).UseCollation("utf8mb4_bin");
         b.Entity<SalesContract>().Property(x => x.Currency).HasMaxLength(3);
         b.Entity<SalesContract>().Property(x => x.Status).HasMaxLength(24);
         b.Entity<SalesContract>().Property(x => x.EvidenceReference).HasMaxLength(500);
@@ -267,6 +269,8 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<RevenueReceipt>().HasIndex(x => new { x.ContractId, x.ReceivedAt });
 
         b.Entity<CommissionPolicyVersion>().Property(x => x.Name).HasMaxLength(190);
+        b.Entity<CommissionPolicyVersion>().Property(x => x.PersonnelType).HasMaxLength(32).UseCollation("utf8mb4_bin");
+        b.Entity<CommissionPolicyVersion>().HasIndex(x => new { x.OrganizationId, x.PersonnelType, x.Status, x.EffectiveFrom });
         b.Entity<CommissionPolicyVersion>().Property(x => x.RatePercent).HasPrecision(9, 4);
         b.Entity<CommissionPolicyVersion>().Property(x => x.Status).HasMaxLength(24);
         DateOnlyProperty(b.Entity<CommissionPolicyVersion>().Property(x => x.EffectiveFrom));

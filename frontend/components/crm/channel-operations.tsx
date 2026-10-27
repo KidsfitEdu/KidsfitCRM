@@ -55,8 +55,9 @@ type Props = {
   abilities: string[];
   customerView: (onOpenCustomer?: (id: number) => void) => ReactNode;
   onChanged: () => Promise<void>;
+  initialPanel?: Panel;
 };
-type Panel =
+export type Panel =
   | 'customers'
   | 'schools'
   | 'operations'
@@ -85,8 +86,9 @@ function OperationsContent({
   abilities,
   customerView,
   onChanged,
+  initialPanel = 'customers',
 }: Props) {
-  const [panel, setPanel] = useState<Panel>('customers');
+  const [panel, setPanel] = useState<Panel>(initialPanel);
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [modal, setModal] = useState<ReactNode>(null);
   const [notice, setNotice] = useState('');

@@ -12,6 +12,7 @@ public static class SchoolOperationsEndpoints
         group.MapGet("/school-operations", WorkspacePage).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/report", Report).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/{kind}/{id:long}/history", History).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/school-proposals/{id:long}/revisions", ProposalRevisions).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/school-units/{id:long}/history", UnitHistory).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/schools/{id:long}/rights", Rights).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/school-proposals", async (CreateSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.SubmitSchoolProposal(request, h.UserId(), h, ct)))
@@ -204,6 +205,21 @@ public static class SchoolOperationsEndpoints
             imports = await db.SchoolImportBatches.AsNoTracking().Where(x => a.All && a.Has(Permissions.SchoolDirectoryManage)).OrderByDescending(x => x.CreatedAt).Take(50)
                 .Select(x => new { x.Id, x.CreatedAt, x.SchoolsCreated, x.UnitsCreated, actor_name = db.Users.Where(u => u.Id == x.ActorUserId).Select(u => u.Name).First() }).ToArrayAsync(ct),
         });
+    }
+
+    private static async Task<IResult> ProposalRevisions(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var a = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!a.All || !a.Has(Permissions.SchoolDirectoryManage)
+            || !await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && x.Status == "ACTIVE" && a.OrganizationIds.Contains(x.Id), ct))
+            throw new KeyNotFoundException();
+        if (!await db.SchoolProposals.AnyAsync(x => x.Id == id, ct)) throw new KeyNotFoundException();
+        var data = await db.SchoolProposalRevisions.AsNoTracking().Where(x => x.SchoolProposalId == id)
+            .OrderByDescending(x => x.Version).Take(100)
+            .Select(x => new { x.Id, x.Version, x.Reason, x.BeforeValues, x.AfterValues, x.CreatedAt,
+                x.ActorUserId, actor_name = db.Users.Where(u => u.Id == x.ActorUserId).Select(u => u.Name).First() })
+            .ToArrayAsync(ct);
+        return Results.Ok(new { data });
     }
 
     private static async Task<IResult> UnitHistory(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)

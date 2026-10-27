@@ -6,10 +6,75 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
 
+public sealed record CreateSchoolManualRequest(string? SchoolCode, string? UnitType, string? Name,
+    string? Province, string? Ward, string? Address, string? ContactName, string? ContactPosition,
+    string? ContactPhone, string? Email, string? SchoolPhone, string? Reason);
+
 public sealed record ChangeSchoolCapacityRequest(int Limit, string? Reason);
 
 public sealed partial class ChannelSalesActions
 {
+    public Task<long> CreateManualSchool(CreateSchoolManualRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
+    {
+        var access = await RequirePermission(actorId, Permissions.SchoolDirectoryManage, ct);
+        var centralId = await db.Organizations.Where(x => x.Code == "KIDSFIT" && x.Status == "ACTIVE").Select(x => (long?)x.Id).SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException();
+        if (!access.All || !access.InOrganization(centralId)) throw new KeyNotFoundException();
+        var code = Validation.Required(request.SchoolCode, "school_code", "Cần mã trường chính.", 64).ToUpperInvariant();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Z0-9][A-Z0-9_-]*$"))
+            throw ApiValidationException.For("school_code", "Mã trường chỉ gồm chữ Latin, số, gạch ngang hoặc gạch dưới.");
+        var kind = Validation.Required(request.UnitType, "unit_type", "Cần loại đơn vị.", 16).ToUpperInvariant();
+        if (kind is not ("MAIN" or "BRANCH")) throw ApiValidationException.For("unit_type", "Chỉ chấp nhận MAIN hoặc BRANCH.");
+        var name = Validation.Required(request.Name, "name", "Cần tên trường.", 500);
+        var province = Validation.Required(request.Province, "province", "Cần tỉnh/thành phố.", 100);
+        var ward = Validation.Required(request.Ward, "ward", "Cần phường/xã.", 100);
+        var reason = Validation.Required(request.Reason, "reason", "Cần ghi lý do tạo thủ công.", 2000);
+        var address = CleanOptional(request.Address, 500);
+        var contactName = CleanOptional(request.ContactName, 500);
+        var contactPosition = CleanOptional(request.ContactPosition, 120);
+        var contactPhone = SchoolPhone(request.ContactPhone);
+        var schoolPhone = SchoolPhone(request.SchoolPhone);
+        var email = SchoolEmail(request.Email);
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        await LockSchoolOrganization(centralId, ct);
+        var existing = await db.DirectorySchools.SingleOrDefaultAsync(x => x.SchoolCode == code, ct);
+        if (kind == "MAIN" && existing is not null) throw new ApiConflictException("Mã trường đã có trong danh bạ.");
+        if (kind == "BRANCH" && existing is null) throw new ApiConflictException("Cần tạo trường chính trước khi thêm phân hiệu.");
+        if (kind == "MAIN" && await db.SchoolUnits.AnyAsync(x => x.UnitType == "MAIN" && x.Name == name && x.Province == province && x.Ward == ward, ct))
+            throw new ApiConflictException("Tên trường và địa bàn đã tồn tại; cần kiểm tra trùng.");
+        if (kind == "BRANCH" && await db.SchoolUnits.AnyAsync(x => x.DirectorySchoolId == existing!.Id && x.UnitType == "BRANCH" && x.Name == name && x.Province == province && x.Ward == ward, ct))
+            throw new ApiConflictException("Phân hiệu đã tồn tại trong trường chính.");
+        var now = DateTime.UtcNow;
+        if (kind == "MAIN")
+        {
+            var customer = new ChannelCustomer
+            {
+                Code = "SCH-" + Guid.NewGuid().ToString("N")[..24], CustomerType = "ORGANIZATION", DisplayName = name,
+                Province = province, Address = address, ContactName = contactName, ContactPosition = contactPosition,
+                Phone = schoolPhone ?? contactPhone, Email = email, Source = "SCHOOL_DIRECTORY",
+                VerificationStatus = "VERIFIED", OrganizationId = centralId, CreatedByUserId = actorId,
+                CreatedAt = now, UpdatedAt = now,
+            };
+            db.ChannelCustomers.Add(customer); await db.SaveChangesAsync(ct);
+            existing = new DirectorySchool { SchoolCode = code, CustomerId = customer.Id, CreatedAt = now, UpdatedAt = now };
+            db.DirectorySchools.Add(existing);
+            db.CustomerIdentifiers.Add(new CustomerIdentifier { CustomerId = customer.Id, IdentifierType = "SCHOOL_CODE",
+                NormalizedValue = code, DisplayValue = code, IsVerified = true, CreatedAt = now, UpdatedAt = now });
+            await db.SaveChangesAsync(ct);
+        }
+        var unit = new SchoolUnit
+        {
+            DirectorySchoolId = existing!.Id, UnitType = kind, Name = name, Province = province, Ward = ward,
+            Address = address, ContactName = contactName, ContactPosition = contactPosition,
+            ContactPhone = contactPhone, SchoolPhone = schoolPhone, Email = email,
+            ContentHash = Guid.NewGuid().ToString("N"), SourceRow = 0, CreatedAt = now, UpdatedAt = now,
+        };
+        db.SchoolUnits.Add(unit); await db.SaveChangesAsync(ct);
+        Audit.Add(db, actorId, "CREATE_MANUAL_SCHOOL_UNIT", nameof(SchoolUnit), unit.Id, null,
+            new { unit.DirectorySchoolId, unit.UnitType, unit.Name, unit.Province, unit.Ward, reason }, http);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return unit.Id;
+    }, ct);
+
     public Task<long> ImportSchools(ParsedSchoolWorkbook workbook, string? key, long actorId, HttpContext http, CancellationToken ct) =>
         RetryContestedWrite(() => ImportSchoolsCore(workbook, key, actorId, http, ct), ct);
 

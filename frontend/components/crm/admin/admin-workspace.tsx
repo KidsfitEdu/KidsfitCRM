@@ -25,6 +25,9 @@ export function AdminWorkspace({ section, apiBase, token, abilities, workspace, 
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [reason, setReason] = useState('');
+  const [editing, setEditing] = useState<number | null>(null);
+  const [editFields, setEditFields] = useState<Record<string,string>>({});
+  const [revisions, setRevisions] = useState<{version:number;reason:string;createdAt:string;actor_name:string}[] | null>(null);
   const [notice, setNotice] = useState('');
   const can = (permission: string) => abilities.includes('*') || abilities.includes(permission);
   const preview = !apiBase;
@@ -49,6 +52,35 @@ export function AdminWorkspace({ section, apiBase, token, abilities, workspace, 
       await api('/school-proposals/' + id + '/admin-review', { method: 'POST', body: JSON.stringify({ approve, reason, duplicate_reviewed: duplicateReviewed }) });
       setSelected(null); setReason(''); setNotice('Đã lưu quyết định.'); await reload(); await onChanged();
     } catch (e) { setError(e instanceof Error ? e.message : 'Không lưu được quyết định.'); }
+    finally { setBusy(false); }
+  };
+  const openEdit = (p: SchoolOperationsWorkspace['proposals'][number]) => {
+    setEditing(p.id);
+    setEditFields(Object.fromEntries(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'].map(k => [k, String(p[k as keyof typeof p] ?? '')])));
+    setReason('');
+  };
+  const saveEdit = async (p: SchoolOperationsWorkspace['proposals'][number]) => {
+    if (!reason.trim()) { setError('Cần ghi lý do sửa đề xuất.'); return; }
+    setBusy(true); setError('');
+    try {
+      await api('/school-proposals/' + p.id, { method:'PATCH', body: JSON.stringify({
+        expected_version:p.version, school_code:editFields.school_code, name:editFields.name,
+        province:editFields.province, ward:editFields.ward, address:editFields.address,
+        contact_name:editFields.contact_name, contact_position:editFields.contact_position,
+        contact_phone:editFields.contact_phone, email:editFields.email, reason,
+      }) });
+      setEditing(null); setReason(''); setNotice('Đã cập nhật đề xuất và lưu lịch sử.');
+      await reload(); await onChanged();
+    } catch(e) { setError(e instanceof Error ? e.message : 'Không lưu được đề xuất.'); }
+    finally { setBusy(false); }
+  };
+  const showRevisions = async (id:number) => {
+    if (preview) return;
+    setBusy(true); setError('');
+    try {
+      const result = await api<{data:{version:number;reason:string;createdAt:string;actor_name:string}[]}>('/school-proposals/' + id + '/revisions');
+      setRevisions(result.data);
+    } catch(e) { setError(e instanceof Error ? e.message : 'Không xem được lịch sử.'); }
     finally { setBusy(false); }
   };
   const proposals = operations?.proposals.filter(p => [p.name,p.school_code,p.submitted_by].some(x => x.toLowerCase().includes(search.toLowerCase()))) ?? [];
@@ -88,6 +120,13 @@ export function AdminWorkspace({ section, apiBase, token, abilities, workspace, 
             <p className="mt-1 text-sm text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>
             <p className="mt-1 text-sm text-muted-foreground">Đề xuất: {p.submitted_by} · Quản lý: {p.manager_name} · Hạn: {workflowDate(p.review_due_at)}</p>
             {p.possible_duplicate && <p className="mt-2 text-sm text-amber-700">Cần kiểm tra trường trùng tên/khu vực.</p>}
+            {p.status === 'PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={()=>openEdit(p)}>Chỉnh đề xuất</Button><Button size="sm" variant="outline" onClick={()=>void showRevisions(p.id)}>Lịch sử sửa</Button></div>}
+            {editing === p.id && <div className="mt-3 space-y-3 rounded-xl border bg-muted/20 p-4">
+              <h4 className="font-semibold">Chỉnh đề xuất trước khi duyệt</h4>
+              <div className="grid gap-3 sm:grid-cols-2">{(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'] as const).map(k=><label key={k} className="text-xs font-medium">{({school_code:'Mã trường',name:'Tên trường',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'Số điện thoại',email:'Email'} as Record<string,string>)[k]}<Input className="mt-1" value={editFields[k]??''} onChange={e=>setEditFields(o=>({...o,[k]:e.target.value}))}/></label>)}</div>
+              <label className="block text-sm">Lý do chỉnh sửa<Input value={reason} onChange={e=>setReason(e.target.value)}/></label>
+              <div className="flex gap-2"><Button disabled={busy} onClick={()=>void saveEdit(p)}>Lưu thay đổi</Button><Button variant="outline" onClick={()=>setEditing(null)}>Đóng</Button></div>
+            </div>}
             {p.can_admin_review && !preview && <Button className="mt-3" size="sm" variant="outline" onClick={() => {setSelected(selected===p.id?null:p.id);setReason('');}}>Xem quyết định</Button>}
             {selected===p.id && <div className="mt-3 space-y-3 border-t pt-3">
               <p className="text-sm">Thông tin liên hệ: {p.contact_name || 'Chưa có'} · {p.contact_phone || 'Chưa có'}</p>
@@ -98,6 +137,7 @@ export function AdminWorkspace({ section, apiBase, token, abilities, workspace, 
           </div>)}
           {!busy && proposals.length===0 && <p className="py-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
         </div>
+        {revisions && <div className="mt-5 rounded-xl border p-4"><div className="flex justify-between"><strong>Lịch sử chỉnh sửa</strong><Button variant="outline" size="sm" onClick={()=>setRevisions(null)}>Đóng</Button></div>{revisions.map(r=><div className="border-b py-2 text-sm" key={r.version}>Lần {r.version} · {r.actor_name} · {workflowDate(r.createdAt)} · {r.reason}</div>)}{!revisions.length && <p className="text-sm text-muted-foreground">Chưa có lịch sử chỉnh sửa.</p>}</div>}
         {operations?.pagination && <div className="mt-4 flex items-center justify-end gap-3"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Trước</Button><span className="text-sm">Trang {page}</span><Button variant="outline" disabled={operations.proposals.length < operations.pagination.page_size} onClick={()=>setPage(p=>p+1)}>Sau</Button></div>}
       </div>
     </>}

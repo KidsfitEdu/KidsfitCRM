@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SchoolDirectory } from '@/components/crm/school-directory';
@@ -14,7 +15,14 @@ type Props = { section: AdminSection; apiBase: string; token: string; abilities:
 const panel = 'rounded-2xl border bg-card p-5 shadow-sm';
 const fmt = (value: number) => value.toLocaleString('vi-VN');
 
-export function AdminWorkspace({ section, apiBase, token, abilities, workspace, onChanged }: Props) {
+export function AdminWorkspace(props: Props) {
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: { queries: { retry: 1, staleTime: 15000 } },
+  }));
+  return <QueryClientProvider client={queryClient}><AdminWorkspaceContent {...props} /></QueryClientProvider>;
+}
+
+function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, onChanged }: Props) {
   const [operations, setOperations] = useState<SchoolOperationsWorkspace | null>(null);
   const [management, setManagement] = useState<ChannelManagement | null>(null);
   const [report, setReport] = useState<SchoolOperationsReport | null>(null);

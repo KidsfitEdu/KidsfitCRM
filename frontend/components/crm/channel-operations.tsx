@@ -178,7 +178,7 @@ function OperationsContent({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav
-          aria-label="Chức năng CHECKEE"
+          aria-label="Chức năng đăng ký sản phẩm"
           className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border bg-card p-1.5 shadow-sm"
         >
           {tabs

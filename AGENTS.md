@@ -3,6 +3,7 @@
 ## Scope and sources of truth
 
 - Implement only the user's requested slice. The product requirement is a baseline, not a request to scaffold the entire CRM.
+- Current product scope is intermediary registration/distribution of iSchool and F&B products. Read `docs/PRODUCT_SCOPE.md` before UI or domain planning. Do not expose student, class, tuition, trial or education-enrollment features in the current application. Preserve historical education data; the education invariants below apply to that legacy context only.
 - For KidsfitCRM domain, schema, workflow, API, UI, architecture, security, or review work, use the repository skill at `.agents/skills/kidsfit-crm-development/SKILL.md` and load only its relevant references. Database work must also load `references/mysql-conventions.md`.
 - For every CHECKEE, customer-protection, partner/CTV, contract, revenue, commission, payout, or reconciliation request, also load `.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md` before planning or editing.
 - For school directory/import, branch, CTV capacity, assignment, proposal, extension, or school-contract verification work, also load `.agents/skills/kidsfit-crm-development/references/school-directory-workflows.md`.

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { ArrowRight, Check, FlaskConical, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { productPresentation } from '@/lib/product-workspace';
 import {
   authenticateDemo,
   demoAccounts,
@@ -95,7 +96,9 @@ function DemoLogin({ onLogin }: { onLogin: (account: DemoAccount) => void }) {
             </div>
             <div>
               <p className="text-lg font-bold tracking-tight">Kidsfit CRM</p>
-              <p className="text-xs text-slate-400">Giáo dục & CHECKEE</p>
+              <p className="text-xs text-slate-400">
+                {productPresentation.brand}
+              </p>
             </div>
             <span className="ml-auto rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-xs font-medium text-violet-200">
               CRM Workspace

@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Kidsfit CRM — Giáo dục & CHECKEE',
+  title: 'Kidsfit CRM — iSchool & F&B',
   description:
-    'Không gian vận hành giáo dục và quản lý quyền bảo vệ khách hàng CHECKEE.',
+    'CRM đăng ký khách hàng, phân phối sản phẩm iSchool, F&B và theo dõi doanh thu, hoa hồng.',
 };
 
 export default function RootLayout({

@@ -139,7 +139,7 @@ export function schoolOperationsPreview(
             contract_id: 3001,
             customer_id: 1003,
             assigned_user_id: 1,
-            subject: 'Hướng dẫn triển khai CHECKEE',
+            subject: 'Hướng dẫn triển khai iSchool',
             description:
               'Chuẩn bị tài khoản, thống nhất lịch đào tạo và bàn giao các cam kết khi ký.',
             customer_name: 'Trường Mầm non Hạt Nắng',

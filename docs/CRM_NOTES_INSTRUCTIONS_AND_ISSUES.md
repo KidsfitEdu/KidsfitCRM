@@ -4,6 +4,11 @@ Ngày đối chiếu và xác minh: 27/10/2026. Nguồn nghiệp vụ: `docs/Kid
 
 ## Cách dùng cho các lần prompting sau
 
+Phạm vi hiện tại đã được người dùng thu gọn sang đăng ký trung gian sản phẩm
+iSchool, F&B; xem `PRODUCT_SCOPE.md`. Menu **Đăng ký khách hàng** thay cho nhãn
+CHECKEE Sales trong giao diện hiện tại. Các yêu cầu Notes về bán hàng vẫn áp dụng;
+không khôi phục Học viên, Lớp học hoặc tuyển sinh từ baseline giáo dục cũ.
+
 1. Đọc `AGENTS.md`, skill KidsfitCRM và các reference liên quan trước khi sửa mã.
 2. Dùng các ID dưới đây để xác định phạm vi. Không coi toàn bộ roadmap là yêu cầu triển khai thêm trong mỗi prompt.
 3. Phân biệt yêu cầu đã xác nhận, hành vi hiện có, phần mới được kiểm thử và chính sách `DRAFT` chưa duyệt. Không báo hoàn thành một issue chỉ vì đã có màn hình.

@@ -599,7 +599,7 @@ function RegisterApproachDialog({
                 name="display_name"
                 required
                 className="rounded-xl"
-                placeholder="Trung tâm giáo dục ABC"
+                placeholder="Tên trường, doanh nghiệp hoặc cơ sở F&B"
               />
             </Field>
             <Field label="Tên pháp lý">

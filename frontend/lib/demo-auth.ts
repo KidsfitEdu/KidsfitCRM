@@ -156,7 +156,7 @@ export const demoAccounts: DemoAccount[] = [
     email: 'sales@demo.kidsfit.example',
     name: 'Lan Phương',
     roleLabel: 'Nhân viên bán hàng',
-    description: 'Trải nghiệm lead, lớp học và CHECKEE Sales.',
+    description: 'Đăng ký khách hàng, theo dõi hợp đồng sản phẩm iSchool, F&B.',
     abilities: [
       ...educationRead,
       'crm.lead.create',

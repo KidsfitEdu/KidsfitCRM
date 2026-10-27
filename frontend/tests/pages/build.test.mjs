@@ -25,6 +25,7 @@ async function filesIn(directory) {
 
 test('Pages HTML resolves every asset under the project subpath', async () => {
   const html = await readFile(path.join(output, 'index.html'), 'utf8');
+  assert.match(html, /iSchool &amp; F&amp;B|iSchool & F&B/);
   assert.match(html, /<html lang="vi">/);
   assert.doesNotMatch(html, /demo/i);
   assert.match(html, /name="robots" content="noindex, nofollow"/);
@@ -62,4 +63,9 @@ test('Pages output contains only static assets, never sources, private files or 
   assert.doesNotMatch(javascript, /sourceMappingURL=/);
   assert.doesNotMatch(javascript, /admin@kidsfit\.vn|Kidsfit@2026/);
   assert.doesNotMatch(javascript, /PAGES_SECRET_CANARY_DO_NOT_PUBLISH/);
+  assert.doesNotMatch(
+    javascript,
+    /Học viên|Lớp học|Thu học phí|37 \/ 50 học viên/,
+  );
+  assert.doesNotMatch(javascript, /English Kids|Math Discovery|STEAM Explorer/);
 });

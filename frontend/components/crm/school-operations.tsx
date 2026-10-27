@@ -424,7 +424,7 @@ export function SchoolOperations({
       <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-gradient-to-br from-violet-50/80 to-card p-6 dark:from-violet-950/20">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-violet-600">
-            CHECKEE · Vận hành
+            Phân phối sản phẩm · Vận hành
           </p>
           <h2 className="text-xl font-bold tracking-tight">
             Mỗi hồ sơ, một bước tiếp theo

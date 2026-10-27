@@ -48,14 +48,14 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     setBusy(true); setError('');
     try {
       if (section === 'admin-proposals' || section === 'admin-settings' || section === 'admin-reports' || section === 'dashboard') {
-        setOperations(await api<SchoolOperationsWorkspace>('/school-operations?page=' + page + '&search=' + encodeURIComponent(search)));
+        setOperations(await api<SchoolOperationsWorkspace>('/school-operations?page=' + page + '&search=' + encodeURIComponent(search) + (section === 'admin-proposals' && statusFilter !== 'ALL' ? '&status=' + encodeURIComponent(statusFilter) : '')));
       }
       if (section === 'admin-team') setManagement(await api<ChannelManagement>('/management'));
       if (section === 'admin-reports') setReport(await api<SchoolOperationsReport>('/school-operations/report?period=' + period));
     } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được dữ liệu.'); }
     finally { setBusy(false); }
   };
-  useEffect(() => { void reload(); }, [section, token, page, period]);
+  useEffect(() => { void reload(); }, [section, token, page, period, statusFilter]);
   const updateProposal = async (id: number, approve: boolean, duplicateReviewed: boolean) => {
     if (!reason.trim()) { setError('Cần nhập căn cứ quyết định.'); return; }
     setBusy(true); setError('');

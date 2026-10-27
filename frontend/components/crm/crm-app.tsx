@@ -1222,6 +1222,7 @@ function CrmWorkspace({
                     abilities={abilities}
                     onChanged={refreshChannelSales}
                     initialPanel={view === 'admin-schools' ? 'schools' : view === 'admin-proposals' || view === 'admin-settings' || view === 'admin-reports' ? 'operations' : 'team'}
+                    initialOperationsTab={view === 'admin-reports' ? 'report' : view === 'admin-settings' ? 'policies' : 'proposals'}
                     customerView={() => null}
                   />
                 </Suspense>

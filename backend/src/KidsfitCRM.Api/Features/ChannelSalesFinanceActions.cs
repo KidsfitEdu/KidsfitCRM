@@ -228,6 +228,8 @@ public sealed partial class ChannelSalesActions
         if (roleCode == "SALES") roleCode = "CHANNEL_SALES";
         var allowed = new[] { "ADMIN", "BOARD", "ACCOUNTANT", "SALES_MANAGER", "CUSTOMER_CARE", "CHANNEL_SALES", "CHECKEE", "PARTNER_ADMIN", "PARTNER_COLLABORATOR" };
         if (!allowed.Contains(roleCode)) throw ApiValidationException.For("role_code", "Vai trò không được hỗ trợ.");
+        // Sensitive executive roles require a separate KIDSFIT authorization workflow.
+        if (roleCode is "ADMIN" or "BOARD") throw new ApiConflictException("Không cấp vai trò Admin/BGĐ qua chức năng quản lý nhân sự thông thường.");
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Code == roleCode, ct) ?? throw new KeyNotFoundException();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var user = new User { Code = "USR-" + Guid.NewGuid().ToString("N")[..16].ToUpperInvariant(), Name = name, Email = email, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };

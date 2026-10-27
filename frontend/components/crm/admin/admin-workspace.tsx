@@ -27,7 +27,7 @@ export function AdminWorkspace({ section, apiBase, token, abilities, workspace, 
   const [reason, setReason] = useState('');
   const [editing, setEditing] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<Record<string,string>>({});
-  const [revisions, setRevisions] = useState<{version:number;reason:string;createdAt:string;actor_name:string}[] | null>(null);
+  const [revisions, setRevisions] = useState<{version:number;reason:string;created_at:string;actor_name:string}[] | null>(null);
   const [notice, setNotice] = useState('');
   const can = (permission: string) => abilities.includes('*') || abilities.includes(permission);
   const preview = !apiBase;
@@ -137,7 +137,7 @@ export function AdminWorkspace({ section, apiBase, token, abilities, workspace, 
           </div>)}
           {!busy && proposals.length===0 && <p className="py-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
         </div>
-        {revisions && <div className="mt-5 rounded-xl border p-4"><div className="flex justify-between"><strong>Lịch sử chỉnh sửa</strong><Button variant="outline" size="sm" onClick={()=>setRevisions(null)}>Đóng</Button></div>{revisions.map(r=><div className="border-b py-2 text-sm" key={r.version}>Lần {r.version} · {r.actor_name} · {workflowDate(r.createdAt)} · {r.reason}</div>)}{!revisions.length && <p className="text-sm text-muted-foreground">Chưa có lịch sử chỉnh sửa.</p>}</div>}
+        {revisions && <div className="mt-5 rounded-xl border p-4"><div className="flex justify-between"><strong>Lịch sử chỉnh sửa</strong><Button variant="outline" size="sm" onClick={()=>setRevisions(null)}>Đóng</Button></div>{revisions.map(r=><div className="border-b py-2 text-sm" key={r.version}>Lần {r.version} · {r.actor_name} · {workflowDate(r.created_at)} · {r.reason}</div>)}{!revisions.length && <p className="text-sm text-muted-foreground">Chưa có lịch sử chỉnh sửa.</p>}</div>}
         {operations?.pagination && <div className="mt-4 flex items-center justify-end gap-3"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Trước</Button><span className="text-sm">Trang {page}</span><Button variant="outline" disabled={operations.proposals.length < operations.pagination.page_size} onClick={()=>setPage(p=>p+1)}>Sau</Button></div>}
       </div>
     </>}

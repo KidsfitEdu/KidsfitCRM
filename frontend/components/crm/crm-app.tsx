@@ -150,12 +150,11 @@ const apiBase =
 
 const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] = [
   { id: 'dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
-  { id: 'channel-sales', label: 'CHECKEE Sales', shortLabel: 'CHECKEE', icon: ShieldCheck },
-  { id: 'admin-schools', label: 'Quản lý trường học', shortLabel: 'Trường', icon: GraduationCap },
-  { id: 'admin-proposals', label: 'Đề xuất & phê duyệt', shortLabel: 'Duyệt', icon: BookOpenCheck },
+  { id: 'admin-schools', label: 'Trường học', shortLabel: 'Trường', icon: GraduationCap },
+  { id: 'admin-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'admin-team', label: 'Nhân sự & đối tác', shortLabel: 'Nhân sự', icon: UsersRound },
-  { id: 'admin-reports', label: 'Báo cáo', shortLabel: 'Báo cáo', icon: TrendingUp },
-  { id: 'admin-settings', label: 'Cấu hình hệ thống', shortLabel: 'Cấu hình', icon: ShieldCheck },
+  { id: 'admin-settings', label: 'Chính sách & hạn mức', shortLabel: 'Chính sách', icon: ShieldCheck },
+  { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
 ];
 
 const viewCopy: Record<

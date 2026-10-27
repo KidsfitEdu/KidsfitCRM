@@ -124,7 +124,7 @@ public static class SchoolOperationsEndpoints
             proposals = await proposalQuery.OrderByDescending(x => x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN").ThenBy(x => x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN" ? x.ReviewDueAt : DateTime.MaxValue).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new
             {
                 x.Id, x.OrganizationId, x.SchoolCode, x.Name, x.Province, x.Ward, x.Address, x.ContactName, x.ContactPosition, x.ContactPhone, x.Email,
-                x.Reason, x.Status, x.ManagerUserId, x.SubmittedByUserId, x.ReviewDueAt, x.DecisionReason, x.DirectorySchoolId,
+                x.Reason, x.Status, x.Version, x.ManagerUserId, x.SubmittedByUserId, x.ReviewDueAt, x.DecisionReason, x.DirectorySchoolId,
                 submitted_by = db.Users.Where(u => u.Id == x.SubmittedByUserId).Select(u => u.Name).First(),
                 manager_name = db.Users.Where(u => u.Id == x.ManagerUserId).Select(u => u.Name).First(),
                 possible_duplicate = db.SchoolUnits.Any(u => u.UnitType == "MAIN" && (x.DirectorySchoolId == null || u.DirectorySchoolId != x.DirectorySchoolId) && u.Name == x.Name && u.Province == x.Province && u.Ward == x.Ward),

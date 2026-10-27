@@ -3,3 +3,11 @@
     'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-geist-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
 }
+
+.public-startup {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #6558d3;
+  font-size: 0.875rem;
+}

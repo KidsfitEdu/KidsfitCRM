@@ -48,7 +48,8 @@ test('Pages output contains only static assets, never sources, private files or 
   let javascript = '';
   for (const file of files) {
     assert.ok(
-      /\.(?:html|js|css|svg|png|jpg|webp|ico|woff2?)$/.test(file),
+      /\.(?:html|js|css|svg|png|jpg|webp|ico|woff2?)$/.test(file) ||
+        file === path.join(output, 'version.json'),
       `Unexpected artifact: ${file}`,
     );
     assert.doesNotMatch(
@@ -68,4 +69,15 @@ test('Pages output contains only static assets, never sources, private files or 
     /Học viên|Lớp học|Thu học phí|37 \/ 50 học viên/,
   );
   assert.doesNotMatch(javascript, /English Kids|Math Discovery|STEAM Explorer/);
+});
+
+test('Pages release manifest contains only the deployment version', async () => {
+  const manifest = JSON.parse(
+    await readFile(path.join(output, 'version.json'), 'utf8'),
+  );
+  assert.deepEqual(Object.keys(manifest), ['version']);
+  assert.match(manifest.version, /^(?:[a-f0-9]{40}|development)$/);
+  if (/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? '')) {
+    assert.equal(manifest.version, process.env.GITHUB_SHA);
+  }
 });

@@ -17,6 +17,27 @@ Chỉ khi được yêu cầu cập nhật bản Site cũ mới mở lại đún
 audience; không tạo Site mới hoặc tự bật truy cập công khai. Bản source Site độc
 lập với repository CRM. Bản public hiện tại dùng GitHub Pages và workflow bên dưới.
 
+## Cập nhật phiên bản và cache — 27/10/2026
+
+Kiểm tra response public thấy `Cache-Control: max-age=600`. JS/CSS đã có tên
+theo hash; HTML cũ trong trình duyệt vẫn có thể trỏ tới bản giao diện trước đó.
+
+- Build Pages xuất `version.json`, chỉ có SHA của commit được triển khai.
+- Trước khi mở ứng dụng, frontend kiểm tra manifest cùng origin bằng
+  `cache: no-store` và URL truy vấn mới để tránh cả manifest bị cache tại CDN.
+- Nếu khác phiên bản, đổi URL hiện tại sang `?_release=<version>` rồi tải trang
+  mới một lần. Giữ nguyên đường dẫn, bộ lọc, fragment và phiên đăng nhập.
+- Kiểm tra có timeout 3 giây; lỗi mạng/JSON/HTTP vẫn cho mở ứng dụng hiện có.
+  Có chặn lặp tải lại khi manifest và HTML chưa đồng bộ lúc CDN phát hành.
+- Không thêm service worker, không xóa dữ liệu tổ chức hay session đăng nhập.
+  Đây là làm mới/bỏ qua cache của trang CRM, không phải xóa HTTP cache của mọi
+  trình duyệt từ xa. Lần chuyển tiếp từ bản chưa có cơ chế này dùng link
+  `?_release=<commit triển khai>` để tải HTML mới.
+
+Tham khảo: [MDN — Request.cache và chế độ no-store](https://developer.mozilla.org/en-US/docs/Web/API/Request/cache).
+Artifact test chỉ cho phép đúng một JSON bổ sung là `version.json`, kiểm tra
+nội dung chỉ có `version`; các tệp cấu hình/API riêng tư tiếp tục bị chặn.
+
 ## Phạm vi iSchool & F&B — 27/10/2026
 
 Đã phát hành từ commit `fa37578226e169bf65a97ea139803e6fe9ee9375`:

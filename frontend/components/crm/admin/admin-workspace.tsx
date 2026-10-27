@@ -28,6 +28,9 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const [report, setReport] = useState<SchoolOperationsReport | null>(null);
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manual, setManual] = useState<Record<string,string>>({unit_type:'MAIN'});
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -91,7 +94,16 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     } catch(e) { setError(e instanceof Error ? e.message : 'Không xem được lịch sử.'); }
     finally { setBusy(false); }
   };
-  const proposals = operations?.proposals.filter(p => [p.name,p.school_code,p.submitted_by].some(x => x.toLowerCase().includes(search.toLowerCase()))) ?? [];
+  const proposals = operations?.proposals.filter(p => (statusFilter==='ALL' || p.status===statusFilter) && [p.name,p.school_code,p.submitted_by].some(x => x.toLowerCase().includes(search.toLowerCase()))) ?? [];
+  const createManual = async () => {
+    setBusy(true); setError('');
+    try {
+      await api('/schools/manual',{method:'POST',body:JSON.stringify(manual)});
+      setManual({unit_type:'MAIN'});setManualOpen(false);setNotice('Đã thêm trường thành công.');
+      await onChanged();
+    } catch(e) { setError(e instanceof Error ? e.message : 'Không lưu được trường.'); }
+    finally { setBusy(false); }
+  };
   const pending = operations?.proposals.filter(p => p.status === 'PENDING_ADMIN').length ?? 0;
   const metrics = workspace.metrics;
   return <div className="space-y-5">
@@ -111,7 +123,19 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       </div>
       <div className={panel}><h3 className="font-semibold">Công việc cần xử lý</h3><p className="mt-2 text-sm text-muted-foreground">Hồ sơ đề xuất chờ duyệt: {preview || !operations ? '—' : fmt(pending)}. Mở mục Đề xuất trường để xử lý.</p></div>
     </>}
-    {section === 'admin-schools' && <SchoolDirectory apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged} />}
+    {section === 'admin-schools' && <>
+      <div className="flex justify-end"><Button disabled={preview} onClick={()=>setManualOpen(x=>!x)}>+ Thêm trường thủ công</Button></div>
+      {manualOpen && <div className={panel}>
+        <h3 className="mb-3 font-semibold">Tạo trường học</h3>
+        <p className="mb-3 text-xs text-muted-foreground">Với phân hiệu, nhập mã trường chính đã có để liên kết.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">Loại đơn vị<select className="mt-1 w-full rounded-lg border bg-background p-2" value={manual.unit_type||'MAIN'} onChange={e=>setManual(m=>({...m,unit_type:e.target.value}))}><option value="MAIN">Trường chính</option><option value="BRANCH">Phân hiệu</option></select></label>
+          {(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email','school_phone','reason'] as const).map(k=><label className="text-sm" key={k}>{({school_code:'Mã trường chính',name:'Tên trường/phân hiệu',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'SĐT liên hệ',email:'Email',school_phone:'SĐT trường',reason:'Lý do tạo'} as Record<string,string>)[k]}<Input className="mt-1" value={manual[k]||''} onChange={e=>setManual(m=>({...m,[k]:e.target.value}))}/></label>)}
+        </div>
+        <div className="mt-4 flex gap-2"><Button disabled={busy} onClick={()=>void createManual()}>Lưu trường</Button><Button variant="outline" onClick={()=>setManualOpen(false)}>Hủy</Button></div>
+      </div>}
+      <SchoolDirectory apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged} />
+    </>}
     {section === 'admin-proposals' && <>
       <div className="grid gap-3 sm:grid-cols-3">
         <Summary label="Chờ Admin duyệt" value={operations ? pending : null} />
@@ -120,7 +144,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       </div>
       <div className={panel}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Danh sách đề xuất trường</h3><Button variant="outline" disabled={busy || preview} onClick={() => void reload()}><RefreshCw className="mr-2 size-4"/>Làm mới</Button></div>
-        <Input aria-label="Tìm đề xuất" placeholder="Tìm tên trường hoặc mã trường…" value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="flex flex-wrap gap-2"><Input className="min-w-48 flex-1" aria-label="Tìm đề xuất" placeholder="Tìm tên trường hoặc mã trường…" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/><select aria-label="Lọc trạng thái" className="rounded-lg border bg-background px-3" value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1);}}><option value="ALL">Tất cả trạng thái</option><option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option></select><Button variant="outline" onClick={()=>{setSearch('');setStatusFilter('ALL');setPage(1);}}>Reset bộ lọc</Button></div>
         {busy && <p className="mt-3 text-sm text-muted-foreground">Đang tải dữ liệu…</p>}
         <div className="mt-4 space-y-3">
           {proposals.map(p => <div key={p.id} className="rounded-xl border p-4">

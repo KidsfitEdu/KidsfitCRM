@@ -75,9 +75,9 @@ public static class SchoolOperationsEndpoints
         || (a.Has(Permissions.SchoolSupportManage) && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId && c.CareOrganizationId.HasValue && a.OrganizationIds.Contains(c.CareOrganizationId.Value)))
         || (a.Has(Permissions.SchoolCareAssign) && a.Organization && (a.OrganizationIds.Contains(x.OrganizationId) || db.SalesContracts.Any(c => c.Id == x.ContractId && a.OrganizationIds.Contains(c.OwnerOrganizationId)))));
 
-    public static Task<IResult> Workspace(HttpContext http, KidsfitDbContext db, CancellationToken ct) => WorkspacePage(http, db, null, null, ct);
+    public static Task<IResult> Workspace(HttpContext http, KidsfitDbContext db, CancellationToken ct) => WorkspacePage(http, db, null, null, null, ct);
 
-    public static async Task<IResult> WorkspacePage(HttpContext http, KidsfitDbContext db, int? page, string? search, CancellationToken ct)
+    public static async Task<IResult> WorkspacePage(HttpContext http, KidsfitDbContext db, int? page, string? search, string? status, CancellationToken ct)
     {
         var a = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (a.OrganizationIds.Length == 0) throw new KeyNotFoundException();
@@ -94,7 +94,9 @@ public static class SchoolOperationsEndpoints
         var matchingSchools = db.DirectorySchools.Where(s => s.SchoolCode.Contains(term)
             || db.SchoolUnits.Any(u => u.DirectorySchoolId == s.Id && (u.Name.Contains(term) || u.Province.Contains(term) || u.Ward.Contains(term)))).Select(s => s.Id);
         var matchingCustomers = db.ChannelCustomers.Where(c => c.DisplayName.Contains(term) || db.DirectorySchools.Any(s => s.CustomerId == c.Id && matchingSchools.Contains(s.Id))).Select(c => c.Id);
-        var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term));
+        var allowedProposalStatuses = new[] { "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
+        if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
+        var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status) && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)));
         var invitationQuery = Invitations(db, a).AsNoTracking().Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
         var extensionQuery = Extensions(db, a).AsNoTracking().Where(x => term == "" || x.Progress.Contains(term) || db.ApproachRegistrations.Any(r => r.Id == x.ApproachRegistrationId && matchingCustomers.Contains(r.CustomerId)));
         var disputeQuery = Disputes(db, a).AsNoTracking().Where(x => term == "" || matchingCustomers.Contains(x.CustomerId) || x.Reason.Contains(term));

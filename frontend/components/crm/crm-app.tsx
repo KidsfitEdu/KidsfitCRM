@@ -293,7 +293,7 @@ function CrmWorkspace({
   onDemoLogout?: () => void;
 }) {
   const [view, setView] = useState<View>(
-    demoAccount && !demoAccount.abilities.includes('crm.dashboard.view')
+    demoAccount && !demoAccount.abilities.includes('channel_sales.customer.view')
       ? 'channel-sales'
       : 'dashboard',
   );
@@ -401,7 +401,7 @@ function CrmWorkspace({
         catalogs,
         channelSalesData,
       ] = await Promise.all([
-        has('crm.dashboard.view')
+        false && has('crm.dashboard.view')
           ? request<{
               metrics: typeof metrics;
               pipeline: typeof demoPipeline;
@@ -436,8 +436,6 @@ function CrmWorkspace({
       ]);
       setUserName(me.user.name);
       setAbilities(me.user.abilities);
-      if (!has('crm.dashboard.view') && has('channel_sales.customer.view'))
-        setView('channel-sales');
       if (dashboard) {
         setMetrics(dashboard.metrics);
         setPipeline(dashboard.pipeline);
@@ -1013,7 +1011,7 @@ function CrmWorkspace({
     if (item.id === 'admin-proposals') return can('channel_sales.school.directory.manage');
     if (item.id === 'admin-team') return can('channel_sales.team.manage');
     if (item.id === 'admin-reports') return can('channel_sales.customer.view');
-    if (item.id === 'admin-settings') return can('channel_sales.school.workflow.policy.manage');
+    if (item.id === 'admin-settings') return can('channel_sales.school.workflow_policy.manage');
     return false;
   });
   return (

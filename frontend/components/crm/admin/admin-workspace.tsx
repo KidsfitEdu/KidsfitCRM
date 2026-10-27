@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
-import { AlertCircle, ClipboardCheck, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SchoolDirectory } from '@/components/crm/school-directory';

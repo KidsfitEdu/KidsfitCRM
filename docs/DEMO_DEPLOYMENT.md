@@ -38,6 +38,12 @@ Tham khảo: [MDN — Request.cache và chế độ no-store](https://developer.
 Artifact test chỉ cho phép đúng một JSON bổ sung là `version.json`, kiểm tra
 nội dung chỉ có `version`; các tệp cấu hình/API riêng tư tiếp tục bị chặn.
 
+Đã phát hành commit `6cbd204f2456c98454cdb299805a0e5561c307dd` qua
+[Actions run thành công](https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/40453369936).
+Lint, TypeScript, 27 unit test và 3 kiểm thử artifact đều qua. Đã kiểm tra HTTP
+200 của link phiên bản mới, manifest và JS công khai cùng đúng commit này;
+trình duyệt tải lại thành công và giữ phiên tài khoản mẫu đang đăng nhập.
+
 ## Phạm vi iSchool & F&B — 27/10/2026
 
 Đã phát hành từ commit `fa37578226e169bf65a97ea139803e6fe9ee9375`:

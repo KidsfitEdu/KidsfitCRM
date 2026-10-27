@@ -1000,19 +1000,24 @@ function CrmWorkspace({
   if (apiBase && !token)
     return <LoginScreen loading={loading} onLogin={onLogin} />;
 
-  const activeCopy = viewCopy[view];
   const can = (ability: string) =>
     abilities.includes('*') || abilities.includes(ability);
-  const visibleNav = nav.filter((item) => {
-    if (item.id === 'dashboard') return can('channel_sales.customer.view');
-    if (item.id === 'channel-sales') return can('channel_sales.customer.view');
-    if (item.id === 'admin-schools') return can('channel_sales.school.directory.manage');
-    if (item.id === 'admin-proposals') return can('channel_sales.school.directory.manage');
-    if (item.id === 'admin-team') return can('channel_sales.team.manage');
-    if (item.id === 'admin-reports') return can('channel_sales.customer.view');
-    if (item.id === 'admin-settings') return can('channel_sales.school.workflow_policy.manage');
-    return false;
-  });
+  const isAdminWorkspace = can('channel_sales.school.directory.manage') && can('channel_sales.scope.all');
+  const visibleNav = isAdminWorkspace
+    ? nav.filter((item) => {
+        if (item.id === 'dashboard') return can('channel_sales.customer.view');
+        if (item.id === 'admin-schools' || item.id === 'admin-proposals') return can('channel_sales.school.directory.manage');
+        if (item.id === 'admin-team') return can('channel_sales.team.manage');
+        if (item.id === 'admin-settings') return can('channel_sales.school.workflow_policy.manage');
+        if (item.id === 'admin-reports') return can('channel_sales.customer.view');
+        return false;
+      })
+    : can('channel_sales.customer.view')
+      ? [{ id: 'channel-sales' as View, label: 'CHECKEE Sales', shortLabel: 'CHECKEE', icon: ShieldCheck }]
+      : [];
+  const currentView = visibleNav.some((item) => item.id === view) ? view : visibleNav[0]?.id ?? 'channel-sales';
+  const activeCopy = viewCopy[currentView];
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 bg-[#152238] text-white lg:flex">
@@ -1032,10 +1037,10 @@ function CrmWorkspace({
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${view === item.id ? 'bg-white/10 font-semibold text-white shadow-inner shadow-white/5' : 'text-slate-300 hover:bg-white/7 hover:text-white'}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${currentView === item.id ? 'bg-white/10 font-semibold text-white shadow-inner shadow-white/5' : 'text-slate-300 hover:bg-white/7 hover:text-white'}`}
             >
               <item.icon
-                className={`size-[18px] ${view === item.id ? 'text-[#a99df8]' : ''}`}
+                className={`size-[18px] ${currentView === item.id ? 'text-[#a99df8]' : ''}`}
               />
               {item.label}
             </button>
@@ -1155,7 +1160,7 @@ function CrmWorkspace({
               </p>
             </div>
             <div className="flex gap-2">
-              {view === 'finance' && (
+              {currentView === 'finance' && (
                 <Button
                   onClick={exportInvoices}
                   variant="outline"
@@ -1165,7 +1170,7 @@ function CrmWorkspace({
                   <Download /> Xuất báo cáo
                 </Button>
               )}
-              {false && view !== 'channel-sales' && can('crm.lead.create') && (
+              {false && currentView !== 'channel-sales' && can('crm.lead.create') && (
                 <Button
                   onClick={() => setAddOpen(true)}
                   size="lg"
@@ -1181,8 +1186,8 @@ function CrmWorkspace({
             <LoadingGrid />
           ) : (
             <>
-              {view === 'dashboard' && <SchoolDashboard workspace={channelSales} />}
-              {view === 'channel-sales' && (
+              {currentView === 'dashboard' && <SchoolDashboard workspace={channelSales} />}
+              {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations
                     apiBase={apiBase}
@@ -1220,13 +1225,13 @@ function CrmWorkspace({
                     token={token}
                     abilities={abilities}
                     onChanged={refreshChannelSales}
-                    initialPanel={view === 'admin-schools' ? 'schools' : view === 'admin-proposals' || view === 'admin-settings' || view === 'admin-reports' ? 'operations' : 'team'}
-                    initialOperationsTab={view === 'admin-reports' ? 'report' : view === 'admin-settings' ? 'policies' : 'proposals'}
+                    initialPanel={currentView === 'admin-schools' ? 'schools' : currentView === 'admin-proposals' || currentView === 'admin-settings' || currentView === 'admin-reports' ? 'operations' : 'team'}
+                    initialOperationsTab={currentView === 'admin-reports' ? 'report' : currentView === 'admin-settings' ? 'policies' : 'proposals'}
                     customerView={() => null}
                   />
                 </Suspense>
               )}
-              {view === 'leads' && (
+              {currentView === 'leads' && (
                 <LeadView
                   leads={filteredLeads}
                   search={search}
@@ -1234,15 +1239,15 @@ function CrmWorkspace({
                   onAdvance={can('crm.lead.update') ? advanceLead : undefined}
                 />
               )}
-              {view === 'students' && (
+              {currentView === 'students' && (
                 <StudentView
                   students={students}
                   search={search}
                   setSearch={setSearch}
                 />
               )}
-              {view === 'classes' && <ClassView classes={classes} />}
-              {view === 'finance' && (
+              {currentView === 'classes' && <ClassView classes={classes} />}
+              {currentView === 'finance' && (
                 <FinanceView
                   invoices={invoices}
                   onRecordPayment={
@@ -1263,7 +1268,7 @@ function CrmWorkspace({
           <button
             key={item.id}
             onClick={() => setView(item.id)}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${view === item.id ? 'bg-white/10 text-[#b9afff]' : 'text-slate-400'}`}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-white/10 text-[#b9afff]' : 'text-slate-400'}`}
           >
             <item.icon className="size-[18px]" />
             <span>{item.shortLabel}</span>

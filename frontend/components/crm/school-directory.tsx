@@ -347,6 +347,7 @@ export function SchoolDirectory({
             <Button variant="outline" type="submit">
               Tìm kiếm
             </Button>
+            <Button variant="outline" type="button" onClick={() => { setTerm(''); setSearch(''); setPage(1); }}>Reset bộ lọc</Button>
           </form>
           <span className="text-sm text-muted-foreground">
             {schools.data?.total ?? 0} trường chính

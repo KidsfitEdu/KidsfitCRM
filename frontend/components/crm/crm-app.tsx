@@ -88,6 +88,9 @@ type View =
   | 'admin-team'
   | 'admin-settings'
   | 'admin-reports';
+const AdminWorkspace = lazy(() =>
+  import('@/components/crm/admin/admin-workspace').then((module) => ({ default: module.AdminWorkspace })),
+);
 const ChannelOperations = lazy(() =>
   import('@/components/crm/channel-operations').then((module) => ({
     default: module.ChannelOperations,
@@ -1186,7 +1189,7 @@ function CrmWorkspace({
             <LoadingGrid />
           ) : (
             <>
-              {currentView === 'dashboard' && <SchoolDashboard workspace={channelSales} />}
+
               {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations
@@ -1217,17 +1220,16 @@ function CrmWorkspace({
                   />
                 </Suspense>
               )}
-              {(['admin-schools', 'admin-proposals', 'admin-team', 'admin-reports', 'admin-settings'] as View[]).includes(view) && (
+              {(['dashboard', 'admin-schools', 'admin-proposals', 'admin-team', 'admin-settings', 'admin-reports'] as View[]).includes(currentView) && (
                 <Suspense fallback={<LoadingGrid />}>
-                  <ChannelOperations
-                    key={view}
+                  <AdminWorkspace
+                    key={currentView}
+                    section={currentView as import('@/components/crm/admin/admin-workspace').AdminSection}
                     apiBase={apiBase}
                     token={token}
                     abilities={abilities}
+                    workspace={channelSales}
                     onChanged={refreshChannelSales}
-                    initialPanel={currentView === 'admin-schools' ? 'schools' : currentView === 'admin-proposals' || currentView === 'admin-settings' || currentView === 'admin-reports' ? 'operations' : 'team'}
-                    initialOperationsTab={currentView === 'admin-reports' ? 'report' : currentView === 'admin-settings' ? 'policies' : 'proposals'}
-                    customerView={() => null}
                   />
                 </Suspense>
               )}

@@ -18,6 +18,8 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.SchoolProposalSubmit);
         group.MapPost("/school-proposals/{id:long}/manager-review", async (long id, ReviewSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReviewSchoolProposal(id, request, false, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapPatch("/school-proposals/{id:long}", async (long id, UpdateSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.UpdateSchoolProposal(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/school-proposals/{id:long}/admin-review", async (long id, ReviewSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReviewSchoolProposal(id, request, true, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/school-invitations", async (CreateSchoolInvitationRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.InviteSchoolCollaborator(request, h.UserId(), h, ct)))

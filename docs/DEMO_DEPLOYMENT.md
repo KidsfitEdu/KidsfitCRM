@@ -17,6 +17,24 @@ Chỉ khi được yêu cầu cập nhật bản Site cũ mới mở lại đún
 audience; không tạo Site mới hoặc tự bật truy cập công khai. Bản source Site độc
 lập với repository CRM. Bản public hiện tại dùng GitHub Pages và workflow bên dưới.
 
+## Phạm vi iSchool & F&B — 27/10/2026
+
+Đã phát hành từ commit `fa37578226e169bf65a97ea139803e6fe9ee9375`:
+[GitHub Actions run thành công](https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/40452443443).
+
+- Menu hiện tại chỉ còn **Tổng quan** và **Đăng ký khách hàng**; các chức năng
+  học viên, lớp, tuyển sinh và học phí không xuất hiện trong ứng dụng.
+- Tổng quan dùng số khách hàng tiếp cận/hợp đồng, doanh thu và hoa hồng theo
+  quyền. Nhãn ứng dụng là **iSchool & F&B**; bên CHECKEE vẫn đối soát theo quy trình cũ.
+- Đã qua lint, TypeScript, 22 unit test, 2 kiểm thử artifact, build local và
+  clean build/deploy trên GitHub. Kiểm thử artifact chặn đóng gói giao diện giáo dục cũ.
+- Đã kiểm tra trực tiếp đăng nhập, menu và Tổng quan ở local lẫn URL public;
+  trang public trả HTTP 200 và dùng bundle mới. Không đổi backend/schema hoặc
+  xóa dữ liệu giáo dục lịch sử.
+
+Quyết định phạm vi và hướng dẫn cho các lần prompting:
+[PRODUCT_SCOPE.md](PRODUCT_SCOPE.md).
+
 ## Cập nhật Vận hành từ Notes — 27/10/2026
 
 Đã phát hành frontend public từ commit

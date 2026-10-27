@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SchoolDirectory } from '@/components/crm/school-directory';
@@ -23,6 +23,7 @@ export function AdminWorkspace(props: Props) {
 }
 
 function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, onChanged }: Props) {
+  const queryClient = useQueryClient();
   const [operations, setOperations] = useState<SchoolOperationsWorkspace | null>(null);
   const [management, setManagement] = useState<ChannelManagement | null>(null);
   const [report, setReport] = useState<SchoolOperationsReport | null>(null);
@@ -100,6 +101,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     try {
       await api('/schools/manual',{method:'POST',body:JSON.stringify(manual)});
       setManual({unit_type:'MAIN'});setManualOpen(false);setNotice('Đã thêm trường thành công.');
+      await queryClient.invalidateQueries();
       await onChanged();
     } catch(e) { setError(e instanceof Error ? e.message : 'Không lưu được trường.'); }
     finally { setBusy(false); }

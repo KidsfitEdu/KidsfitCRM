@@ -31,6 +31,8 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [manualOpen, setManualOpen] = useState(false);
+  const [teamFormOpen, setTeamFormOpen] = useState(false);
+  const [teamForm, setTeamForm] = useState({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});
   const [manual, setManual] = useState<Record<string,string>>({unit_type:'MAIN'});
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
@@ -106,6 +108,15 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     } catch(e) { setError(e instanceof Error ? e.message : 'Không lưu được trường.'); }
     finally { setBusy(false); }
   };
+  const createTeamMember = async () => {
+    setBusy(true);setError('');
+    try {
+      await api('/team',{method:'POST',body:JSON.stringify({...teamForm,organization_id:Number(teamForm.organization_id)})});
+      setTeamFormOpen(false);setTeamForm({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});
+      setNotice('Đã tạo tài khoản nhân sự.'); await reload();
+    } catch(e) {setError(e instanceof Error?e.message:'Không tạo được tài khoản.');}
+    finally {setBusy(false);}
+  };
   const pending = operations?.proposals.filter(p => p.status === 'PENDING_ADMIN').length ?? 0;
   const metrics = workspace.metrics;
   return <div className="space-y-5">
@@ -176,7 +187,15 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       </div>
     </>}
     {section === 'admin-team' && <div className={panel}>
-      <h3 className="mb-4 font-semibold">Nhân sự & tổ chức</h3>
+      <div className="mb-4 flex justify-between gap-3"><h3 className="font-semibold">Nhân sự & tổ chức</h3><Button disabled={preview || !can('channel_sales.team.manage')} onClick={()=>setTeamFormOpen(v=>!v)}>+ Thêm nhân sự</Button></div>
+      {teamFormOpen && <div className="mb-5 space-y-3 rounded-xl border p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(['name','email','password'] as const).map(k=><label className="text-sm" key={k}>{({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (tối thiểu 12 ký tự)'} as Record<string,string>)[k]}<Input className="mt-1" type={k==='password'?'password':'text'} value={teamForm[k]} onChange={e=>setTeamForm(t=>({...t,[k]:e.target.value}))}/></label>)}
+          <label className="text-sm">Tổ chức<select className="mt-1 w-full rounded-lg border bg-background p-2" value={teamForm.organization_id} onChange={e=>setTeamForm(t=>({...t,organization_id:e.target.value}))}><option value="">Chọn tổ chức</option>{management?.organizations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select></label>
+          <label className="text-sm">Vai trò<select className="mt-1 w-full rounded-lg border bg-background p-2" value={teamForm.role_code} onChange={e=>setTeamForm(t=>({...t,role_code:e.target.value}))}>{management?.roles.filter(x=>!['ADMIN','BOARD'].includes(x.code)).map(x=><option key={x.code} value={x.code}>{x.name}</option>)}</select></label>
+        </div>
+        <div className="flex gap-2"><Button disabled={busy || !teamForm.organization_id || teamForm.password.length<12} onClick={()=>void createTeamMember()}>Tạo tài khoản</Button><Button variant="outline" onClick={()=>setTeamFormOpen(false)}>Hủy</Button></div>
+      </div>}
       {management ? <div className="space-y-3">{management.team.map(u=><div className="flex flex-wrap justify-between gap-2 border-b pb-3 text-sm" key={u.id}><div><strong>{u.name}</strong><p className="text-muted-foreground">{u.email} · {u.organization_name}</p></div><span>{u.membership_type} · {u.status}</span></div>)}{management.team.length===0 && <p>Chưa có nhân sự.</p>}</div>:<p className="text-sm text-muted-foreground">{busy?'Đang tải…':'Chưa có dữ liệu hoặc chưa đủ quyền.'}</p>}
     </div>}
     {section === 'admin-settings' && <div className={panel}>

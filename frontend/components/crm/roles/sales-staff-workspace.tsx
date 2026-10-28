@@ -1,12 +1,13 @@
 'use client';
 
+import type { ComponentProps } from 'react';
 import { ShieldCheck, ClipboardCheck } from 'lucide-react';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
 
 type Props={apiBase:string;token:string;abilities:string[];workspace:ChannelSalesWorkspace;onChanged:()=>Promise<void>;
-  search:string;setSearch:(value:string)=>void; onRegister?:ComponentProps<typeof ChannelSalesView>['onRegister'];onAddActivity?:ComponentProps<typeof ChannelSalesView>['onAddActivity'];onReportContract?:ComponentProps<typeof ChannelSalesView>['onReportContract'];onRecordRevenue?:ComponentProps<typeof ChannelSalesView>['onRecordRevenue']};
+  search:string;setSearch:(value:string)=>void; onRegister:ComponentProps<typeof ChannelSalesView>['onRegister'];onAddActivity:ComponentProps<typeof ChannelSalesView>['onAddActivity'];onReportContract:ComponentProps<typeof ChannelSalesView>['onReportContract'];onRecordRevenue:ComponentProps<typeof ChannelSalesView>['onRecordRevenue']};
 export function SalesStaffWorkspace(props:Props) {
  const can=(code:string)=>props.abilities.includes(code)||props.abilities.includes('*');
  return <section className="space-y-5">

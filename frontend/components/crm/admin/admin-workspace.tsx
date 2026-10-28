@@ -160,17 +160,22 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Danh sách đề xuất trường</h3><Button variant="outline" disabled={busy || preview} onClick={() => void reload()}><RefreshCw className="mr-2 size-4"/>Làm mới</Button></div>
         <div className="flex flex-wrap gap-2"><Input className="min-w-48 flex-1" aria-label="Tìm đề xuất" placeholder="Tìm tên trường hoặc mã trường…" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/><select aria-label="Lọc trạng thái" className="rounded-lg border bg-background px-3" value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1);}}><option value="ALL">Tất cả trạng thái</option><option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option></select><Button variant="outline" onClick={()=>{setSearch('');setStatusFilter('ALL');setPage(1);}}>Reset bộ lọc</Button></div>
         {busy && <p className="mt-3 text-sm text-muted-foreground">Đang tải dữ liệu…</p>}
-        <div className="mt-4 space-y-3">
-          {proposals.map(p => <div key={p.id} className="rounded-xl border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2"><strong>{p.name}</strong><span className="rounded-full bg-muted px-3 py-1 text-xs">{workflowLabels[p.status] ?? p.status}</span></div>
-            <p className="mt-1 text-sm text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Đề xuất: {p.submitted_by} · Quản lý: {p.manager_name} · Hạn: {workflowDate(p.review_due_at)}</p>
-            {p.possible_duplicate && <p className="mt-2 text-sm text-amber-700">Cần kiểm tra trường trùng tên/khu vực.</p>}
-            {p.status === 'PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={()=>openEdit(p)}>Chỉnh đề xuất</Button><Button size="sm" variant="outline" onClick={()=>void showRevisions(p.id)}>Lịch sử sửa</Button></div>}
-            {p.can_admin_review && !preview && <Button className="mt-3" size="sm" variant="outline" onClick={() => {setSelected(selected===p.id?null:p.id);setReason('');}}>Xem quyết định</Button>}
-
-          </div>)}
-          {!busy && proposals.length===0 && <p className="py-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
+        <div className="mt-4 overflow-x-auto rounded-xl border">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="p-3">Trường học</th><th className="p-3">Người đề xuất</th><th className="p-3">Trạng thái</th><th className="p-3">Hạn xử lý</th><th className="p-3 text-right">Thao tác</th></tr></thead>
+            <tbody>{proposals.map(p=><tr key={p.id} className="border-t align-top hover:bg-muted/30">
+              <td className="p-3"><p className="font-semibold">{p.name}</p><p className="text-xs text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>{p.possible_duplicate && <p className="text-xs text-amber-700">Cần kiểm tra trùng</p>}</td>
+              <td className="p-3"><p>{p.submitted_by}</p><p className="text-xs text-muted-foreground">QL: {p.manager_name}</p></td>
+              <td className="p-3"><span className="rounded-full bg-muted px-2 py-1 text-xs">{workflowLabels[p.status]??p.status}</span></td>
+              <td className="p-3">{workflowDate(p.review_due_at)}</td>
+              <td className="p-3"><div className="flex justify-end gap-1">
+                {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <Button size="sm" variant="outline" onClick={()=>openEdit(p)}>Sửa</Button>}
+                {!preview && can('channel_sales.school.directory.manage') && <Button size="sm" variant="outline" onClick={()=>void showRevisions(p.id)}>Lịch sử</Button>}
+                {p.can_admin_review && !preview && <Button size="sm" onClick={()=>{setSelected(p.id);setReason('');}}>Duyệt</Button>}
+              </div></td>
+            </tr>)}</tbody>
+          </table>
+          {!busy && proposals.length===0 && <p className="p-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
         </div>
         {operations?.pagination && <div className="mt-4 flex items-center justify-end gap-3"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Trước</Button><span className="text-sm">Trang {page}</span><Button variant="outline" disabled={operations.proposals.length < operations.pagination.page_size} onClick={()=>setPage(p=>p+1)}>Sau</Button></div>}
       </div>

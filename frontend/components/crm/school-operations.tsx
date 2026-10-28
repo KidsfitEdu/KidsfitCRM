@@ -51,6 +51,7 @@ type Props = {
   abilities: string[];
   onChanged: () => Promise<void>;
   initialTab?: string;
+  hideTabs?: boolean;
 };
 const reason: SchoolActionField = {
   name: 'reason',
@@ -74,6 +75,7 @@ export function SchoolOperations({
   abilities,
   onChanged,
   initialTab = 'proposals',
+  hideTabs = false,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
   const [search, setSearch] = useState('');
@@ -453,7 +455,7 @@ export function SchoolOperations({
           {notice}
         </output>
       )}
-      <nav
+      {!hideTabs && <nav
         aria-label="Nhóm công việc vận hành"
         className="flex gap-1 overflow-x-auto rounded-2xl border bg-card p-1.5"
       >
@@ -477,7 +479,7 @@ export function SchoolOperations({
             {t.label}
           </button>
         ))}
-      </nav>
+      </nav>}
       {active !== 'report' && active !== 'policies' && (
         <div className="flex flex-wrap gap-3">
           <Input

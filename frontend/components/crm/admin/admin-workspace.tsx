@@ -172,7 +172,6 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
           </div>)}
           {!busy && proposals.length===0 && <p className="py-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
         </div>
-        {revisions && <div className="mt-5 rounded-xl border p-4"><div className="flex justify-between"><strong>Lịch sử chỉnh sửa</strong><Button variant="outline" size="sm" onClick={()=>setRevisions(null)}>Đóng</Button></div>{revisions.map(r=><div className="border-b py-2 text-sm" key={r.version}>Lần {r.version} · {r.actor_name} · {workflowDate(r.created_at)} · {r.reason}</div>)}{!revisions.length && <p className="text-sm text-muted-foreground">Chưa có lịch sử chỉnh sửa.</p>}</div>}
         {operations?.pagination && <div className="mt-4 flex items-center justify-end gap-3"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Trước</Button><span className="text-sm">Trang {page}</span><Button variant="outline" disabled={operations.proposals.length < operations.pagination.page_size} onClick={()=>setPage(p=>p+1)}>Sau</Button></div>}
       </div>
     </>}
@@ -198,6 +197,10 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       <div className="grid gap-3 sm:grid-cols-2"><Summary label="Trường chưa đăng ký" value={report?.available_schools ?? null}/><Summary label="Hợp đồng đang hiệu lực" value={report?.active_contracts ?? null}/><Summary label="Đề xuất quá hạn" value={report?.overdue_proposals ?? null}/><Summary label="Tiếp cận hết hạn" value={report?.expired_approaches ?? null}/></div>
       <p className="mt-4 text-sm text-muted-foreground">Lịch sử chỉnh sửa từng trường và đề xuất được kiểm soát theo quyền truy cập của hồ sơ tương ứng.</p>
     </div>}
+    <Dialog open={revisions!==null} onOpenChange={open=>{if(!open)setRevisions(null);}}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogHeader><DialogTitle>Lịch sử chỉnh sửa đề xuất</DialogTitle><DialogDescription>Các lần cập nhật được lưu theo phiên bản, người sửa, thời gian và lý do.</DialogDescription></DialogHeader>
+      <div className="space-y-3">{revisions?.map(r=><div className="rounded-lg border p-3 text-sm" key={r.version}><strong>Phiên bản {r.version}</strong><p className="mt-1 text-muted-foreground">{r.actor_name} · {workflowDate(r.created_at)}</p><p className="mt-2">{r.reason}</p></div>)}{revisions?.length===0 && <p className="text-sm text-muted-foreground">Chưa có lần chỉnh sửa nào.</p>}</div>
+    </DialogContent></Dialog>
     <Dialog open={selected !== null} onOpenChange={open => {if(!open&&!busy)setSelected(null);}}><DialogContent className="sm:max-w-xl">
       <DialogHeader><DialogTitle>Phê duyệt đề xuất trường</DialogTitle><DialogDescription>Kiểm tra thông tin và nhập căn cứ quyết định trước khi duyệt hoặc từ chối.</DialogDescription></DialogHeader>
       {(() => { const p=operations?.proposals.find(x=>x.id===selected); return p ? <div className="space-y-3">

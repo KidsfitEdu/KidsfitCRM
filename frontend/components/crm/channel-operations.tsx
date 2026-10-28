@@ -57,6 +57,8 @@ type Props = {
   onChanged: () => Promise<void>;
   initialPanel?: Panel;
   allowedPanels?: Panel[];
+  hideTabs?: boolean;
+  hideOperationsTabs?: boolean;
   initialOperationsTab?: string;
 };
 export type Panel =
@@ -90,6 +92,8 @@ function OperationsContent({
   onChanged,
   initialPanel = 'customers',
   allowedPanels,
+  hideTabs = false,
+  hideOperationsTabs = false,
   initialOperationsTab,
 }: Props) {
   const [panel, setPanel] = useState<Panel>(initialPanel);
@@ -184,7 +188,7 @@ function OperationsContent({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav
+        {!hideTabs && <nav
           aria-label="Chức năng CHECKEE"
           className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border bg-card p-1.5 shadow-sm"
         >
@@ -204,7 +208,7 @@ function OperationsContent({
                 {tab.label}
               </button>
             ))}
-        </nav>
+        </nav>}
         {visiblePanel !== 'customers' && (
           <Button
             variant="outline"
@@ -235,6 +239,7 @@ function OperationsContent({
       {visiblePanel === 'operations' && (
         <SchoolOperations
           initialTab={initialOperationsTab}
+          hideTabs={hideOperationsTabs}
           apiBase={apiBase}
           token={token}
           abilities={abilities}

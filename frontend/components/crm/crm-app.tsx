@@ -168,7 +168,11 @@ const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] =
   { id: 'admin-team', label: 'Nhân sự & đối tác', shortLabel: 'Nhân sự', icon: UsersRound },
   { id: 'admin-settings', label: 'Chính sách & hạn mức', shortLabel: 'Chính sách', icon: ShieldCheck },
   { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
-  { id: 'role-customer-care', label: 'CSKH', shortLabel: 'CSKH', icon: ShieldCheck },
+  { id: 'role-customer-care-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'role-customer-care-handover', label: 'Trường bàn giao', shortLabel: 'Trường bàn giao', icon: GraduationCap },
+  { id: 'role-customer-care-cases', label: 'Yêu cầu hỗ trợ', shortLabel: 'Yêu cầu hỗ trợ', icon: BookOpenCheck },
+  { id: 'role-customer-care-customers', label: 'Khách hàng', shortLabel: 'Khách hàng', icon: UsersRound },
+  { id: 'role-customer-care-followup', label: 'Theo dõi chăm sóc', shortLabel: 'Theo dõi chăm sóc', icon: CalendarDays },
   { id: 'manager-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'manager-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'manager-allocations', label: 'Phân bổ trường', shortLabel: 'Phân bổ', icon: UsersRound },
@@ -197,7 +201,11 @@ const viewCopy: Record<
   'admin-team': { eyebrow: 'Tổ chức & nhân sự', title: 'Nhân sự & đối tác', description: 'Quản lý CTV, nhân viên và đối tác bán hàng.' },
   'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
   'admin-settings': { eyebrow: 'Thiết lập CRM', title: 'Cấu hình hệ thống', description: 'Quản trị chính sách và hạn mức nghiệp vụ.' },
-  'role-customer-care': { eyebrow:'Kidsfit CRM',title:'CSKH',description:'Không gian công việc theo quyền và phạm vi được giao.' },
+  'role-customer-care-dashboard': {eyebrow:'customer-care',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-handover': {eyebrow:'customer-care',title:'Trường bàn giao',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-cases': {eyebrow:'customer-care',title:'Yêu cầu hỗ trợ',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-customers': {eyebrow:'customer-care',title:'Khách hàng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-followup': {eyebrow:'customer-care',title:'Theo dõi chăm sóc',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'manager-dashboard': { eyebrow:'Quản lý bán hàng',title:'Tổng quan đội ngũ',description:'Giám sát đề xuất, phân bổ và gia hạn theo phạm vi được phân quyền.' },
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
@@ -1048,7 +1056,7 @@ function CrmWorkspace({
         return false;
       })
     : isSelectedRole
-      ? nav.filter(item=>item.id === 'role-customer-care')
+      ? nav.filter(item=>item.id.startsWith('role-customer-care-'))
     : isManagerWorkspace
       ? nav.filter(item=>item.id.startsWith('manager-'))
     : can('channel_sales.customer.view')
@@ -1217,7 +1225,7 @@ function CrmWorkspace({
               {isManagerWorkspace && currentView.startsWith('manager-') && (
                 <Suspense fallback={<LoadingGrid/>}><SalesManagerWorkspace key={currentView} section={currentView as import('@/components/crm/sales-manager-workspace').ManagerSection} apiBase={apiBase} token={token} abilities={abilities} onChanged={refreshChannelSales}/></Suspense>
               )}
-              {currentView === 'role-customer-care' && (<Suspense fallback={<LoadingGrid />}><CustomerCareWorkspace apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-customer-care-') && (<Suspense fallback={<LoadingGrid />}><CustomerCareWorkspace section={currentView.slice('role-customer-care-'.length) as import('@/components/crm/roles/customer-care-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations

@@ -345,16 +345,16 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         db.SchoolProposals.AddRange(oldest, Row(prefix + " hồ sơ chờ mới", "PENDING_MANAGER", s.Seller.UserId, now, now.AddDays(1)),
             Row(prefix + " riêng tư của người khác", "PENDING_MANAGER", s.Peer.UserId, now, now.AddDays(1)));
         await db.SaveChangesAsync();
-        var first = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Seller.UserId), db, 1, null, Ct));
-        var second = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Seller.UserId), db, 2, null, Ct));
+        var first = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Seller.UserId), db, 1, null, null, Ct));
+        var second = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Seller.UserId), db, 2, null, null, Ct));
         Assert.Equal(122, first.GetProperty("pagination").GetProperty("totals").GetProperty("proposals").GetInt32());
         Assert.Equal(oldest.Id, first.GetProperty("proposals")[0].GetProperty("id").GetInt64());
         Assert.Equal(100, first.GetProperty("proposals").GetArrayLength()); Assert.Equal(22, second.GetProperty("proposals").GetArrayLength());
         var firstIds = first.GetProperty("proposals").EnumerateArray().Select(x => x.GetProperty("id").GetInt64()).ToHashSet();
         Assert.DoesNotContain(second.GetProperty("proposals").EnumerateArray(), x => firstIds.Contains(x.GetProperty("id").GetInt64()));
-        var found = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Seller.UserId), db, 1, oldest.Name, Ct));
+        var found = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Seller.UserId), db, 1, oldest.Name, null, Ct));
         Assert.Single(found.GetProperty("proposals").EnumerateArray());
-        var hidden = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Peer.UserId), db, 1, oldest.Name, Ct));
+        var hidden = Json(await SchoolOperationsEndpoints.WorkspacePage(Http(s.Peer.UserId), db, 1, oldest.Name, null, Ct));
         Assert.Empty(hidden.GetProperty("proposals").EnumerateArray());
     }
 

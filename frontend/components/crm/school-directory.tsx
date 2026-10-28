@@ -890,7 +890,7 @@ function SchoolDetail({
               Phân bổ trường
             </Button>
           )}
-          {data.can_allocate && (
+          {!adminMode && data.can_allocate && (
             <Button
               size="sm"
               variant="outline"
@@ -929,7 +929,7 @@ function SchoolDetail({
               Hẹn rà soát
             </Button>
           )}
-          {data.can_dispute && (
+          {!adminMode && data.can_dispute && (
             <Button
               size="sm"
               variant="ghost"

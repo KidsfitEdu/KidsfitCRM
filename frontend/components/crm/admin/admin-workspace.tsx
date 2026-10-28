@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SchoolDirectory } from '@/components/crm/school-directory';
+import { AdminCapacityManagement } from './admin-capacity-management';
 import { channelRequest, currentBusinessPeriod, type ChannelManagement } from '@/lib/channel-operations';
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace, type SchoolOperationsReport } from '@/lib/school-operations';
 import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
@@ -204,11 +205,11 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         {management.team.length===0&&<p className="p-8 text-center text-sm text-muted-foreground">Chưa có nhân sự.</p>}
       </div>:<p className="text-sm text-muted-foreground">{busy?'Đang tải…':'Chưa có dữ liệu hoặc chưa đủ quyền.'}</p>}
     </div>}
-    {section === 'admin-settings' && <div className={panel}>
+    {section === 'admin-settings' && <div className="space-y-5"><AdminCapacityManagement apiBase={apiBase} token={token} abilities={abilities}/><div className={panel}>
       <h3 className="mb-2 font-semibold">Chính sách vận hành</h3><p className="mb-4 text-sm text-muted-foreground">Chỉ hiển thị phiên bản chính sách đã lưu. Chưa kích hoạt thông số SLA chưa được phê duyệt.</p>
       {operations?.policies.map(p=><div className="flex justify-between gap-3 border-b py-3 text-sm" key={p.id}><div><strong>Phiên bản {p.version}</strong><p className="text-muted-foreground">Quản lý: {p.manager_review_hours} giờ · Admin: {p.admin_review_hours} giờ</p></div><span>{workflowLabels[p.status] ?? p.status}</span></div>)}
       {!operations?.policies.length && <p className="text-sm text-muted-foreground">Chưa có chính sách được tải.</p>}
-    </div>}
+    </div></div>}
     {section === 'admin-reports' && <div className={panel}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Báo cáo vận hành</h3><Input className="max-w-44" type="month" aria-label="Kỳ báo cáo" value={period} onChange={e=>setPeriod(e.target.value)} /></div>
       <div className="grid gap-3 sm:grid-cols-2"><Summary label="Trường chưa đăng ký" value={report?.available_schools ?? null}/><Summary label="Hợp đồng đang hiệu lực" value={report?.active_contracts ?? null}/><Summary label="Đề xuất quá hạn" value={report?.overdue_proposals ?? null}/><Summary label="Tiếp cận hết hạn" value={report?.expired_approaches ?? null}/></div>

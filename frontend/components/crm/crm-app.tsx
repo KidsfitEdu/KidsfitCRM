@@ -1037,7 +1037,7 @@ function CrmWorkspace({
     abilities.includes('*') || abilities.includes(ability);
   const isAdminWorkspace = can('channel_sales.school.directory.manage') && can('channel_sales.scope.all');
   const isManagerWorkspace = !isAdminWorkspace && can('channel_sales.school.allocation.manage');
-  const isSelectedRole = !isAdminWorkspace && !isManagerWorkspace && (demoAccount?.id === 'ctv' || (!demoAccount && membershipType === 'COLLABORATOR'));
+  const isSelectedRole = !isAdminWorkspace && !isManagerWorkspace && (demoAccount?.id === 'ctv' || (!demoAccount && (membershipType === 'COLLABORATOR' || membershipType === 'PARTNER_COLLABORATOR')));
   const visibleNav = isAdminWorkspace
     ? nav.filter((item) => {
         if (item.id === 'dashboard') return can('channel_sales.customer.view');

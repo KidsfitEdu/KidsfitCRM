@@ -109,7 +109,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const createManual = async () => {
     const errs: Record<string,string> = {};
     for(const key of ['school_code','name','province','ward','reason']) if(!manual[key]?.trim()) errs[key]='Trường này là bắt buộc.';
-    if(manual.email?.trim() && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(manual.email.trim())) errs.email='Email không đúng định dạng.';
+    if(manual.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manual.email.trim())) errs.email='Email không đúng định dạng.';
     if(manual.reason?.trim() && manual.reason.trim().length<3) errs.reason='Vui lòng nêu lý do ít nhất 3 ký tự.';
     setFormErrors(errs);
     if(Object.keys(errs).length) return;
@@ -125,7 +125,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const createTeamMember = async () => {
     const errs: Record<string,string> = {};
     if(!teamForm.name.trim()) errs.name='Cần nhập họ tên.';
-    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(teamForm.email)) errs.email='Email không hợp lệ.';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teamForm.email)) errs.email='Email không hợp lệ.';
     if(teamForm.password.length<12) errs.password='Mật khẩu cần ít nhất 12 ký tự.';
     if(!teamForm.organization_id) errs.organization_id='Vui lòng chọn tổ chức.';
     setFormErrors(errs);

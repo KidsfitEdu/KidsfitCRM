@@ -168,7 +168,13 @@ const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] =
   { id: 'admin-team', label: 'Nhân sự & đối tác', shortLabel: 'Nhân sự', icon: UsersRound },
   { id: 'admin-settings', label: 'Chính sách & hạn mức', shortLabel: 'Chính sách', icon: ShieldCheck },
   { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
-  { id: 'role-collaborator', label: 'CTV', shortLabel: 'CTV', icon: ShieldCheck },
+  { id: 'role-collaborator-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'role-collaborator-schools', label: 'Đăng ký trường', shortLabel: 'Đăng ký trường', icon: GraduationCap },
+  { id: 'role-collaborator-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất trường', icon: BookOpenCheck },
+  { id: 'role-collaborator-invitations', label: 'Nhận phân bổ', shortLabel: 'Nhận phân bổ', icon: UsersRound },
+  { id: 'role-collaborator-approaches', label: 'Tiếp cận & tư vấn', shortLabel: 'Tiếp cận & tư vấn', icon: Phone },
+  { id: 'role-collaborator-extensions', label: 'Gia hạn', shortLabel: 'Gia hạn', icon: Clock3 },
+  { id: 'role-collaborator-income', label: 'Hoa hồng', shortLabel: 'Hoa hồng', icon: WalletCards },
   { id: 'manager-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'manager-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'manager-allocations', label: 'Phân bổ trường', shortLabel: 'Phân bổ', icon: UsersRound },
@@ -197,7 +203,13 @@ const viewCopy: Record<
   'admin-team': { eyebrow: 'Tổ chức & nhân sự', title: 'Nhân sự & đối tác', description: 'Quản lý CTV, nhân viên và đối tác bán hàng.' },
   'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
   'admin-settings': { eyebrow: 'Thiết lập CRM', title: 'Cấu hình hệ thống', description: 'Quản trị chính sách và hạn mức nghiệp vụ.' },
-  'role-collaborator': { eyebrow:'Kidsfit CRM',title:'CTV',description:'Không gian công việc theo quyền và phạm vi được giao.' },
+  'role-collaborator-dashboard': {eyebrow:'collaborator',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-collaborator-schools': {eyebrow:'collaborator',title:'Đăng ký trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-collaborator-proposals': {eyebrow:'collaborator',title:'Đề xuất trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-collaborator-invitations': {eyebrow:'collaborator',title:'Nhận phân bổ',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-collaborator-approaches': {eyebrow:'collaborator',title:'Tiếp cận & tư vấn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-collaborator-extensions': {eyebrow:'collaborator',title:'Gia hạn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-collaborator-income': {eyebrow:'collaborator',title:'Hoa hồng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'manager-dashboard': { eyebrow:'Quản lý bán hàng',title:'Tổng quan đội ngũ',description:'Giám sát đề xuất, phân bổ và gia hạn theo phạm vi được phân quyền.' },
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
@@ -1048,7 +1060,7 @@ function CrmWorkspace({
         return false;
       })
     : isSelectedRole
-      ? nav.filter(item=>item.id === 'role-collaborator')
+      ? nav.filter(item=>item.id.startsWith('role-collaborator-'))
     : isManagerWorkspace
       ? nav.filter(item=>item.id.startsWith('manager-'))
     : can('channel_sales.customer.view')
@@ -1217,7 +1229,7 @@ function CrmWorkspace({
               {isManagerWorkspace && currentView.startsWith('manager-') && (
                 <Suspense fallback={<LoadingGrid/>}><SalesManagerWorkspace key={currentView} section={currentView as import('@/components/crm/sales-manager-workspace').ManagerSection} apiBase={apiBase} token={token} abilities={abilities} onChanged={refreshChannelSales}/></Suspense>
               )}
-              {currentView === 'role-collaborator' && (<Suspense fallback={<LoadingGrid />}><CollaboratorWorkspace apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-collaborator-') && (<Suspense fallback={<LoadingGrid />}><CollaboratorWorkspace section={currentView.slice('role-collaborator-'.length) as import('@/components/crm/roles/collaborator-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations

@@ -56,6 +56,7 @@ type Props = {
   customerView: (onOpenCustomer?: (id: number) => void) => ReactNode;
   onChanged: () => Promise<void>;
   initialPanel?: Panel;
+  allowedPanels?: Panel[];
   initialOperationsTab?: string;
 };
 export type Panel =
@@ -88,9 +89,11 @@ function OperationsContent({
   customerView,
   onChanged,
   initialPanel = 'customers',
+  allowedPanels,
   initialOperationsTab,
 }: Props) {
   const [panel, setPanel] = useState<Panel>(initialPanel);
+  const visiblePanel = allowedPanels && !allowedPanels.includes(panel) ? allowedPanels[0] : panel;
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [modal, setModal] = useState<ReactNode>(null);
   const [notice, setNotice] = useState('');
@@ -104,7 +107,7 @@ function OperationsContent({
     queryKey: keys.finance(period),
     queryFn: () => api<FinanceWorkspace>(`/finance?period=${period}`),
     enabled:
-      connected && panel === 'finance' && can('channel_sales.commission.view'),
+      connected && visiblePanel === 'finance' && can('channel_sales.commission.view'),
   });
   const reconciliation = useQuery({
     queryKey: keys.reconciliation,
@@ -112,12 +115,12 @@ function OperationsContent({
       api<{ data: ReconciliationItem[]; total: number }>(
         '/reconciliation-cases',
       ),
-    enabled: connected && panel === 'reconciliation',
+    enabled: connected && visiblePanel === 'reconciliation',
   });
   const management = useQuery({
     queryKey: keys.management,
     queryFn: () => api<ChannelManagement>('/management'),
-    enabled: connected && panel === 'team' && can('channel_sales.team.manage'),
+    enabled: connected && visiblePanel === 'team' && can('channel_sales.team.manage'),
   });
   const detail = useQuery({
     queryKey: keys.detail(customerId),
@@ -186,7 +189,7 @@ function OperationsContent({
           className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border bg-card p-1.5 shadow-sm"
         >
           {tabs
-            .filter((tab) => tab.show)
+            .filter((tab) => tab.show && (!allowedPanels || allowedPanels.includes(tab.id)))
             .map((tab) => (
               <button
                 key={tab.id}
@@ -195,14 +198,14 @@ function OperationsContent({
                   setNotice('');
                   mutation.reset();
                 }}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${panel === tab.id ? 'bg-[#6558d3] text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
+                className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${visiblePanel === tab.id ? 'bg-[#6558d3] text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
               >
                 <tab.icon className="size-4" />
                 {tab.label}
               </button>
             ))}
         </nav>
-        {panel !== 'customers' && (
+        {visiblePanel !== 'customers' && (
           <Button
             variant="outline"
             size="sm"
@@ -219,9 +222,9 @@ function OperationsContent({
         </output>
       )}
       {mutation.error && <ErrorBox message={mutation.error.message} />}
-      {panel === 'customers' &&
+      {visiblePanel === 'customers' &&
         customerView(connected ? setCustomerId : undefined)}
-      {panel === 'schools' && (
+      {visiblePanel === 'schools' && (
         <SchoolDirectory
           apiBase={apiBase}
           token={token}
@@ -229,7 +232,7 @@ function OperationsContent({
           onChanged={onChanged}
         />
       )}
-      {panel === 'operations' && (
+      {visiblePanel === 'operations' && (
         <SchoolOperations
           initialTab={initialOperationsTab}
           apiBase={apiBase}
@@ -238,7 +241,7 @@ function OperationsContent({
           onChanged={onChanged}
         />
       )}
-      {panel === 'reconciliation' && (
+      {visiblePanel === 'reconciliation' && (
         <>
           <PanelHeading
             title="Đối soát quyền khách hàng"
@@ -356,7 +359,7 @@ function OperationsContent({
           )}
         </>
       )}
-      {panel === 'finance' && (
+      {visiblePanel === 'finance' && (
         <>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <PanelHeading
@@ -397,7 +400,7 @@ function OperationsContent({
           )}
         </>
       )}
-      {panel === 'team' && (
+      {visiblePanel === 'team' && (
         <>
           <div className="flex items-center justify-between gap-4">
             <PanelHeading

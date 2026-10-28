@@ -310,6 +310,7 @@ function CrmWorkspace({
   const [token, setToken] = useState('');
   const [ready, setReady] = useState(!apiBase);
   const [userName, setUserName] = useState(demoAccount?.name ?? 'Minh Anh');
+  const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [abilities, setAbilities] = useState<string[]>(
     demoAccount?.abilities ?? [],
   );
@@ -391,7 +392,7 @@ function CrmWorkspace({
     setLoading(true);
     try {
       const me = await request<{
-        user: { name: string; abilities: string[] };
+        user: { name: string; abilities: string[]; organization_name?: string | null };
       }>('/me', accessToken);
       const has = (ability: string) => me.user.abilities.includes(ability);
       const [
@@ -437,6 +438,7 @@ function CrmWorkspace({
           : Promise.resolve(null),
       ]);
       setUserName(me.user.name);
+      setOrganizationName(me.user.organization_name ?? null);
       setAbilities(me.user.abilities);
       if (dashboard) {
         setMetrics(dashboard.metrics);
@@ -493,6 +495,7 @@ function CrmWorkspace({
       });
       sessionStorage.setItem('kidsfit_token', result.token);
       setUserName(result.user.name);
+      setOrganizationName(null);
       setAbilities(result.user.abilities);
       setToken(result.token);
     } finally {
@@ -1049,26 +1052,14 @@ function CrmWorkspace({
             </button>
           ))}
         </nav>
-        <div className="mx-4 mt-auto mb-3 rounded-2xl border border-white/10 bg-white/6 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-300">
-              CRM trường học
-            </span>
-            <span className="text-xs text-[#b9afff]">CHECKEE</span>
-          </div>
-          
-          <p className="mt-3 text-xs leading-5 text-slate-400">
-            Quản lý dữ liệu trường, quyền tiếp cận và hợp đồng
-          </p>
-        </div>
-        <div className="mx-4 mb-5 flex items-center gap-3 rounded-xl p-2">
+        <div className="mx-4 mt-auto mb-5 flex items-center gap-3 rounded-xl p-2">
           <div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">
             {initials(userName)}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{userName}</p>
             <p className="text-[11px] text-slate-400">
-              {demoAccount?.roleLabel ?? 'Kết nối MySQL'}
+              {demoAccount?.roleLabel ?? (isAdminWorkspace ? 'Quản trị viên' : can('channel_sales.school.allocation.manage') || can('channel_sales.manage') ? 'Quản lý bán hàng' : can('channel_sales.approach.register') ? 'Nhân viên / CTV' : 'Thành viên CRM')}{organizationName ? ` · ${organizationName}` : ''}
             </p>
           </div>
           {(apiBase || demoAccount) && (

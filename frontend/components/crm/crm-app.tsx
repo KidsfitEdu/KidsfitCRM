@@ -311,6 +311,7 @@ function CrmWorkspace({
   const [ready, setReady] = useState(!apiBase);
   const [userName, setUserName] = useState(demoAccount?.name ?? 'Minh Anh');
   const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [membershipType, setMembershipType] = useState<string | null>(null);
   const [abilities, setAbilities] = useState<string[]>(
     demoAccount?.abilities ?? [],
   );
@@ -392,7 +393,7 @@ function CrmWorkspace({
     setLoading(true);
     try {
       const me = await request<{
-        user: { name: string; abilities: string[]; organization_name?: string | null };
+        user: { name: string; abilities: string[]; organization_name?: string | null; membership_type?: string | null };
       }>('/me', accessToken);
       const has = (ability: string) => me.user.abilities.includes(ability);
       const [
@@ -439,6 +440,7 @@ function CrmWorkspace({
       ]);
       setUserName(me.user.name);
       setOrganizationName(me.user.organization_name ?? null);
+      setMembershipType(me.user.membership_type ?? null);
       setAbilities(me.user.abilities);
       if (dashboard) {
         setMetrics(dashboard.metrics);
@@ -496,6 +498,7 @@ function CrmWorkspace({
       sessionStorage.setItem('kidsfit_token', result.token);
       setUserName(result.user.name);
       setOrganizationName(null);
+      setMembershipType(null);
       setAbilities(result.user.abilities);
       setToken(result.token);
     } finally {
@@ -1059,7 +1062,7 @@ function CrmWorkspace({
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{userName}</p>
             <p className="text-[11px] text-slate-400">
-              {demoAccount?.roleLabel ?? (isAdminWorkspace ? 'Quản trị viên' : can('channel_sales.school.allocation.manage') || can('channel_sales.manage') ? 'Quản lý bán hàng' : can('channel_sales.approach.register') ? 'Nhân viên / CTV' : 'Thành viên CRM')}{organizationName ? ` · ${organizationName}` : ''}
+              {demoAccount?.roleLabel ?? (isAdminWorkspace ? 'Quản trị viên' : membershipType === 'COLLABORATOR' || membershipType === 'PARTNER_COLLABORATOR' ? 'CTV' : membershipType === 'SALES' ? 'Nhân viên bán hàng' : membershipType === 'SALES_MANAGER' || membershipType === 'PARTNER_ADMIN' ? 'Quản lý bán hàng' : 'Thành viên CRM')}{organizationName ? ` · ${organizationName}` : ''}
             </p>
           </div>
           {(apiBase || demoAccount) && (

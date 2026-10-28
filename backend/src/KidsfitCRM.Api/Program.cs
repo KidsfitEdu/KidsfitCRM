@@ -11,6 +11,37 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
+
+// Local-only .env support. Existing process environment variables take precedence.
+if (builder.Environment.IsDevelopment())
+{
+    var envFile = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "..", ".env"));
+    if (!File.Exists(envFile))
+        envFile = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".env"));
+
+    if (File.Exists(envFile))
+    {
+        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in File.ReadLines(envFile))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+            var index = line.IndexOf('=');
+            if (index <= 0) continue;
+            var key = line[..index].Trim();
+            var value = line[(index + 1)..].Trim();
+            if (key.Length == 0 || Environment.GetEnvironmentVariable(key) is not null) continue;
+            if (value.Length >= 2 && ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
+                value = value[1..^1];
+            values[key.Replace("__", ":")] = value;
+        }
+        // Never log configuration values. Command-line options and process environment retain priority.
+        builder.Configuration.AddInMemoryCollection(values);
+        builder.Configuration.AddEnvironmentVariables();
+        builder.Configuration.AddCommandLine(args);
+    }
+}
 var connectionString = builder.Configuration.GetConnectionString("MySql")
     ?? throw new InvalidOperationException("ConnectionStrings:MySql is required.");
 var jwtKey = builder.Configuration["Jwt:Key"]

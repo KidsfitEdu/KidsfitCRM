@@ -36,7 +36,7 @@ export function AdminCapacityManagement({apiBase,token,abilities}:Props) {
   const filtered=rows.filter(x=>(organization==='ALL'||x.organization_name===organization)&&[x.name,x.organization_name].some(v=>v.toLowerCase().includes(search.toLowerCase())));
   const validate=()=>{
     const errors: {limit?:string;reason?:string} = {};
-    if(!/^(0|[1-9]\\d*)$/.test(limitInput) || !Number.isSafeInteger(limit) || limit>1000) errors.limit='Nhập số nguyên từ 0 đến 1.000, không có số 0 ở đầu.';
+    if(!/^(0|[1-9]\d*)$/.test(limitInput) || !Number.isSafeInteger(limit) || limit>1000) errors.limit='Nhập số nguyên từ 0 đến 1.000, không có số 0 ở đầu.';
     if(reason.trim().length<3) errors.reason='Lý do phải có ít nhất 3 ký tự.';
     else if(reason.trim().length>2000) errors.reason='Lý do không được vượt quá 2.000 ký tự.';
     setFieldErrors(errors);

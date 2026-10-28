@@ -17,7 +17,7 @@ export function SalesStaffWorkspace(props:Props) {
    <div className="mt-4 grid gap-2 sm:grid-cols-3"><div className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm"><ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Đăng ký trường còn trống</span></div><div className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm"><ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Ghi nhận tư vấn và lịch hẹn</span></div><div className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm"><ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Báo hợp đồng và theo dõi thu nhập</span></div></div>
   </div>
   {!can('channel_sales.approach.register') && <p role="status" className="rounded-xl border p-3 text-sm text-muted-foreground">Một số thao tác cần quyền nghiệp vụ riêng. Chức năng chỉ được mở khi API cấp quyền phù hợp.</p>}
-  <ChannelOperations apiBase={props.apiBase} token={props.token} abilities={props.abilities} onChanged={props.onChanged} initialPanel="customers" initialOperationsTab="proposals"
+  <ChannelOperations apiBase={props.apiBase} token={props.token} abilities={props.abilities} onChanged={props.onChanged} allowedPanels={["customers","schools","operations","finance"]} initialPanel="customers" initialOperationsTab="proposals"
    customerView={(onOpenCustomer)=><ChannelSalesView onOpenCustomer={onOpenCustomer} workspace={props.workspace} search={props.search} setSearch={props.setSearch}
      canRegister={can('channel_sales.approach.register')} canAddActivity={can('channel_sales.activity.create')}
      canReportContract={can('channel_sales.contract.report')} canRecordRevenue={can('channel_sales.revenue.record')}

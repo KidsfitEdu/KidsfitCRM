@@ -45,6 +45,7 @@ type Props = {
   token: string;
   abilities: string[];
   onChanged: () => Promise<void>;
+  adminMode?: boolean;
 };
 type School = {
   id: number;
@@ -162,6 +163,7 @@ export function SchoolDirectory({
   token,
   abilities,
   onChanged,
+  adminMode = false,
 }: Props) {
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
@@ -190,6 +192,7 @@ export function SchoolDirectory({
   const capacities = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-capacities'],
     queryFn: () => api<{ data: Capacity[] }>('/school-capacities'),
+    enabled: !adminMode && can('channel_sales.school.capacity.manage'),
   });
   const detail = useQuery({
     queryKey: [...channelQueryKeys.all, 'school', selected],
@@ -281,7 +284,7 @@ export function SchoolDirectory({
             capacities.error?.message}
         </ErrorText>
       )}
-      {!!capacities.data?.data.length && (
+      {!adminMode && !!capacities.data?.data.length && (
         <section className="rounded-2xl border bg-card p-5">
           <h3 className="mb-4 flex items-center gap-2 font-semibold">
             <UsersRound className="size-4" /> Hạn mức tiếp cận của CTV
@@ -423,7 +426,7 @@ export function SchoolDirectory({
                         >
                           Chi tiết
                         </Button>
-                        {s.can_register && (
+                        {!adminMode && s.can_register && (
                           <Button
                             size="sm"
                             disabled={mutation.isPending}
@@ -591,6 +594,7 @@ export function SchoolDirectory({
                 data={detail.data}
                 run={run}
                 busy={mutation.isPending}
+                adminMode={adminMode}
               />
             )
           )}
@@ -636,12 +640,14 @@ function SchoolDetail({
   data,
   run,
   busy,
+  adminMode = false,
 }: {
   apiBase: string;
   token: string;
   data: Detail;
   run: (command: Command) => Promise<unknown>;
   busy: boolean;
+  adminMode?: boolean;
 }) {
   const [action, setAction] = useState<SchoolAction | null>(null);
   const [historyUnit, setHistoryUnit] = useState<number | null>(null);
@@ -781,7 +787,7 @@ function SchoolDetail({
           >
             Lịch sử quyền & phân bổ
           </Button>
-          {data.can_request_extension && (
+          {!adminMode && data.can_request_extension && (
             <Button
               size="sm"
               variant="outline"
@@ -826,7 +832,7 @@ function SchoolDetail({
               Xin gia hạn
             </Button>
           )}
-          {data.can_allocate && (
+          {!adminMode && data.can_allocate && (
             <Button
               size="sm"
               variant="outline"
@@ -1098,7 +1104,7 @@ function SchoolDetail({
           )}
         </section>
       ))}
-      {data.can_activity && (
+      {!adminMode && data.can_activity && (
         <ActivityForm
           save={(body) =>
             run({
@@ -1108,7 +1114,7 @@ function SchoolDetail({
           }
         />
       )}
-      {data.can_report_contract && (
+      {!adminMode && data.can_report_contract && (
         <ContractForm
           data={data}
           save={(body) =>

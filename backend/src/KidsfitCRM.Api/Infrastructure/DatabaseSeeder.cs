@@ -12,6 +12,7 @@ public static class DatabaseSeeder
         if (await db.Roles.AnyAsync())
         {
             await SeedChannelSalesAsync(services);
+            await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
             return;
         }
         var hasher = services.GetRequiredService<IPasswordHasher<User>>();
@@ -140,6 +141,7 @@ public static class DatabaseSeeder
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await SeedChannelSalesAsync(services);
+        await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
 
         LeadStatus Status(string code, string name, string color, int sort, bool terminal) => new() { Code = code, Name = name, Color = color, SortOrder = sort, IsTerminal = terminal, CreatedAt = now, UpdatedAt = now };
         LeadSource Source(string code, string name, string color) => new() { Code = code, Name = name, Color = color, IsActive = true, CreatedAt = now, UpdatedAt = now };

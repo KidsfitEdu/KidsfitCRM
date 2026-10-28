@@ -168,12 +168,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
             {p.possible_duplicate && <p className="mt-2 text-sm text-amber-700">Cần kiểm tra trường trùng tên/khu vực.</p>}
             {p.status === 'PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={()=>openEdit(p)}>Chỉnh đề xuất</Button><Button size="sm" variant="outline" onClick={()=>void showRevisions(p.id)}>Lịch sử sửa</Button></div>}
             {p.can_admin_review && !preview && <Button className="mt-3" size="sm" variant="outline" onClick={() => {setSelected(selected===p.id?null:p.id);setReason('');}}>Xem quyết định</Button>}
-            {selected===p.id && <div className="mt-3 space-y-3 border-t pt-3">
-              <p className="text-sm">Thông tin liên hệ: {p.contact_name || 'Chưa có'} · {p.contact_phone || 'Chưa có'}</p>
-              <label className="block text-sm font-medium">Lý do / căn cứ<input className="mt-1 w-full rounded-lg border bg-background p-2" value={reason} onChange={e=>setReason(e.target.value)} /></label>
-              <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={()=>void updateProposal(p.id,true,false)}>Duyệt</Button><Button disabled={busy} variant="outline" onClick={()=>void updateProposal(p.id,false,false)}>Từ chối</Button></div>
-              {p.possible_duplicate && <p className="text-xs text-muted-foreground">Hồ sơ trùng cần đối chiếu trước khi duyệt. Không tự vượt qua kiểm tra trùng.</p>}
-            </div>}
+
           </div>)}
           {!busy && proposals.length===0 && <p className="py-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
         </div>
@@ -203,6 +198,16 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       <div className="grid gap-3 sm:grid-cols-2"><Summary label="Trường chưa đăng ký" value={report?.available_schools ?? null}/><Summary label="Hợp đồng đang hiệu lực" value={report?.active_contracts ?? null}/><Summary label="Đề xuất quá hạn" value={report?.overdue_proposals ?? null}/><Summary label="Tiếp cận hết hạn" value={report?.expired_approaches ?? null}/></div>
       <p className="mt-4 text-sm text-muted-foreground">Lịch sử chỉnh sửa từng trường và đề xuất được kiểm soát theo quyền truy cập của hồ sơ tương ứng.</p>
     </div>}
+    <Dialog open={selected !== null} onOpenChange={open => {if(!open&&!busy)setSelected(null);}}><DialogContent className="sm:max-w-xl">
+      <DialogHeader><DialogTitle>Phê duyệt đề xuất trường</DialogTitle><DialogDescription>Kiểm tra thông tin và nhập căn cứ quyết định trước khi duyệt hoặc từ chối.</DialogDescription></DialogHeader>
+      {(() => { const p=operations?.proposals.find(x=>x.id===selected); return p ? <div className="space-y-3">
+        <p className="font-semibold">{p.name}</p><p className="text-sm text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>
+        <p className="text-sm">Liên hệ: {p.contact_name || 'Chưa có'} · {p.contact_phone || 'Chưa có'}</p>
+        {p.possible_duplicate && <p role="alert" className="text-sm text-amber-700">Có dấu hiệu trùng trường; vui lòng đối chiếu trước khi duyệt.</p>}
+        <label className="block text-sm font-medium">Lý do / căn cứ quyết định<Input className="mt-1" value={reason} onChange={e=>setReason(e.target.value)}/></label>
+        <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={()=>setSelected(null)}>Hủy</Button><Button variant="outline" disabled={busy} onClick={()=>void updateProposal(p.id,false,false)}>Từ chối</Button><Button disabled={busy || !!p.possible_duplicate} onClick={()=>void updateProposal(p.id,true,false)}>Duyệt</Button></div>
+      </div>:null; })()}
+    </DialogContent></Dialog>
     <Dialog open={editing !== null} onOpenChange={open => { if (!open && !busy) setEditing(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader><DialogTitle>Chỉnh sửa đề xuất trường</DialogTitle><DialogDescription>Lưu nội dung trước/sau và lý do chỉnh sửa. Chỉ áp dụng khi chờ Admin duyệt.</DialogDescription></DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">{(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'] as const).map(k=><label key={k} className="text-xs font-medium">{({school_code:'Mã trường',name:'Tên trường',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'Số điện thoại',email:'Email'} as Record<string,string>)[k]}<Input className="mt-1" value={editFields[k]??''} onChange={e=>setEditFields(o=>({...o,[k]:e.target.value}))}/></label>)}</div>

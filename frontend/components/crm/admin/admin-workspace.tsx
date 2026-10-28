@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SchoolDirectory } from '@/components/crm/school-directory';
 import { AdminCapacityManagement } from './admin-capacity-management';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { channelRequest, currentBusinessPeriod, type ChannelManagement } from '@/lib/channel-operations';
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace, type SchoolOperationsReport } from '@/lib/school-operations';
 import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
@@ -46,7 +47,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const [editing, setEditing] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<Record<string,string>>({});
   const [revisions, setRevisions] = useState<{version:number;reason:string;created_at:string;actor_name:string}[] | null>(null);
-  const [notice, setNotice] = useState('');
+
   const can = (permission: string) => abilities.includes('*') || abilities.includes(permission);
   const preview = !apiBase;
   const api = <T,>(url: string, init?: RequestInit) => channelRequest<T>(apiBase, token, url, init);
@@ -68,7 +69,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     setBusy(true); setError('');
     try {
       await api('/school-proposals/' + id + '/admin-review', { method: 'POST', body: JSON.stringify({ approve, reason, duplicate_reviewed: duplicateReviewed }) });
-      setSelected(null); setReason(''); setNotice('Đã lưu quyết định.'); await reload(); await onChanged();
+      setSelected(null); setReason(''); appNotice.success('Đã lưu quyết định đề xuất.'); await reload(); await onChanged();
     } catch (e) { setError(e instanceof Error ? e.message : 'Không lưu được quyết định.'); }
     finally { setBusy(false); }
   };
@@ -87,7 +88,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         contact_name:editFields.contact_name, contact_position:editFields.contact_position,
         contact_phone:editFields.contact_phone, email:editFields.email, reason,
       }) });
-      setEditing(null); setReason(''); setNotice('Đã cập nhật đề xuất và lưu lịch sử.');
+      setEditing(null); setReason(''); appNotice.success('Đã cập nhật đề xuất và lưu lịch sử.');
       await reload(); await onChanged();
     } catch(e) { setError(e instanceof Error ? e.message : 'Không lưu được đề xuất.'); }
     finally { setBusy(false); }
@@ -106,7 +107,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     setBusy(true); setError('');
     try {
       await api('/schools/manual',{method:'POST',body:JSON.stringify(manual)});
-      setManual({unit_type:'MAIN'});setManualOpen(false);setNotice('Đã thêm trường thành công.');
+      setManual({unit_type:'MAIN'});setManualOpen(false);appNotice.success('Đã thêm trường thành công.');
       await queryClient.invalidateQueries();
       await onChanged();
     } catch(e) { setError(e instanceof Error ? e.message : 'Không lưu được trường.'); }
@@ -117,14 +118,13 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     try {
       await api('/team',{method:'POST',body:JSON.stringify({...teamForm,organization_id:Number(teamForm.organization_id)})});
       setTeamFormOpen(false);setTeamForm({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});
-      setNotice('Đã tạo tài khoản nhân sự.'); await reload();
+      appNotice.success('Đã tạo tài khoản nhân sự.'); await reload();
     } catch(e) {setError(e instanceof Error?e.message:'Không tạo được tài khoản.');}
     finally {setBusy(false);}
   };
   const pending = operations?.proposals.filter(p => p.status === 'PENDING_ADMIN').length ?? 0;
   const metrics = workspace.metrics;
   return <div className="space-y-5">
-    {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
     {error && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"><AlertCircle className="size-4" />{error}</div>}
     {preview && <div className="rounded-xl border bg-muted/50 p-3 text-sm text-muted-foreground">Chế độ xem thử: dữ liệu thống kê quản trị chưa được kết nối API. Không hiển thị số liệu giả.</div>}
     {section === 'dashboard' && <>

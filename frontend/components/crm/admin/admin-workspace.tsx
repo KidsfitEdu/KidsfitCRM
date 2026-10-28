@@ -5,6 +5,7 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SchoolDirectory } from '@/components/crm/school-directory';
 import { channelRequest, currentBusinessPeriod, type ChannelManagement } from '@/lib/channel-operations';
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace, type SchoolOperationsReport } from '@/lib/school-operations';
@@ -138,7 +139,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     </>}
     {section === 'admin-schools' && <>
       <div className="flex justify-end"><Button disabled={preview} onClick={()=>setManualOpen(x=>!x)}>+ Thêm trường thủ công</Button></div>
-      {manualOpen && <div className={panel}>
+      <Dialog open={manualOpen} onOpenChange={open => { if (!busy) setManualOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm trường học</DialogTitle><DialogDescription>Tạo trường chính hoặc phân hiệu thuộc trường chính đã có.</DialogDescription></DialogHeader><div className="space-y-3">
         <h3 className="mb-3 font-semibold">Tạo trường học</h3>
         <p className="mb-3 text-xs text-muted-foreground">Với phân hiệu, nhập mã trường chính đã có để liên kết.</p>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -146,7 +147,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
           {(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email','school_phone','reason'] as const).map(k=><label className="text-sm" key={k}>{({school_code:'Mã trường chính',name:'Tên trường/phân hiệu',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'SĐT liên hệ',email:'Email',school_phone:'SĐT trường',reason:'Lý do tạo'} as Record<string,string>)[k]}<Input className="mt-1" value={manual[k]||''} onChange={e=>setManual(m=>({...m,[k]:e.target.value}))}/></label>)}
         </div>
         <div className="mt-4 flex gap-2"><Button disabled={busy} onClick={()=>void createManual()}>Lưu trường</Button><Button variant="outline" onClick={()=>setManualOpen(false)}>Hủy</Button></div>
-      </div>}
+      </div></DialogContent></Dialog>
       <SchoolDirectory apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged} />
     </>}
     {section === 'admin-proposals' && <>
@@ -166,12 +167,6 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
             <p className="mt-1 text-sm text-muted-foreground">Đề xuất: {p.submitted_by} · Quản lý: {p.manager_name} · Hạn: {workflowDate(p.review_due_at)}</p>
             {p.possible_duplicate && <p className="mt-2 text-sm text-amber-700">Cần kiểm tra trường trùng tên/khu vực.</p>}
             {p.status === 'PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={()=>openEdit(p)}>Chỉnh đề xuất</Button><Button size="sm" variant="outline" onClick={()=>void showRevisions(p.id)}>Lịch sử sửa</Button></div>}
-            {editing === p.id && <div className="mt-3 space-y-3 rounded-xl border bg-muted/20 p-4">
-              <h4 className="font-semibold">Chỉnh đề xuất trước khi duyệt</h4>
-              <div className="grid gap-3 sm:grid-cols-2">{(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'] as const).map(k=><label key={k} className="text-xs font-medium">{({school_code:'Mã trường',name:'Tên trường',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'Số điện thoại',email:'Email'} as Record<string,string>)[k]}<Input className="mt-1" value={editFields[k]??''} onChange={e=>setEditFields(o=>({...o,[k]:e.target.value}))}/></label>)}</div>
-              <label className="block text-sm">Lý do chỉnh sửa<Input value={reason} onChange={e=>setReason(e.target.value)}/></label>
-              <div className="flex gap-2"><Button disabled={busy} onClick={()=>void saveEdit(p)}>Lưu thay đổi</Button><Button variant="outline" onClick={()=>setEditing(null)}>Đóng</Button></div>
-            </div>}
             {p.can_admin_review && !preview && <Button className="mt-3" size="sm" variant="outline" onClick={() => {setSelected(selected===p.id?null:p.id);setReason('');}}>Xem quyết định</Button>}
             {selected===p.id && <div className="mt-3 space-y-3 border-t pt-3">
               <p className="text-sm">Thông tin liên hệ: {p.contact_name || 'Chưa có'} · {p.contact_phone || 'Chưa có'}</p>
@@ -188,14 +183,14 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     </>}
     {section === 'admin-team' && <div className={panel}>
       <div className="mb-4 flex justify-between gap-3"><h3 className="font-semibold">Nhân sự & tổ chức</h3><Button disabled={preview || !can('channel_sales.team.manage')} onClick={()=>setTeamFormOpen(v=>!v)}>+ Thêm nhân sự</Button></div>
-      {teamFormOpen && <div className="mb-5 space-y-3 rounded-xl border p-4">
+      <Dialog open={teamFormOpen} onOpenChange={open => { if (!busy) setTeamFormOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm nhân sự</DialogTitle><DialogDescription>Tạo tài khoản thuộc tổ chức được quản lý. Không cấp quyền Admin/BGĐ tại đây.</DialogDescription></DialogHeader><div className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           {(['name','email','password'] as const).map(k=><label className="text-sm" key={k}>{({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (tối thiểu 12 ký tự)'} as Record<string,string>)[k]}<Input className="mt-1" type={k==='password'?'password':'text'} value={teamForm[k]} onChange={e=>setTeamForm(t=>({...t,[k]:e.target.value}))}/></label>)}
           <label className="text-sm">Tổ chức<select className="mt-1 w-full rounded-lg border bg-background p-2" value={teamForm.organization_id} onChange={e=>setTeamForm(t=>({...t,organization_id:e.target.value}))}><option value="">Chọn tổ chức</option>{management?.organizations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select></label>
           <label className="text-sm">Vai trò<select className="mt-1 w-full rounded-lg border bg-background p-2" value={teamForm.role_code} onChange={e=>setTeamForm(t=>({...t,role_code:e.target.value}))}>{management?.roles.filter(x=>!['ADMIN','BOARD'].includes(x.code)).map(x=><option key={x.code} value={x.code}>{x.name}</option>)}</select></label>
         </div>
         <div className="flex gap-2"><Button disabled={busy || !teamForm.organization_id || teamForm.password.length<12} onClick={()=>void createTeamMember()}>Tạo tài khoản</Button><Button variant="outline" onClick={()=>setTeamFormOpen(false)}>Hủy</Button></div>
-      </div>}
+      </div></DialogContent></Dialog>
       {management ? <div className="space-y-3">{management.team.map(u=><div className="flex flex-wrap justify-between gap-2 border-b pb-3 text-sm" key={u.id}><div><strong>{u.name}</strong><p className="text-muted-foreground">{u.email} · {u.organization_name}</p></div><span>{u.membership_type} · {u.status}</span></div>)}{management.team.length===0 && <p>Chưa có nhân sự.</p>}</div>:<p className="text-sm text-muted-foreground">{busy?'Đang tải…':'Chưa có dữ liệu hoặc chưa đủ quyền.'}</p>}
     </div>}
     {section === 'admin-settings' && <div className={panel}>
@@ -208,6 +203,12 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       <div className="grid gap-3 sm:grid-cols-2"><Summary label="Trường chưa đăng ký" value={report?.available_schools ?? null}/><Summary label="Hợp đồng đang hiệu lực" value={report?.active_contracts ?? null}/><Summary label="Đề xuất quá hạn" value={report?.overdue_proposals ?? null}/><Summary label="Tiếp cận hết hạn" value={report?.expired_approaches ?? null}/></div>
       <p className="mt-4 text-sm text-muted-foreground">Lịch sử chỉnh sửa từng trường và đề xuất được kiểm soát theo quyền truy cập của hồ sơ tương ứng.</p>
     </div>}
+    <Dialog open={editing !== null} onOpenChange={open => { if (!open && !busy) setEditing(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogHeader><DialogTitle>Chỉnh sửa đề xuất trường</DialogTitle><DialogDescription>Lưu nội dung trước/sau và lý do chỉnh sửa. Chỉ áp dụng khi chờ Admin duyệt.</DialogDescription></DialogHeader>
+      <div className="grid gap-3 sm:grid-cols-2">{(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'] as const).map(k=><label key={k} className="text-xs font-medium">{({school_code:'Mã trường',name:'Tên trường',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'Số điện thoại',email:'Email'} as Record<string,string>)[k]}<Input className="mt-1" value={editFields[k]??''} onChange={e=>setEditFields(o=>({...o,[k]:e.target.value}))}/></label>)}</div>
+      <label className="text-sm font-medium">Lý do chỉnh sửa<Input className="mt-1" value={reason} onChange={e=>setReason(e.target.value)}/></label>
+      <div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setEditing(null)}>Hủy</Button><Button disabled={busy} onClick={()=>{const p=operations?.proposals.find(x=>x.id===editing);if(p)void saveEdit(p);}}>Lưu thay đổi</Button></div>
+    </DialogContent></Dialog>
   </div>;
 }
 function Summary({label,value}:{label:string;value:number|null}) { return <div className={panel}><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-bold">{value===null?'—':fmt(value)}</p></div>; }

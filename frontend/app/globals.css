@@ -157,3 +157,40 @@ textarea {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* CRM Toast V2: status glow, animated time indicator and accessible motion. */
+.crm-modern-toast {
+  --crm-toast-color: #6366f1;
+  box-shadow: 0 16px 48px -16px rgb(15 23 42 / 0.35), 0 0 0 1px color-mix(in srgb, var(--crm-toast-color) 14%, transparent);
+}
+.crm-modern-toast[data-type="success"] { --crm-toast-color: #10b981; }
+.crm-modern-toast[data-type="error"] { --crm-toast-color: #ef4444; }
+.crm-modern-toast[data-type="warning"] { --crm-toast-color: #f59e0b; }
+.crm-modern-toast[data-type="info"] { --crm-toast-color: #6366f1; }
+.crm-modern-toast .crm-toast-badge {
+  color: var(--crm-toast-color);
+  background: color-mix(in srgb, var(--crm-toast-color) 12%, transparent);
+  animation: crm-toast-icon-pop 420ms cubic-bezier(.2,.8,.3,1.15) both;
+}
+.crm-modern-toast .crm-toast-progress {
+  background: var(--crm-toast-color);
+  animation-name: crm-toast-countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.crm-modern-toast:hover .crm-toast-progress,
+.crm-modern-toast:focus-within .crm-toast-progress {
+  animation-play-state: paused;
+}
+@keyframes crm-toast-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+@keyframes crm-toast-icon-pop {
+  from { opacity: 0; transform: scale(.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crm-modern-toast .crm-toast-badge,
+  .crm-modern-toast .crm-toast-progress { animation: none !important; }
+}

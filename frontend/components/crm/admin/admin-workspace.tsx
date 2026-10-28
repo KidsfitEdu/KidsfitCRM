@@ -33,6 +33,8 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [manualOpen, setManualOpen] = useState(false);
   const [teamFormOpen, setTeamFormOpen] = useState(false);
+  const [teamSearch, setTeamSearch] = useState('');
+  const [teamStatus, setTeamStatus] = useState('ALL');
   const [teamForm, setTeamForm] = useState({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});
   const [manual, setManual] = useState<Record<string,string>>({unit_type:'MAIN'});
   const [page, setPage] = useState(1);
@@ -190,7 +192,17 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         </div>
         <div className="flex gap-2"><Button disabled={busy || !teamForm.organization_id || teamForm.password.length<12} onClick={()=>void createTeamMember()}>Tạo tài khoản</Button><Button variant="outline" onClick={()=>setTeamFormOpen(false)}>Hủy</Button></div>
       </div></DialogContent></Dialog>
-      {management ? <div className="space-y-3">{management.team.map(u=><div className="flex flex-wrap justify-between gap-2 border-b pb-3 text-sm" key={u.id}><div><strong>{u.name}</strong><p className="text-muted-foreground">{u.email} · {u.organization_name}</p></div><span>{u.membership_type} · {u.status}</span></div>)}{management.team.length===0 && <p>Chưa có nhân sự.</p>}</div>:<p className="text-sm text-muted-foreground">{busy?'Đang tải…':'Chưa có dữ liệu hoặc chưa đủ quyền.'}</p>}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Input className="min-w-52 flex-1" placeholder="Tìm tên hoặc email nhân sự…" aria-label="Tìm nhân sự" value={teamSearch} onChange={e=>setTeamSearch(e.target.value)}/>
+        <select className="rounded-lg border bg-background px-3" aria-label="Lọc trạng thái nhân sự" value={teamStatus} onChange={e=>setTeamStatus(e.target.value)}><option value="ALL">Tất cả trạng thái</option><option value="ACTIVE">Hoạt động</option><option value="SUSPENDED">Tạm khóa</option></select>
+        <Button variant="outline" onClick={()=>{setTeamSearch('');setTeamStatus('ALL');}}>Reset bộ lọc</Button>
+      </div>
+      {management ? <div className="overflow-x-auto rounded-xl border">
+        <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="p-3">Nhân sự</th><th className="p-3">Tổ chức</th><th className="p-3">Vai trò</th><th className="p-3">Trạng thái</th></tr></thead>
+          <tbody>{management.team.filter(u=>(teamStatus==='ALL'||u.status===teamStatus)&&[u.name,u.email,u.organization_name].some(x=>x.toLowerCase().includes(teamSearch.toLowerCase()))).map(u=><tr key={u.id} className="border-t hover:bg-muted/30"><td className="p-3"><strong>{u.name}</strong><p className="text-xs text-muted-foreground">{u.email}</p></td><td className="p-3">{u.organization_name}</td><td className="p-3">{u.membership_type}</td><td className="p-3">{u.status}</td></tr>)}</tbody>
+        </table>
+        {management.team.length===0&&<p className="p-8 text-center text-sm text-muted-foreground">Chưa có nhân sự.</p>}
+      </div>:<p className="text-sm text-muted-foreground">{busy?'Đang tải…':'Chưa có dữ liệu hoặc chưa đủ quyền.'}</p>}
     </div>}
     {section === 'admin-settings' && <div className={panel}>
       <h3 className="mb-2 font-semibold">Chính sách vận hành</h3><p className="mb-4 text-sm text-muted-foreground">Chỉ hiển thị phiên bản chính sách đã lưu. Chưa kích hoạt thông số SLA chưa được phê duyệt.</p>

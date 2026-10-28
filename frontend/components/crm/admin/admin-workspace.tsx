@@ -150,7 +150,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         </div>
         <div className="mt-4 flex gap-2"><Button disabled={busy} onClick={()=>void createManual()}>Lưu trường</Button><Button variant="outline" onClick={()=>setManualOpen(false)}>Hủy</Button></div>
       </div></DialogContent></Dialog>
-      <SchoolDirectory apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged} />
+      <SchoolDirectory adminMode apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged} />
     </>}
     {section === 'admin-proposals' && <>
       <div className="grid gap-3 sm:grid-cols-3">

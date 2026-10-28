@@ -55,8 +55,10 @@ type Props = {
   abilities: string[];
   customerView: (onOpenCustomer?: (id: number) => void) => ReactNode;
   onChanged: () => Promise<void>;
+  initialPanel?: Panel;
+  initialOperationsTab?: string;
 };
-type Panel =
+export type Panel =
   | 'customers'
   | 'schools'
   | 'operations'
@@ -85,8 +87,10 @@ function OperationsContent({
   abilities,
   customerView,
   onChanged,
+  initialPanel = 'customers',
+  initialOperationsTab,
 }: Props) {
-  const [panel, setPanel] = useState<Panel>('customers');
+  const [panel, setPanel] = useState<Panel>(initialPanel);
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [modal, setModal] = useState<ReactNode>(null);
   const [notice, setNotice] = useState('');
@@ -227,6 +231,7 @@ function OperationsContent({
       )}
       {panel === 'operations' && (
         <SchoolOperations
+          initialTab={initialOperationsTab}
           apiBase={apiBase}
           token={token}
           abilities={abilities}

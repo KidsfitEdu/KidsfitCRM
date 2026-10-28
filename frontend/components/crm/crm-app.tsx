@@ -82,7 +82,15 @@ type View =
   | 'leads'
   | 'students'
   | 'classes'
-  | 'finance';
+  | 'finance'
+  | 'admin-schools'
+  | 'admin-proposals'
+  | 'admin-team'
+  | 'admin-settings'
+  | 'admin-reports';
+const AdminWorkspace = lazy(() =>
+  import('@/components/crm/admin/admin-workspace').then((module) => ({ default: module.AdminWorkspace })),
+);
 const ChannelOperations = lazy(() =>
   import('@/components/crm/channel-operations').then((module) => ({
     default: module.ChannelOperations,
@@ -143,40 +151,14 @@ const apiBase =
     ? ''
     : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
 
-const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] =
-  [
-    {
-      id: 'dashboard',
-      label: 'Tổng quan',
-      shortLabel: 'Tổng quan',
-      icon: LayoutDashboard,
-    },
-    {
-      id: 'channel-sales',
-      label: 'CHECKEE Sales',
-      shortLabel: 'CHECKEE',
-      icon: ShieldCheck,
-    },
-    {
-      id: 'leads',
-      label: 'Lead & tư vấn',
-      shortLabel: 'Lead',
-      icon: UsersRound,
-    },
-    {
-      id: 'students',
-      label: 'Học viên',
-      shortLabel: 'Học viên',
-      icon: GraduationCap,
-    },
-    { id: 'classes', label: 'Lớp học', shortLabel: 'Lớp', icon: BookOpenCheck },
-    {
-      id: 'finance',
-      label: 'Thu học phí',
-      shortLabel: 'Học phí',
-      icon: WalletCards,
-    },
-  ];
+const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] = [
+  { id: 'dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'admin-schools', label: 'Trường học', shortLabel: 'Trường', icon: GraduationCap },
+  { id: 'admin-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
+  { id: 'admin-team', label: 'Nhân sự & đối tác', shortLabel: 'Nhân sự', icon: UsersRound },
+  { id: 'admin-settings', label: 'Chính sách & hạn mức', shortLabel: 'Chính sách', icon: ShieldCheck },
+  { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
+];
 
 const viewCopy: Record<
   View,
@@ -185,7 +167,7 @@ const viewCopy: Record<
   dashboard: {
     eyebrow: 'Live workspace',
     title: 'Tổng quan vận hành',
-    description: 'Nắm bắt khách hàng, lớp học và dòng tiền trong một màn hình.',
+    description: 'Theo dõi danh sách trường, tiếp cận, hợp đồng và quyền bảo vệ CHECKEE.',
   },
   'channel-sales': {
     eyebrow: 'CHECKEE channel sales',
@@ -193,6 +175,11 @@ const viewCopy: Record<
     description:
       'Đăng ký tiếp cận, báo hợp đồng và theo dõi doanh thu — hoa hồng.',
   },
+  'admin-schools': { eyebrow: 'Quản trị danh bạ', title: 'Quản lý trường học', description: 'Trường chính, phân hiệu và nhập dữ liệu.' },
+  'admin-proposals': { eyebrow: 'Quản trị đề xuất', title: 'Đề xuất & phê duyệt', description: 'Theo dõi đề xuất trường mới và quyết định duyệt.' },
+  'admin-team': { eyebrow: 'Tổ chức & nhân sự', title: 'Nhân sự & đối tác', description: 'Quản lý CTV, nhân viên và đối tác bán hàng.' },
+  'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
+  'admin-settings': { eyebrow: 'Thiết lập CRM', title: 'Cấu hình hệ thống', description: 'Quản trị chính sách và hạn mức nghiệp vụ.' },
   leads: {
     eyebrow: 'Sales pipeline',
     title: 'Lead & tư vấn',
@@ -308,7 +295,7 @@ function CrmWorkspace({
   onDemoLogout?: () => void;
 }) {
   const [view, setView] = useState<View>(
-    demoAccount && !demoAccount.abilities.includes('crm.dashboard.view')
+    demoAccount && !demoAccount.abilities.includes('channel_sales.customer.view')
       ? 'channel-sales'
       : 'dashboard',
   );
@@ -416,7 +403,7 @@ function CrmWorkspace({
         catalogs,
         channelSalesData,
       ] = await Promise.all([
-        has('crm.dashboard.view')
+        false && has('crm.dashboard.view')
           ? request<{
               metrics: typeof metrics;
               pipeline: typeof demoPipeline;
@@ -451,8 +438,6 @@ function CrmWorkspace({
       ]);
       setUserName(me.user.name);
       setAbilities(me.user.abilities);
-      if (!has('crm.dashboard.view') && has('channel_sales.customer.view'))
-        setView('channel-sales');
       if (dashboard) {
         setMetrics(dashboard.metrics);
         setPipeline(dashboard.pipeline);
@@ -1018,17 +1003,24 @@ function CrmWorkspace({
   if (apiBase && !token)
     return <LoginScreen loading={loading} onLogin={onLogin} />;
 
-  const activeCopy = viewCopy[view];
   const can = (ability: string) =>
     abilities.includes('*') || abilities.includes(ability);
-  const visibleNav = nav.filter((item) => {
-    if (item.id === 'dashboard') return can('crm.dashboard.view');
-    if (item.id === 'channel-sales') return can('channel_sales.customer.view');
-    if (item.id === 'leads') return can('crm.lead.view');
-    if (item.id === 'students') return can('student.view');
-    if (item.id === 'classes') return can('course.view');
-    return can('payment.view');
-  });
+  const isAdminWorkspace = can('channel_sales.school.directory.manage') && can('channel_sales.scope.all');
+  const visibleNav = isAdminWorkspace
+    ? nav.filter((item) => {
+        if (item.id === 'dashboard') return can('channel_sales.customer.view');
+        if (item.id === 'admin-schools' || item.id === 'admin-proposals') return can('channel_sales.school.directory.manage');
+        if (item.id === 'admin-team') return can('channel_sales.team.manage');
+        if (item.id === 'admin-settings') return can('channel_sales.school.workflow_policy.manage');
+        if (item.id === 'admin-reports') return can('channel_sales.customer.view');
+        return false;
+      })
+    : can('channel_sales.customer.view')
+      ? [{ id: 'channel-sales' as View, label: 'CHECKEE Sales', shortLabel: 'CHECKEE', icon: ShieldCheck }]
+      : [];
+  const currentView = visibleNav.some((item) => item.id === view) ? view : visibleNav[0]?.id ?? 'channel-sales';
+  const activeCopy = viewCopy[currentView];
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 bg-[#152238] text-white lg:flex">
@@ -1048,10 +1040,10 @@ function CrmWorkspace({
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${view === item.id ? 'bg-white/10 font-semibold text-white shadow-inner shadow-white/5' : 'text-slate-300 hover:bg-white/7 hover:text-white'}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${currentView === item.id ? 'bg-white/10 font-semibold text-white shadow-inner shadow-white/5' : 'text-slate-300 hover:bg-white/7 hover:text-white'}`}
             >
               <item.icon
-                className={`size-[18px] ${view === item.id ? 'text-[#a99df8]' : ''}`}
+                className={`size-[18px] ${currentView === item.id ? 'text-[#a99df8]' : ''}`}
               />
               {item.label}
             </button>
@@ -1060,15 +1052,13 @@ function CrmWorkspace({
         <div className="mx-4 mt-auto mb-3 rounded-2xl border border-white/10 bg-white/6 p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-300">
-              Mục tiêu tháng
+              CRM trường học
             </span>
-            <span className="text-xs text-[#b9afff]">74%</span>
+            <span className="text-xs text-[#b9afff]">CHECKEE</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-[74%] rounded-full bg-gradient-to-r from-[#7c6ee6] to-[#ab9cff]" />
-          </div>
+          
           <p className="mt-3 text-xs leading-5 text-slate-400">
-            37 / 50 học viên mới
+            Quản lý dữ liệu trường, quyền tiếp cận và hợp đồng
           </p>
         </div>
         <div className="mx-4 mb-5 flex items-center gap-3 rounded-xl p-2">
@@ -1173,7 +1163,7 @@ function CrmWorkspace({
               </p>
             </div>
             <div className="flex gap-2">
-              {view === 'finance' && (
+              {currentView === 'finance' && (
                 <Button
                   onClick={exportInvoices}
                   variant="outline"
@@ -1183,7 +1173,7 @@ function CrmWorkspace({
                   <Download /> Xuất báo cáo
                 </Button>
               )}
-              {view !== 'channel-sales' && can('crm.lead.create') && (
+              {false && currentView !== 'channel-sales' && can('crm.lead.create') && (
                 <Button
                   onClick={() => setAddOpen(true)}
                   size="lg"
@@ -1199,17 +1189,8 @@ function CrmWorkspace({
             <LoadingGrid />
           ) : (
             <>
-              {view === 'dashboard' && (
-                <Dashboard
-                  metrics={metrics}
-                  pipeline={pipeline}
-                  tasks={tasks}
-                  onToggleTask={(id) => void completeTask(id)}
-                  leads={leads}
-                  onOpenLeads={() => setView('leads')}
-                />
-              )}
-              {view === 'channel-sales' && (
+
+              {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations
                     apiBase={apiBase}
@@ -1239,7 +1220,20 @@ function CrmWorkspace({
                   />
                 </Suspense>
               )}
-              {view === 'leads' && (
+              {(['dashboard', 'admin-schools', 'admin-proposals', 'admin-team', 'admin-settings', 'admin-reports'] as View[]).includes(currentView) && (
+                <Suspense fallback={<LoadingGrid />}>
+                  <AdminWorkspace
+                    key={currentView}
+                    section={currentView as import('@/components/crm/admin/admin-workspace').AdminSection}
+                    apiBase={apiBase}
+                    token={token}
+                    abilities={abilities}
+                    workspace={channelSales}
+                    onChanged={refreshChannelSales}
+                  />
+                </Suspense>
+              )}
+              {currentView === 'leads' && (
                 <LeadView
                   leads={filteredLeads}
                   search={search}
@@ -1247,15 +1241,15 @@ function CrmWorkspace({
                   onAdvance={can('crm.lead.update') ? advanceLead : undefined}
                 />
               )}
-              {view === 'students' && (
+              {currentView === 'students' && (
                 <StudentView
                   students={students}
                   search={search}
                   setSearch={setSearch}
                 />
               )}
-              {view === 'classes' && <ClassView classes={classes} />}
-              {view === 'finance' && (
+              {currentView === 'classes' && <ClassView classes={classes} />}
+              {currentView === 'finance' && (
                 <FinanceView
                   invoices={invoices}
                   onRecordPayment={
@@ -1276,7 +1270,7 @@ function CrmWorkspace({
           <button
             key={item.id}
             onClick={() => setView(item.id)}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${view === item.id ? 'bg-white/10 text-[#b9afff]' : 'text-slate-400'}`}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-white/10 text-[#b9afff]' : 'text-slate-400'}`}
           >
             <item.icon className="size-[18px]" />
             <span>{item.shortLabel}</span>
@@ -1332,6 +1326,32 @@ function CrmWorkspace({
         </output>
       )}
     </main>
+  );
+}
+
+function SchoolDashboard({ workspace }: { workspace: ChannelSalesWorkspace }) {
+  const cards = [
+    { title: 'Tổng số khách hàng', value: workspace.metrics.available + workspace.metrics.approaching + workspace.metrics.contracted },
+    { title: 'Chưa đăng ký', value: workspace.metrics.available },
+    { title: 'Đang tiếp cận', value: workspace.metrics.approaching },
+    { title: 'Đã ký hợp đồng', value: workspace.metrics.contracted },
+    { title: 'Sắp hết hạn tiếp cận', value: workspace.metrics.expiring_soon },
+  ];
+  return (
+    <section className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card) => (
+          <Card key={card.title} className="rounded-2xl">
+            <CardHeader><CardTitle className="text-sm text-muted-foreground">{card.title}</CardTitle></CardHeader>
+            <CardContent><p className="text-3xl font-bold">{card.value.toLocaleString('vi-VN')}</p></CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card className="rounded-2xl">
+        <CardHeader><CardTitle>Khách hàng CHECKEE</CardTitle></CardHeader>
+        <CardContent><p className="text-sm text-muted-foreground">Báo cáo phản ánh dữ liệu khách hàng được phép xem. Quản lý danh bạ trường chính và phân hiệu tại mục Quản lý trường học.</p></CardContent>
+      </Card>
+    </section>
   );
 }
 

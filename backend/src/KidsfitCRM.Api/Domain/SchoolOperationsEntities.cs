@@ -31,6 +31,7 @@ public sealed class SchoolProposal : EntityBase
     public string? ContactPhone { get; set; }
     public string? Email { get; set; }
     public string Reason { get; set; } = "";
+    public int Version { get; set; } = 1;
     public string Status { get; set; } = "PENDING_MANAGER";
     public DateTime ReviewDueAt { get; set; }
     public DateTime? ManagerReviewedAt { get; set; }
@@ -39,6 +40,17 @@ public sealed class SchoolProposal : EntityBase
     public long? DirectorySchoolId { get; set; }
     public string IdempotencyKey { get; set; } = "";
     public string RequestFingerprint { get; set; } = "";
+}
+
+public sealed class SchoolProposalRevision : EntityBase
+{
+    public long SchoolProposalId { get; set; }
+    public long ActorUserId { get; set; }
+    public int Version { get; set; }
+    public string Reason { get; set; } = "";
+    // Private snapshots: never expose through general audit or unrelated organizations.
+    public string BeforeValues { get; set; } = "{}";
+    public string AfterValues { get; set; } = "{}";
 }
 
 public sealed class SchoolInvitation : EntityBase

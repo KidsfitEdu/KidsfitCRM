@@ -22,6 +22,7 @@ export type SchoolOperationsWorkspace = {
   organizations: { id: number; name: string }[];
   proposals: {
     id: number;
+    version: number;
     organization_id: number;
     school_code: string;
     name: string;

@@ -49,6 +49,50 @@ public sealed partial class ChannelSalesActions
         return proposal.Id;
     }, ct);
 
+    public Task<long> UpdateSchoolProposal(long id, UpdateSchoolProposalRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
+    {
+        var access = await RequirePermission(actorId, Permissions.SchoolDirectoryManage, ct);
+        if (!access.All || !await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && x.Status == "ACTIVE" && access.OrganizationIds.Contains(x.Id), ct))
+            throw new KeyNotFoundException();
+        var reason = Validation.Required(request.Reason, "reason", "Cần lý do chỉnh sửa đề xuất.", 2000);
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var proposal = await db.SchoolProposals.FromSqlInterpolated($"SELECT * FROM school_proposals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException();
+        if (proposal.Status != "PENDING_ADMIN") throw new ApiConflictException("Chỉ sửa đề xuất đang chờ Admin duyệt.");
+        if (proposal.Version != request.ExpectedVersion) throw new ApiConflictException("Đề xuất vừa được người khác sửa. Vui lòng tải lại trước khi lưu.");
+        var code = Validation.Required(request.SchoolCode, "school_code", "Cần mã trường chính.", 64).ToUpperInvariant();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Z0-9][A-Z0-9_-]*$"))
+            throw ApiValidationException.For("school_code", "Mã trường không hợp lệ.");
+        if (await db.DirectorySchools.AnyAsync(x => x.SchoolCode == code, ct))
+            throw new ApiConflictException("Mã trường đã tồn tại trong danh bạ.");
+        var before = System.Text.Json.JsonSerializer.Serialize(new { proposal.SchoolCode, proposal.Name, proposal.Province, proposal.Ward,
+            proposal.Address, proposal.ContactName, proposal.ContactPosition, proposal.ContactPhone, proposal.Email });
+        proposal.SchoolCode = code;
+        proposal.Name = Validation.Required(request.Name, "name", "Cần tên trường.", 500);
+        proposal.Province = Validation.Required(request.Province, "province", "Cần tỉnh/thành phố.", 100);
+        proposal.Ward = Validation.Required(request.Ward, "ward", "Cần phường/xã.", 100);
+        proposal.Address = CleanOptional(request.Address, 500);
+        proposal.ContactName = CleanOptional(request.ContactName, 500);
+        proposal.ContactPosition = CleanOptional(request.ContactPosition, 120);
+        proposal.ContactPhone = SchoolPhone(request.ContactPhone);
+        proposal.Email = SchoolEmail(request.Email);
+        var after = System.Text.Json.JsonSerializer.Serialize(new { proposal.SchoolCode, proposal.Name, proposal.Province, proposal.Ward,
+            proposal.Address, proposal.ContactName, proposal.ContactPosition, proposal.ContactPhone, proposal.Email });
+        if (before == after) return id;
+        proposal.Version++;
+        proposal.UpdatedAt = DateTime.UtcNow;
+        db.SchoolProposalRevisions.Add(new SchoolProposalRevision
+        {
+            SchoolProposalId = id, ActorUserId = actorId, Version = proposal.Version, Reason = reason,
+            BeforeValues = before, AfterValues = after, CreatedAt = proposal.UpdatedAt, UpdatedAt = proposal.UpdatedAt
+        });
+        Audit.Add(db, actorId, "UPDATE_SCHOOL_PROPOSAL", nameof(SchoolProposal), id,
+            new { version = proposal.Version - 1 }, new { proposal.Version, reason }, http);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return id;
+    }, ct);
+
     public Task<long> ReviewSchoolProposal(long id, ReviewSchoolProposalRequest request, bool finalReview, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await ChannelSalesAccess.Load(db, actorId, ct);

@@ -12,12 +12,15 @@ public static class SchoolOperationsEndpoints
         group.MapGet("/school-operations", WorkspacePage).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/report", Report).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/{kind}/{id:long}/history", History).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/school-proposals/{id:long}/revisions", ProposalRevisions).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/school-units/{id:long}/history", UnitHistory).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/schools/{id:long}/rights", Rights).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/school-proposals", async (CreateSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.SubmitSchoolProposal(request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolProposalSubmit);
         group.MapPost("/school-proposals/{id:long}/manager-review", async (long id, ReviewSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReviewSchoolProposal(id, request, false, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapPatch("/school-proposals/{id:long}", async (long id, UpdateSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.UpdateSchoolProposal(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/school-proposals/{id:long}/admin-review", async (long id, ReviewSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReviewSchoolProposal(id, request, true, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/school-invitations", async (CreateSchoolInvitationRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.InviteSchoolCollaborator(request, h.UserId(), h, ct)))
@@ -72,9 +75,9 @@ public static class SchoolOperationsEndpoints
         || (a.Has(Permissions.SchoolSupportManage) && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId && c.CareOrganizationId.HasValue && a.OrganizationIds.Contains(c.CareOrganizationId.Value)))
         || (a.Has(Permissions.SchoolCareAssign) && a.Organization && (a.OrganizationIds.Contains(x.OrganizationId) || db.SalesContracts.Any(c => c.Id == x.ContractId && a.OrganizationIds.Contains(c.OwnerOrganizationId)))));
 
-    public static Task<IResult> Workspace(HttpContext http, KidsfitDbContext db, CancellationToken ct) => WorkspacePage(http, db, null, null, ct);
+    public static Task<IResult> Workspace(HttpContext http, KidsfitDbContext db, CancellationToken ct) => WorkspacePage(http, db, null, null, null, ct);
 
-    public static async Task<IResult> WorkspacePage(HttpContext http, KidsfitDbContext db, int? page, string? search, CancellationToken ct)
+    public static async Task<IResult> WorkspacePage(HttpContext http, KidsfitDbContext db, int? page, string? search, string? status, CancellationToken ct)
     {
         var a = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (a.OrganizationIds.Length == 0) throw new KeyNotFoundException();
@@ -91,7 +94,9 @@ public static class SchoolOperationsEndpoints
         var matchingSchools = db.DirectorySchools.Where(s => s.SchoolCode.Contains(term)
             || db.SchoolUnits.Any(u => u.DirectorySchoolId == s.Id && (u.Name.Contains(term) || u.Province.Contains(term) || u.Ward.Contains(term)))).Select(s => s.Id);
         var matchingCustomers = db.ChannelCustomers.Where(c => c.DisplayName.Contains(term) || db.DirectorySchools.Any(s => s.CustomerId == c.Id && matchingSchools.Contains(s.Id))).Select(c => c.Id);
-        var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term));
+        var allowedProposalStatuses = new[] { "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
+        if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
+        var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status) && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)));
         var invitationQuery = Invitations(db, a).AsNoTracking().Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
         var extensionQuery = Extensions(db, a).AsNoTracking().Where(x => term == "" || x.Progress.Contains(term) || db.ApproachRegistrations.Any(r => r.Id == x.ApproachRegistrationId && matchingCustomers.Contains(r.CustomerId)));
         var disputeQuery = Disputes(db, a).AsNoTracking().Where(x => term == "" || matchingCustomers.Contains(x.CustomerId) || x.Reason.Contains(term));
@@ -121,7 +126,7 @@ public static class SchoolOperationsEndpoints
             proposals = await proposalQuery.OrderByDescending(x => x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN").ThenBy(x => x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN" ? x.ReviewDueAt : DateTime.MaxValue).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new
             {
                 x.Id, x.OrganizationId, x.SchoolCode, x.Name, x.Province, x.Ward, x.Address, x.ContactName, x.ContactPosition, x.ContactPhone, x.Email,
-                x.Reason, x.Status, x.ManagerUserId, x.SubmittedByUserId, x.ReviewDueAt, x.DecisionReason, x.DirectorySchoolId,
+                x.Reason, x.Status, x.Version, x.ManagerUserId, x.SubmittedByUserId, x.ReviewDueAt, x.DecisionReason, x.DirectorySchoolId,
                 submitted_by = db.Users.Where(u => u.Id == x.SubmittedByUserId).Select(u => u.Name).First(),
                 manager_name = db.Users.Where(u => u.Id == x.ManagerUserId).Select(u => u.Name).First(),
                 possible_duplicate = db.SchoolUnits.Any(u => u.UnitType == "MAIN" && (x.DirectorySchoolId == null || u.DirectorySchoolId != x.DirectorySchoolId) && u.Name == x.Name && u.Province == x.Province && u.Ward == x.Ward),
@@ -202,6 +207,21 @@ public static class SchoolOperationsEndpoints
             imports = await db.SchoolImportBatches.AsNoTracking().Where(x => a.All && a.Has(Permissions.SchoolDirectoryManage)).OrderByDescending(x => x.CreatedAt).Take(50)
                 .Select(x => new { x.Id, x.CreatedAt, x.SchoolsCreated, x.UnitsCreated, actor_name = db.Users.Where(u => u.Id == x.ActorUserId).Select(u => u.Name).First() }).ToArrayAsync(ct),
         });
+    }
+
+    private static async Task<IResult> ProposalRevisions(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var a = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!a.All || !a.Has(Permissions.SchoolDirectoryManage)
+            || !await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && x.Status == "ACTIVE" && a.OrganizationIds.Contains(x.Id), ct))
+            throw new KeyNotFoundException();
+        if (!await db.SchoolProposals.AnyAsync(x => x.Id == id, ct)) throw new KeyNotFoundException();
+        var data = await db.SchoolProposalRevisions.AsNoTracking().Where(x => x.SchoolProposalId == id)
+            .OrderByDescending(x => x.Version).Take(100)
+            .Select(x => new { x.Id, x.Version, x.Reason, x.BeforeValues, x.AfterValues, x.CreatedAt,
+                x.ActorUserId, actor_name = db.Users.Where(u => u.Id == x.ActorUserId).Select(u => u.Name).First() })
+            .ToArrayAsync(ct);
+        return Results.Ok(new { data });
     }
 
     private static async Task<IResult> UnitHistory(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)

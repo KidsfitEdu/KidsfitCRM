@@ -50,6 +50,7 @@ type Props = {
   token: string;
   abilities: string[];
   onChanged: () => Promise<void>;
+  initialTab?: string;
 };
 const reason: SchoolActionField = {
   name: 'reason',
@@ -72,8 +73,9 @@ export function SchoolOperations({
   token,
   abilities,
   onChanged,
+  initialTab = 'proposals',
 }: Props) {
-  const [tab, setTab] = useState('proposals');
+  const [tab, setTab] = useState(initialTab);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const searchTerm = useDeferredValue(search.trim());

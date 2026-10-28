@@ -7,6 +7,18 @@ dotnet run --project src/KidsfitCRM.Api -- --migrate --seed-demo
 dotnet run --project src/KidsfitCRM.Api
 ```
 
+## Cấu hình chạy Local (Development)
+
+Sao chép `backend/.env.example` thành `backend/.env` và cập nhật cổng MySQL, tài khoản, mật khẩu và JWT key cho máy của bạn. File `.env` được Git ignore; không commit thông tin bí mật.
+
+Khi chạy ở `Development`, Backend tự tìm `.env` trong thư mục dự án Backend hoặc content root. Các biến môi trường của tiến trình và đối số command-line được ưu tiên hơn cấu hình `.env`. Ở môi trường khác, file `.env` không được tự đọc. Kiểm tra MySQL bằng `http://localhost:8000/health` sau khi khởi động.
+
+Chạy từ thư mục `backend`:
+
+```powershell
+dotnet run --project src/KidsfitCRM.Api
+```
+
 API mặc định: `http://localhost:8000`. Cấu hình bằng biến môi trường theo `.env.example`; không dùng khóa JWT mẫu cho môi trường thật.
 
 Bounded context `ChannelSales` nằm cạnh CRM giáo dục hiện có và cung cấp customer directory, bảo vệ tiếp cận 5 ngày, hợp đồng/bảo vệ 5 năm, doanh thu thực thu, commission ledger và đối soát CHECKEE. Chạy migration trước khi khởi động API để tạo các bảng MySQL tương ứng.

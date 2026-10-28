@@ -7,6 +7,7 @@ public sealed partial class KidsfitDbContext
 {
     public DbSet<SchoolWorkflowPolicyVersion> SchoolWorkflowPolicies => Set<SchoolWorkflowPolicyVersion>();
     public DbSet<SchoolProposal> SchoolProposals => Set<SchoolProposal>();
+    public DbSet<SchoolProposalRevision> SchoolProposalRevisions => Set<SchoolProposalRevision>();
     public DbSet<SchoolInvitation> SchoolInvitations => Set<SchoolInvitation>();
     public DbSet<SchoolExtensionRequest> SchoolExtensionRequests => Set<SchoolExtensionRequest>();
     public DbSet<SchoolDispute> SchoolDisputes => Set<SchoolDispute>();
@@ -30,7 +31,7 @@ public sealed partial class KidsfitDbContext
             entity.HasIndex("IdempotencyKey").IsUnique();
             entity.Property<string>("RequestFingerprint").HasMaxLength(64).UseCollation("utf8mb4_bin");
         }
-        foreach (var type in types.Concat([typeof(SchoolWorkflowPolicyVersion), typeof(SchoolUnitRevision)]))
+        foreach (var type in types.Concat([typeof(SchoolWorkflowPolicyVersion), typeof(SchoolUnitRevision), typeof(SchoolProposalRevision)]))
         {
             var entity = b.Entity(type);
             foreach (var property in entity.Metadata.GetProperties().Where(x => x.ClrType == typeof(string)))
@@ -47,6 +48,10 @@ public sealed partial class KidsfitDbContext
                 });
             }
         }
+        b.Entity<SchoolProposal>().Property(x => x.Version).IsConcurrencyToken();
+        b.Entity<SchoolProposalRevision>().HasIndex(x => new { x.SchoolProposalId, x.Version }).IsUnique();
+        Restrict<SchoolProposalRevision, SchoolProposal>(b, x => x.SchoolProposalId);
+        Restrict<SchoolProposalRevision, User>(b, x => x.ActorUserId);
         b.Entity<SchoolProposal>().Property(x => x.SchoolCode).UseCollation("utf8mb4_bin");
         b.Entity<SchoolProposal>().HasIndex(x => new { x.ManagerUserId, x.Status, x.ReviewDueAt });
         b.Entity<SchoolProposal>().HasIndex(x => new { x.Status, x.ReviewDueAt });

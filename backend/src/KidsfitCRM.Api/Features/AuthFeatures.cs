@@ -44,13 +44,13 @@ public static class AuthFeatures
         user.LastLoginAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
-        return Results.Ok(new { token = tokens.Create(user, permissions), user = UserPayload(user, permissions) });
+        return Results.Ok(new { token = tokens.Create(user, permissions), user = await UserPayloadWithOrganization(db, user, permissions) });
     }
 
     public static async Task<IResult> Me(HttpContext http, KidsfitDbContext db)
     {
         var user = await db.Users.FindAsync(http.UserId()) ?? throw new KeyNotFoundException();
-        return Results.Ok(new { user = UserPayload(user, await PermissionCodes(db, user.Id)) });
+        return Results.Ok(new { user = await UserPayloadWithOrganization(db, user, await PermissionCodes(db, user.Id)) });
     }
 
     public static IResult Logout() => Results.Ok(new { message = "Đã đăng xuất." });
@@ -61,6 +61,23 @@ public static class AuthFeatures
         join permission in db.Permissions on permissionRole.PermissionId equals permission.Id
         where userRole.UserId == userId
         select permission.Code).Distinct().OrderBy(code => code).ToArrayAsync();
+
+    private static async Task<object> UserPayloadWithOrganization(KidsfitDbContext db, User user, IReadOnlyCollection<string> permissions)
+    {
+        var primary = await (from membership in db.OrganizationMemberships.AsNoTracking()
+            join organization in db.Organizations.AsNoTracking() on membership.OrganizationId equals organization.Id
+            where membership.UserId == user.Id && membership.Status == "ACTIVE" && organization.Status == "ACTIVE"
+            orderby membership.IsPrimary descending, membership.Id
+            select new { organization_name = organization.Name, membership_type = membership.MembershipType })
+            .FirstOrDefaultAsync();
+        return new
+        {
+            user.Id, user.Code, user.Name, user.Email, user.Phone,
+            abilities = permissions,
+            organization_name = primary?.organization_name,
+            membership_type = primary?.membership_type,
+        };
+    }
 
     private static object UserPayload(User user, IReadOnlyCollection<string> permissions) => new
     {

@@ -78,7 +78,7 @@ function RoleContent(props: Props) {
   const allowedPanels = [...new Set(Object.values(sections).filter(s => s.panel !== 'dashboard').map(s => s.panel))] as ComponentProps<typeof ChannelOperations>['allowedPanels'];
   return <div className="space-y-5">
     <ChannelOperations key={section} apiBase={apiBase} token={token} abilities={abilities} onChanged={props.onChanged}
-      initialPanel={active.panel} initialOperationsTab={active.tab || undefined}
+      initialPanel={active.panel === 'dashboard' ? 'customers' : active.panel} initialOperationsTab={active.tab || undefined}
       allowedPanels={allowedPanels} hideTabs hideOperationsTabs={active.panel === 'operations'}
       customerView={onOpenCustomer => <ChannelSalesView
         onOpenCustomer={onOpenCustomer} workspace={workspace} search={props.search} setSearch={props.setSearch}

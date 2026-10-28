@@ -94,6 +94,7 @@ type View =
   | 'manager-progress'
   | 'manager-extensions'
   | 'manager-team';
+const BoardWorkspace = lazy(() => import('@/components/crm/roles/board-workspace').then(module=>({default:module.BoardWorkspace})));
 const AdminWorkspace = lazy(() =>
   import('@/components/crm/admin/admin-workspace').then((module) => ({ default: module.AdminWorkspace })),
 );
@@ -167,6 +168,7 @@ const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] =
   { id: 'admin-team', label: 'Nhân sự & đối tác', shortLabel: 'Nhân sự', icon: UsersRound },
   { id: 'admin-settings', label: 'Chính sách & hạn mức', shortLabel: 'Chính sách', icon: ShieldCheck },
   { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
+  { id: 'role-board', label: 'Ban giám đốc', shortLabel: 'Ban giám đốc', icon: ShieldCheck },
   { id: 'manager-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'manager-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'manager-allocations', label: 'Phân bổ trường', shortLabel: 'Phân bổ', icon: UsersRound },
@@ -195,6 +197,7 @@ const viewCopy: Record<
   'admin-team': { eyebrow: 'Tổ chức & nhân sự', title: 'Nhân sự & đối tác', description: 'Quản lý CTV, nhân viên và đối tác bán hàng.' },
   'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
   'admin-settings': { eyebrow: 'Thiết lập CRM', title: 'Cấu hình hệ thống', description: 'Quản trị chính sách và hạn mức nghiệp vụ.' },
+  'role-board': { eyebrow:'Kidsfit CRM',title:'Ban giám đốc',description:'Không gian công việc theo quyền và phạm vi được giao.' },
   'manager-dashboard': { eyebrow:'Quản lý bán hàng',title:'Tổng quan đội ngũ',description:'Giám sát đề xuất, phân bổ và gia hạn theo phạm vi được phân quyền.' },
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
@@ -1034,6 +1037,7 @@ function CrmWorkspace({
     abilities.includes('*') || abilities.includes(ability);
   const isAdminWorkspace = can('channel_sales.school.directory.manage') && can('channel_sales.scope.all');
   const isManagerWorkspace = !isAdminWorkspace && can('channel_sales.school.allocation.manage');
+  const isSelectedRole = !isAdminWorkspace && !isManagerWorkspace && (demoAccount?.id === 'board' || (!demoAccount && membershipType === 'BOARD'));
   const visibleNav = isAdminWorkspace
     ? nav.filter((item) => {
         if (item.id === 'dashboard') return can('channel_sales.customer.view');
@@ -1043,6 +1047,8 @@ function CrmWorkspace({
         if (item.id === 'admin-reports') return can('channel_sales.customer.view');
         return false;
       })
+    : isSelectedRole
+      ? nav.filter(item=>item.id === 'role-board')
     : isManagerWorkspace
       ? nav.filter(item=>item.id.startsWith('manager-'))
     : can('channel_sales.customer.view')
@@ -1211,6 +1217,7 @@ function CrmWorkspace({
               {isManagerWorkspace && currentView.startsWith('manager-') && (
                 <Suspense fallback={<LoadingGrid/>}><SalesManagerWorkspace key={currentView} section={currentView as import('@/components/crm/sales-manager-workspace').ManagerSection} apiBase={apiBase} token={token} abilities={abilities} onChanged={refreshChannelSales}/></Suspense>
               )}
+              {currentView === 'role-board' && (<Suspense fallback={<LoadingGrid />}><BoardWorkspace apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations

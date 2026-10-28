@@ -103,7 +103,13 @@ type View =
   | 'role-accounting-revenue'
   | 'role-accounting-payments'
   | 'role-accounting-refunds'
-  | 'role-accounting-reports';
+  | 'role-accounting-reports'
+  | 'role-customer-care-dashboard'
+  | 'role-customer-care-handover'
+  | 'role-customer-care-cases'
+  | 'role-customer-care-customers'
+  | 'role-customer-care-followup';
+const CustomerCareWorkspace = lazy(() => import('@/components/crm/roles/customer-care-workspace').then(module=>({default:module.CustomerCareWorkspace})));
 const AccountingWorkspace = lazy(() => import('@/components/crm/roles/accounting-workspace').then(module=>({default:module.AccountingWorkspace})));
 const BoardWorkspace = lazy(() => import('@/components/crm/roles/board-workspace').then(module=>({default:module.BoardWorkspace})));
 const AdminWorkspace = lazy(() =>
@@ -189,6 +195,11 @@ const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] =
   { id: 'role-accounting-payments', label: 'Đối soát & phiếu chi', shortLabel: 'Đối soát & phiếu chi', icon: CircleDollarSign },
   { id: 'role-accounting-refunds', label: 'Hủy & hoàn', shortLabel: 'Hủy & hoàn', icon: ShieldCheck },
   { id: 'role-accounting-reports', label: 'Báo cáo', shortLabel: 'Báo cáo', icon: TrendingUp },
+  { id: 'role-customer-care-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'role-customer-care-handover', label: 'Trường bàn giao', shortLabel: 'Trường bàn giao', icon: GraduationCap },
+  { id: 'role-customer-care-cases', label: 'Yêu cầu hỗ trợ', shortLabel: 'Yêu cầu hỗ trợ', icon: BookOpenCheck },
+  { id: 'role-customer-care-customers', label: 'Khách hàng', shortLabel: 'Khách hàng', icon: UsersRound },
+  { id: 'role-customer-care-followup', label: 'Theo dõi chăm sóc', shortLabel: 'Theo dõi chăm sóc', icon: CalendarDays },
   { id: 'manager-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'manager-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'manager-allocations', label: 'Phân bổ trường', shortLabel: 'Phân bổ', icon: UsersRound },
@@ -227,6 +238,11 @@ const viewCopy: Record<
   'role-accounting-payments': {eyebrow:'accounting',title:'Đối soát & phiếu chi',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'role-accounting-refunds': {eyebrow:'accounting',title:'Hủy & hoàn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'role-accounting-reports': {eyebrow:'accounting',title:'Báo cáo',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-dashboard': {eyebrow:'customer-care',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-handover': {eyebrow:'customer-care',title:'Trường bàn giao',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-cases': {eyebrow:'customer-care',title:'Yêu cầu hỗ trợ',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-customers': {eyebrow:'customer-care',title:'Khách hàng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-customer-care-followup': {eyebrow:'customer-care',title:'Theo dõi chăm sóc',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'manager-dashboard': { eyebrow:'Quản lý bán hàng',title:'Tổng quan đội ngũ',description:'Giám sát đề xuất, phân bổ và gia hạn theo phạm vi được phân quyền.' },
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
@@ -1068,6 +1084,7 @@ function CrmWorkspace({
   const isManagerWorkspace = !isAdminWorkspace && can('channel_sales.school.allocation.manage');
   const isBoardWorkspace = !isAdminWorkspace && !isManagerWorkspace && (demoAccount?.id === 'board' || (!demoAccount && membershipType === 'BOARD'));
   const isAccountingWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && (demoAccount?.id === 'accountant' || (!demoAccount && membershipType === 'ACCOUNTANT'));
+  const isCustomerCareWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && (demoAccount?.id === 'care' || (!demoAccount && membershipType === 'CUSTOMER_CARE'));
   const visibleNav = isAdminWorkspace
     ? nav.filter((item) => {
         if (item.id === 'dashboard') return can('channel_sales.customer.view');
@@ -1081,6 +1098,8 @@ function CrmWorkspace({
       ? nav.filter(item=>item.id.startsWith('role-board-'))
     : isAccountingWorkspace
       ? nav.filter(item=>item.id.startsWith('role-accounting-'))
+    : isCustomerCareWorkspace
+      ? nav.filter(item=>item.id.startsWith('role-customer-care-'))
     : isManagerWorkspace
       ? nav.filter(item=>item.id.startsWith('manager-'))
     : can('channel_sales.customer.view')
@@ -1251,6 +1270,7 @@ function CrmWorkspace({
               )}
               {currentView.startsWith('role-board-') && (<Suspense fallback={<LoadingGrid />}><BoardWorkspace section={currentView.slice('role-board-'.length) as import('@/components/crm/roles/board-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView.startsWith('role-accounting-') && (<Suspense fallback={<LoadingGrid />}><AccountingWorkspace section={currentView.slice('role-accounting-'.length) as import('@/components/crm/roles/accounting-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-customer-care-') && (<Suspense fallback={<LoadingGrid />}><CustomerCareWorkspace section={currentView.slice('role-customer-care-'.length) as import('@/components/crm/roles/customer-care-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations

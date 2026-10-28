@@ -11,7 +11,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
-var builder = WebApplication.CreateBuilder(args);
 
 // Local-only .env support. Existing process environment variables take precedence.
 if (builder.Environment.IsDevelopment())

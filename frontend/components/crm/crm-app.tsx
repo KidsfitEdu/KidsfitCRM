@@ -114,7 +114,13 @@ type View =
   | 'role-sales-staff-customers'
   | 'role-sales-staff-activities'
   | 'role-sales-staff-proposals'
-  | 'role-sales-staff-income';
+  | 'role-sales-staff-income'
+  | 'role-checkee-dashboard'
+  | 'role-checkee-verification'
+  | 'role-checkee-reconciliation'
+  | 'role-checkee-disputes'
+  | 'role-checkee-history';
+const CheckeeWorkspace = lazy(() => import('@/components/crm/roles/checkee-workspace').then(module=>({default:module.CheckeeWorkspace})));
 const SalesStaffWorkspace = lazy(() => import('@/components/crm/roles/sales-staff-workspace').then(module=>({default:module.SalesStaffWorkspace})));
 const CustomerCareWorkspace = lazy(() => import('@/components/crm/roles/customer-care-workspace').then(module=>({default:module.CustomerCareWorkspace})));
 const AccountingWorkspace = lazy(() => import('@/components/crm/roles/accounting-workspace').then(module=>({default:module.AccountingWorkspace})));
@@ -213,6 +219,11 @@ const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] =
   { id: 'role-sales-staff-activities', label: 'Tiếp cận & tư vấn', shortLabel: 'Tiếp cận & tư vấn', icon: Phone },
   { id: 'role-sales-staff-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất trường', icon: BookOpenCheck },
   { id: 'role-sales-staff-income', label: 'Thu nhập', shortLabel: 'Thu nhập', icon: WalletCards },
+  { id: 'role-checkee-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'role-checkee-verification', label: 'Xác minh hợp đồng', shortLabel: 'Xác minh hợp đồng', icon: ShieldCheck },
+  { id: 'role-checkee-reconciliation', label: 'Đối soát', shortLabel: 'Đối soát', icon: BookOpenCheck },
+  { id: 'role-checkee-disputes', label: 'Tranh chấp', shortLabel: 'Tranh chấp', icon: Circle },
+  { id: 'role-checkee-history', label: 'Lịch sử', shortLabel: 'Lịch sử', icon: Clock3 },
   { id: 'manager-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'manager-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'manager-allocations', label: 'Phân bổ trường', shortLabel: 'Phân bổ', icon: UsersRound },
@@ -262,6 +273,11 @@ const viewCopy: Record<
   'role-sales-staff-activities': {eyebrow:'sales-staff',title:'Tiếp cận & tư vấn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'role-sales-staff-proposals': {eyebrow:'sales-staff',title:'Đề xuất trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'role-sales-staff-income': {eyebrow:'sales-staff',title:'Thu nhập',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-checkee-dashboard': {eyebrow:'checkee',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-checkee-verification': {eyebrow:'checkee',title:'Xác minh hợp đồng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-checkee-reconciliation': {eyebrow:'checkee',title:'Đối soát',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-checkee-disputes': {eyebrow:'checkee',title:'Tranh chấp',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-checkee-history': {eyebrow:'checkee',title:'Lịch sử',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
   'manager-dashboard': { eyebrow:'Quản lý bán hàng',title:'Tổng quan đội ngũ',description:'Giám sát đề xuất, phân bổ và gia hạn theo phạm vi được phân quyền.' },
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
@@ -1105,6 +1121,7 @@ function CrmWorkspace({
   const isAccountingWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && (demoAccount?.id === 'accountant' || (!demoAccount && membershipType === 'ACCOUNTANT'));
   const isCustomerCareWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && (demoAccount?.id === 'care' || (!demoAccount && membershipType === 'CUSTOMER_CARE'));
   const isSalesStaffWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && !isCustomerCareWorkspace && (demoAccount?.id === 'sales' || (!demoAccount && membershipType === 'SALES'));
+  const isCheckeeWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && !isCustomerCareWorkspace && !isSalesStaffWorkspace && (demoAccount?.id === 'checkee' || (!demoAccount && membershipType === 'RECONCILIATION'));
   const visibleNav = isAdminWorkspace
     ? nav.filter((item) => {
         if (item.id === 'dashboard') return can('channel_sales.customer.view');
@@ -1122,6 +1139,8 @@ function CrmWorkspace({
       ? nav.filter(item=>item.id.startsWith('role-customer-care-'))
     : isSalesStaffWorkspace
       ? nav.filter(item=>item.id.startsWith('role-sales-staff-'))
+    : isCheckeeWorkspace
+      ? nav.filter(item=>item.id.startsWith('role-checkee-'))
     : isManagerWorkspace
       ? nav.filter(item=>item.id.startsWith('manager-'))
     : can('channel_sales.customer.view')
@@ -1294,6 +1313,7 @@ function CrmWorkspace({
               {currentView.startsWith('role-accounting-') && (<Suspense fallback={<LoadingGrid />}><AccountingWorkspace section={currentView.slice('role-accounting-'.length) as import('@/components/crm/roles/accounting-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView.startsWith('role-customer-care-') && (<Suspense fallback={<LoadingGrid />}><CustomerCareWorkspace section={currentView.slice('role-customer-care-'.length) as import('@/components/crm/roles/customer-care-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView.startsWith('role-sales-staff-') && (<Suspense fallback={<LoadingGrid />}><SalesStaffWorkspace section={currentView.slice('role-sales-staff-'.length) as import('@/components/crm/roles/sales-staff-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-checkee-') && (<Suspense fallback={<LoadingGrid />}><CheckeeWorkspace section={currentView.slice('role-checkee-'.length) as import('@/components/crm/roles/checkee-workspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations

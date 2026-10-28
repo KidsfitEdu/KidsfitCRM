@@ -1,26 +1,90 @@
 'use client';
-
+import { useState } from 'react';
 import type { ComponentProps } from 'react';
-import { ShieldCheck, ClipboardCheck } from 'lucide-react';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
+import { channelRequest } from '@/lib/channel-operations';
+import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
 
-type Props={apiBase:string;token:string;abilities:string[];workspace:ChannelSalesWorkspace;onChanged:()=>Promise<void>;
-  search:string;setSearch:(value:string)=>void; onRegister:ComponentProps<typeof ChannelSalesView>['onRegister'];onAddActivity:ComponentProps<typeof ChannelSalesView>['onAddActivity'];onReportContract:ComponentProps<typeof ChannelSalesView>['onReportContract'];onRecordRevenue:ComponentProps<typeof ChannelSalesView>['onRecordRevenue']};
-export function CustomerCareWorkspace(props:Props) {
- const can=(code:string)=>props.abilities.includes(code)||props.abilities.includes('*');
- return <section className="space-y-5">
-  <div className="rounded-2xl border bg-card p-5 shadow-sm">
-   <div className="flex items-center gap-2"><ShieldCheck className="size-5 text-primary"/><h2 className="text-lg font-semibold">Chăm sóc khách hàng</h2></div>
-   <p className="mt-1 text-sm text-muted-foreground">Không gian nghiệp vụ theo quyền của tài khoản và phạm vi tổ chức.</p>
-   <div className="mt-4 grid gap-2 sm:grid-cols-3"><div className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm"><ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Tiếp nhận hợp đồng đã bàn giao</span></div><div className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm"><ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Xử lý yêu cầu hỗ trợ triển khai</span></div><div className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm"><ClipboardCheck className="mt-0.5 size-4 shrink-0 text-primary"/><span>Theo dõi lịch chăm sóc khách hàng</span></div></div>
-  </div>
-  {!can('channel_sales.school.support.manage') && <p role="status" className="rounded-xl border p-3 text-sm text-muted-foreground">Một số thao tác cần quyền nghiệp vụ riêng. Chức năng chỉ được mở khi API cấp quyền phù hợp.</p>}
-  <ChannelOperations apiBase={props.apiBase} token={props.token} abilities={props.abilities} onChanged={props.onChanged} allowedPanels={["operations","customers"]} initialPanel="operations" initialOperationsTab="care"
-   customerView={(onOpenCustomer)=><ChannelSalesView onOpenCustomer={onOpenCustomer} workspace={props.workspace} search={props.search} setSearch={props.setSearch}
-     canRegister={can('channel_sales.approach.register')} canAddActivity={can('channel_sales.activity.create')}
-     canReportContract={can('channel_sales.contract.report')} canRecordRevenue={can('channel_sales.revenue.record')}
-     onRegister={props.onRegister} onAddActivity={props.onAddActivity} onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>}/>
- </section>;
+const sections = {
+  'dashboard': {label:'Tổng quan',panel:'dashboard',tab:''},
+  'handover': {label:'Trường bàn giao',panel:'operations',tab:'care'},
+  'cases': {label:'Yêu cầu hỗ trợ',panel:'operations',tab:'care'},
+  'customers': {label:'Khách hàng',panel:'customers',tab:''},
+  'followup': {label:'Theo dõi chăm sóc',panel:'operations',tab:'care'},
+} as const;
+export type RoleSection = keyof typeof sections;
+type Props = {
+  section: RoleSection;
+  apiBase: string;
+  token: string;
+  abilities: string[];
+  workspace: ChannelSalesWorkspace;
+  onChanged: () => Promise<void>;
+  search: string;
+  setSearch: (value: string) => void;
+  onRegister: ComponentProps<typeof ChannelSalesView>['onRegister'];
+  onAddActivity: ComponentProps<typeof ChannelSalesView>['onAddActivity'];
+  onReportContract: ComponentProps<typeof ChannelSalesView>['onReportContract'];
+  onRecordRevenue: ComponentProps<typeof ChannelSalesView>['onRecordRevenue'];
+};
+
+export function CustomerCareWorkspace(props: Props) {
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15000 } } }));
+  return <QueryClientProvider client={queryClient}><RoleContent {...props} /></QueryClientProvider>;
+}
+
+function RoleContent(props: Props) {
+  const { section, apiBase, token, abilities, workspace } = props;
+  const can = (permission: string) => abilities.includes(permission) || abilities.includes('*');
+  const active = sections[section];
+  const preview = !apiBase;
+  const operations = useQuery({
+    queryKey: ['customer-care-summary', token],
+    queryFn: () => channelRequest<SchoolOperationsWorkspace>(apiBase, token, '/school-operations?page=1'),
+    enabled: !preview && !!token && section === 'dashboard' && can('channel_sales.customer.view'),
+  });
+  const metrics = workspace.metrics;
+  const panelClass = 'rounded-2xl border bg-card p-5 shadow-sm';
+  const format = (value: number | null | undefined) => typeof value === 'number' ? value.toLocaleString('vi-VN') : '—';
+  if (!active) return <p role="alert">Không tìm thấy chức năng được yêu cầu.</p>;
+  if (section === 'dashboard') {
+    const summary = operations.data;
+    const tiles: [string, number | undefined][] = [
+      ['Chưa đăng ký', metrics.available],
+      ['Đang tiếp cận', metrics.approaching],
+      ['Đã ký hợp đồng', metrics.contracted],
+      ['Sắp hết hạn tiếp cận', metrics.expiring_soon],
+      ['Đề xuất chờ xử lý', summary?.proposals.filter(p => p.status.startsWith('PENDING_')).length],
+      ['Gia hạn chờ xử lý', summary?.extensions.filter(e => e.status === 'PENDING').length],
+    ];
+    return <div className="space-y-5">
+      {preview && <p className="rounded-xl border bg-muted/50 p-3 text-sm text-muted-foreground">Dữ liệu xem thử, không có quyền ghi vào hệ thống thật.</p>}
+      {operations.error && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"><AlertCircle className="size-4"/>{operations.error.message}</p>}
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">{tiles.map(([label, value]) =>
+        <div className={panelClass} key={label}><p className="text-sm text-muted-foreground">{label}</p><p className="mt-3 text-3xl font-bold">{preview ? '—' : format(value)}</p></div>
+      )}</div>
+      <div className={panelClass}>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Công việc cần xử lý</h3><Button variant="outline" disabled={preview || operations.isFetching} onClick={() => void operations.refetch()}><RefreshCw className="mr-2 size-4"/>Làm mới</Button></div>
+        <p className="mt-2 text-sm text-muted-foreground">Các số liệu phản ánh dữ liệu tài khoản được API cho phép truy cập. Mở menu bên trái để xem hồ sơ và thực hiện thao tác đúng thẩm quyền.</p>
+      </div>
+    </div>;
+  }
+  const allowedPanels = [...new Set(Object.values(sections).filter(s => s.panel !== 'dashboard').map(s => s.panel))] as ComponentProps<typeof ChannelOperations>['allowedPanels'];
+  return <div className="space-y-5">
+    <ChannelOperations key={section} apiBase={apiBase} token={token} abilities={abilities} onChanged={props.onChanged}
+      initialPanel={active.panel} initialOperationsTab={active.tab || undefined}
+      allowedPanels={allowedPanels} hideTabs hideOperationsTabs={active.panel === 'operations'}
+      customerView={onOpenCustomer => <ChannelSalesView
+        onOpenCustomer={onOpenCustomer} workspace={workspace} search={props.search} setSearch={props.setSearch}
+        canRegister={can('channel_sales.approach.register')} canAddActivity={can('channel_sales.activity.create')}
+        canReportContract={can('channel_sales.contract.report')} canRecordRevenue={can('channel_sales.revenue.record')}
+        onRegister={props.onRegister} onAddActivity={props.onAddActivity} onReportContract={props.onReportContract}
+        onRecordRevenue={props.onRecordRevenue}/>}
+    />
+  </div>;
 }

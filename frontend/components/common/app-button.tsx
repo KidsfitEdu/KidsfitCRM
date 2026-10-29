@@ -23,9 +23,9 @@ const tones: Record<Tone, string> = {
 export function AppButton({ tone = 'green', busy = false, leadingIcon, className, disabled, children, ...props }: Props) {
   return <Button {...props} variant="outline" disabled={disabled || busy}
     aria-busy={busy || undefined}
-    className={cn('crm-brand-button gap-2 border-transparent transition-colors', tones[tone],
+    className={cn('crm-brand-button inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-center text-sm font-semibold leading-none align-middle transition-colors [&_svg]:shrink-0', tones[tone],
       (tone === 'outline') && 'border-border', className)}>
     {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : leadingIcon}
-    {children}
+    <span className="inline-flex items-center justify-center leading-none">{children}</span>
   </Button>;
 }

@@ -117,7 +117,8 @@ public static class SchoolEndpoints
             return new { x.Id, x.SchoolCode, x.CustomerId, x.DisplayName, x.Province, ward = units.GetValueOrDefault(x.Id)?.Ward,
                 branches = units.GetValueOrDefault(x.Id)?.Branches ?? 0,
                 visible_status = ChannelCustomerStatusPolicy.Calculate(protection?.SourceType == "CONTRACT", protection is not null && protection.SourceType != "CONTRACT"),
-                protected_until = protection?.EffectiveUntil, can_register = protection is null && access.Has(Permissions.ChannelSalesRegister),
+                protected_from = protection?.EffectiveFrom, protected_until = protection?.EffectiveUntil,
+                can_register = protection is null && access.Has(Permissions.ChannelSalesRegister),
                 contract_id = contract?.Id, contract_status = contract?.Status };
         }) });
     }

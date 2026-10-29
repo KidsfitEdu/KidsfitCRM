@@ -169,9 +169,9 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       </div></DialogContent></Dialog>
       <SchoolDirectory adminMode apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
         renderImportAction={openImport => <div className="flex flex-wrap items-center justify-end gap-2">
-          <AppButton tone="green" disabled={preview} leadingIcon={<Plus className="size-4"/>}
+          <AppButton tone="green" premium className="h-11 px-5" disabled={preview} leadingIcon={<Plus className="size-4"/>}
             onClick={() => {setFormErrors({});setManualOpen(true);}}>Thêm trường</AppButton>
-          <AppButton tone="blue" disabled={preview} leadingIcon={<FileSpreadsheet className="size-4"/>}
+          <AppButton tone="blue" premium className="h-11 px-5" disabled={preview} leadingIcon={<FileSpreadsheet className="size-4"/>}
             onClick={openImport}>Import Excel</AppButton>
         </div>}/>
     </>}

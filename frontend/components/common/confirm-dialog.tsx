@@ -1,5 +1,6 @@
 'use client';
 
+import { AppButton } from '@/components/common/app-button';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -17,7 +18,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
       <AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>{description}</AlertDialogDescription></AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel disabled={busy}>Hủy</AlertDialogCancel>
-        <AlertDialogAction variant={destructive ? 'destructive' : 'default'} disabled={busy} onClick={onConfirm}>{busy ? 'Đang xử lý…' : confirmLabel}</AlertDialogAction>
+        <AppButton tone={destructive ? 'danger' : 'green'} disabled={busy} busy={busy} onClick={onConfirm}>{busy ? 'Đang xử lý…' : confirmLabel}</AppButton>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>;

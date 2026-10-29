@@ -7,6 +7,7 @@ const names = [
 
 export async function readSchoolDemo<T>(path: string): Promise<T> {
   const now = new Date();
+  const approachFrom = new Date(now.getTime() - 2 * 86400000).toISOString();
   const approachUntil = new Date(now.getTime() + 3 * 86400000).toISOString();
   const verifiedAt = new Date(now.getTime() - 30 * 86400000);
   const protectionUntil = new Date(verifiedAt);
@@ -20,6 +21,7 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
     ward: ['Phường A', 'Phường B', 'Phường C'][index],
     branches: [2, 1, 0][index],
     visible_status: ['AVAILABLE', 'APPROACHING', 'CONTRACTED'][index],
+    protected_from: index === 1 ? approachFrom : index === 2 ? verifiedAt.toISOString() : null,
     protected_until:
       index === 1
         ? approachUntil

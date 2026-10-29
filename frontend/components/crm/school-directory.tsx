@@ -17,9 +17,6 @@ import { SchoolActionForm, type SchoolAction } from './school-action-form';
 import { EvidenceReference } from './school-operations';
 import {
   Building2,
-  FileSpreadsheet,
-  GraduationCap,
-  ShieldCheck,
   UsersRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,6 +45,7 @@ type Props = {
   abilities: string[];
   onChanged: () => Promise<void>;
   adminMode?: boolean;
+  renderImportAction?: (openImport: () => void) => ReactNode;
 };
 type School = {
   id: number;
@@ -166,6 +164,7 @@ export function SchoolDirectory({
   abilities,
   onChanged,
   adminMode = false,
+  renderImportAction,
 }: Props) {
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
@@ -251,6 +250,7 @@ export function SchoolDirectory({
     },
   });
   const run = (command: Command) => mutation.mutateAsync(command);
+  const openImport = () => {setImportOpen(true);upload.reset();};
   return (
     <div className="space-y-5">
       {demo && (
@@ -260,6 +260,7 @@ export function SchoolDirectory({
           API/MySQL.
         </aside>
       )}
+      {renderImportAction?.(openImport)}
       {notice && (
         <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           {notice}

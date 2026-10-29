@@ -34,19 +34,21 @@ export function AppPagination({ page, pageSize, total, disabled = false, showSum
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
   return (
-    <nav aria-label="Phân trang danh sách" className="flex flex-col gap-4 border-t border-border/80 bg-card px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-end">
-      {showSummary && <span className="text-sm text-muted-foreground" aria-live="polite">
-        Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} trường
-      </span>}
-      <div className="flex flex-wrap items-center gap-2.5">
-        {pageSizeOptions && onPageSizeChange && <label className="flex items-center gap-2 text-sm text-muted-foreground">
+    <nav aria-label="Phân trang danh sách" className="flex flex-col gap-3 border-t border-border/80 bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="flex flex-wrap items-center gap-3">
+        {showSummary && <span className="text-sm text-muted-foreground" aria-live="polite">
+          Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} trường
+        </span>}
+        {pageSizeOptions && onPageSizeChange && <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           Số dòng/trang
-          <AppNativeSelect aria-label="Số dòng mỗi trang" containerClassName="h-10 min-w-[80px] rounded-lg" value={pageSize} disabled={disabled}
+          <AppNativeSelect aria-label="Số dòng mỗi trang" containerClassName="h-10 min-w-[84px] rounded-lg" value={pageSize} disabled={disabled}
             onChange={event => onPageSizeChange(Number(event.target.value))}>
             {pageSizeOptions.map(size => <option key={size} value={size}>{size}</option>)}
           </AppNativeSelect>
         </label>}
-        <div className="flex items-center gap-1" aria-label="Chọn trang">
+      </div>
+      <div className="flex items-center justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-1" aria-label="Chọn trang">
           <AppButton tone="outline" size="sm" className="h-9 min-w-9 rounded-lg px-2" aria-label="Trang trước" disabled={disabled || page <= 1}
             leadingIcon={<ChevronLeft className="size-4"/>} onClick={() => onPageChange(page - 1)}>Trước</AppButton>
           {paginationNumbers(page,pages).map((item,index) => item === 'ellipsis'

@@ -24,9 +24,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppButton } from '@/components/common/app-button';
-import { AppStatCard } from '@/components/common/app-stat-card';
-import { AppTableToolbar } from '@/components/common/app-table-toolbar';
 import { AppPagination } from '@/components/common/app-pagination';
+import { schoolPageWindow, composeSchoolPage, SCHOOL_ROWS_PER_PAGE } from '@/lib/school-page-window';
+import { Search, RotateCcw } from 'lucide-react';
 import { AppEmptyState } from '@/components/common/app-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -170,6 +170,8 @@ export function SchoolDirectory({
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [selected, setSelected] = useState<number | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -185,11 +187,18 @@ export function SchoolDirectory({
       ? readSchoolDemo<T>(path)
       : channelRequest<T>(apiBase, token, path, options);
   const schools = useQuery({
-    queryKey: [...channelQueryKeys.all, 'schools', search, page],
-    queryFn: () =>
-      api<SchoolList>(
-        `/schools?search=${encodeURIComponent(search)}&page=${page}`,
-      ),
+    queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize],
+    queryFn: async () => {
+      const window = schoolPageWindow(page, pageSize);
+      const responses = await Promise.all(Array.from(
+        { length: window.lastApiPage - window.firstApiPage + 1 },
+        (_, index) => api<SchoolList>(
+          `/schools?search=${encodeURIComponent(search)}&page=${window.firstApiPage + index}`,
+        ),
+      ));
+      const result = composeSchoolPage(responses, window.offsetWithinFirstPage, pageSize);
+      return { ...responses[0], ...result, page, page_size: pageSize };
+    },
   });
   const capacities = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-capacities'],
@@ -251,20 +260,6 @@ export function SchoolDirectory({
           API/MySQL.
         </aside>
       )}
-      <section className="crm-brand-surface flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="grid size-11 place-items-center rounded-xl bg-[#e8f5e9] text-[#1b5e20] dark:bg-[#24432b] dark:text-[#a5d6a7]"><GraduationCap className="size-5" aria-hidden="true"/></div>
-          <div><h3 className="font-semibold">Danh bạ trường học</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Trường chính và phân hiệu cùng một quyền bảo vệ.</p></div>
-        </div>
-        {can('channel_sales.school.directory.manage') && <AppButton tone="blue" leadingIcon={<FileSpreadsheet className="size-4"/>}
-          onClick={() => { setImportOpen(true); upload.reset(); }}>Nhập danh sách Excel</AppButton>}
-      </section>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <AppStatCard label="Trường chính" icon={GraduationCap} value={schools.isPending ? null : schools.data?.total} description="Tổng kết quả theo bộ lọc hiện tại"/>
-        <AppStatCard label="Phân hiệu (trang này)" icon={Building2} value={schools.isPending ? null : schools.data?.data.reduce((sum, item) => sum + item.branches, 0)} description="Chỉ tính bản ghi đang hiển thị"/>
-        <AppStatCard label="Đang tiếp cận (trang này)" icon={ShieldCheck} value={schools.isPending ? null : schools.data?.data.filter(item => item.visible_status === 'APPROACHING').length} description="Không đại diện tổng toàn hệ thống"/>
-      </div>
       {notice && (
         <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           {notice}
@@ -322,13 +317,30 @@ export function SchoolDirectory({
       )}
       <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-2">
-          <div><h3 className="font-semibold">Danh sách trường</h3><p className="mt-1 text-xs text-muted-foreground">Tra cứu trường chính, khu vực và tình trạng tiếp cận</p></div>
+          <div><h3 className="text-lg font-semibold">Danh sách trường học</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Tra cứu trường chính, khu vực và tình trạng tiếp cận</p></div>
         </div>
-        <AppTableToolbar value={term} onValueChange={setTerm}
-          onSearch={() => { setSearch(term); setPage(1); }}
-          onReset={() => { setTerm(''); setSearch(''); setPage(1); }}
-          placeholder="Tên trường, mã trường, phường/xã…"
-          countLabel={`${schools.data?.total ?? 0} trường chính`}/>
+        <form role="search" className="flex flex-wrap items-center gap-2 border-b border-border/80 px-5 py-4"
+          onSubmit={event => { event.preventDefault(); setSearch(term); setPage(1); }}>
+          <div className="relative min-w-[180px] flex-[1_1_320px]">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+            <Input aria-label="Tìm tên trường, mã hoặc khu vực" className="h-10 rounded-xl pl-9"
+              placeholder="Tên trường, mã trường, phường/xã..." value={term} onChange={event => setTerm(event.target.value)}/>
+          </div>
+          <select aria-label="Lọc trạng thái ở trang hiện tại" title="Lọc trạng thái trong trang hiện tại"
+            className="h-10 min-w-44 rounded-xl border border-input bg-background px-3 text-sm text-foreground"
+            value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="AVAILABLE">Chưa đăng ký</option>
+            <option value="APPROACHING">Đang tiếp cận</option>
+            <option value="CONTRACTED">Đã ký hợp đồng</option>
+          </select>
+          <AppButton type="submit" className="h-10 rounded-xl">Tìm kiếm</AppButton>
+          <AppButton type="button" tone="outline" className="h-10 rounded-xl"
+            leadingIcon={<RotateCcw className="size-4"/>} onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setPage(1);}}>Reset</AppButton>
+          <span className="ml-auto text-xs text-muted-foreground">{schools.data?.total ?? 0} trường chính</span>
+        </form>
+        {statusFilter !== 'ALL' && <p className="px-5 pt-2 text-xs text-muted-foreground">Lọc trạng thái chỉ áp dụng cho {pageSize} bản ghi được tải ở trang này, không phải toàn bộ hệ thống.</p>}
         {schools.isPending ? (
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
         ) : schools.data?.data.length ? (
@@ -346,7 +358,7 @@ export function SchoolDirectory({
                 </tr>
               </thead>
               <tbody>
-                {schools.data.data.map((s) => (
+                {schools.data.data.filter(s => statusFilter === 'ALL' || s.visible_status === statusFilter).map((s) => (
                   <tr
                     key={s.id}
                     className="border-t transition-colors hover:bg-muted/30"
@@ -430,7 +442,8 @@ export function SchoolDirectory({
             description={search ? 'Thử tìm theo mã trường hoặc phường/xã.' : 'Admin nhập file Excel để tạo danh sách chính thức.'}/>
         )}
         <AppPagination page={page} pageSize={schools.data?.page_size ?? 20} total={schools.data?.total ?? 0}
-          disabled={schools.isFetching} onPageChange={setPage}/>
+          disabled={schools.isFetching} onPageChange={setPage}
+          pageSizeOptions={SCHOOL_ROWS_PER_PAGE} onPageSizeChange={value => {setPageSize(value);setPage(1);}}/>
       </section>
       <Dialog
         open={importOpen}

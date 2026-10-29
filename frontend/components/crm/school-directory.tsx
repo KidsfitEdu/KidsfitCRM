@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AppButton } from '@/components/common/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { SCHOOL_ROWS_PER_PAGE } from '@/lib/school-page-window';
 import { Search, RotateCcw } from 'lucide-react';
 import { AppEmptyState } from '@/components/common/app-empty-state';
@@ -253,7 +254,11 @@ export function SchoolDirectory({
           API/MySQL.
         </aside>
       )}
-      {renderImportAction?.(openImport)}
+      {adminMode
+        ? <AppPageHeader eyebrow="Quản trị / Trường học" title="Quản lý trường học"
+            description="Quản lý trường chính, phân hiệu và quyền bảo vệ khách hàng"
+            actions={renderImportAction?.(openImport)}/>
+        : renderImportAction?.(openImport)}
       {notice && (
         <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           {notice}

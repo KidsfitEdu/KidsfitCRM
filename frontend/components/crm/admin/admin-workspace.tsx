@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw, Plus, FileSpreadsheet } from 'lucide-react';
 import { AppButton } from '@/components/common/app-button';
+import { AppStatCard } from '@/components/common/app-stat-card';
+import { Building2, ClipboardList, CalendarClock, Handshake, TrendingUp, UsersRound } from 'lucide-react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -153,7 +155,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
           ['Đã ký hợp đồng', metrics.contracted],
           ['Sắp hết hạn tiếp cận', metrics.expiring_soon],
           ['Đề xuất chờ Admin', operations ? pending : null],
-        ] as [string,number|null][]).map(([label,value]) => <div key={label} className={panel}><p className="text-sm text-muted-foreground">{label}</p><p className="mt-3 text-3xl font-bold">{preview || value === null ? '—' : fmt(value)}</p></div>)}
+        ] as [string,number|null][]).map(([label,value], index) => <AppStatCard key={label} label={label} value={preview || value === null ? '—' : fmt(value)} icon={[Building2, ClipboardList, CalendarClock, Handshake, TrendingUp, UsersRound][index % 6]}/>)}
       </div>
       <div className={panel}><h3 className="font-semibold">Công việc cần xử lý</h3><p className="mt-2 text-sm text-muted-foreground">Hồ sơ đề xuất chờ duyệt: {preview || !operations ? '—' : fmt(pending)}. Mở mục Đề xuất trường để xử lý.</p></div>
     </>}

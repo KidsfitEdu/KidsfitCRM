@@ -60,6 +60,7 @@ type School = {
   ward: string;
   branches: number;
   visible_status: string;
+  protected_from: string | null;
   protected_until: string | null;
   can_register: boolean;
   contract_id: number | null;
@@ -342,13 +343,14 @@ export function SchoolDirectory({
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
         ) : visibleSchools.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[1050px] border-separate border-spacing-0 text-left text-sm">
               <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white dark:bg-[#1b5e20] dark:text-white">
                 <tr>
                   <th scope="col" className="px-5 py-4 text-left align-middle">Trường học</th>
                   <th scope="col" className="p-4 text-center align-middle">Khu vực</th>
                   <th scope="col" className="p-4 text-center align-middle">Phân hiệu</th>
-                  <th scope="col" className="p-4 text-center align-middle">Quyền bảo vệ</th>
+                  <th scope="col" className="p-4 text-center align-middle">Trạng thái</th>
+                  <th scope="col" className="p-4 text-center align-middle">Thời hạn bảo vệ</th>
                   <th scope="col" className="px-5 py-4 text-center align-middle">Thao tác</th>
                 </tr>
               </thead>
@@ -381,21 +383,23 @@ export function SchoolDirectory({
                     </td>
                     <td className="p-4 text-center align-middle">{s.branches}</td>
                     <td className="p-4 text-center align-middle">
-                      <Badge
-                        variant="outline"
-                        className={
-                          s.visible_status === 'AVAILABLE'
-                            ? 'text-emerald-700'
-                            : 'text-[#8b5cf6] dark:text-[#c4b5fd]'
-                        }
-                      >
-                        {labels[s.visible_status]}
+                      <Badge variant="outline" className={
+                        s.visible_status === 'AVAILABLE'
+                          ? 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                          : s.visible_status === 'CONTRACTED'
+                            ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
+                            : 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200'
+                      }>
+                        {labels[s.visible_status] ?? s.visible_status}
                       </Badge>
-                      {s.protected_until && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Đến {channelDate(s.protected_until)}
-                        </p>
-                      )}
+                    </td>
+                    <td className="p-4 text-center align-middle">
+                      <span className="whitespace-nowrap tabular-nums text-sm text-foreground"
+                        aria-label={s.protected_from && s.protected_until ? `Từ ${channelDate(s.protected_from)} đến ${channelDate(s.protected_until)}` : 'Chưa có thời hạn bảo vệ'}>
+                        {s.protected_from && s.protected_until
+                          ? `${channelDate(s.protected_from)} – ${channelDate(s.protected_until)}`
+                          : '—'}
+                      </span>
                     </td>
                     <td className="px-5 py-4 text-center align-middle">
                       <div className="flex flex-wrap items-center justify-center gap-2">

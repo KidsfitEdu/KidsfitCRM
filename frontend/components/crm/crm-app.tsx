@@ -48,6 +48,7 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { AppBrand } from '@/components/common/app-brand';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1215,7 +1216,7 @@ function CrmWorkspace({
       </aside>
 
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-border/70 bg-background/85 px-5 backdrop-blur-xl sm:px-8">
+        <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">
           <div>
             <p className="text-xs font-medium text-muted-foreground">
               {todayLabel}
@@ -1258,7 +1259,7 @@ function CrmWorkspace({
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1480px] space-y-7 px-5 py-7 sm:px-8">
+        <div className="mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && (
             <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100">
               <div>
@@ -1281,19 +1282,8 @@ function CrmWorkspace({
               </Button>
             </aside>
           )}
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <Badge className="mb-3 bg-[#e9e6ff] text-primary hover:bg-[#e9e6ff] dark:bg-primary/20 dark:text-[#c6beff]">
-                {activeCopy.eyebrow}
-              </Badge>
-              <h2 className="text-3xl font-bold tracking-[-0.045em]">
-                {activeCopy.title}
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {activeCopy.description}
-              </p>
-            </div>
-            <div className="flex gap-2">
+          <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
+            actions={<div className="flex flex-wrap gap-2">
               {currentView === 'finance' && (
                 <Button
                   onClick={exportInvoices}
@@ -1313,8 +1303,7 @@ function CrmWorkspace({
                   <Plus /> Thêm lead mới
                 </Button>
               )}
-            </div>
-          </section>
+            </div>}/>
 
           {loading ? (
             <LoadingGrid />

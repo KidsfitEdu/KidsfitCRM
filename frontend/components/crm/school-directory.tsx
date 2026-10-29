@@ -17,15 +17,17 @@ import { SchoolActionForm, type SchoolAction } from './school-action-form';
 import { EvidenceReference } from './school-operations';
 import {
   Building2,
-  ChevronLeft,
-  ChevronRight,
   FileSpreadsheet,
   GraduationCap,
-  Search,
   ShieldCheck,
   UsersRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/common/app-button';
+import { AppStatCard } from '@/components/common/app-stat-card';
+import { AppTableToolbar } from '@/components/common/app-table-toolbar';
+import { AppPagination } from '@/components/common/app-pagination';
+import { AppEmptyState } from '@/components/common/app-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -249,29 +251,20 @@ export function SchoolDirectory({
           API/MySQL.
         </aside>
       )}
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-gradient-to-br from-violet-50/70 to-card p-6 dark:from-violet-950/20">
-        <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-violet-100 p-3 text-violet-700 dark:bg-violet-950">
-            <GraduationCap className="size-7" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold">Danh bạ trường học</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Trường chính và phân hiệu dùng chung quyền bảo vệ khách hàng.
-            </p>
-          </div>
+      <section className="crm-brand-surface flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="grid size-11 place-items-center rounded-xl bg-[#e8f5e9] text-[#1b5e20] dark:bg-[#24432b] dark:text-[#a5d6a7]"><GraduationCap className="size-5" aria-hidden="true"/></div>
+          <div><h3 className="font-semibold">Danh bạ trường học</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Trường chính và phân hiệu cùng một quyền bảo vệ.</p></div>
         </div>
-        {can('channel_sales.school.directory.manage') && (
-          <Button
-            onClick={() => {
-              setImportOpen(true);
-              upload.reset();
-            }}
-          >
-            <FileSpreadsheet className="size-4" /> Nhập danh sách Excel
-          </Button>
-        )}
-      </header>
+        {can('channel_sales.school.directory.manage') && <AppButton tone="blue" leadingIcon={<FileSpreadsheet className="size-4"/>}
+          onClick={() => { setImportOpen(true); upload.reset(); }}>Nhập danh sách Excel</AppButton>}
+      </section>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <AppStatCard label="Trường chính" icon={GraduationCap} value={schools.isPending ? null : schools.data?.total} description="Tổng kết quả theo bộ lọc hiện tại"/>
+        <AppStatCard label="Phân hiệu (trang này)" icon={Building2} value={schools.isPending ? null : schools.data?.data.reduce((sum, item) => sum + item.branches, 0)} description="Chỉ tính bản ghi đang hiển thị"/>
+        <AppStatCard label="Đang tiếp cận (trang này)" icon={ShieldCheck} value={schools.isPending ? null : schools.data?.data.filter(item => item.visible_status === 'APPROACHING').length} description="Không đại diện tổng toàn hệ thống"/>
+      </div>
       {notice && (
         <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           {notice}
@@ -303,7 +296,7 @@ export function SchoolDirectory({
                     className={
                       item.active >= item.school_approach_limit
                         ? 'text-amber-600'
-                        : 'text-violet-600'
+                        : 'text-primary'
                     }
                   >
                     {item.active}/{item.school_approach_limit}
@@ -327,40 +320,20 @@ export function SchoolDirectory({
           </div>
         </section>
       )}
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-          <form
-            className="flex w-full max-w-lg gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSearch(term);
-              setPage(1);
-            }}
-          >
-            <div className="relative flex-1">
-              <Search className="absolute top-3 left-3 size-4 text-muted-foreground" />
-              <Input
-                aria-label="Tìm trường, mã hoặc khu vực"
-                className="pl-9"
-                placeholder="Tên trường, mã trường, phường/xã…"
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-              />
-            </div>
-            <Button variant="outline" type="submit">
-              Tìm kiếm
-            </Button>
-            <Button variant="outline" type="button" onClick={() => { setTerm(''); setSearch(''); setPage(1); }}>Reset bộ lọc</Button>
-          </form>
-          <span className="text-sm text-muted-foreground">
-            {schools.data?.total ?? 0} trường chính
-          </span>
+      <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-2">
+          <div><h3 className="font-semibold">Danh sách trường</h3><p className="mt-1 text-xs text-muted-foreground">Tra cứu trường chính, khu vực và tình trạng tiếp cận</p></div>
         </div>
+        <AppTableToolbar value={term} onValueChange={setTerm}
+          onSearch={() => { setSearch(term); setPage(1); }}
+          onReset={() => { setTerm(''); setSearch(''); setPage(1); }}
+          placeholder="Tên trường, mã trường, phường/xã…"
+          countLabel={`${schools.data?.total ?? 0} trường chính`}/>
         {schools.isPending ? (
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
         ) : schools.data?.data.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[740px] text-left text-sm">
               <thead className="bg-muted/50 text-xs text-muted-foreground">
                 <tr>
                   <th className="p-4">Trường học</th>
@@ -380,7 +353,7 @@ export function SchoolDirectory({
                   >
                     <td className="p-4">
                       <button
-                        className="text-left font-semibold hover:text-violet-600"
+                        className="text-left font-semibold text-foreground hover:text-primary focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
                         onClick={() => setSelected(s.id)}
                       >
                         {s.display_name}
@@ -389,7 +362,7 @@ export function SchoolDirectory({
                         {s.school_code}
                       </p>
                       {s.contract_status && (
-                        <p className="mt-1 text-xs text-violet-600">
+                        <p className="mt-1 text-xs text-primary">
                           {labels[s.contract_status] ?? s.contract_status}
                         </p>
                       )}
@@ -452,46 +425,13 @@ export function SchoolDirectory({
             </table>
           </div>
         ) : (
-          <div className="p-12 text-center">
-            <Building2 className="mx-auto mb-3 size-9 text-muted-foreground/50" />
-            <p className="font-medium">
-              {search
-                ? 'Không tìm thấy trường phù hợp'
-                : 'Chưa có danh bạ trường học'}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {search
-                ? 'Thử tìm theo mã trường hoặc phường/xã.'
-                : 'Admin nhập file Excel để tạo danh sách chính thức.'}
-            </p>
-          </div>
+          <AppEmptyState icon={Building2}
+            title={search ? 'Không tìm thấy trường phù hợp' : 'Chưa có danh bạ trường học'}
+            description={search ? 'Thử tìm theo mã trường hoặc phường/xã.' : 'Admin nhập file Excel để tạo danh sách chính thức.'}/>
         )}
-        <footer className="flex items-center justify-between border-t p-4 text-sm">
-          <span>
-            Trang {page} /{' '}
-            {Math.max(1, Math.ceil((schools.data?.total ?? 0) / 20))}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              aria-label="Trang trước"
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              aria-label="Trang sau"
-              variant="outline"
-              size="sm"
-              disabled={page * 20 >= (schools.data?.total ?? 0)}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </footer>
+        <AppPagination page={page} pageSize={schools.data?.page_size ?? 20} total={schools.data?.total ?? 0}
+          disabled={schools.isFetching} onPageChange={setPage}/>
+/footer>
       </section>
       <Dialog
         open={importOpen}

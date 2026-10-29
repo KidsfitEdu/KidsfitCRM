@@ -18,7 +18,6 @@ import { EvidenceReference } from './school-operations';
 import {
   Building2,
   Eye,
-  ArrowRight,
   UsersRound,
   Search,
   RotateCcw,
@@ -333,7 +332,7 @@ export function SchoolDirectory({
             <option value="APPROACHING">Đang tiếp cận</option>
             <option value="CONTRACTED">Đã xác minh hợp đồng</option>
           </AppNativeSelect>
-          <AppButton type="submit" tone="orange" premium trailingIcon={<ArrowRight className="size-4" aria-hidden="true"/>} className="h-10 min-w-0 justify-center gap-2 rounded-lg bg-[#d97706] px-4 font-bold text-white shadow-[0_6px_16px_rgba(217,119,6,.18)] hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white">Tìm kiếm</AppButton>
+          <AppButton type="submit" tone="orange" premium className="h-10 min-w-0 justify-center gap-2 rounded-lg bg-[#d97706] px-4 font-bold text-white shadow-[0_6px_16px_rgba(217,119,6,.18)] hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" size="icon-lg"
             className="h-11 w-11 min-w-11 rounded-lg border border-[#a5d6a7] bg-white p-0 text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-[#17341f] dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white" aria-label="Đặt lại bộ lọc"
             title="Đặt lại bộ lọc" onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setPage(1);}}>

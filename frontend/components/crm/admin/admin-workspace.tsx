@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Plus, FileSpreadsheet } from 'lucide-react';
+import { AppButton } from '@/components/common/app-button';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -157,7 +158,6 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       <div className={panel}><h3 className="font-semibold">Công việc cần xử lý</h3><p className="mt-2 text-sm text-muted-foreground">Hồ sơ đề xuất chờ duyệt: {preview || !operations ? '—' : fmt(pending)}. Mở mục Đề xuất trường để xử lý.</p></div>
     </>}
     {section === 'admin-schools' && <>
-      <div className="flex justify-end"><Button disabled={preview} onClick={()=>{setFormErrors({});setManualOpen(x=>!x);}}>+ Thêm trường thủ công</Button></div>
       <Dialog open={manualOpen} onOpenChange={open => { if (!busy) setManualOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm trường học</DialogTitle><DialogDescription>Tạo trường chính hoặc phân hiệu thuộc trường chính đã có.</DialogDescription></DialogHeader><div className="space-y-3">
         
         <p className="mb-3 text-xs text-muted-foreground">Với phân hiệu, nhập mã trường chính đã có để liên kết.</p>
@@ -167,7 +167,13 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         </div>
         <FormActions busy={busy} onCancel={()=>setManualOpen(false)} onSave={()=>void createManual()} saveLabel="Lưu trường"/>
       </div></DialogContent></Dialog>
-      <SchoolDirectory adminMode apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged} />
+      <SchoolDirectory adminMode apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
+        renderImportAction={openImport => <div className="flex flex-wrap items-center justify-end gap-2">
+          <AppButton tone="green" disabled={preview} leadingIcon={<Plus className="size-4"/>}
+            onClick={() => {setFormErrors({});setManualOpen(true);}}>Thêm trường</AppButton>
+          <AppButton tone="blue" disabled={preview} leadingIcon={<FileSpreadsheet className="size-4"/>}
+            onClick={openImport}>Import Excel</AppButton>
+        </div>}/>
     </>}
     {section === 'admin-proposals' && <>
       <div className="grid gap-3 sm:grid-cols-3">

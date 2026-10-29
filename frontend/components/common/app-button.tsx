@@ -12,9 +12,9 @@ type Props = Omit<ComponentProps<typeof Button>, 'variant'> & {
   leadingIcon?: ReactNode;
 };
 const tones: Record<Tone, string> = {
-  green: 'bg-[#1b5e20] text-white hover:bg-[#124c17] dark:bg-[#81c784] dark:text-[#09220d] dark:hover:bg-[#a5d6a7]',
-  orange: 'bg-[#d97706] text-[#111827] hover:bg-[#b45309] hover:text-white dark:bg-[#f59b23] dark:text-[#111827] dark:hover:bg-[#ffb74d]',
-  blue: 'bg-[#0369a1] text-white hover:bg-[#075985] dark:bg-[#38bdf8] dark:text-[#082f49] dark:hover:bg-[#7dd3fc]',
+  green: 'bg-[#1b5e20] text-white hover:bg-[#124c17] hover:text-white dark:bg-[#1b5e20] dark:text-white dark:hover:bg-[#124c17] dark:hover:text-white',
+  orange: 'bg-[#b45309] text-white hover:bg-[#92400e] hover:text-white dark:bg-[#b45309] dark:text-white dark:hover:bg-[#92400e] dark:hover:text-white',
+  blue: 'bg-[#0369a1] text-white hover:bg-[#075985] hover:text-white dark:bg-[#0369a1] dark:text-white dark:hover:bg-[#075985] dark:hover:text-white',
   outline: 'border-border bg-background text-foreground hover:bg-muted',
   ghost: 'bg-transparent text-foreground hover:bg-muted',
   danger: 'bg-destructive text-white hover:bg-destructive/90 dark:text-[#0e1912]',

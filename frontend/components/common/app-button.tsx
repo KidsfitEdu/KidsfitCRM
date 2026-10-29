@@ -19,7 +19,7 @@ const tones: Record<Tone, string> = {
   blue: 'bg-[#0369a1] text-white hover:bg-[#075985] hover:text-white dark:bg-[#0369a1] dark:text-white dark:hover:bg-[#075985] dark:hover:text-white',
   outline: 'border-border bg-background text-foreground hover:bg-muted',
   ghost: 'bg-transparent text-foreground hover:bg-muted',
-  danger: 'bg-destructive text-white hover:bg-destructive/90 dark:text-[#0e1912]',
+  danger: 'bg-destructive text-white hover:bg-destructive/90 dark:text-white',
 };
 
 export function AppButton({ tone = 'green', busy = false, leadingIcon, trailingIcon, premium = false, className, disabled, children, ...props }: Props) {

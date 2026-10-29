@@ -268,39 +268,39 @@ const viewCopy: Record<
   'admin-team': { eyebrow: 'Tổ chức & nhân sự', title: 'Nhân sự & đối tác', description: 'Quản lý CTV, nhân viên và đối tác bán hàng.' },
   'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
   'admin-settings': { eyebrow: 'Thiết lập CRM', title: 'Cấu hình hệ thống', description: 'Quản trị chính sách và hạn mức nghiệp vụ.' },
-  'role-board-dashboard': {eyebrow:'board',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-oversight': {eyebrow:'board',title:'Báo cáo',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-overdue': {eyebrow:'board',title:'Quá hạn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-disputes': {eyebrow:'board',title:'Tranh chấp',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-policies': {eyebrow:'board',title:'Chính sách',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-dashboard': {eyebrow:'accounting',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-revenue': {eyebrow:'accounting',title:'Doanh thu',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-payments': {eyebrow:'accounting',title:'Đối soát & phiếu chi',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-refunds': {eyebrow:'accounting',title:'Hủy & hoàn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-reports': {eyebrow:'accounting',title:'Báo cáo',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-dashboard': {eyebrow:'customer-care',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-handover': {eyebrow:'customer-care',title:'Trường bàn giao',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-cases': {eyebrow:'customer-care',title:'Yêu cầu hỗ trợ',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-customers': {eyebrow:'customer-care',title:'Khách hàng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-followup': {eyebrow:'customer-care',title:'Theo dõi chăm sóc',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-dashboard': {eyebrow:'sales-staff',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-schools': {eyebrow:'sales-staff',title:'Danh sách trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-customers': {eyebrow:'sales-staff',title:'Trường của tôi',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-activities': {eyebrow:'sales-staff',title:'Tiếp cận & tư vấn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-proposals': {eyebrow:'sales-staff',title:'Đề xuất trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-income': {eyebrow:'sales-staff',title:'Thu nhập',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-dashboard': {eyebrow:'checkee',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-verification': {eyebrow:'checkee',title:'Xác minh hợp đồng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-reconciliation': {eyebrow:'checkee',title:'Đối soát',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-disputes': {eyebrow:'checkee',title:'Tranh chấp',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-history': {eyebrow:'checkee',title:'Lịch sử',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-dashboard': {eyebrow:'collaborator',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-schools': {eyebrow:'collaborator',title:'Đăng ký trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-proposals': {eyebrow:'collaborator',title:'Đề xuất trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-invitations': {eyebrow:'collaborator',title:'Nhận phân bổ',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-approaches': {eyebrow:'collaborator',title:'Tiếp cận & tư vấn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-extensions': {eyebrow:'collaborator',title:'Gia hạn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-income': {eyebrow:'collaborator',title:'Hoa hồng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-board-dashboard': {eyebrow:'Ban giám đốc',title:'Tổng quan',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-oversight': {eyebrow:'Ban giám đốc',title:'Báo cáo',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-overdue': {eyebrow:'Ban giám đốc',title:'Quá hạn',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-disputes': {eyebrow:'Ban giám đốc',title:'Tranh chấp',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-policies': {eyebrow:'Ban giám đốc',title:'Chính sách',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-accounting-dashboard': {eyebrow:'Kế toán',title:'Tổng quan',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-revenue': {eyebrow:'Kế toán',title:'Doanh thu',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-payments': {eyebrow:'Kế toán',title:'Đối soát & phiếu chi',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-refunds': {eyebrow:'Kế toán',title:'Hủy & hoàn',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-reports': {eyebrow:'Kế toán',title:'Báo cáo',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-customer-care-dashboard': {eyebrow:'Chăm sóc khách hàng',title:'Tổng quan',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-handover': {eyebrow:'Chăm sóc khách hàng',title:'Trường bàn giao',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-cases': {eyebrow:'Chăm sóc khách hàng',title:'Yêu cầu hỗ trợ',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-customers': {eyebrow:'Chăm sóc khách hàng',title:'Khách hàng',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-followup': {eyebrow:'Chăm sóc khách hàng',title:'Theo dõi chăm sóc',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-sales-staff-dashboard': {eyebrow:'Nhân viên bán hàng',title:'Tổng quan',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-schools': {eyebrow:'Nhân viên bán hàng',title:'Danh sách trường',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-customers': {eyebrow:'Nhân viên bán hàng',title:'Trường của tôi',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-activities': {eyebrow:'Nhân viên bán hàng',title:'Tiếp cận & tư vấn',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-proposals': {eyebrow:'Nhân viên bán hàng',title:'Đề xuất trường',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-income': {eyebrow:'Nhân viên bán hàng',title:'Thu nhập',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-checkee-dashboard': {eyebrow:'CHECKEE',title:'Tổng quan',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-verification': {eyebrow:'CHECKEE',title:'Xác minh hợp đồng',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-reconciliation': {eyebrow:'CHECKEE',title:'Đối soát',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-disputes': {eyebrow:'CHECKEE',title:'Tranh chấp',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-history': {eyebrow:'CHECKEE',title:'Lịch sử',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-collaborator-dashboard': {eyebrow:'Cộng tác viên',title:'Tổng quan',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-schools': {eyebrow:'Cộng tác viên',title:'Đăng ký trường',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-proposals': {eyebrow:'Cộng tác viên',title:'Đề xuất trường',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-invitations': {eyebrow:'Cộng tác viên',title:'Nhận phân bổ',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-approaches': {eyebrow:'Cộng tác viên',title:'Tiếp cận & tư vấn',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-extensions': {eyebrow:'Cộng tác viên',title:'Gia hạn',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-income': {eyebrow:'Cộng tác viên',title:'Hoa hồng',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
   'manager-dashboard': { eyebrow:'Quản lý bán hàng',title:'Tổng quan đội ngũ',description:'Giám sát đề xuất, phân bổ và gia hạn theo phạm vi được phân quyền.' },
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
@@ -1259,7 +1259,7 @@ function CrmWorkspace({
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
+        <div className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && (
             <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100">
               <div>
@@ -1399,7 +1399,7 @@ function CrmWorkspace({
           <button
             key={item.id}
             onClick={() => setView(item.id)}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-white/10 text-[#b9afff]' : 'text-slate-400'}`}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-[#e8f5e9]/15 text-[#a5d6a7]' : 'text-slate-400'}`}
           >
             <item.icon className="size-[18px]" />
             <span>{item.shortLabel}</span>

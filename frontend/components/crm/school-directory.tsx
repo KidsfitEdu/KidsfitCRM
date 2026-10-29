@@ -343,7 +343,7 @@ export function SchoolDirectory({
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
         ) : visibleSchools.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] border-separate border-spacing-0 text-left text-sm">
+            <table className="crm-school-table w-full min-w-[1050px] border-separate border-spacing-0 text-left text-sm">
               <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white dark:bg-[#1b5e20] dark:text-white">
                 <tr>
                   <th scope="col" className="px-5 py-4 text-left align-middle">Trường học</th>

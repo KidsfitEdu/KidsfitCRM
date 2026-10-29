@@ -261,3 +261,53 @@ body { font-family: var(--font-brand); }
 .crm-brand-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .crm-modern-toast[data-type="success"] { --crm-toast-color: #2e7d32; }
 .crm-modern-toast[data-type="info"] { --crm-toast-color: #0369a1; }
+
+/* Shared KIDSFIT presentation layer across CRM roles.
+   The approved School Directory table keeps its existing reference styling. */
+.crm-workspace-content table:not(.crm-school-table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.crm-workspace-content table:not(.crm-school-table) thead {
+  background: #1b5e20;
+  color: #fff;
+}
+.crm-workspace-content table:not(.crm-school-table) thead th {
+  padding: 0.9rem 1rem;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.crm-workspace-content table:not(.crm-school-table) tbody td {
+  padding: 0.85rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+.crm-workspace-content table:not(.crm-school-table) tbody tr {
+  transition: background 150ms ease;
+}
+.crm-workspace-content table:not(.crm-school-table) tbody tr:hover {
+  background: var(--accent);
+}
+.crm-workspace-content :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+  border-radius: 0.75rem;
+}
+.crm-workspace-content :where(input, select, textarea):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.crm-workspace-content .crm-dashboard-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+}
+@media (max-width: 767px) {
+  .crm-workspace-content table { font-size: 0.8125rem; }
+  .crm-workspace-content table:not(.crm-school-table) :where(th, td) { white-space: nowrap; }
+}

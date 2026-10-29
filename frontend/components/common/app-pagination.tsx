@@ -8,6 +8,7 @@ type Props = {
   page: number;
   pageSize: number;
   total: number;
+  itemLabel?: string;
   disabled?: boolean;
   showSummary?: boolean;
   pageSizeOptions?: readonly number[];
@@ -29,7 +30,7 @@ export function paginationNumbers(page: number, pages: number): Array<number | '
   return values;
 }
 
-export function AppPagination({ page, pageSize, total, disabled = false, showSummary = true, onPageChange, pageSizeOptions, onPageSizeChange }: Props) {
+export function AppPagination({ page, pageSize, total, itemLabel = 'bản ghi', disabled = false, showSummary = true, onPageChange, pageSizeOptions, onPageSizeChange }: Props) {
   const pages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
@@ -37,7 +38,7 @@ export function AppPagination({ page, pageSize, total, disabled = false, showSum
     <nav aria-label="Phân trang danh sách" className="flex flex-col gap-3 border-t border-border/80 bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div className="flex flex-wrap items-center gap-3">
         {showSummary && <span className="text-sm text-muted-foreground" aria-live="polite">
-          Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} trường
+          Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} {itemLabel}
         </span>}
         {pageSizeOptions && onPageSizeChange && <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           Số dòng/trang

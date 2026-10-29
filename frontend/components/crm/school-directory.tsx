@@ -251,6 +251,7 @@ export function SchoolDirectory({
   });
   const run = (command: Command) => mutation.mutateAsync(command);
   const openImport = () => {setImportOpen(true);upload.reset();};
+  const visibleSchools = schools.data?.data.filter(item => statusFilter === 'ALL' || item.visible_status === statusFilter) ?? [];
   return (
     <div className="space-y-5">
       {demo && (
@@ -344,7 +345,7 @@ export function SchoolDirectory({
         {statusFilter !== 'ALL' && <p className="px-5 pt-2 text-xs text-muted-foreground">Lọc trạng thái chỉ áp dụng cho {pageSize} bản ghi được tải ở trang này, không phải toàn bộ hệ thống.</p>}
         {schools.isPending ? (
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
-        ) : schools.data?.data.length ? (
+        ) : visibleSchools.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[740px] text-left text-sm">
               <thead className="bg-muted/50 text-xs text-muted-foreground">
@@ -359,7 +360,7 @@ export function SchoolDirectory({
                 </tr>
               </thead>
               <tbody>
-                {schools.data.data.filter(s => statusFilter === 'ALL' || s.visible_status === statusFilter).map((s) => (
+                {visibleSchools.map((s) => (
                   <tr
                     key={s.id}
                     className="border-t transition-colors hover:bg-muted/30"
@@ -439,8 +440,8 @@ export function SchoolDirectory({
           </div>
         ) : (
           <AppEmptyState icon={Building2}
-            title={search ? 'Không tìm thấy trường phù hợp' : 'Chưa có danh bạ trường học'}
-            description={search ? 'Thử tìm theo mã trường hoặc phường/xã.' : 'Admin nhập file Excel để tạo danh sách chính thức.'}/>
+            title={statusFilter !== 'ALL' && (schools.data?.data.length ?? 0) > 0 ? 'Trang hiện tại không có trường thuộc trạng thái này' : search ? 'Không tìm thấy trường phù hợp' : 'Chưa có danh bạ trường học'}
+            description={statusFilter !== 'ALL' && (schools.data?.data.length ?? 0) > 0 ? 'Thử chọn trạng thái khác hoặc chuyển trang.' : search ? 'Thử tìm theo mã trường hoặc phường/xã.' : 'Admin nhập file Excel để tạo danh sách chính thức.'}/>
         )}
         <AppPagination page={page} pageSize={schools.data?.page_size ?? 20} total={schools.data?.total ?? 0}
           disabled={schools.isFetching} onPageChange={setPage}

@@ -67,7 +67,7 @@ public static class SchoolEndpoints
         return Results.Ok(new { data = new { batch.Id, batch.SchoolsCreated, batch.UnitsCreated } });
     }
 
-    internal static async Task<IResult> List(HttpContext http, KidsfitDbContext db, string? search, int? page, CancellationToken ct)
+    internal static async Task<IResult> List(HttpContext http, KidsfitDbContext db, string? search, int? page, CancellationToken ct, string? status = null, int? pageSize = null)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var broad = access.All || access.Has(Permissions.ChannelSalesRegister) || access.Has(Permissions.ChannelSalesManage);
@@ -83,15 +83,36 @@ public static class SchoolEndpoints
             query = query.Where(x => x.SchoolCode.Contains(term) || x.DisplayName.Contains(term) || (x.Province != null && x.Province.Contains(term)) || unitSchools.Contains(x.Id));
         }
         var selectedPage = Math.Max(1, page ?? 1);
+        var selectedPageSize = pageSize ?? 20;
+        if (selectedPageSize is not (10 or 20 or 50))
+            throw ApiValidationException.For("page_size", "Số dòng mỗi trang phải là 10, 20 hoặc 50.");
+        var selectedStatus = string.IsNullOrWhiteSpace(status) ? "ALL" : status.Trim().ToUpperInvariant();
+        if (selectedStatus is not ("ALL" or "AVAILABLE" or "APPROACHING" or "CONTRACTED"))
+            throw ApiValidationException.For("status", "Trạng thái lọc không hợp lệ.");
         var now = DateTime.UtcNow;
+        if (selectedStatus != "ALL")
+        {
+            var activeProtections = db.CustomerProtections.AsNoTracking()
+                .Where(x => x.Status == "ACTIVE" && x.EffectiveUntil > now);
+            if (selectedStatus == "CONTRACTED")
+                query = query.Where(x => activeProtections.Any(p => p.CustomerId == x.CustomerId && p.SourceType == "CONTRACT"));
+            else if (selectedStatus == "APPROACHING")
+                query = query.Where(x => activeProtections.Any(p => p.CustomerId == x.CustomerId && p.SourceType != "CONTRACT")
+                    && !activeProtections.Any(p => p.CustomerId == x.CustomerId && p.SourceType == "CONTRACT"));
+            else
+                query = query.Where(x => !activeProtections.Any(p => p.CustomerId == x.CustomerId));
+        }
         var total = await query.CountAsync(ct);
-        var rows = await query.OrderBy(x => x.SchoolCode).Skip((Math.Min(selectedPage, 10000) - 1) * 20).Take(20).ToArrayAsync(ct);
+        var skip = (long)(selectedPage - 1) * selectedPageSize;
+        var rows = skip > int.MaxValue
+            ? []
+            : await query.OrderBy(x => x.SchoolCode).Skip((int)skip).Take(selectedPageSize).ToArrayAsync(ct);
         var ids = rows.Select(x => x.CustomerId).ToArray();
         var protections = await db.CustomerProtections.AsNoTracking().Where(x => ids.Contains(x.CustomerId) && x.Status == "ACTIVE" && x.EffectiveUntil > now).ToArrayAsync(ct);
         var contracts = await access.Contracts(db).AsNoTracking().Where(x => ids.Contains(x.CustomerId) && x.RequiresSchoolVerification).OrderByDescending(x => x.CreatedAt).ToArrayAsync(ct);
         var schoolIds = rows.Select(x => x.Id).ToArray();
         var units = await db.SchoolUnits.Where(x => schoolIds.Contains(x.DirectorySchoolId)).GroupBy(x => x.DirectorySchoolId).Select(g => new { Id = g.Key, Branches = g.Count(x => x.UnitType == "BRANCH"), Ward = g.Where(x => x.UnitType == "MAIN").Select(x => x.Ward).FirstOrDefault() }).ToDictionaryAsync(x => x.Id, ct);
-        return Results.Ok(new { total, page = selectedPage, page_size = 20, data = rows.Select(x =>
+        return Results.Ok(new { total, page = selectedPage, page_size = selectedPageSize, data = rows.Select(x =>
         {
             var protection = protections.OrderByDescending(p => p.SourceType == "CONTRACT").FirstOrDefault(p => p.CustomerId == x.CustomerId);
             var contract = contracts.FirstOrDefault(c => c.CustomerId == x.CustomerId);

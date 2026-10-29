@@ -425,9 +425,9 @@ export function SchoolOperations({
   const pageSize = data.pagination?.page_size ?? 100;
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-gradient-to-br from-violet-50/80 to-card p-6 dark:from-violet-950/20">
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-violet-600">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#1b5e20] dark:text-[#a5d6a7]">
             CHECKEE · Vận hành
           </p>
           <h2 className="text-xl font-bold tracking-tight">
@@ -470,7 +470,7 @@ export function SchoolOperations({
             className={
               'flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ' +
               (active === t.id
-                ? 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200'
+                ? 'bg-[#1b5e20] text-white dark:bg-[#1b5e20] dark:text-white'
                 : 'text-muted-foreground hover:bg-muted')
             }
             aria-current={active === t.id ? 'page' : undefined}

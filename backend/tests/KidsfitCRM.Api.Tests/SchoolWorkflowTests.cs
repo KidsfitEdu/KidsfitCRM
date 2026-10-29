@@ -281,6 +281,13 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var page = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, prefix, 2, Ct));
         Assert.Equal(22, page.GetProperty("total").GetInt32());
         Assert.Equal(2, page.GetProperty("data").GetArrayLength());
+        var firstTen = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, prefix, 1, Ct, pageSize: 10));
+        Assert.Equal(10, firstTen.GetProperty("data").GetArrayLength());
+        Assert.Equal(10, firstTen.GetProperty("page_size").GetInt32());
+        var allFifty = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, prefix, 1, Ct, pageSize: 50));
+        Assert.Equal(22, allFifty.GetProperty("data").GetArrayLength());
+        Assert.Equal(22, allFifty.GetProperty("total").GetInt32());
+
         var item = page.GetProperty("data")[0];
         Assert.Equal(1, item.GetProperty("branches").GetInt32());
         var schoolId = item.GetProperty("id").GetInt64();
@@ -288,6 +295,12 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var before = Json(await SchoolEndpoints.Detail(schoolId, AsUser(ctv.UserId), db, Ct));
         Assert.All(before.GetProperty("units").EnumerateArray(), unit => Assert.Equal(JsonValueKind.Null, unit.GetProperty("contact_name").ValueKind));
         await new ChannelSalesActions(db).RegisterCustomerApproach(Claim(customerId, Key()), ctv.UserId, Http(), Ct);
+        var approachingOnly = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, prefix, 1, Ct, status: "APPROACHING", pageSize: 10));
+        Assert.Equal(1, approachingOnly.GetProperty("total").GetInt32());
+        Assert.Equal(schoolId, approachingOnly.GetProperty("data")[0].GetProperty("id").GetInt64());
+        var availableOnly = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, prefix, 1, Ct, status: "AVAILABLE", pageSize: 20));
+        Assert.Equal(21, availableOnly.GetProperty("total").GetInt32());
+
         var owned = Json(await SchoolEndpoints.Detail(schoolId, AsUser(ctv.UserId), db, Ct));
         Assert.Equal("Đầu mối kiểm thử", owned.GetProperty("units")[0].GetProperty("contact_name").GetString());
         Assert.True(owned.GetProperty("can_report_contract").GetBoolean());

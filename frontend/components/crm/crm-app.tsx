@@ -1179,7 +1179,7 @@ function CrmWorkspace({
     <main className="min-h-screen bg-background text-foreground">
       <aside className="crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white lg:flex">
         <div className="flex h-20 items-center px-5"><AppBrand inverted /></div>
-        <nav className="mt-5 space-y-1 px-3" aria-label="Điều hướng chính">
+        <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Điều hướng chính">
           {visibleNav.map((item) => (
             <button
               key={item.id}
@@ -1193,7 +1193,7 @@ function CrmWorkspace({
             </button>
           ))}
         </nav>
-        <div className="mx-4 mt-auto mb-5 flex items-center gap-3 rounded-xl p-2">
+        <div className="mx-4 mb-5 flex shrink-0 items-center gap-3 rounded-xl p-2">
           <div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">
             {initials(userName)}
           </div>
@@ -1261,7 +1261,7 @@ function CrmWorkspace({
 
         <div className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && (
-            <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100">
+            <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#a5d6a7] bg-[#e8f5e9] p-4 text-sm text-[#1b5e20] dark:border-[#315e3d] dark:bg-[#17341f] dark:text-[#d5ead7]">
               <div>
                 <p className="font-semibold">
                   Không gian trải nghiệm · {demoAccount.roleLabel}
@@ -1392,14 +1392,14 @@ function CrmWorkspace({
       </div>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border border-white/10 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-40 flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
         aria-label="Điều hướng di động"
       >
         {visibleNav.map((item) => (
           <button
             key={item.id}
             onClick={() => setView(item.id)}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-[#e8f5e9]/15 text-[#a5d6a7]' : 'text-slate-400'}`}
+            className={`flex min-w-[88px] flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-[#e8f5e9]/15 text-[#a5d6a7]' : 'text-slate-400'}`}
           >
             <item.icon className="size-[18px]" />
             <span>{item.shortLabel}</span>

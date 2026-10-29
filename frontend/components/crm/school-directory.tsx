@@ -331,7 +331,7 @@ export function SchoolDirectory({
             <option value="APPROACHING">Đang tiếp cận</option>
             <option value="CONTRACTED">Đã xác minh hợp đồng</option>
           </AppNativeSelect>
-          <AppButton type="submit" className="h-11 min-w-28 rounded-xl">Tìm kiếm</AppButton>
+          <AppButton type="submit" tone="orange" className="h-11 min-w-28 rounded-xl">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" size="icon-lg"
             className="h-11 w-11 min-w-11 rounded-xl p-0" aria-label="Đặt lại bộ lọc"
             title="Đặt lại bộ lọc" onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setPage(1);}}>
@@ -343,13 +343,13 @@ export function SchoolDirectory({
         ) : visibleSchools.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] border-separate border-spacing-0 text-left text-sm">
-              <thead className="bg-[#fff0e8] text-xs font-bold uppercase tracking-[.06em] text-[#9a3412] dark:bg-[#3b291f] dark:text-[#fdba74]">
+              <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white dark:bg-[#1b5e20] dark:text-white">
                 <tr>
-                  <th scope="col" className="px-5 py-4">Trường học</th>
-                  <th scope="col" className="p-4">Khu vực</th>
-                  <th scope="col" className="p-4">Phân hiệu</th>
-                  <th scope="col" className="p-4">Quyền bảo vệ</th>
-                  <th scope="col" className="px-5 py-4 text-center">Thao tác</th>
+                  <th scope="col" className="px-5 py-4 text-left align-middle">Trường học</th>
+                  <th scope="col" className="p-4 text-center align-middle">Khu vực</th>
+                  <th scope="col" className="p-4 text-center align-middle">Phân hiệu</th>
+                  <th scope="col" className="p-4 text-center align-middle">Quyền bảo vệ</th>
+                  <th scope="col" className="px-5 py-4 text-center align-middle">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -374,13 +374,13 @@ export function SchoolDirectory({
                         </p>
                       )}
                     </td>
-                    <td className="p-4 text-muted-foreground">
+                    <td className="p-4 text-center align-middle text-muted-foreground">
                       {s.ward}
                       <br />
                       {s.province}
                     </td>
-                    <td className="p-4">{s.branches}</td>
-                    <td className="p-4">
+                    <td className="p-4 text-center align-middle">{s.branches}</td>
+                    <td className="p-4 text-center align-middle">
                       <Badge
                         variant="outline"
                         className={
@@ -397,7 +397,7 @@ export function SchoolDirectory({
                         </p>
                       )}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-center align-middle">
                       <div className="flex flex-wrap items-center justify-center gap-2">
                         <AppButton tone="outline" size="icon-sm"
                           className="h-9 w-9 min-w-9 rounded-lg border border-[#d1e9d5] bg-[#f0f8f1] p-0 text-[#1b5e20] hover:bg-[#deefdf] dark:border-[#41694a] dark:bg-[#243e2a] dark:text-[#a5d6a7]"

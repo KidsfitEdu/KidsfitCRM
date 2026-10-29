@@ -3,7 +3,9 @@ import { useState } from 'react';
 import type { ComponentProps } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/common/app-button';
+import { AppStatCard } from '@/components/common/app-stat-card';
+import { Activity, Building2, CalendarClock, ClipboardList, FileCheck2, Handshake } from 'lucide-react';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
@@ -50,7 +52,7 @@ function RoleContent(props: Props) {
     enabled: !preview && !!token && section === 'dashboard' && can('channel_sales.customer.view'),
   });
   const metrics = workspace.metrics;
-  const panelClass = 'rounded-2xl border bg-card p-5 shadow-sm';
+  const panelClass = 'crm-dashboard-panel p-5';
   const format = (value: number | null | undefined) => typeof value === 'number' ? value.toLocaleString('vi-VN') : '—';
   if (!active) return <p role="alert">Không tìm thấy chức năng được yêu cầu.</p>;
   if (section === 'dashboard') {
@@ -66,11 +68,12 @@ function RoleContent(props: Props) {
     return <div className="space-y-5">
       {preview && <p className="rounded-xl border bg-muted/50 p-3 text-sm text-muted-foreground">Dữ liệu xem thử, không có quyền ghi vào hệ thống thật.</p>}
       {operations.error && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"><AlertCircle className="size-4"/>{operations.error.message}</p>}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">{tiles.map(([label, value]) =>
-        <div className={panelClass} key={label}><p className="text-sm text-muted-foreground">{label}</p><p className="mt-3 text-3xl font-bold">{preview ? '—' : format(value)}</p></div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{tiles.map(([label, value], index) =>
+        <AppStatCard key={label} label={label} value={preview ? '—' : format(value)}
+          icon={[Building2, Handshake, FileCheck2, CalendarClock, ClipboardList, Activity][index % 6]} />
       )}</div>
       <div className={panelClass}>
-        <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Công việc cần xử lý</h3><Button variant="outline" disabled={preview || operations.isFetching} onClick={() => void operations.refetch()}><RefreshCw className="mr-2 size-4"/>Làm mới</Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Công việc cần xử lý</h3><AppButton tone="outline" disabled={preview || operations.isFetching} onClick={() => void operations.refetch()}><RefreshCw className="mr-2 size-4"/>Làm mới</AppButton></div>
         <p className="mt-2 text-sm text-muted-foreground">Các số liệu phản ánh dữ liệu tài khoản được API cho phép truy cập. Mở menu bên trái để xem hồ sơ và thực hiện thao tác đúng thẩm quyền.</p>
       </div>
     </div>;

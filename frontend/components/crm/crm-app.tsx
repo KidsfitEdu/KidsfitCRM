@@ -1282,7 +1282,7 @@ function CrmWorkspace({
               </Button>
             </aside>
           )}
-          <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
+          {currentView !== 'admin-schools' && <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
             actions={<div className="flex flex-wrap gap-2">
               {currentView === 'finance' && (
                 <Button
@@ -1303,7 +1303,7 @@ function CrmWorkspace({
                   <Plus /> Thêm lead mới
                 </Button>
               )}
-            </div>}/>
+            </div>}/>}
 
           {loading ? (
             <LoadingGrid />

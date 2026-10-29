@@ -30,7 +30,6 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  Sparkles,
   Sun,
   TrendingUp,
   UsersRound,
@@ -2854,15 +2853,7 @@ function LoginScreen({
       <Card className="relative w-full max-w-md border-white/10 bg-white/[.96] p-3 shadow-2xl dark:bg-[#1b2940]">
         <CardHeader>
           <div className="mb-5 flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-2xl bg-primary text-white">
-              <Sparkles className="size-5" />
-            </div>
-            <div>
-              <p className="font-bold">Kidsfit CRM</p>
-              <p className="text-xs text-muted-foreground">
-                Trung tâm giáo dục
-              </p>
-            </div>
+            <AppBrand />
           </div>
           <CardTitle className="text-2xl">Chào mừng trở lại</CardTitle>
           <p className="text-sm text-muted-foreground">

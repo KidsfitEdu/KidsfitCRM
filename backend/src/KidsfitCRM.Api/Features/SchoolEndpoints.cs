@@ -103,10 +103,8 @@ public static class SchoolEndpoints
                 query = query.Where(x => !activeProtections.Any(p => p.CustomerId == x.CustomerId));
         }
         var total = await query.CountAsync(ct);
-        var skip = (long)(selectedPage - 1) * selectedPageSize;
-        var rows = skip > int.MaxValue
-            ? []
-            : await query.OrderBy(x => x.SchoolCode).Skip((int)skip).Take(selectedPageSize).ToArrayAsync(ct);
+        var skip = (int)Math.Min((long)(selectedPage - 1) * selectedPageSize, int.MaxValue);
+        var rows = await query.OrderBy(x => x.SchoolCode).Skip(skip).Take(selectedPageSize).ToArrayAsync(ct);
         var ids = rows.Select(x => x.CustomerId).ToArray();
         var protections = await db.CustomerProtections.AsNoTracking().Where(x => ids.Contains(x.CustomerId) && x.Status == "ACTIVE" && x.EffectiveUntil > now).ToArrayAsync(ct);
         var contracts = await access.Contracts(db).AsNoTracking().Where(x => ids.Contains(x.CustomerId) && x.RequiresSchoolVerification).OrderByDescending(x => x.CreatedAt).ToArrayAsync(ct);

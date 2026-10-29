@@ -347,10 +347,10 @@ export function SchoolDirectory({
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
         ) : visibleSchools.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[740px] text-left text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <table className="w-full min-w-[800px] text-left text-sm">
+              <thead className="bg-muted/70 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="p-4">Trường học</th>
+                  <th className="px-5 py-4">Trường học</th>
                   <th className="p-4">Khu vực</th>
                   <th className="p-4">Phân hiệu</th>
                   <th className="p-4">Quyền bảo vệ</th>
@@ -363,7 +363,7 @@ export function SchoolDirectory({
                 {visibleSchools.map((s) => (
                   <tr
                     key={s.id}
-                    className="border-t transition-colors hover:bg-muted/30"
+                    className="border-t border-border/70 transition-colors hover:bg-[#f2faf3] dark:hover:bg-[#1e3525]"
                   >
                     <td className="p-4">
                       <button
@@ -405,14 +405,14 @@ export function SchoolDirectory({
                       )}
                     </td>
                     <td className="p-4">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
+                      <div className="flex flex-wrap items-center gap-2">
+                        <AppButton
+                          tone="outline"
                           size="sm"
                           onClick={() => setSelected(s.id)}
                         >
                           Chi tiết
-                        </Button>
+                        </AppButton>
                         {!adminMode && s.can_register && (
                           <Button
                             size="sm"

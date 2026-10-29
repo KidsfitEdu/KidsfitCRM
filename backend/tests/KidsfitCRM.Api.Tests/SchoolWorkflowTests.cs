@@ -298,6 +298,8 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var approachingOnly = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, prefix, 1, Ct, status: "APPROACHING", pageSize: 10));
         Assert.Equal(1, approachingOnly.GetProperty("total").GetInt32());
         Assert.Equal(schoolId, approachingOnly.GetProperty("data")[0].GetProperty("id").GetInt64());
+        var period = approachingOnly.GetProperty("data")[0];
+        Assert.True(period.GetProperty("protected_from").GetDateTime() <= period.GetProperty("protected_until").GetDateTime());
         var availableOnly = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, prefix, 1, Ct, status: "AVAILABLE", pageSize: 20));
         Assert.Equal(21, availableOnly.GetProperty("total").GetInt32());
 

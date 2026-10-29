@@ -2,12 +2,14 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppButton } from '@/components/common/app-button';
+import { AppNativeSelect } from '@/components/common/app-native-select';
 
 type Props = {
   page: number;
   pageSize: number;
   total: number;
   disabled?: boolean;
+  showSummary?: boolean;
   pageSizeOptions?: readonly number[];
   onPageSizeChange?: (size: number) => void;
   onPageChange: (page: number) => void;
@@ -27,22 +29,22 @@ export function paginationNumbers(page: number, pages: number): Array<number | '
   return values;
 }
 
-export function AppPagination({ page, pageSize, total, disabled = false, onPageChange, pageSizeOptions, onPageSizeChange }: Props) {
+export function AppPagination({ page, pageSize, total, disabled = false, showSummary = true, onPageChange, pageSizeOptions, onPageSizeChange }: Props) {
   const pages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
   return (
-    <nav aria-label="Phân trang danh sách" className="flex flex-col gap-4 border-t border-border/80 bg-card px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-      <span className="text-sm text-muted-foreground" aria-live="polite">
+    <nav aria-label="Phân trang danh sách" className="flex flex-col gap-4 border-t border-border/80 bg-card px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-end">
+      {showSummary && <span className="text-sm text-muted-foreground" aria-live="polite">
         Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} trường
-      </span>
+      </span>}
       <div className="flex flex-wrap items-center gap-2.5">
         {pageSizeOptions && onPageSizeChange && <label className="flex items-center gap-2 text-sm text-muted-foreground">
           Số dòng/trang
-          <select aria-label="Số dòng mỗi trang" className="h-10 rounded-lg border border-input bg-background px-2 text-sm font-medium text-foreground" value={pageSize} disabled={disabled}
+          <AppNativeSelect aria-label="Số dòng mỗi trang" containerClassName="h-10 min-w-[80px] rounded-lg" value={pageSize} disabled={disabled}
             onChange={event => onPageSizeChange(Number(event.target.value))}>
             {pageSizeOptions.map(size => <option key={size} value={size}>{size}</option>)}
-          </select>
+          </AppNativeSelect>
         </label>}
         <div className="flex items-center gap-1" aria-label="Chọn trang">
           <AppButton tone="outline" size="sm" className="h-9 min-w-9 rounded-lg px-2" aria-label="Trang trước" disabled={disabled || page <= 1}

@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-brand);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -49,7 +49,7 @@
 }
 
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-brand);
 }
 
 :root {
@@ -193,4 +193,121 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .crm-modern-toast .crm-toast-badge,
   .crm-modern-toast .crm-toast-progress { animation: none !important; }
+}
+
+/* KIDSFIT brand tokens — use semantic colors across CRM. */
+:root {
+  --button-green: #1b5e20;
+  --button-orange: #d97706;
+  --button-blue: #0369a1;
+  --button-green-hover: #124c17;
+  --button-orange-hover: #b45309;
+  --button-blue-hover: #075985;
+  --deep: #0e2a1a;
+  --floating-phone-green: #00e535;
+  --floating-phone-green-hover: #00c72e;
+  --light: #a5d6a7;
+  --bg: #f9fafb;
+  --gray: #f3f4f6;
+  --white: #fff;
+  --ink: #111827;
+  --line: #e5e7eb;
+  --orange: #f59b23;
+  --shadow: 0 20px 55px rgba(14, 42, 26, 0.09);
+  --font-brand: Inter, "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+body { font-family: var(--font-brand); }
+:root {
+  --background: #f9fafb; --foreground: #111827;
+  --card: #fff; --card-foreground: #111827;
+  --popover: #fff; --popover-foreground: #111827;
+  --primary: #1b5e20; --primary-foreground: #fff;
+  --secondary: #e7f4e8; --secondary-foreground: #1b5e20;
+  --muted: #f3f4f6; --muted-foreground: #6b7280;
+  --accent: #e8f5e9; --accent-foreground: #1b5e20;
+  --destructive: #be123c; --border: #e5e7eb; --input: #d1d5db;
+  --ring: #4caf50;
+  --chart-1: #1b5e20; --chart-2: #4caf50; --chart-3: #d97706;
+  --chart-4: #0369a1; --chart-5: #a8518a;
+  --sidebar: #0e2a1a; --sidebar-foreground: #fff;
+  --sidebar-primary: #4caf50; --sidebar-primary-foreground: #fff;
+  --sidebar-accent: #19452a; --sidebar-accent-foreground: #fff;
+  --sidebar-border: rgba(255,255,255,.12); --sidebar-ring: #a5d6a7;
+}
+.dark {
+  --background: #0e1912; --foreground: #f2f9f2;
+  --card: #17291c; --card-foreground: #f2f9f2;
+  --popover: #17291c; --popover-foreground: #f2f9f2;
+  --primary: #81c784; --primary-foreground: #09220d;
+  --secondary: #23412a; --secondary-foreground: #e1f4e2;
+  --muted: #213428; --muted-foreground: #b5c5b8;
+  --accent: #24432b; --accent-foreground: #dbf7df;
+  --destructive: #fda4af; --border: #3c5142; --input: #496250;
+  --ring: #a5d6a7;
+  --chart-1: #81c784; --chart-2: #4caf50; --chart-3: #ffb74d;
+  --chart-4: #38bdf8; --chart-5: #d8a0c5;
+  --sidebar: #0a1c10; --sidebar-foreground: #f2f9f2;
+  --sidebar-primary: #81c784; --sidebar-primary-foreground: #09220d;
+  --sidebar-accent: #1c3b23; --sidebar-accent-foreground: #f2f9f2;
+  --sidebar-border: rgba(255,255,255,.12); --sidebar-ring: #81c784;
+}
+.crm-brand-sidebar {
+  background: linear-gradient(180deg, var(--deep), #164529 65%, #12321f);
+}
+.dark .crm-brand-sidebar { background: linear-gradient(180deg,#091d10,#12331e); }
+.crm-brand-menu-active { background: rgba(165,214,167,.16); box-shadow: inset 3px 0 0 #81c784; color: #fff; }
+.crm-brand-surface { box-shadow: var(--shadow); }
+.crm-brand-button { box-shadow: 0 3px 9px rgba(14,42,26,.09); }
+.crm-brand-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.crm-modern-toast[data-type="success"] { --crm-toast-color: #2e7d32; }
+.crm-modern-toast[data-type="info"] { --crm-toast-color: #0369a1; }
+
+/* Shared KIDSFIT presentation layer across CRM roles.
+   The approved School Directory table keeps its existing reference styling. */
+.crm-workspace-content table:not(.crm-school-table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.crm-workspace-content table:not(.crm-school-table) thead {
+  background: #1b5e20;
+  color: #fff;
+}
+.crm-workspace-content table:not(.crm-school-table) thead th {
+  padding: 0.9rem 1rem;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.crm-workspace-content table:not(.crm-school-table) tbody td {
+  padding: 0.85rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+.crm-workspace-content table:not(.crm-school-table) tbody tr {
+  transition: background 150ms ease;
+}
+.crm-workspace-content table:not(.crm-school-table) tbody tr:hover {
+  background: var(--accent);
+}
+.crm-workspace-content :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+  border-radius: 0.75rem;
+}
+.crm-workspace-content :where(input, select, textarea):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.crm-workspace-content .crm-dashboard-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+}
+@media (max-width: 767px) {
+  .crm-workspace-content table { font-size: 0.8125rem; }
+  .crm-workspace-content table:not(.crm-school-table) :where(th, td) { white-space: nowrap; }
 }

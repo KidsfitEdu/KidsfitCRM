@@ -183,13 +183,13 @@ export function ChannelSalesView({
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] bg-[#111d31] px-6 py-7 text-white shadow-[0_26px_70px_rgba(17,29,49,.2)] sm:px-8">
-        <div className="absolute -right-20 -top-36 size-80 rounded-full bg-[#8172ef]/35 blur-3xl" />
+      <section className="relative overflow-hidden rounded-[28px] bg-[#0e2a1a] px-6 py-7 text-white shadow-[0_26px_70px_rgba(17,29,49,.2)] sm:px-8">
+        <div className="absolute -right-20 -top-36 size-80 rounded-full bg-[#4caf50]/20 blur-3xl" />
         <div className="absolute -bottom-44 left-1/3 size-80 rounded-full bg-[#20b895]/20 blur-3xl" />
         <div className="relative grid gap-7 xl:grid-cols-[1.25fr_.75fr] xl:items-end">
           <div>
-            <Badge className="border-white/10 bg-white/10 text-white hover:bg-white/10">
-              <ShieldCheck className="mr-1 size-3.5" /> Customer protection
+            <Badge className="border-white/20 bg-white/10 text-white hover:bg-white/15">
+              <ShieldCheck className="mr-1 size-3.5" /> Quyền bảo vệ khách hàng
             </Badge>
             <h3 className="mt-5 max-w-2xl text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
               Một khách hàng, một quyền tiếp cận rõ ràng.
@@ -292,7 +292,7 @@ export function ChannelSalesView({
             </div>
           </div>
 
-          <div className="hidden grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] gap-4 border-b bg-muted/35 px-5 py-3 text-[11px] font-semibold uppercase tracking-[.08em] text-muted-foreground xl:grid">
+          <div className="hidden grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid">
             <span>Khách hàng</span>
             <span>Trạng thái</span>
             <span>Quyền bảo vệ</span>
@@ -409,7 +409,7 @@ function CustomerRow({
   return (
     <div className="grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] xl:items-center">
       <div className="flex min-w-0 gap-3">
-        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#ebe8ff] text-[#6558d3] dark:bg-[#6558d3]/20">
+        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#e8f5e9] text-[#1b5e20] dark:bg-[#1b5e20]/20">
           {customer.customer_type === 'ORGANIZATION' ? (
             <Building2 className="size-5" />
           ) : (
@@ -447,7 +447,7 @@ function CustomerRow({
         {customer.protected_until ? (
           <>
             <p className="flex items-center gap-1.5 font-medium">
-              <ShieldCheck className="size-4 text-[#6558d3]" />
+              <ShieldCheck className="size-4 text-[#1b5e20]" />
               {customer.owner_user_name ?? 'Đã xác lập quyền'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -501,7 +501,7 @@ function CustomerRow({
               <Button
                 onClick={onContract}
                 size="sm"
-                className="rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+                className="rounded-xl bg-[#1b5e20] hover:bg-[#124c17]"
               >
                 Báo hợp đồng
               </Button>
@@ -1048,7 +1048,7 @@ function DialogFooter({
         <Button
           type="submit"
           disabled={saving}
-          className="rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+          className="rounded-xl bg-[#1b5e20] hover:bg-[#124c17]"
         >
           {saving ? 'Đang lưu…' : label}
         </Button>
@@ -1060,7 +1060,7 @@ function DialogFooter({
 function CustomerHighlight({ customer }: { customer: ChannelCustomer }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-muted/55 p-4">
-      <div className="grid size-11 place-items-center rounded-2xl bg-[#e9e6ff] text-[#6558d3]">
+      <div className="grid size-11 place-items-center rounded-2xl bg-[#e8f5e9] text-[#1b5e20]">
         <Building2 className="size-5" />
       </div>
       <div className="min-w-0">

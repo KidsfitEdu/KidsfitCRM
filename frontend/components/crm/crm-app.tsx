@@ -30,7 +30,6 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  Sparkles,
   Sun,
   TrendingUp,
   UsersRound,
@@ -48,6 +47,8 @@ import {
 } from 'recharts';
 
 import { Badge } from '@/components/ui/badge';
+import { AppBrand } from '@/components/common/app-brand';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -267,39 +268,39 @@ const viewCopy: Record<
   'admin-team': { eyebrow: 'Tổ chức & nhân sự', title: 'Nhân sự & đối tác', description: 'Quản lý CTV, nhân viên và đối tác bán hàng.' },
   'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
   'admin-settings': { eyebrow: 'Thiết lập CRM', title: 'Cấu hình hệ thống', description: 'Quản trị chính sách và hạn mức nghiệp vụ.' },
-  'role-board-dashboard': {eyebrow:'board',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-oversight': {eyebrow:'board',title:'Báo cáo',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-overdue': {eyebrow:'board',title:'Quá hạn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-disputes': {eyebrow:'board',title:'Tranh chấp',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-board-policies': {eyebrow:'board',title:'Chính sách',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-dashboard': {eyebrow:'accounting',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-revenue': {eyebrow:'accounting',title:'Doanh thu',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-payments': {eyebrow:'accounting',title:'Đối soát & phiếu chi',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-refunds': {eyebrow:'accounting',title:'Hủy & hoàn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-accounting-reports': {eyebrow:'accounting',title:'Báo cáo',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-dashboard': {eyebrow:'customer-care',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-handover': {eyebrow:'customer-care',title:'Trường bàn giao',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-cases': {eyebrow:'customer-care',title:'Yêu cầu hỗ trợ',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-customers': {eyebrow:'customer-care',title:'Khách hàng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-customer-care-followup': {eyebrow:'customer-care',title:'Theo dõi chăm sóc',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-dashboard': {eyebrow:'sales-staff',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-schools': {eyebrow:'sales-staff',title:'Danh sách trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-customers': {eyebrow:'sales-staff',title:'Trường của tôi',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-activities': {eyebrow:'sales-staff',title:'Tiếp cận & tư vấn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-proposals': {eyebrow:'sales-staff',title:'Đề xuất trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-sales-staff-income': {eyebrow:'sales-staff',title:'Thu nhập',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-dashboard': {eyebrow:'checkee',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-verification': {eyebrow:'checkee',title:'Xác minh hợp đồng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-reconciliation': {eyebrow:'checkee',title:'Đối soát',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-disputes': {eyebrow:'checkee',title:'Tranh chấp',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-checkee-history': {eyebrow:'checkee',title:'Lịch sử',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-dashboard': {eyebrow:'collaborator',title:'Tổng quan',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-schools': {eyebrow:'collaborator',title:'Đăng ký trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-proposals': {eyebrow:'collaborator',title:'Đề xuất trường',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-invitations': {eyebrow:'collaborator',title:'Nhận phân bổ',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-approaches': {eyebrow:'collaborator',title:'Tiếp cận & tư vấn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-extensions': {eyebrow:'collaborator',title:'Gia hạn',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
-  'role-collaborator-income': {eyebrow:'collaborator',title:'Hoa hồng',description:'Quản lý nghiệp vụ và dữ liệu theo quyền được cấp.'},
+  'role-board-dashboard': {eyebrow:'Ban giám đốc',title:'Tổng quan',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-oversight': {eyebrow:'Ban giám đốc',title:'Báo cáo',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-overdue': {eyebrow:'Ban giám đốc',title:'Quá hạn',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-disputes': {eyebrow:'Ban giám đốc',title:'Tranh chấp',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-policies': {eyebrow:'Ban giám đốc',title:'Chính sách',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-accounting-dashboard': {eyebrow:'Kế toán',title:'Tổng quan',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-revenue': {eyebrow:'Kế toán',title:'Doanh thu',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-payments': {eyebrow:'Kế toán',title:'Đối soát & phiếu chi',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-refunds': {eyebrow:'Kế toán',title:'Hủy & hoàn',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-accounting-reports': {eyebrow:'Kế toán',title:'Báo cáo',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
+  'role-customer-care-dashboard': {eyebrow:'Chăm sóc khách hàng',title:'Tổng quan',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-handover': {eyebrow:'Chăm sóc khách hàng',title:'Trường bàn giao',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-cases': {eyebrow:'Chăm sóc khách hàng',title:'Yêu cầu hỗ trợ',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-customers': {eyebrow:'Chăm sóc khách hàng',title:'Khách hàng',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-followup': {eyebrow:'Chăm sóc khách hàng',title:'Theo dõi chăm sóc',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-sales-staff-dashboard': {eyebrow:'Nhân viên bán hàng',title:'Tổng quan',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-schools': {eyebrow:'Nhân viên bán hàng',title:'Danh sách trường',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-customers': {eyebrow:'Nhân viên bán hàng',title:'Trường của tôi',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-activities': {eyebrow:'Nhân viên bán hàng',title:'Tiếp cận & tư vấn',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-proposals': {eyebrow:'Nhân viên bán hàng',title:'Đề xuất trường',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-sales-staff-income': {eyebrow:'Nhân viên bán hàng',title:'Thu nhập',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
+  'role-checkee-dashboard': {eyebrow:'CHECKEE',title:'Tổng quan',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-verification': {eyebrow:'CHECKEE',title:'Xác minh hợp đồng',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-reconciliation': {eyebrow:'CHECKEE',title:'Đối soát',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-disputes': {eyebrow:'CHECKEE',title:'Tranh chấp',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-history': {eyebrow:'CHECKEE',title:'Lịch sử',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-collaborator-dashboard': {eyebrow:'Cộng tác viên',title:'Tổng quan',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-schools': {eyebrow:'Cộng tác viên',title:'Đăng ký trường',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-proposals': {eyebrow:'Cộng tác viên',title:'Đề xuất trường',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-invitations': {eyebrow:'Cộng tác viên',title:'Nhận phân bổ',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-approaches': {eyebrow:'Cộng tác viên',title:'Tiếp cận & tư vấn',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-extensions': {eyebrow:'Cộng tác viên',title:'Gia hạn',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
+  'role-collaborator-income': {eyebrow:'Cộng tác viên',title:'Hoa hồng',description:'Đăng ký trường, tư vấn, gia hạn và theo dõi quyền lợi cá nhân.'},
   'manager-dashboard': { eyebrow:'Quản lý bán hàng',title:'Tổng quan đội ngũ',description:'Giám sát đề xuất, phân bổ và gia hạn theo phạm vi được phân quyền.' },
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
@@ -1176,33 +1177,23 @@ function CrmWorkspace({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 bg-[#152238] text-white lg:flex">
-        <div className="flex h-20 items-center gap-3 px-6">
-          <div className="grid size-10 place-items-center rounded-2xl bg-[#8d7cf6] shadow-[0_10px_30px_rgba(141,124,246,.35)]">
-            <Sparkles className="size-5" />
-          </div>
-          <div>
-            <p className="text-[17px] font-bold tracking-[-0.02em]">
-              Kidsfit CRM
-            </p>
-            <p className="text-xs text-slate-400">Giáo dục & CHECKEE</p>
-          </div>
-        </div>
-        <nav className="mt-5 space-y-1 px-3" aria-label="Điều hướng chính">
+      <aside className="crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white lg:flex">
+        <div className="flex h-20 items-center px-5"><AppBrand inverted /></div>
+        <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Điều hướng chính">
           {visibleNav.map((item) => (
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${currentView === item.id ? 'bg-white/10 font-semibold text-white shadow-inner shadow-white/5' : 'text-slate-300 hover:bg-white/7 hover:text-white'}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${currentView === item.id ? 'crm-brand-menu-active font-semibold text-white' : 'text-[#c7ddcc] hover:bg-white/10 hover:text-white'}`}
             >
               <item.icon
-                className={`size-[18px] ${currentView === item.id ? 'text-[#a99df8]' : ''}`}
+                className={`size-[18px] ${currentView === item.id ? 'text-[#a5d6a7]' : ''}`}
               />
               {item.label}
             </button>
           ))}
         </nav>
-        <div className="mx-4 mt-auto mb-5 flex items-center gap-3 rounded-xl p-2">
+        <div className="mx-4 mb-5 flex shrink-0 items-center gap-3 rounded-xl p-2">
           <div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">
             {initials(userName)}
           </div>
@@ -1225,7 +1216,7 @@ function CrmWorkspace({
       </aside>
 
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-border/70 bg-background/85 px-5 backdrop-blur-xl sm:px-8">
+        <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">
           <div>
             <p className="text-xs font-medium text-muted-foreground">
               {todayLabel}
@@ -1268,9 +1259,9 @@ function CrmWorkspace({
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1480px] space-y-7 px-5 py-7 sm:px-8">
+        <div className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && (
-            <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100">
+            <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#a5d6a7] bg-[#e8f5e9] p-4 text-sm text-[#1b5e20] dark:border-[#315e3d] dark:bg-[#17341f] dark:text-[#d5ead7]">
               <div>
                 <p className="font-semibold">
                   Không gian trải nghiệm · {demoAccount.roleLabel}
@@ -1291,19 +1282,8 @@ function CrmWorkspace({
               </Button>
             </aside>
           )}
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <Badge className="mb-3 bg-[#e9e6ff] text-[#6558d3] hover:bg-[#e9e6ff] dark:bg-[#6558d3]/20 dark:text-[#c6beff]">
-                {activeCopy.eyebrow}
-              </Badge>
-              <h2 className="text-3xl font-bold tracking-[-0.045em]">
-                {activeCopy.title}
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {activeCopy.description}
-              </p>
-            </div>
-            <div className="flex gap-2">
+          {currentView !== 'admin-schools' && <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
+            actions={<div className="flex flex-wrap gap-2">
               {currentView === 'finance' && (
                 <Button
                   onClick={exportInvoices}
@@ -1318,13 +1298,12 @@ function CrmWorkspace({
                 <Button
                   onClick={() => setAddOpen(true)}
                   size="lg"
-                  className="h-11 rounded-xl bg-[#6558d3] px-4 shadow-[0_10px_24px_rgba(101,88,211,.22)] hover:bg-[#594cc8]"
+                  className="h-11 rounded-xl bg-primary px-4 shadow-[0_10px_24px_rgba(101,88,211,.22)] hover:bg-[#594cc8]"
                 >
                   <Plus /> Thêm lead mới
                 </Button>
               )}
-            </div>
-          </section>
+            </div>}/>}
 
           {loading ? (
             <LoadingGrid />
@@ -1413,14 +1392,14 @@ function CrmWorkspace({
       </div>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border border-white/10 bg-[#152238]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-40 flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
         aria-label="Điều hướng di động"
       >
         {visibleNav.map((item) => (
           <button
             key={item.id}
             onClick={() => setView(item.id)}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-white/10 text-[#b9afff]' : 'text-slate-400'}`}
+            className={`flex min-w-[88px] flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-[#e8f5e9]/15 text-[#a5d6a7]' : 'text-slate-400'}`}
           >
             <item.icon className="size-[18px]" />
             <span>{item.shortLabel}</span>
@@ -1468,7 +1447,7 @@ function CrmWorkspace({
         />
       )}
       {notice && (
-        <output className="fixed bottom-24 right-5 z-50 flex max-w-sm items-center gap-3 rounded-2xl bg-[#152238] px-4 py-3 text-sm font-medium text-white shadow-2xl lg:bottom-6">
+        <output className="fixed bottom-24 right-5 z-50 flex max-w-sm items-center gap-3 rounded-2xl bg-[var(--deep)] px-4 py-3 text-sm font-medium text-white shadow-2xl lg:bottom-6">
           <span className="grid size-6 place-items-center rounded-full bg-[#35b79b]">
             <Check className="size-4" />
           </span>
@@ -1527,7 +1506,7 @@ function Dashboard({
       delta: '+18%',
       caption: 'so với tuần trước',
       icon: UsersRound,
-      color: 'bg-[#e9e6ff] text-[#6558d3]',
+      color: 'bg-[#e9e6ff] text-primary',
     },
     {
       label: 'Cần follow-up',
@@ -1629,10 +1608,10 @@ function Dashboard({
             ))}
           </CardContent>
         </Card>
-        <Card className="border-0 bg-[#152238] text-white shadow-[0_20px_45px_rgba(21,34,56,.15)] ring-0">
+        <Card className="border-0 bg-[var(--deep)] text-white shadow-[0_20px_45px_rgba(21,34,56,.15)] ring-0">
           <CardHeader className="flex-row items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a99df8]">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a5d6a7]">
                 Việc cần làm
               </p>
               <CardTitle className="mt-2 text-xl font-bold text-white">
@@ -1679,7 +1658,7 @@ function Dashboard({
         <Card className="border-0 shadow-sm ring-1 ring-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <TrendingUp className="size-5 text-[#6558d3]" /> Doanh thu 5 tháng
+              <TrendingUp className="size-5 text-primary" /> Doanh thu 5 tháng
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[240px]">
@@ -1739,7 +1718,7 @@ function Dashboard({
                 key={lead.id}
                 className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-muted/70"
               >
-                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-[#6558d3]">
+                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-primary">
                   {initials(lead.full_name)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1815,7 +1794,7 @@ function LeadView({
               >
                 <td aria-label={lead.full_name} className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-[#6558d3]">
+                    <div className="grid size-10 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-primary">
                       {initials(lead.full_name)}
                     </div>
                     <div>
@@ -2005,7 +1984,7 @@ function ClassView({ classes }: { classes: ClassRoom[] }) {
             className="group overflow-hidden border-0 shadow-sm ring-1 ring-border/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
           >
             <div
-              className={`h-1.5 ${index % 3 === 0 ? 'bg-[#6558d3]' : index % 3 === 1 ? 'bg-[#35b79b]' : 'bg-[#f0a35b]'}`}
+              className={`h-1.5 ${index % 3 === 0 ? 'bg-primary' : index % 3 === 1 ? 'bg-[#35b79b]' : 'bg-[#f0a35b]'}`}
             />
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -2019,7 +1998,7 @@ function ClassView({ classes }: { classes: ClassRoom[] }) {
                   </p>
                 </div>
                 <div className="grid size-11 place-items-center rounded-2xl bg-muted">
-                  <BookOpenCheck className="size-5 text-[#6558d3]" />
+                  <BookOpenCheck className="size-5 text-primary" />
                 </div>
               </div>
             </CardHeader>
@@ -2043,7 +2022,7 @@ function ClassView({ classes }: { classes: ClassRoom[] }) {
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-[#6558d3] transition-all duration-700"
+                    className="h-full rounded-full bg-primary transition-all duration-700"
                     style={{ width: `${ratio}%` }}
                   />
                 </div>
@@ -2641,7 +2620,7 @@ function DialogShell({
       >
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6558d3]">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               {eyebrow}
             </p>
             <h3 className="mt-2 text-2xl font-bold tracking-tight">{title}</h3>
@@ -2686,7 +2665,7 @@ function DialogActions({
       <Button
         type="submit"
         disabled={saving}
-        className="rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+        className="rounded-xl bg-primary hover:bg-[#594cc8]"
       >
         {saving ? 'Đang lưu…' : submitText}
       </Button>
@@ -2740,7 +2719,7 @@ function AddLeadDialog({
       >
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6558d3]">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               Quick create
             </p>
             <h3 className="mt-2 text-2xl font-bold tracking-tight">
@@ -2828,7 +2807,7 @@ function AddLeadDialog({
           <Button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+            className="rounded-xl bg-primary hover:bg-[#594cc8]"
           >
             {saving ? 'Đang lưu…' : 'Tạo lead'}
           </Button>
@@ -2858,20 +2837,12 @@ function LoginScreen({
   };
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#101a2b] p-5">
-      <div className="absolute -left-32 -top-32 size-96 rounded-full bg-[#6558d3]/30 blur-3xl" />
+      <div className="absolute -left-32 -top-32 size-96 rounded-full bg-primary/30 blur-3xl" />
       <div className="absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-[#35b79b]/20 blur-3xl" />
       <Card className="relative w-full max-w-md border-white/10 bg-white/[.96] p-3 shadow-2xl dark:bg-[#1b2940]">
         <CardHeader>
           <div className="mb-5 flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-2xl bg-[#6558d3] text-white">
-              <Sparkles className="size-5" />
-            </div>
-            <div>
-              <p className="font-bold">Kidsfit CRM</p>
-              <p className="text-xs text-muted-foreground">
-                Trung tâm giáo dục
-              </p>
-            </div>
+            <AppBrand />
           </div>
           <CardTitle className="text-2xl">Chào mừng trở lại</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -2902,7 +2873,7 @@ function LoginScreen({
             <Button
               type="submit"
               disabled={loading}
-              className="h-11 w-full rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+              className="h-11 w-full rounded-xl bg-primary hover:bg-[#594cc8]"
             >
               {loading ? 'Đang kết nối…' : 'Đăng nhập'}
             </Button>
@@ -2978,7 +2949,7 @@ function MiniStat({
           <p className="mt-2 text-3xl font-bold tracking-tight">{value}</p>
           <p className="mt-1 text-xs text-[#21806d]">{caption}</p>
         </div>
-        <div className="grid size-11 place-items-center rounded-2xl bg-[#e9e6ff] text-[#6558d3]">
+        <div className="grid size-11 place-items-center rounded-2xl bg-[#e9e6ff] text-primary">
           <Icon className="size-5" />
         </div>
       </CardContent>

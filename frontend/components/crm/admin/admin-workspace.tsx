@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Plus, FileSpreadsheet } from 'lucide-react';
+import { AppButton } from '@/components/common/app-button';
+import { AppStatCard } from '@/components/common/app-stat-card';
+import { Building2, ClipboardList, CalendarClock, Handshake, TrendingUp, UsersRound } from 'lucide-react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +20,7 @@ import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
 
 export type AdminSection = 'dashboard' | 'admin-schools' | 'admin-proposals' | 'admin-team' | 'admin-settings' | 'admin-reports';
 type Props = { section: AdminSection; apiBase: string; token: string; abilities: string[]; workspace: ChannelSalesWorkspace; onChanged: () => Promise<void> };
-const panel = 'rounded-2xl border bg-card p-5 shadow-sm';
+const panel = 'crm-brand-surface rounded-2xl border border-border/80 bg-card p-5';
 const fmt = (value: number) => value.toLocaleString('vi-VN');
 
 export function AdminWorkspace(props: Props) {
@@ -152,12 +155,11 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
           ['Đã ký hợp đồng', metrics.contracted],
           ['Sắp hết hạn tiếp cận', metrics.expiring_soon],
           ['Đề xuất chờ Admin', operations ? pending : null],
-        ] as [string,number|null][]).map(([label,value]) => <div key={label} className={panel}><p className="text-sm text-muted-foreground">{label}</p><p className="mt-3 text-3xl font-bold">{preview || value === null ? '—' : fmt(value)}</p></div>)}
+        ] as [string,number|null][]).map(([label,value], index) => <AppStatCard key={label} label={label} value={preview || value === null ? '—' : fmt(value)} icon={[Building2, ClipboardList, CalendarClock, Handshake, TrendingUp, UsersRound][index % 6]}/>)}
       </div>
       <div className={panel}><h3 className="font-semibold">Công việc cần xử lý</h3><p className="mt-2 text-sm text-muted-foreground">Hồ sơ đề xuất chờ duyệt: {preview || !operations ? '—' : fmt(pending)}. Mở mục Đề xuất trường để xử lý.</p></div>
     </>}
     {section === 'admin-schools' && <>
-      <div className="flex justify-end"><Button disabled={preview} onClick={()=>{setFormErrors({});setManualOpen(x=>!x);}}>+ Thêm trường thủ công</Button></div>
       <Dialog open={manualOpen} onOpenChange={open => { if (!busy) setManualOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm trường học</DialogTitle><DialogDescription>Tạo trường chính hoặc phân hiệu thuộc trường chính đã có.</DialogDescription></DialogHeader><div className="space-y-3">
         
         <p className="mb-3 text-xs text-muted-foreground">Với phân hiệu, nhập mã trường chính đã có để liên kết.</p>
@@ -167,7 +169,13 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         </div>
         <FormActions busy={busy} onCancel={()=>setManualOpen(false)} onSave={()=>void createManual()} saveLabel="Lưu trường"/>
       </div></DialogContent></Dialog>
-      <SchoolDirectory adminMode apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged} />
+      <SchoolDirectory adminMode apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
+        renderImportAction={openImport => <div className="flex flex-wrap items-center justify-end gap-2">
+          <AppButton tone="green" premium className="h-11 px-5" disabled={preview} leadingIcon={<Plus className="size-4"/>}
+            onClick={() => {setFormErrors({});setManualOpen(true);}}>Thêm trường</AppButton>
+          <AppButton tone="blue" premium className="h-11 px-5" disabled={preview} leadingIcon={<FileSpreadsheet className="size-4"/>}
+            onClick={openImport}>Import Excel</AppButton>
+        </div>}/>
     </>}
     {section === 'admin-proposals' && <>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -181,7 +189,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         {busy && <p className="mt-3 text-sm text-muted-foreground">Đang tải dữ liệu…</p>}
         <div className="mt-4 overflow-x-auto rounded-xl border">
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="p-3">Trường học</th><th className="p-3">Người đề xuất</th><th className="p-3">Trạng thái</th><th className="p-3">Hạn xử lý</th><th className="p-3 text-right">Thao tác</th></tr></thead>
+            <thead className="bg-[#1b5e20] text-xs font-bold uppercase text-white"><tr><th className="p-3">Trường học</th><th className="p-3">Người đề xuất</th><th className="p-3">Trạng thái</th><th className="p-3">Hạn xử lý</th><th className="p-3 text-right">Thao tác</th></tr></thead>
             <tbody>{proposals.map(p=><tr key={p.id} className="border-t align-top hover:bg-muted/30">
               <td className="p-3"><p className="font-semibold">{p.name}</p><p className="text-xs text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>{p.possible_duplicate && <p className="text-xs text-amber-700">Cần kiểm tra trùng</p>}</td>
               <td className="p-3"><p>{p.submitted_by}</p><p className="text-xs text-muted-foreground">QL: {p.manager_name}</p></td>
@@ -215,7 +223,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
         <Button variant="outline" onClick={()=>{setTeamSearch('');setTeamStatus('ALL');}}>Reset bộ lọc</Button>
       </div>
       {management ? <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="p-3">Nhân sự</th><th className="p-3">Tổ chức</th><th className="p-3">Vai trò</th><th className="p-3">Trạng thái</th></tr></thead>
+        <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-[#1b5e20] text-xs font-bold uppercase text-white"><tr><th className="p-3">Nhân sự</th><th className="p-3">Tổ chức</th><th className="p-3">Vai trò</th><th className="p-3">Trạng thái</th></tr></thead>
           <tbody>{management.team.filter(u=>(teamStatus==='ALL'||u.status===teamStatus)&&[u.name,u.email,u.organization_name].some(x=>x.toLowerCase().includes(teamSearch.toLowerCase()))).map(u=><tr key={u.id} className="border-t hover:bg-muted/30"><td className="p-3"><strong>{u.name}</strong><p className="text-xs text-muted-foreground">{u.email}</p></td><td className="p-3">{u.organization_name}</td><td className="p-3">{u.membership_type}</td><td className="p-3">{u.status}</td></tr>)}</tbody>
         </table>
         {management.team.length===0&&<p className="p-8 text-center text-sm text-muted-foreground">Chưa có nhân sự.</p>}

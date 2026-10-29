@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { AppStatCard } from '@/components/common/app-stat-card';
+import { Building2, ClipboardList, CalendarClock, Handshake, TrendingUp } from 'lucide-react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { SchoolOperations } from '@/components/crm/school-operations';
 import { channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
@@ -41,7 +43,7 @@ function ManagerContent({section,apiBase,token,abilities,onChanged}:Props) {
    ];
    return <div className="space-y-5">
     {(overview.error||report.error)&&<p role="alert" className="rounded-xl border border-destructive/40 p-4 text-sm text-destructive">Không tải được dữ liệu giám sát. Vui lòng kiểm tra kết nối và quyền truy cập.</p>}
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{metrics.map(([label,value])=><div key={label} className="rounded-2xl border bg-card p-5 shadow-sm"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-3 text-3xl font-bold">{typeof value==='number'?value.toLocaleString('vi-VN'):'—'}</p></div>)}</div>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metrics.map(([label,value], index)=><AppStatCard key={label} label={label} value={value} icon={[ClipboardList, Building2, CalendarClock, Handshake, TrendingUp][index % 5]}/>)}</div>
     <div className="rounded-2xl border bg-card p-5"><h3 className="font-semibold">Công việc cần xử lý</h3><p className="mt-2 text-sm text-muted-foreground">Tiếp nhận đề xuất CTV, theo dõi lời mời phân bổ và duyệt gia hạn trước khi quyền tiếp cận hết hiệu lực. Hồ sơ đang chờ không tự giữ quyền.</p></div>
    </div>;
  }

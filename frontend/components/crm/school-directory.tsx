@@ -17,15 +17,18 @@ import { SchoolActionForm, type SchoolAction } from './school-action-form';
 import { EvidenceReference } from './school-operations';
 import {
   Building2,
-  ChevronLeft,
-  ChevronRight,
-  FileSpreadsheet,
-  GraduationCap,
-  Search,
-  ShieldCheck,
+  Eye,
   UsersRound,
+  Search,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/common/app-button';
+import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppPagination } from '@/components/common/app-pagination';
+import { AppPageHeader } from '@/components/common/app-page-header';
+import { SCHOOL_ROWS_PER_PAGE } from '@/lib/school-page-window';
+import { AppEmptyState } from '@/components/common/app-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -46,6 +49,7 @@ type Props = {
   abilities: string[];
   onChanged: () => Promise<void>;
   adminMode?: boolean;
+  renderImportAction?: (openImport: () => void) => ReactNode;
 };
 type School = {
   id: number;
@@ -56,6 +60,7 @@ type School = {
   ward: string;
   branches: number;
   visible_status: string;
+  protected_from: string | null;
   protected_until: string | null;
   can_register: boolean;
   contract_id: number | null;
@@ -164,10 +169,13 @@ export function SchoolDirectory({
   abilities,
   onChanged,
   adminMode = false,
+  renderImportAction,
 }: Props) {
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [selected, setSelected] = useState<number | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -183,11 +191,10 @@ export function SchoolDirectory({
       ? readSchoolDemo<T>(path)
       : channelRequest<T>(apiBase, token, path, options);
   const schools = useQuery({
-    queryKey: [...channelQueryKeys.all, 'schools', search, page],
-    queryFn: () =>
-      api<SchoolList>(
-        `/schools?search=${encodeURIComponent(search)}&page=${page}`,
-      ),
+    queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize, statusFilter],
+    queryFn: () => api<SchoolList>(
+      `/schools?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}&status=${encodeURIComponent(statusFilter)}`,
+    ),
   });
   const capacities = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-capacities'],
@@ -240,38 +247,20 @@ export function SchoolDirectory({
     },
   });
   const run = (command: Command) => mutation.mutateAsync(command);
+  const openImport = () => {setImportOpen(true);upload.reset();};
+  const visibleSchools = schools.data?.data ?? [];
   return (
     <div className="space-y-5">
       {demo && (
         <aside className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          Danh bạ minh họa chỉ đọc, không chứa dữ liệu trường thật. Nhập Excel,
-          đăng ký tiếp cận và xác minh hợp đồng dùng bản CRM kết nối .NET
-          API/MySQL.
+          Chế độ xem thử — dữ liệu mẫu chỉ đọc. Để quản lý trường thật, hãy đăng nhập hệ thống đã kết nối API.
         </aside>
       )}
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-gradient-to-br from-violet-50/70 to-card p-6 dark:from-violet-950/20">
-        <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-violet-100 p-3 text-violet-700 dark:bg-violet-950">
-            <GraduationCap className="size-7" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold">Danh bạ trường học</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Trường chính và phân hiệu dùng chung quyền bảo vệ khách hàng.
-            </p>
-          </div>
-        </div>
-        {can('channel_sales.school.directory.manage') && (
-          <Button
-            onClick={() => {
-              setImportOpen(true);
-              upload.reset();
-            }}
-          >
-            <FileSpreadsheet className="size-4" /> Nhập danh sách Excel
-          </Button>
-        )}
-      </header>
+      {adminMode
+        ? <AppPageHeader eyebrow="Quản trị / Trường học" title="Quản lý trường học"
+            description="Quản lý trường chính, phân hiệu và quyền bảo vệ khách hàng"
+            actions={renderImportAction?.(openImport)}/>
+        : renderImportAction?.(openImport)}
       {notice && (
         <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           {notice}
@@ -303,7 +292,7 @@ export function SchoolDirectory({
                     className={
                       item.active >= item.school_approach_limit
                         ? 'text-amber-600'
-                        : 'text-violet-600'
+                        : 'text-primary'
                     }
                   >
                     {item.active}/{item.school_approach_limit}
@@ -327,60 +316,53 @@ export function SchoolDirectory({
           </div>
         </section>
       )}
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-          <form
-            className="flex w-full max-w-lg gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSearch(term);
-              setPage(1);
-            }}
-          >
-            <div className="relative flex-1">
-              <Search className="absolute top-3 left-3 size-4 text-muted-foreground" />
-              <Input
-                aria-label="Tìm trường, mã hoặc khu vực"
-                className="pl-9"
-                placeholder="Tên trường, mã trường, phường/xã…"
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-              />
-            </div>
-            <Button variant="outline" type="submit">
-              Tìm kiếm
-            </Button>
-            <Button variant="outline" type="button" onClick={() => { setTerm(''); setSearch(''); setPage(1); }}>Reset bộ lọc</Button>
-          </form>
-          <span className="text-sm text-muted-foreground">
-            {schools.data?.total ?? 0} trường chính
-          </span>
-        </div>
+      <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
+
+        <form role="search" className="grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_200px_auto_44px] sm:px-6"
+          onSubmit={event => { event.preventDefault(); setSearch(term); setPage(1); }}>
+          <div className="relative min-w-0">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+            <Input aria-label="Tìm tên trường, mã hoặc khu vực" className="h-11 w-full rounded-xl pl-10"
+              placeholder="Tên trường, mã trường, phường/xã..." value={term} onChange={event => setTerm(event.target.value)}/>
+          </div>
+          <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full"
+            value={statusFilter} onChange={event => {setStatusFilter(event.target.value);setPage(1);}}>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="AVAILABLE">Chưa đăng ký</option>
+            <option value="APPROACHING">Đang tiếp cận</option>
+            <option value="CONTRACTED">Đã xác minh hợp đồng</option>
+          </AppNativeSelect>
+          <AppButton type="submit" tone="orange" premium className="h-10 min-w-0 justify-center gap-2 rounded-lg bg-[#d97706] px-4 font-bold text-white shadow-[0_6px_16px_rgba(217,119,6,.18)] hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white">Tìm kiếm</AppButton>
+          <AppButton type="button" tone="outline" size="icon-lg"
+            className="h-11 w-11 min-w-11 rounded-lg border border-[#a5d6a7] bg-white p-0 text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-[#17341f] dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white" aria-label="Đặt lại bộ lọc"
+            title="Đặt lại bộ lọc" onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setPage(1);}}>
+            <RotateCcw className="size-4" aria-hidden="true"/>
+          </AppButton>
+        </form>
         {schools.isPending ? (
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
-        ) : schools.data?.data.length ? (
+        ) : visibleSchools.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <table className="crm-school-table w-full min-w-[1050px] border-separate border-spacing-0 text-left text-sm">
+              <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white dark:bg-[#1b5e20] dark:text-white">
                 <tr>
-                  <th className="p-4">Trường học</th>
-                  <th className="p-4">Khu vực</th>
-                  <th className="p-4">Phân hiệu</th>
-                  <th className="p-4">Quyền bảo vệ</th>
-                  <th className="p-4">
-                    <span className="sr-only">Thao tác</span>
-                  </th>
+                  <th scope="col" className="px-5 py-4 text-left align-middle">Trường học</th>
+                  <th scope="col" className="p-4 text-center align-middle">Khu vực</th>
+                  <th scope="col" className="p-4 text-center align-middle">Phân hiệu</th>
+                  <th scope="col" className="p-4 text-center align-middle">Trạng thái</th>
+                  <th scope="col" className="p-4 text-center align-middle">Thời hạn bảo vệ</th>
+                  <th scope="col" className="px-5 py-4 text-center align-middle">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {schools.data.data.map((s) => (
+                {visibleSchools.map((s) => (
                   <tr
                     key={s.id}
-                    className="border-t transition-colors hover:bg-muted/30"
+                    className="border-t border-border/70 transition-colors even:bg-muted/20 hover:bg-[#edf7ee] dark:hover:bg-[#21432b]"
                   >
                     <td className="p-4">
                       <button
-                        className="text-left font-semibold hover:text-violet-600"
+                        className="text-left font-semibold text-foreground hover:text-primary focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
                         onClick={() => setSelected(s.id)}
                       >
                         {s.display_name}
@@ -389,43 +371,44 @@ export function SchoolDirectory({
                         {s.school_code}
                       </p>
                       {s.contract_status && (
-                        <p className="mt-1 text-xs text-violet-600">
+                        <p className="mt-1 text-xs text-primary">
                           {labels[s.contract_status] ?? s.contract_status}
                         </p>
                       )}
                     </td>
-                    <td className="p-4 text-muted-foreground">
+                    <td className="p-4 text-center align-middle text-muted-foreground">
                       {s.ward}
                       <br />
                       {s.province}
                     </td>
-                    <td className="p-4">{s.branches}</td>
-                    <td className="p-4">
-                      <Badge
-                        variant="outline"
-                        className={
-                          s.visible_status === 'AVAILABLE'
-                            ? 'text-emerald-700'
-                            : 'text-violet-600'
-                        }
-                      >
-                        {labels[s.visible_status]}
+                    <td className="p-4 text-center align-middle">{s.branches}</td>
+                    <td className="p-4 text-center align-middle">
+                      <Badge variant="outline" className={
+                        s.visible_status === 'AVAILABLE'
+                          ? 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                          : s.visible_status === 'CONTRACTED'
+                            ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
+                            : 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200'
+                      }>
+                        {labels[s.visible_status] ?? s.visible_status}
                       </Badge>
-                      {s.protected_until && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Đến {channelDate(s.protected_until)}
-                        </p>
-                      )}
                     </td>
-                    <td className="p-4">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelected(s.id)}
-                        >
-                          Chi tiết
-                        </Button>
+                    <td className="p-4 text-center align-middle">
+                      <span className="whitespace-nowrap tabular-nums text-sm text-foreground"
+                        aria-label={s.protected_from && s.protected_until ? `Từ ${channelDate(s.protected_from)} đến ${channelDate(s.protected_until)}` : 'Chưa có thời hạn bảo vệ'}>
+                        {s.protected_from && s.protected_until
+                          ? `${channelDate(s.protected_from)} – ${channelDate(s.protected_until)}`
+                          : '—'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-center align-middle">
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <AppButton tone="outline" size="icon-sm"
+                          className="h-9 w-9 min-w-9 rounded-lg border border-[#1b5e20] bg-white p-0 text-[#1b5e20] shadow-sm hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-[#17341f] dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white"
+                          aria-label={`Xem chi tiết ${s.display_name}`}
+                          title="Xem chi tiết" onClick={() => setSelected(s.id)}>
+                          <Eye className="size-4" aria-hidden="true"/>
+                        </AppButton>
                         {!adminMode && s.can_register && (
                           <Button
                             size="sm"
@@ -452,46 +435,13 @@ export function SchoolDirectory({
             </table>
           </div>
         ) : (
-          <div className="p-12 text-center">
-            <Building2 className="mx-auto mb-3 size-9 text-muted-foreground/50" />
-            <p className="font-medium">
-              {search
-                ? 'Không tìm thấy trường phù hợp'
-                : 'Chưa có danh bạ trường học'}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {search
-                ? 'Thử tìm theo mã trường hoặc phường/xã.'
-                : 'Admin nhập file Excel để tạo danh sách chính thức.'}
-            </p>
-          </div>
+          <AppEmptyState icon={Building2}
+            title={search || statusFilter !== 'ALL' ? 'Không có trường phù hợp với bộ lọc' : 'Chưa có danh bạ trường học'}
+            description={search || statusFilter !== 'ALL' ? 'Thử đổi từ khóa hoặc trạng thái để tìm lại.' : 'Hãy thêm trường hoặc nhập danh sách Excel để bắt đầu.'}/>
         )}
-        <footer className="flex items-center justify-between border-t p-4 text-sm">
-          <span>
-            Trang {page} /{' '}
-            {Math.max(1, Math.ceil((schools.data?.total ?? 0) / 20))}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              aria-label="Trang trước"
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              aria-label="Trang sau"
-              variant="outline"
-              size="sm"
-              disabled={page * 20 >= (schools.data?.total ?? 0)}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </footer>
+        <AppPagination page={page} pageSize={schools.data?.page_size ?? 20} total={schools.data?.total ?? 0} showSummary={false}
+          disabled={schools.isFetching} onPageChange={setPage}
+          pageSizeOptions={SCHOOL_ROWS_PER_PAGE} onPageSizeChange={value => {setPageSize(value);setPage(1);}}/>
       </section>
       <Dialog
         open={importOpen}

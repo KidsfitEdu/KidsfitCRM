@@ -431,7 +431,6 @@ export function SchoolDirectory({
         )}
         <AppPagination page={page} pageSize={schools.data?.page_size ?? 20} total={schools.data?.total ?? 0}
           disabled={schools.isFetching} onPageChange={setPage}/>
-/footer>
       </section>
       <Dialog
         open={importOpen}

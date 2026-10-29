@@ -48,6 +48,7 @@ import {
 } from 'recharts';
 
 import { Badge } from '@/components/ui/badge';
+import { AppBrand } from '@/components/common/app-brand';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1176,27 +1177,17 @@ function CrmWorkspace({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 bg-[#152238] text-white lg:flex">
-        <div className="flex h-20 items-center gap-3 px-6">
-          <div className="grid size-10 place-items-center rounded-2xl bg-[#8d7cf6] shadow-[0_10px_30px_rgba(141,124,246,.35)]">
-            <Sparkles className="size-5" />
-          </div>
-          <div>
-            <p className="text-[17px] font-bold tracking-[-0.02em]">
-              Kidsfit CRM
-            </p>
-            <p className="text-xs text-slate-400">Giáo dục & CHECKEE</p>
-          </div>
-        </div>
+      <aside className="crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white lg:flex">
+        <div className="flex h-20 items-center px-5"><AppBrand inverted /></div>
         <nav className="mt-5 space-y-1 px-3" aria-label="Điều hướng chính">
           {visibleNav.map((item) => (
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${currentView === item.id ? 'bg-white/10 font-semibold text-white shadow-inner shadow-white/5' : 'text-slate-300 hover:bg-white/7 hover:text-white'}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${currentView === item.id ? 'crm-brand-menu-active font-semibold text-white' : 'text-[#c7ddcc] hover:bg-white/10 hover:text-white'}`}
             >
               <item.icon
-                className={`size-[18px] ${currentView === item.id ? 'text-[#a99df8]' : ''}`}
+                className={`size-[18px] ${currentView === item.id ? 'text-[#a5d6a7]' : ''}`}
               />
               {item.label}
             </button>
@@ -1293,7 +1284,7 @@ function CrmWorkspace({
           )}
           <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <Badge className="mb-3 bg-[#e9e6ff] text-[#6558d3] hover:bg-[#e9e6ff] dark:bg-[#6558d3]/20 dark:text-[#c6beff]">
+              <Badge className="mb-3 bg-[#e9e6ff] text-primary hover:bg-[#e9e6ff] dark:bg-primary/20 dark:text-[#c6beff]">
                 {activeCopy.eyebrow}
               </Badge>
               <h2 className="text-3xl font-bold tracking-[-0.045em]">
@@ -1318,7 +1309,7 @@ function CrmWorkspace({
                 <Button
                   onClick={() => setAddOpen(true)}
                   size="lg"
-                  className="h-11 rounded-xl bg-[#6558d3] px-4 shadow-[0_10px_24px_rgba(101,88,211,.22)] hover:bg-[#594cc8]"
+                  className="h-11 rounded-xl bg-primary px-4 shadow-[0_10px_24px_rgba(101,88,211,.22)] hover:bg-[#594cc8]"
                 >
                   <Plus /> Thêm lead mới
                 </Button>
@@ -1413,7 +1404,7 @@ function CrmWorkspace({
       </div>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border border-white/10 bg-[#152238]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-40 flex rounded-2xl border border-white/10 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
         aria-label="Điều hướng di động"
       >
         {visibleNav.map((item) => (
@@ -1468,7 +1459,7 @@ function CrmWorkspace({
         />
       )}
       {notice && (
-        <output className="fixed bottom-24 right-5 z-50 flex max-w-sm items-center gap-3 rounded-2xl bg-[#152238] px-4 py-3 text-sm font-medium text-white shadow-2xl lg:bottom-6">
+        <output className="fixed bottom-24 right-5 z-50 flex max-w-sm items-center gap-3 rounded-2xl bg-[var(--deep)] px-4 py-3 text-sm font-medium text-white shadow-2xl lg:bottom-6">
           <span className="grid size-6 place-items-center rounded-full bg-[#35b79b]">
             <Check className="size-4" />
           </span>
@@ -1527,7 +1518,7 @@ function Dashboard({
       delta: '+18%',
       caption: 'so với tuần trước',
       icon: UsersRound,
-      color: 'bg-[#e9e6ff] text-[#6558d3]',
+      color: 'bg-[#e9e6ff] text-primary',
     },
     {
       label: 'Cần follow-up',
@@ -1629,10 +1620,10 @@ function Dashboard({
             ))}
           </CardContent>
         </Card>
-        <Card className="border-0 bg-[#152238] text-white shadow-[0_20px_45px_rgba(21,34,56,.15)] ring-0">
+        <Card className="border-0 bg-[var(--deep)] text-white shadow-[0_20px_45px_rgba(21,34,56,.15)] ring-0">
           <CardHeader className="flex-row items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a99df8]">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a5d6a7]">
                 Việc cần làm
               </p>
               <CardTitle className="mt-2 text-xl font-bold text-white">
@@ -1679,7 +1670,7 @@ function Dashboard({
         <Card className="border-0 shadow-sm ring-1 ring-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <TrendingUp className="size-5 text-[#6558d3]" /> Doanh thu 5 tháng
+              <TrendingUp className="size-5 text-primary" /> Doanh thu 5 tháng
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[240px]">
@@ -1739,7 +1730,7 @@ function Dashboard({
                 key={lead.id}
                 className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-muted/70"
               >
-                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-[#6558d3]">
+                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-primary">
                   {initials(lead.full_name)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1815,7 +1806,7 @@ function LeadView({
               >
                 <td aria-label={lead.full_name} className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-[#6558d3]">
+                    <div className="grid size-10 place-items-center rounded-full bg-[#e9e6ff] text-xs font-bold text-primary">
                       {initials(lead.full_name)}
                     </div>
                     <div>
@@ -2005,7 +1996,7 @@ function ClassView({ classes }: { classes: ClassRoom[] }) {
             className="group overflow-hidden border-0 shadow-sm ring-1 ring-border/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
           >
             <div
-              className={`h-1.5 ${index % 3 === 0 ? 'bg-[#6558d3]' : index % 3 === 1 ? 'bg-[#35b79b]' : 'bg-[#f0a35b]'}`}
+              className={`h-1.5 ${index % 3 === 0 ? 'bg-primary' : index % 3 === 1 ? 'bg-[#35b79b]' : 'bg-[#f0a35b]'}`}
             />
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -2019,7 +2010,7 @@ function ClassView({ classes }: { classes: ClassRoom[] }) {
                   </p>
                 </div>
                 <div className="grid size-11 place-items-center rounded-2xl bg-muted">
-                  <BookOpenCheck className="size-5 text-[#6558d3]" />
+                  <BookOpenCheck className="size-5 text-primary" />
                 </div>
               </div>
             </CardHeader>
@@ -2043,7 +2034,7 @@ function ClassView({ classes }: { classes: ClassRoom[] }) {
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-[#6558d3] transition-all duration-700"
+                    className="h-full rounded-full bg-primary transition-all duration-700"
                     style={{ width: `${ratio}%` }}
                   />
                 </div>
@@ -2641,7 +2632,7 @@ function DialogShell({
       >
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6558d3]">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               {eyebrow}
             </p>
             <h3 className="mt-2 text-2xl font-bold tracking-tight">{title}</h3>
@@ -2686,7 +2677,7 @@ function DialogActions({
       <Button
         type="submit"
         disabled={saving}
-        className="rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+        className="rounded-xl bg-primary hover:bg-[#594cc8]"
       >
         {saving ? 'Đang lưu…' : submitText}
       </Button>
@@ -2740,7 +2731,7 @@ function AddLeadDialog({
       >
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6558d3]">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               Quick create
             </p>
             <h3 className="mt-2 text-2xl font-bold tracking-tight">
@@ -2828,7 +2819,7 @@ function AddLeadDialog({
           <Button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+            className="rounded-xl bg-primary hover:bg-[#594cc8]"
           >
             {saving ? 'Đang lưu…' : 'Tạo lead'}
           </Button>
@@ -2858,12 +2849,12 @@ function LoginScreen({
   };
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#101a2b] p-5">
-      <div className="absolute -left-32 -top-32 size-96 rounded-full bg-[#6558d3]/30 blur-3xl" />
+      <div className="absolute -left-32 -top-32 size-96 rounded-full bg-primary/30 blur-3xl" />
       <div className="absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-[#35b79b]/20 blur-3xl" />
       <Card className="relative w-full max-w-md border-white/10 bg-white/[.96] p-3 shadow-2xl dark:bg-[#1b2940]">
         <CardHeader>
           <div className="mb-5 flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-2xl bg-[#6558d3] text-white">
+            <div className="grid size-11 place-items-center rounded-2xl bg-primary text-white">
               <Sparkles className="size-5" />
             </div>
             <div>
@@ -2902,7 +2893,7 @@ function LoginScreen({
             <Button
               type="submit"
               disabled={loading}
-              className="h-11 w-full rounded-xl bg-[#6558d3] hover:bg-[#594cc8]"
+              className="h-11 w-full rounded-xl bg-primary hover:bg-[#594cc8]"
             >
               {loading ? 'Đang kết nối…' : 'Đăng nhập'}
             </Button>
@@ -2978,7 +2969,7 @@ function MiniStat({
           <p className="mt-2 text-3xl font-bold tracking-tight">{value}</p>
           <p className="mt-1 text-xs text-[#21806d]">{caption}</p>
         </div>
-        <div className="grid size-11 place-items-center rounded-2xl bg-[#e9e6ff] text-[#6558d3]">
+        <div className="grid size-11 place-items-center rounded-2xl bg-[#e9e6ff] text-primary">
           <Icon className="size-5" />
         </div>
       </CardContent>

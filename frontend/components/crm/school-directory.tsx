@@ -249,9 +249,7 @@ export function SchoolDirectory({
     <div className="space-y-5">
       {demo && (
         <aside className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          Danh bạ minh họa chỉ đọc, không chứa dữ liệu trường thật. Nhập Excel,
-          đăng ký tiếp cận và xác minh hợp đồng dùng bản CRM kết nối .NET
-          API/MySQL.
+          Chế độ xem thử — dữ liệu mẫu chỉ đọc. Để quản lý trường thật, hãy đăng nhập hệ thống đã kết nối API.
         </aside>
       )}
       {adminMode
@@ -335,7 +333,7 @@ export function SchoolDirectory({
             <option value="ALL">Tất cả trạng thái</option>
             <option value="AVAILABLE">Chưa đăng ký</option>
             <option value="APPROACHING">Đang tiếp cận</option>
-            <option value="CONTRACTED">Đã ký hợp đồng</option>
+            <option value="CONTRACTED">Đã xác minh hợp đồng</option>
           </select>
           <AppButton type="submit" className="h-11 min-w-28 rounded-xl">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" className="h-11 min-w-24 rounded-xl"

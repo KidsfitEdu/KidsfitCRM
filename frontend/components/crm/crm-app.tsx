@@ -52,6 +52,7 @@ import { nav, viewCopy, type View } from '@/src/config/navigation';
 import { Sidebar } from '@/src/components/layout/Sidebar';
 import { viewToPath, pathToView } from '@/src/config/routes';
 import { AppShell } from '@/src/components/layout/AppShell';
+import { AppProviders } from '@/src/providers/AppProviders';
 import { Header } from '@/src/components/layout/Header';
 import { createApiClient } from '@/src/services/api.client';
 import { LoginPage } from '@/src/pages/Auth/Login/LoginPage';
@@ -1000,7 +1001,7 @@ function CrmWorkspace({
   const activeCopy = viewCopy[currentView];
 
   return (
-    <AppShell>      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdminWorkspace} apiBase={apiBase} onLogout={logout}/>
+    <AppProviders key={demoAccount?.id ?? token ?? 'anonymous'}><AppShell>      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdminWorkspace} apiBase={apiBase} onLogout={logout}/>
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
         <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark}/>
         <div className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
@@ -1182,7 +1183,7 @@ function CrmWorkspace({
           {notice}
         </output>
       )}
-    </AppShell>
+    </AppShell></AppProviders>
   );
 }
 

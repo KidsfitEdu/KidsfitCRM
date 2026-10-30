@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { RolePageProps } from '@/src/types/role-pages';
 import { rolePageSections } from '@/src/config/role-pages';
 import { DashboardPage } from './Dashboard/DashboardPage';
@@ -24,9 +22,8 @@ const pages = {
 
 /** Existing view IDs are preserved; each page owns its UI entrypoint. */
 export function SalesStaffWorkspace({section, ...props}: Props) {
-  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15000 } } }));
   const Page = pages[section];
-  return <QueryClientProvider client={queryClient}>
+  return <>
     {Page ? <Page {...props}/> : <p role="alert">Không tìm thấy chức năng được yêu cầu.</p>}
-  </QueryClientProvider>;
+  </>;
 }

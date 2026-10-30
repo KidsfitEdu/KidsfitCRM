@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AdminPageProps } from '@/src/pages/Admin/types';
 import { DashboardPage } from '@/src/pages/Admin/Dashboard/DashboardPage';
 import { SchoolsPage } from '@/src/pages/Admin/Schools/SchoolsPage';
@@ -20,8 +18,7 @@ type Props=AdminPageProps&{section:AdminSection};
  * Move the provider to AppProviders when the URL route migration is ready.
  */
 export function AdminWorkspace({section,...props}:Props) {
-  const [client]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:1,staleTime:15000}}}));
-  return <QueryClientProvider client={client}>
+  return <>
     {section==='dashboard'&&<DashboardPage {...props}/>}
     {section==='admin-schools'&&<SchoolsPage {...props}/>}
     {section==='admin-proposals'&&<ProposalsPage {...props}/>}
@@ -29,5 +26,5 @@ export function AdminWorkspace({section,...props}:Props) {
     {section==='admin-capacity'&&<AdminPageStatus apiBase={props.apiBase}><CapacitiesPage apiBase={props.apiBase} token={props.token} abilities={props.abilities}/></AdminPageStatus>}
     {section==='admin-policies'&&<PoliciesPage {...props}/>}
     {section==='admin-reports'&&<ReportsPage {...props}/>}
-  </QueryClientProvider>;
+  </>;
 }

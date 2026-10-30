@@ -2,7 +2,7 @@
 
 **Scope approved:** owner confirmed current local MySQL contains **demo data only** and is disposable. Refactor source to the seven business roles defined in `docs/requirements/DECISION_LOG.md`, retire unrelated enrollment/tuition code and create a clean CRM-only initial schema. Keep PR #25 open; do not merge.
 
-**What is verified:** repository source, migrations and GitHub CI. **What is not verified:** a reachable MySQL local database, a restorable local dump, a fully rebuilt EF schema or a successful seven-role login matrix. The coding environment has no dotnet SDK, MySQL client/server or Docker. No database DROP/ALTER/DELETE has been executed.
+**What is verified:** repository source, migrations and GitHub CI. **What is not verified:** a reachable MySQL local database, a restorable local dump, a fully rebuilt EF schema or a successful seven-role login matrix. This execution environment has .NET 10 but no reachable local MySQL service; MySQL client/server and a running Docker daemon are unavailable. No database DROP/ALTER/DELETE has been executed.
 
 ## Mapping / deletion manifest
 
@@ -33,3 +33,23 @@
 **Not performed yet:** replacement migration generation, migration-folder deletion, real DB reset, role remapping or full backend/frontend cleanup. A previous CI run passed 76 MySQL integration tests but failed a legacy Sales-capacity assumption; the test was updated in commit `5ec935a1` and awaits CI. Do not claim the whole refactor is complete until each gate passes.
 
 **Business decisions still OPEN:** post-CHECKEE long-term protection grant actor, pending-extension review SLA, main/branch legal scope, and provisional 30% commission trigger/base. Do not activate them by deleting legacy schemas.
+
+
+## Local continuation checkpoint — 2026-10-30
+
+This checkout is `feat/crm-one-shot-safe-upgrade-20261030` at `26d6cf2`. The working tree was clean before this checkpoint. Local checks run during this continuation:
+
+| Check | Result | Evidence / limitation |
+| --- | --- | --- |
+| Frontend lint | PASS | `npm run lint` |
+| Frontend TypeScript | PASS | `npx tsc --noEmit` |
+| Frontend demo tests | PASS | `npm run test:demo`: 21 passed |
+| Frontend Vinext production build | PASS | `npm run build`; all five build stages completed |
+| Frontend Pages tests | PARTIAL | 8 passed / 2 failed because `dist-pages` was absent; Pages build could not produce it |
+| Frontend Pages build | BLOCKED | Installed Windows `node_modules` is missing Tailwind Oxide and LightningCSS native binaries; Vite also hit sandbox `spawn EPERM`. A subsequent `npm ci` was blocked while unlinking a locked LightningCSS binary. |
+| Backend unit suite | PASS with skips | `dotnet test KidsfitCRM.slnx --no-build --no-restore`: 31 passed / 46 skipped / 0 failed |
+| MySQL integration / dump / restore / reset | NOT_RUN | `localhost:3307` did not accept connections; `mysql`/`mysqldump` are absent; Docker daemon is unavailable |
+| Demo seed credential | BLOCKED | `Seed__DemoPassword` is not set in the execution environment; no secret value was read or logged |
+| Git push / local PR update | BLOCKED | GitHub CLI is absent and the configured network proxy refused the Git connection; GitHub connector confirms PR #25 remains open |
+
+No migration, database backup, restore, reset, or destructive code cleanup was performed in this continuation. The `InitialCRM` migration, seven-role runtime authorization/seed, education-module removal, MySQL-backed scenario suite, and push to PR #25 remain outstanding. Resume after the isolated local MySQL 8.4 service is reachable, the environment provides `Seed__DemoPassword`, platform dependencies are repaired, and GitHub access is available. Do not infer a successful backup/restore or database reset from the user's data-ownership confirmation alone.

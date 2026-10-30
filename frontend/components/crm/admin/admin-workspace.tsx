@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, RefreshCw, Plus, FileSpreadsheet } from 'lucide-react';
+import { AlertCircle, RefreshCw, Plus, FileSpreadsheet, Eye, Pencil, History, Check } from 'lucide-react';
+import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from './admin-list-ui';
+import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppPagination } from '@/components/common/app-pagination';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/app-button';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { Building2, ClipboardList, CalendarClock, Handshake, TrendingUp, UsersRound } from 'lucide-react';
@@ -37,10 +41,15 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const [report, setReport] = useState<SchoolOperationsReport | null>(null);
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [search, setSearch] = useState('');
+  const [proposalDraft, setProposalDraft] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [manualOpen, setManualOpen] = useState(false);
   const [teamFormOpen, setTeamFormOpen] = useState(false);
   const [teamSearch, setTeamSearch] = useState('');
+  const [teamDraft, setTeamDraft] = useState('');
+  const [teamPage, setTeamPage] = useState(1);
+  const [teamPageSize, setTeamPageSize] = useState(20);
+  const [teamDetail, setTeamDetail] = useState<ChannelManagement['team'][number] | null>(null);
   const [teamStatus, setTeamStatus] = useState('ALL');
   const [teamForm, setTeamForm] = useState({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});
   const [manual, setManual] = useState<Record<string,string>>({unit_type:'MAIN'});
@@ -69,7 +78,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được dữ liệu.'); }
     finally { setBusy(false); }
   };
-  useEffect(() => { void reload(); }, [section, token, page, period, statusFilter]);
+  useEffect(() => { void reload(); }, [section, token, page, period, statusFilter, search]);
   const updateProposal = async (id: number, approve: boolean, duplicateReviewed: boolean) => {
     if (!reason.trim()) { setError('Cần nhập căn cứ quyết định.'); return; }
     setBusy(true); setError('');
@@ -177,36 +186,47 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
             onClick={openImport}>Import Excel</AppButton>
         </div>}/>
     </>}
-    {section === 'admin-proposals' && <>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Summary label="Chờ Admin duyệt" value={operations ? pending : null} />
-        <Summary label="Tổng đề xuất (trang hiện tại)" value={operations?.proposals.length ?? null} />
-        <Summary label="Quá hạn" value={operations?.proposals.filter(x => x.is_overdue).length ?? null} />
+    {section === 'admin-proposals' && <div className="space-y-5">
+  <AppPageHeader eyebrow="QUẢN TRỊ / ĐỀ XUẤT TRƯỜNG" title="Quản lý đề xuất trường" description="Tiếp nhận, rà soát và phê duyệt đề xuất trường theo thẩm quyền."
+    actions={<AppButton tone="blue" premium leadingIcon={<RefreshCw className="size-4"/>} disabled={busy||preview} onClick={()=>void reload()}>Làm mới</AppButton>}/>
+  <AdminListPanel>
+    <AdminListToolbar search={proposalDraft} onSearchChange={setProposalDraft} onSearch={()=>{setPage(1);setSearch(proposalDraft.trim());}}
+      onReset={()=>{setProposalDraft('');setSearch('');setStatusFilter('ALL');setPage(1);}}
+      placeholder="Tên trường, mã trường, người đề xuất..." searchLabel="Tìm đề xuất trường"
+      filters={<AppNativeSelect aria-label="Lọc trạng thái đề xuất" value={statusFilter} containerClassName="h-11 w-full sm:w-[200px]" onChange={e=>{setStatusFilter(e.target.value);setPage(1);}}>
+        <option value="ALL">Tất cả trạng thái</option><option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option>
+        <option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option>
+      </AppNativeSelect>}/>
+    {busy && <p className="px-6 py-3 text-sm text-muted-foreground">Đang tải đề xuất…</p>}
+    <div className="overflow-x-auto">
+      <table className={adminTableClass}>
+        <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Trường học</th><th className="px-5 py-4">Người đề xuất</th>
+          <th className="px-5 py-4 text-center">Trạng thái</th><th className="px-5 py-4 text-center">Hạn xử lý</th><th className="px-5 py-4 text-center">Thao tác</th></tr></thead>
+        <tbody>{proposals.map(p=><tr key={p.id} className="border-t border-border/70 even:bg-muted/20 hover:bg-accent">
+          <td className="px-5 py-4"><p className="font-semibold">{p.name}</p><p className="mt-1 text-xs text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>
+            {p.possible_duplicate && <p className="mt-1 text-xs text-amber-700">Cần kiểm tra trùng</p>}</td>
+          <td className="px-5 py-4"><p>{p.submitted_by}</p><p className="mt-1 text-xs text-muted-foreground">Quản lý: {p.manager_name}</p></td>
+          <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status} label={workflowLabels[p.status]??p.status}/></td>
+          <td className="px-5 py-4 text-center tabular-nums">{workflowDate(p.review_due_at)}</td>
+          <td className="px-5 py-4"><div className="flex items-center justify-center gap-2">
+            {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>openEdit(p)}/>}
+            {!preview && can('channel_sales.school.directory.manage') && <AdminIconAction icon={History} tone="neutral" label={`Xem lịch sử ${p.name}`} onClick={()=>void showRevisions(p.id)}/>}
+            {p.can_admin_review && !preview && <AdminIconAction icon={Check} tone="green" label={`Duyệt ${p.name}`} onClick={()=>{setSelected(p.id);setReason('');}}/>}
+          </div></td>
+        </tr>)}</tbody>
+      </table>
+      {!busy && proposals.length===0 && <p className="p-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
+    </div>
+    {operations?.pagination && <div className="flex items-center justify-between gap-3 border-t border-border/80 px-5 py-4">
+      <span className="text-sm text-muted-foreground">Trang {page} · {operations.proposals.length} hồ sơ trên trang</span>
+      <div className="flex items-center gap-2">
+        <AppButton tone="outline" disabled={busy||page<=1} onClick={()=>setPage(v=>v-1)}>Trước</AppButton>
+        <span className="grid size-9 place-items-center rounded-lg bg-[#1b5e20] text-sm font-bold text-white">{page}</span>
+        <AppButton tone="outline" disabled={busy||operations.proposals.length<operations.pagination.page_size} onClick={()=>setPage(v=>v+1)}>Sau</AppButton>
       </div>
-      <div className={panel}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Danh sách đề xuất trường</h3><Button variant="outline" disabled={busy || preview} onClick={() => void reload()}><RefreshCw className="mr-2 size-4"/>Làm mới</Button></div>
-        <div className="flex flex-wrap gap-2"><Input className="min-w-48 flex-1" aria-label="Tìm đề xuất" placeholder="Tìm tên trường hoặc mã trường…" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/><select aria-label="Lọc trạng thái" className="rounded-lg border bg-background px-3" value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1);}}><option value="ALL">Tất cả trạng thái</option><option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option></select><Button variant="outline" onClick={()=>{setSearch('');setStatusFilter('ALL');setPage(1);}}>Reset bộ lọc</Button></div>
-        {busy && <p className="mt-3 text-sm text-muted-foreground">Đang tải dữ liệu…</p>}
-        <div className="mt-4 overflow-x-auto rounded-xl border">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-[#1b5e20] text-xs font-bold uppercase text-white"><tr><th className="p-3">Trường học</th><th className="p-3">Người đề xuất</th><th className="p-3">Trạng thái</th><th className="p-3">Hạn xử lý</th><th className="p-3 text-right">Thao tác</th></tr></thead>
-            <tbody>{proposals.map(p=><tr key={p.id} className="border-t align-top hover:bg-muted/30">
-              <td className="p-3"><p className="font-semibold">{p.name}</p><p className="text-xs text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>{p.possible_duplicate && <p className="text-xs text-amber-700">Cần kiểm tra trùng</p>}</td>
-              <td className="p-3"><p>{p.submitted_by}</p><p className="text-xs text-muted-foreground">QL: {p.manager_name}</p></td>
-              <td className="p-3"><span className="rounded-full bg-muted px-2 py-1 text-xs">{workflowLabels[p.status]??p.status}</span></td>
-              <td className="p-3">{workflowDate(p.review_due_at)}</td>
-              <td className="p-3"><div className="flex justify-end gap-1">
-                {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <Button size="sm" variant="outline" onClick={()=>openEdit(p)}>Sửa</Button>}
-                {!preview && can('channel_sales.school.directory.manage') && <Button size="sm" variant="outline" onClick={()=>void showRevisions(p.id)}>Lịch sử</Button>}
-                {p.can_admin_review && !preview && <Button size="sm" onClick={()=>{setSelected(p.id);setReason('');}}>Duyệt</Button>}
-              </div></td>
-            </tr>)}</tbody>
-          </table>
-          {!busy && proposals.length===0 && <p className="p-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
-        </div>
-        {operations?.pagination && <div className="mt-4 flex items-center justify-end gap-3"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Trước</Button><span className="text-sm">Trang {page}</span><Button variant="outline" disabled={operations.proposals.length < operations.pagination.page_size} onClick={()=>setPage(p=>p+1)}>Sau</Button></div>}
-      </div>
-    </>}
+    </div>}
+  </AdminListPanel>
+</div>}
     {section === 'admin-team' && <div className={panel}>
       <div className="mb-4 flex justify-between gap-3"><h3 className="font-semibold">Nhân sự & tổ chức</h3><Button disabled={preview || !can('channel_sales.team.manage')} onClick={()=>{setFormErrors({});setTeamFormOpen(v=>!v);}}>+ Thêm nhân sự</Button></div>
       <Dialog open={teamFormOpen} onOpenChange={open => { if (!busy) setTeamFormOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm nhân sự</DialogTitle><DialogDescription>Tạo tài khoản thuộc tổ chức được quản lý. Không cấp quyền Admin/BGĐ tại đây.</DialogDescription></DialogHeader><div className="space-y-3">

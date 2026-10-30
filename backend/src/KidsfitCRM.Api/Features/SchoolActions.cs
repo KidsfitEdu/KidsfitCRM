@@ -150,7 +150,7 @@ public sealed partial class ChannelSalesActions
         if (request.Limit is < 0 or > 1000) throw ApiValidationException.For("limit", "Hạn mức từ 0 đến 1.000 trường.");
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var membership = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {membershipId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(membership.OrganizationId) || !IsCollaborator(membership)) throw new KeyNotFoundException();
+        if (!access.CanManageOrganization(membership.OrganizationId) || !IsSchoolSales(membership)) throw new KeyNotFoundException();
         if (membership.SchoolApproachLimit == request.Limit) return;
         var change = new SchoolCapacityChange { MembershipId = membership.Id, ActorUserId = actorId, PreviousLimit = membership.SchoolApproachLimit, NewLimit = request.Limit, Reason = reason, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.SchoolCapacityChanges.Add(change);
@@ -162,7 +162,7 @@ public sealed partial class ChannelSalesActions
         await transaction.CommitAsync(ct);
     }
 
-    private static bool IsCollaborator(OrganizationMembership membership) => membership.MembershipType is "COLLABORATOR" or "PARTNER_COLLABORATOR";
+    private static bool IsSchoolSales(OrganizationMembership membership) => membership.MembershipType is "SALES" or "CHANNEL_SALES" or "COLLABORATOR" or "PARTNER_COLLABORATOR";
 
     private async Task CheckSchoolCapacity(long ownerId, long organizationId, CancellationToken ct)
     {

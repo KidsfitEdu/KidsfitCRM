@@ -2,12 +2,18 @@
 
 ## Scope and sources of truth
 
+- For **current KIDSFIT/CHECKEE school-sales business requirements**, start at `docs/README.md`, then read the task-specific file under `docs/requirements/`. The current seven-role business model, 10-slot Sales limit, 5+7×3 protection, and Sales Manager→CHECKEE contract verification supersede historical product recommendations. This is a target specification, not a statement that code has been migrated.
+- Compare any product requirement with `docs/requirements/CODEBASE_GAP_ANALYSIS.md`. Never silently delete legacy `BOARD`, `CHANNEL_SALES`, `PARTNER_ADMIN`, `PARTNER_COLLABORATOR` roles or historical/audit/financial data. Their technical code names may remain while business UI converges on seven roles.
+- **OPEN**: the KIDSFIT actor who grants five-year protection after CHECKEE verification; commission 30% is provisional and its base/activation remain unapproved. Do not choose either implicitly.
+- No referrer or personal referral-commission split feature is in scope.
+
+
 - Implement only the user's requested slice. The product requirement is a baseline, not a request to scaffold the entire CRM.
 - For KidsfitCRM domain, schema, workflow, API, UI, architecture, security, or review work, use the repository skill at `.agents/skills/kidsfit-crm-development/SKILL.md` and load only its relevant references. Database work must also load `references/mysql-conventions.md`.
 - For every CHECKEE, customer-protection, partner/CTV, contract, revenue, commission, payout, or reconciliation request, also load `.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md` before planning or editing.
 - For school directory/import, branch, CTV capacity, assignment, proposal, extension, or school-contract verification work, also load `.agents/skills/kidsfit-crm-development/references/school-directory-workflows.md`.
-- For workflows from `KidsfitCRM_Notes.docx`, also read `docs/CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md`. Its `DRAFT` recommendations are proposals, not approved runtime rules. Keep its requirement matrix and verification evidence accurate when changing these workflows.
-- Resolve conflicts in this order: the current user request, accepted product decisions and tests, existing code/schema contracts, then the baseline skill references. Call out breaking conflicts rather than silently choosing one.
+- For workflows from `KidsfitCRM_Notes.docx`, also read `docs/implementation/CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md`. Its `DRAFT` recommendations are proposals, not approved runtime rules. Keep its requirement matrix and verification evidence accurate when changing these workflows.
+- Resolve conflicts in this order: current explicit user request, current accepted decisions in `docs/requirements/DECISION_LOG.md`, current requirements (intended behavior), verified code/schema/tests (actual behavior), then historical implementation notes and skill references. Surface migration gaps instead of silently treating legacy implementation as current policy. Call out breaking conflicts rather than silently choosing one.
 
 ## Product invariants
 

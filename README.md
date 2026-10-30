@@ -1,9 +1,12 @@
 # Kidsfit CRM
 
+> **Nghiệp vụ mới (30/10/2026):** Xem [bộ tài liệu đặc tả 7 vai trò CRM](docs/README.md). Source/demo hiện tại có role cũ (9 nhóm demo) và chính sách ví dụ; chúng **chưa được migrate** sang mô hình mới. Xem [bảng độ lệch code](docs/requirements/CODEBASE_GAP_ANALYSIS.md). Không dùng tỷ lệ demo làm mức hoa hồng thật.
+
+
 Mã nguồn: [KidsfitEdu/KidsfitCRM](https://github.com/KidsfitEdu/KidsfitCRM).
 Demo công khai, chỉ có dữ liệu giả lập: [Mở Kidsfit CRM Demo](https://kidsfitedu.github.io/KidsfitCRM/).
-Chọn một trong 9 vai trò để tự điền tài khoản; mật khẩu chung `Demo@2026`. Không cần đăng nhập ChatGPT.
-Phạm vi demo, quyền truy cập và dữ liệu không đưa lên Git: [hướng dẫn demo](docs/DEMO_DEPLOYMENT.md).
+Bản demo hiện tại vẫn có 9 nhóm tài khoản lịch sử để tự điền tài khoản; mật khẩu chung `Demo@2026`. Không cần đăng nhập ChatGPT.
+Phạm vi demo, quyền truy cập và dữ liệu không đưa lên Git: [hướng dẫn demo](docs/operations/DEMO_DEPLOYMENT.md).
 
 CRM hiện đại cho vận hành giáo dục và đội ngũ bán/triển khai CHECKEE: quản lý lead, học viên, lớp học, học phí, khách hàng doanh nghiệp, quyền bảo vệ, hợp đồng, doanh thu và hoa hồng.
 
@@ -43,10 +46,10 @@ Mở **CHECKEE Sales -> Trường học** để nhập `.xlsx` đúng mẫu đã
 cảnh báo, tìm trường/phân hiệu và quản lý hạn mức CTV. File nguồn không được nhập
 tự động: Admin chọn `docs/CRM_Import_Truong_Hoc.xlsx` và xác nhận sau khi rà soát.
 
-Hợp đồng trường học mới phải qua Quản lý -> CHECKEE -> KIDSFIT; bảo vệ 5 năm tính
+Theo quy định nghiệp vụ mới, Sales -> Quản lý bán hàng KIDSFIT/đối tác -> CHECKEE xác minh -> KIDSFIT ghi nhận bảo vệ; hiện code có thể còn phân quyền cũ; bảo vệ 5 năm tính
 từ ngày xác minh hợp lệ, không tính từ lúc gửi báo cáo. Hợp đồng lịch sử giữ nguyên.
 
-Chi tiết chức năng đã làm, giả định và backlog: [kế hoạch CRM trường học](docs/SCHOOL_CRM_IMPLEMENTATION.md).
+Chi tiết chức năng đã làm, giả định và backlog: [kế hoạch CRM trường học](docs/implementation/SCHOOL_CRM_IMPLEMENTATION.md).
 
 ## Chỉ mở giao diện demo
 
@@ -129,10 +132,10 @@ Kiểm thử tích hợp MySQL dùng database tạm có tiền tố `kidsfit_it_
 
 Luồng thử nhanh: đăng ký khách hàng → báo hợp đồng → kế toán ghi nhận thu → CHECKEE xác nhận đối soát → kế toán chọn tháng và lập phiếu chi → duyệt → nhập mã giao dịch thực tế để ghi nhận đã chi. Nhân viên/CTV thấy thu nhập trong phạm vi cá nhân.
 
-Các gói CHECKEE, tỷ lệ 10%/12% và hạn mức 20%/15% hiện là dữ liệu minh họa, cần thay bằng chính sách kinh doanh thực tế trước pilot. Mốc thời gian dùng 120 giờ, 5 năm từ ngày ký, các kỳ thu nhập theo múi giờ Việt Nam.
+Các gói CHECKEE, tỷ lệ 10%/12% và hạn mức 20%/15% hiện là dữ liệu minh họa (mức hoa hồng Sales dự kiến 30% **chưa phê duyệt chính thức**), cần thay bằng chính sách kinh doanh thực tế trước pilot. Mốc thời gian dùng 120 giờ, 5 năm từ ngày ký, các kỳ thu nhập theo múi giờ Việt Nam.
 
 ## Kế hoạch CRM bán hàng CHECKEE
 
 - Nguồn yêu cầu và quy tắc nghiệp vụ: [CHECKEE sales CRM product reference](./.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md).
-- Lộ trình triển khai theo giai đoạn: [CHECKEE CRM implementation plan](./docs/CHECKEE_CRM_IMPLEMENTATION_PLAN.md).
+- Lộ trình triển khai theo giai đoạn: [CHECKEE CRM implementation plan](./docs/implementation/CHECKEE_CRM_IMPLEMENTATION_PLAN.md).
 - Module MVP đã được triển khai tại `GET /api/channel-sales/workspace` cùng các named actions đăng ký tiếp cận, cập nhật hoạt động, báo hợp đồng, ghi nhận thực thu và xác nhận/tranh chấp đối soát.

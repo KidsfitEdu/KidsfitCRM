@@ -1,4 +1,7 @@
-# School directory and operating workflow
+# School directory and operating workflow — historical source notes
+
+> **UPDATED PRODUCT AUTHORITY (2026-10-30):** use `docs/requirements/{CRM_FUNCTIONAL_SPECIFICATION,ROLES_AND_PERMISSIONS,BUSINESS_RULES,BUSINESS_WORKFLOWS,DECISION_LOG}.md` before the historical notes below. Seven business roles, Sales employee + CTV both default 10 concurrent schools, **7 days per extension × max 3 approved**, Sales → scoped Manager (KIDSFIT or partner) → CHECKEE, verified contract → authorized KIDSFIT protection grant. The old text treating seven days as unapproved is superseded. The `grant-protection` actor in KIDSFIT is still OPEN; existing Admin implementation is not product permission approval.
+
 
 Read for school imports, branches, CTV capacity, approach extensions, assignments,
 school proposals, and school-contract verification. This reference supplements

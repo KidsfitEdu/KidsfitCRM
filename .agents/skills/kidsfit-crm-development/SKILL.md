@@ -7,6 +7,15 @@ description: Design, plan, implement, review, and test KidsfitCRM features using
 
 Use this skill to keep implementation decisions aligned with the relevant KidsfitCRM bounded context while respecting the user's current task and the code that already exists.
 
+## Current school-sales source of truth (2026-10-30)
+
+- **Mandatory for current school CRM**: read `docs/README.md`, then the task's relevant files from `docs/requirements/`: `CRM_FUNCTIONAL_SPECIFICATION.md`, `ROLES_AND_PERMISSIONS.md`, `BUSINESS_RULES.md`, `BUSINESS_WORKFLOWS.md`, `DECISION_LOG.md`. Inspect `CODEBASE_GAP_ANALYSIS.md` before editing existing implementations.
+- **Seven target business roles:** Admin, BGĐ KIDSFIT, Kế toán, Quản lý bán hàng, CSKH, CHECKEE, Sales. Sales combines employee/CTV business functionality, both with 10 concurrent slots. Historical role codes still exist and need a reviewed mapping/migration.
+- **Approved extension:** initial 5-day protection, 7 days per approval, maximum 3 approved extensions per approach. Old `7 days is only a proposal` or `max 2` guidance is historical and superseded.
+- **Contract:** Sales creates → direct KIDSFIT/partner Sales Manager reviews and submits to CHECKEE → CHECKEE verifies → separately authorized KIDSFIT actor grants 5 years from verification. Director/Admin are **not routine approval intermediates**; the KIDSFIT grant permission owner is OPEN.
+- **Money:** 30% is only a proposed Sales commission rate, not a production rule; base/trigger/effective date OPEN. No referrer/split feature.
+- `docs/implementation/` records past/current delivery. Do not call a requirement implemented before tests and source confirm it.
+
 ## Start with the requested scope
 
 - Inspect the relevant code, tests, schema, and repository instructions before proposing changes.

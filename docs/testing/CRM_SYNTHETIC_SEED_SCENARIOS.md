@@ -1,3 +1,5 @@
+> **Historical implementation record.** Current accepted school-sales rules: [requirements](../requirements/CRM_FUNCTIONAL_SPECIFICATION.md), [decision log](../requirements/DECISION_LOG.md). Previously implemented behavior, demo rates and DRAFT policy suggestions below do not supersede these rules.
+
 # CRM synthetic seed scenarios (local/testing only)
 
 This branch extends the existing `--seed-demo` runner and does not run automatically for regular API startup. **Never run demo seeding against production or a database containing real people or commercial records.** Use a fresh disposable MySQL database and the project's explicit migration/seed workflow.

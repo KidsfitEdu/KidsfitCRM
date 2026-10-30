@@ -1,3 +1,5 @@
+> **Historical implementation record.** Current accepted school-sales rules: [requirements](../requirements/CRM_FUNCTIONAL_SPECIFICATION.md), [decision log](../requirements/DECISION_LOG.md). Previously implemented behavior, demo rates and DRAFT policy suggestions below do not supersede these rules.
+
 # Git và bản demo
 
 Repository mã nguồn: https://github.com/KidsfitEdu/KidsfitCRM

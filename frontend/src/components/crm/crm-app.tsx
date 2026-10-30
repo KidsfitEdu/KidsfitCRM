@@ -954,12 +954,13 @@ function CrmWorkspace({
     abilities.includes('*') || abilities.includes(ability);
   const isAdminWorkspace = can('channel_sales.school.directory.manage') && can('channel_sales.scope.all');
   const isManagerWorkspace = !isAdminWorkspace && can('channel_sales.school.allocation.manage');
-  const isBoardWorkspace = !isAdminWorkspace && !isManagerWorkspace && (demoAccount?.id === 'board' || (!demoAccount && membershipType === 'BOARD'));
+  const isBoardWorkspace = !isAdminWorkspace && !isManagerWorkspace && (demoAccount?.id === 'board' || (!demoAccount && (membershipType === 'DIRECTOR' || membershipType === 'BOARD')));
   const isAccountingWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && (demoAccount?.id === 'accountant' || (!demoAccount && membershipType === 'ACCOUNTANT'));
-  const isCustomerCareWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && (demoAccount?.id === 'care' || (!demoAccount && membershipType === 'CUSTOMER_CARE'));
-  const isSalesStaffWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && !isCustomerCareWorkspace && (demoAccount?.id === 'sales' || (!demoAccount && membershipType === 'SALES'));
-  const isCheckeeWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && !isCustomerCareWorkspace && !isSalesStaffWorkspace && (demoAccount?.id === 'checkee' || (!demoAccount && membershipType === 'RECONCILIATION'));
-  const isCollaboratorWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && !isCustomerCareWorkspace && !isSalesStaffWorkspace && !isCheckeeWorkspace && (demoAccount?.id === 'ctv' || (!demoAccount && (membershipType === 'COLLABORATOR' || membershipType === 'PARTNER_COLLABORATOR')));
+  const isCustomerCareWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && (demoAccount?.id === 'care' || (!demoAccount && (membershipType === 'CUSTOMER_SERVICE' || membershipType === 'CUSTOMER_CARE')));
+  const isSalesStaffWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && !isCustomerCareWorkspace && ((demoAccount?.id === 'sales' || demoAccount?.id === 'ctv') || (!demoAccount && (membershipType === 'SALES' || membershipType === 'COLLABORATOR' || membershipType === 'PARTNER_COLLABORATOR')));
+  const isCheckeeWorkspace = !isAdminWorkspace && !isManagerWorkspace && !isBoardWorkspace && !isAccountingWorkspace && !isCustomerCareWorkspace && !isSalesStaffWorkspace && (demoAccount?.id === 'checkee' || (!demoAccount && (membershipType === 'CHECKEE' || membershipType === 'RECONCILIATION')));
+  // Employees and collaborators use one Sales navigation; screen adapters remain until full page consolidation.
+  const isCollaboratorWorkspace = isSalesStaffWorkspace;
   const visibleNav = isAdminWorkspace
     ? nav.filter((item) => {
         if (item.id === 'dashboard') return can('channel_sales.customer.view');
@@ -977,7 +978,9 @@ function CrmWorkspace({
     : isCustomerCareWorkspace
       ? nav.filter(item=>item.id.startsWith('role-customer-care-'))
     : isSalesStaffWorkspace
-      ? nav.filter(item=>item.id.startsWith('role-sales-staff-'))
+      ? nav.filter(item =>
+          (item.id.startsWith('role-sales-staff-') && !['role-sales-staff-schools','role-sales-staff-proposals'].includes(item.id)) ||
+          (item.id.startsWith('role-collaborator-') && !['role-collaborator-dashboard','role-collaborator-income'].includes(item.id)))
     : isCheckeeWorkspace
       ? nav.filter(item=>item.id.startsWith('role-checkee-'))
     : isCollaboratorWorkspace

@@ -29,7 +29,7 @@ services:
       Jwt__Audience: KidsfitCRM.Web
       Jwt__Key: local-docker-key-change-before-production-2026
       Cors__Origins__0: http://localhost:3000
-      Seed__DemoEnabled: "true"
+      Seed__DemoEnabled: "false"
     depends_on:
       mysql:
         condition: service_healthy

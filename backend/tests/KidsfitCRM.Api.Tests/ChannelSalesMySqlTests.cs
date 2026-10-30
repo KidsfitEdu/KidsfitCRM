@@ -54,6 +54,17 @@ public sealed class ChannelMySqlFixture : IAsyncLifetime
         await using var scope = provider.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<KidsfitDbContext>().Database.MigrateAsync();
         await DatabaseSeeder.SeedAsync(scope.ServiceProvider);
+        // Seed never activates a provisional business commission policy on real demo data.
+        var testDb = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
+        Assert.All(await testDb.CommissionPolicyVersions.AsNoTracking().ToListAsync(),
+            policy => { Assert.Equal("DRAFT", policy.Status); Assert.Equal(0m, policy.RatePercent); });
+        // Legacy integration expectations use an explicitly local TEST policy; production seed stays DRAFT.
+        await testDb.Organizations.Where(x => x.Code == "KIDSFIT").ExecuteUpdateAsync(x => x.SetProperty(o => o.CommissionRateCeiling, 20m));
+        await testDb.Organizations.Where(x => x.Code == "PARTNER_AN_PHAT").ExecuteUpdateAsync(x => x.SetProperty(o => o.CommissionRateCeiling, 15m));
+        await testDb.CommissionPolicyVersions.Where(x => x.Code == "KIDSFIT-2026-V1")
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.RatePercent, 10m).SetProperty(p => p.Status, "ACTIVE"));
+        await testDb.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1")
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.RatePercent, 12m).SetProperty(p => p.Status, "ACTIVE"));
         // A second run verifies additive seed behavior on a populated database.
         await DatabaseSeeder.SeedAsync(scope.ServiceProvider);
     }

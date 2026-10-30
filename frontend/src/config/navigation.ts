@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LucideIcon, LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CircleDollarSign, CalendarDays, Phone, Circle } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CircleDollarSign, CalendarDays, Phone, Circle } from 'lucide-react';
 
 // Single source of truth for CRM view identifiers, sidebar entries and page copy.
 // These IDs remain stable while individual roles/pages are migrated.

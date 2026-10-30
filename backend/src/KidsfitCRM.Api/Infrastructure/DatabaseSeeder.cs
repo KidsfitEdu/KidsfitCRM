@@ -147,7 +147,7 @@ public static class DatabaseSeeder
             ["ADMIN"] = permissionByCode.Keys.ToArray(),
             ["DIRECTOR"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesAllScope],
             ["ACCOUNTANT"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRecordRevenue, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesOrganizationScope, Permissions.ChannelSalesPayoutCreate, Permissions.ChannelSalesPayoutApprove, Permissions.ChannelSalesPayoutComplete, Permissions.ChannelSalesCommissionAdjust],
-            ["SALES_MANAGER"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRegister, Permissions.ChannelSalesActivity, Permissions.ChannelSalesReportContract, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesManage, Permissions.ChannelSalesOrganizationScope],
+            ["SALES_MANAGER"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRegister, Permissions.ChannelSalesActivity, Permissions.ChannelSalesReportContract, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesManage, Permissions.ChannelSalesOrganizationScope, Permissions.ChannelSalesTeamManage],
             ["CUSTOMER_SERVICE"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesActivity, Permissions.ChannelSalesOrganizationScope],
             ["SALES"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRegister, Permissions.ChannelSalesActivity, Permissions.ChannelSalesReportContract, Permissions.ChannelSalesCommissionView],
             ["CHECKEE"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesReconcile, Permissions.ChannelSalesOrganizationScope],

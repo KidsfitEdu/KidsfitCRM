@@ -1,6 +1,6 @@
 # KIDSFIT UI design system — tokens and visual language
 
-Source inspected: \`frontend/app/globals.css\`, \`frontend/components/common/app-button.tsx\`, \`frontend/components/crm/admin/admin-list-ui.tsx\`, screenshot of Admin > Quản lý đề xuất trường supplied on 2026-10-30. Current CSS contains earlier \`:root\` blocks and later brand overrides; inspect **effective computed styles**, not only the first token declaration.
+Source inspected: \`frontend/src/app/globals.css\`, \`frontend/src/components/common/app-button.tsx\`, \`frontend/src/components/common/admin-list-ui.tsx\`, screenshot of Admin > Quản lý đề xuất trường supplied on 2026-10-30. Current CSS contains earlier \`:root\` blocks and later brand overrides; inspect **effective computed styles**, not only the first token declaration.
 
 ## Intent
 

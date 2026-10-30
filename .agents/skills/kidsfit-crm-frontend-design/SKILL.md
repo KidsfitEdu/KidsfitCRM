@@ -7,10 +7,14 @@ description: Design, implement, refine, review, and visually QA KidsfitCRM front
 
 Use this skill **only for KidsfitCRM frontend work**. Treat the shared Admin > "Quản lý đề xuất trường" screenshot (2026-10-30) as a **visual reference**, not executable code or proof of live behavior. The repository's actual components and tokens are implementation references.
 
+## Source layout warning (2026-10-30)
+
+Current frontend architecture is `frontend/src/app/` for Vinext pages, `frontend/src/screens/` for role views, `frontend/src/components/` for reusable UI, `frontend/src/config/` for navigation and `frontend/src/services/` for API clients. Check `docs/implementation/CURRENT_SOURCE_MAP.md` and `frontend/docs/architecture.md`. Do not use old `frontend/components/` paths or create duplicate role pages. The Admin proposals screen is `frontend/src/screens/Admin/Proposals/ProposalsPage.tsx`. Preserve legacy routes and SalesStaff/Collaborator workspaces until a tested compatibility migration.
+
 ## Read first, in this order
 
 1. Repository \`AGENTS.md\`, then \`docs/design/FRONTEND_DESIGN_SYSTEM.md\`.
-2. Inspect the actual view, nearby components, \`frontend/app/globals.css\`, its data/loading/permission paths, and related tests.
+2. Inspect the actual view, nearby components, \`frontend/src/app/globals.css\`, its data/loading/permission paths, and related tests.
 3. Read only relevant reference(s):
    - [Design system](references/design-system.md): color, spacing, type, hierarchy and states.
    - [UI components](references/ui-components.md): forms, actions, tables, messages.

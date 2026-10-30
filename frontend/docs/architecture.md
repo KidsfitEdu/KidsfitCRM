@@ -59,7 +59,7 @@ match the new folder names.
 ## Stage 3–4 implementation status
 
 - Six role page groups (`Board`, `Accounting`, `CustomerCare`, `SalesStaff`, `Checkee`, `Collaborator`) contain 33 presentation-page entries; `SalesManager` has six additional page entries. Shared dashboards and operations panels remain in `src/components/roles/`, preserving the existing backend permission and panel mapping.
-- The former role workspaces now re-export their new `src/pages/<Role>/` counterparts for compatibility; `CrmApp` remains the state/session controller until the auth extraction is complete.
+- `CrmApp` now imports the role workspaces from `src/pages/<Role>/` directly; the 10 obsolete compatibility re-export files were removed after rewiring consumers. `CrmApp` remains the state/session controller until a separately verified auth extraction.
 - `src/components/layout/Sidebar.tsx`, `Header.tsx`, `AppShell.tsx` own the surrounding UI and preserve the original CSS classes.
 - `src/providers/AppProviders.tsx` owns one React Query cache for each signed-in workspace, keyed by token/demo profile. Role workspaces no longer construct their own query clients.
 - `src/config/routes.ts` and Vinext `app/crm/[view]/page.tsx` provide optional canonical deep links. Menu navigation uses browser history only with a configured real API; the static GitHub Pages demo remains root-only.
@@ -92,3 +92,11 @@ No policy changes here: initial 5-day approach, approved 7-day extensions
 (max 3), organization-scoped permissions, direct Manager→CHECKEE
 verification, five-year protection grant actor OPEN and provisional 30%
 commission stay governed by their own separate product decisions.
+
+## Stage 5 — cleanup and verification
+
+- 10 redundant workspace re-export shims removed. The feature-bearing files in `components/crm/` and `lib/` remain required and are not deleted blindly.
+- `tests/pages/role-architecture.test.mjs` checks the 46 role pages, menu IDs, direct imports, and missing obsolete shims. These are *structural regression checks*, not browser or API authorization E2E.
+- All page-specific CRUD, Dialog, pagination, API contract, and RBAC flows still require integrated staging tests with an isolated .NET/MySQL test database. Do not run test writes against production.
+- Auth/session and URL refresh/back/forward, unauthorized deep links, 8 UI groups, desktop/mobile pixel parity, a11y and cross-account cache isolation still require real browser verification on a build of this PR. A public GitHub Pages demo reflects its deployed commit and is not a preview of this branch.
+- Only merge after required CI is green and manual/automated staging approval is recorded.

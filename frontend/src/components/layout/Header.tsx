@@ -2,6 +2,7 @@
 import { Bell, Moon, Search, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+const initials=(name:string)=>name.split(' ').slice(-2).map(p=>p[0]).join('').toUpperCase();
 export function Header({todayLabel,userName,search,setSearch,dark,setDark}:{todayLabel:string;userName:string;search:string;setSearch:(v:string)=>void;dark:boolean;setDark:(v:boolean|((current:boolean)=>boolean))=>void}) {
  return <>
         <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">

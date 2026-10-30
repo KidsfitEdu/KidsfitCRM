@@ -109,14 +109,14 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
         <p className="font-semibold">{p.name}</p><p className="text-sm text-muted-foreground">{p.school_code} · {p.province} · {p.ward}</p>
         <p className="text-sm">Liên hệ: {p.contact_name || 'Chưa có'} · {p.contact_phone || 'Chưa có'}</p>
         {p.possible_duplicate && <p role="alert" className="text-sm text-amber-700">Có dấu hiệu trùng trường; vui lòng đối chiếu trước khi duyệt.</p>}
-        <label className="block text-sm font-medium">Lý do / căn cứ quyết định<Input className="mt-1" value={reason} onChange={e=>setReason(e.target.value)}/></label>
+        <label htmlFor="admin-proposal-review-reason" className="block text-sm font-medium">Lý do / căn cứ quyết định<Input id="admin-proposal-review-reason" className="mt-1" value={reason} onChange={e=>setReason(e.target.value)}/></label>
         <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={()=>setSelected(null)}>Hủy</Button><Button variant="outline" disabled={busy} onClick={()=>void updateProposal(p.id,false,false)}>Từ chối</Button><Button disabled={busy || !!p.possible_duplicate} onClick={()=>void updateProposal(p.id,true,false)}>Duyệt</Button></div>
       </div>:null; })()}
     </DialogContent></Dialog>
     <Dialog open={editing !== null} onOpenChange={open => { if (!open && !busy) setEditing(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader><DialogTitle>Chỉnh sửa đề xuất trường</DialogTitle><DialogDescription>Lưu nội dung trước/sau và lý do chỉnh sửa. Chỉ áp dụng khi chờ Admin duyệt.</DialogDescription></DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">{(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'] as const).map(k=><label key={k} className="text-xs font-medium">{({school_code:'Mã trường',name:'Tên trường',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'Số điện thoại',email:'Email'} as Record<string,string>)[k]}<Input className="mt-1" value={editFields[k]??''} onChange={e=>setEditFields(o=>({...o,[k]:e.target.value}))}/></label>)}</div>
-      <label className="text-sm font-medium">Lý do chỉnh sửa<Input className="mt-1" value={reason} onChange={e=>setReason(e.target.value)}/></label>
+      <label htmlFor="admin-proposal-edit-reason" className="text-sm font-medium">Lý do chỉnh sửa<Input id="admin-proposal-edit-reason" className="mt-1" value={reason} onChange={e=>setReason(e.target.value)}/></label>
       <FormActions busy={busy} onCancel={()=>setEditing(null)} onSave={()=>{const p=operations?.proposals.find(x=>x.id===editing);if(p)void saveEdit(p);}} saveLabel="Lưu thay đổi"/>
     </DialogContent></Dialog>
   </AdminPageStatus>;

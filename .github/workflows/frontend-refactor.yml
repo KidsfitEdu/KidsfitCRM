@@ -26,15 +26,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - name: Lint diagnostics with source locations
-        run: npx oxlint -A react/react-compiler app src components/crm lib demo vite.pages.config.ts --format json
-        continue-on-error: true
       - run: npm run lint
-        continue-on-error: true
       - run: npx tsc --noEmit
-        continue-on-error: true
       - run: npm run test:demo
       - run: npm run build
       - run: npm run build:pages
-        continue-on-error: true
       - run: npm run test:pages

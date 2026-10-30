@@ -247,15 +247,15 @@ function CrmWorkspace({
     demoAccount?.abilities ?? [],
   );
   const [loading, setLoading] = useState(false);
-  const [leads, setLeads] = useState<Lead[]>(demoLeads);
-  const [students, setStudents] = useState<Student[]>(demoStudents);
-  const [classes, setClasses] = useState<ClassRoom[]>(demoClasses);
-  const [invoices, setInvoices] = useState<Invoice[]>(demoInvoices);
+  const [leads, setLeads] = useState<Lead[]>(apiBase ? [] : demoLeads);
+  const [students, setStudents] = useState<Student[]>(apiBase ? [] : demoStudents);
+  const [classes, setClasses] = useState<ClassRoom[]>(apiBase ? [] : demoClasses);
+  const [invoices, setInvoices] = useState<Invoice[]>(apiBase ? [] : demoInvoices);
   const [channelSales, setChannelSales] = useState<ChannelSalesWorkspace>(
     demoChannelSalesWorkspace,
   );
-  const [tasks, setTasks] = useState<Task[]>(defaultTasks);
-  const [_pipeline, setPipeline] = useState(demoPipeline);
+  const [tasks, setTasks] = useState<Task[]>(apiBase ? [] : defaultTasks);
+  const [_pipeline, setPipeline] = useState(apiBase ? [] : demoPipeline);
   const [metrics, setMetrics] = useState({
     new_leads: 24,
     follow_ups_due: 8,

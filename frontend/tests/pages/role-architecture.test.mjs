@@ -34,7 +34,7 @@ test('All 46 role menu pages exist and are compiled from src/pages', () => {
 test('Navigation targets and role-to-page config preserve legacy IDs', () => {
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
-  const known = [...nav.matchAll(/\\{ id: '([^']+)', label:/g)].map(match => match[1]);
+  const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
   assert.equal(known.length, 46, 'Expected 46 role navigation entries');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   for (const [profile, screens] of Object.entries(profileSections)) {
@@ -51,9 +51,9 @@ test('Navigation targets and role-to-page config preserve legacy IDs', () => {
 
 test('No obsolete workspace compatibility imports remain in CrmApp', () => {
   const app = read('components/crm/crm-app.tsx');
-  assert.doesNotMatch(app, /@\\/components\\/crm\\/roles\\/[a-z-]+-workspace/);
-  assert.doesNotMatch(app, /@\\/components\\/crm\\/admin\\/admin-workspace/);
-  assert.doesNotMatch(app, /@\\/components\\/crm\\/sales-manager-workspace/);
+  assert.ok(!app.includes('@/components/crm/roles/'), 'Legacy role import found');
+  assert.ok(!app.includes('@/components/crm/admin/admin-workspace'), 'Legacy admin import found');
+  assert.ok(!app.includes('@/components/crm/sales-manager-workspace'), 'Legacy manager import found');
   for (const profile of Object.keys(profileSections)) {
     assert.match(app, new RegExp('@/src/pages/' + profile + '/' + profile + 'Workspace'));
   }

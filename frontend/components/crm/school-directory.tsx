@@ -17,6 +17,7 @@ import { SchoolActionForm, type SchoolAction } from './school-action-form';
 import { EvidenceReference } from './school-operations';
 import {
   Building2,
+  ShieldCheck,
   Eye,
   UsersRound,
   Search,
@@ -318,7 +319,7 @@ export function SchoolDirectory({
       )}
       <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
 
-        <form role="search" className="grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_200px_auto_44px] sm:px-6"
+        <form className="grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_200px_auto_44px] sm:px-6"
           onSubmit={event => { event.preventDefault(); setSearch(term); setPage(1); }}>
           <div className="relative min-w-0">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>

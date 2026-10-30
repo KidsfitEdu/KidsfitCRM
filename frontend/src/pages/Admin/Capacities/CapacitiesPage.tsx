@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Settings2, RefreshCw } from 'lucide-react';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableHeadClass } from '@/src/components/common/admin-list-ui';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -33,14 +33,14 @@ export function CapacitiesPage({apiBase,token,abilities}:Props) {
   const [error,setError]=useState('');
   const [confirmOpen,setConfirmOpen]=useState(false);
   const canManage=abilities.includes('channel_sales.school.capacity.manage')||abilities.includes('*');
-  const reload=async()=>{
+  const reload=useCallback(async()=>{
     if(!apiBase)return;
     setLoading(true);setError('');
     try {const result=await fetchCapacities(apiBase,token);setRows(result.data);}
     catch(e){setError(e instanceof Error?e.message:'Không tải được hạn mức.');}
     finally{setLoading(false);}
-  };
-  useEffect(()=>{void reload();},[apiBase,token]);
+  },[apiBase,token]);
+  useEffect(()=>{void reload();},[reload]);
   const orgs=useMemo(()=>Array.from(new Set(rows.map(x=>x.organization_name))).sort(),[rows]);
   const filtered=rows.filter(x=>(organization==='ALL'||x.organization_name===organization)&&[x.name,x.organization_name].some(v=>v.toLowerCase().includes(search.toLowerCase())));
   const validate=()=>{

@@ -81,7 +81,7 @@ function RoleContent(props: Props) {
   return <div className="space-y-5">
     <ChannelOperations key={section} apiBase={apiBase} token={token} abilities={abilities} onChanged={props.onChanged}
       initialPanel={active.panel === 'dashboard' ? 'customers' : active.panel} initialOperationsTab={active.tab || undefined}
-      allowedPanels={allowedPanels} hideTabs hideOperationsTabs={active.panel === 'operations'}
+      allowedPanels={allowedPanels} hideTabs hideOperationsTabs={false}
       customerView={onOpenCustomer => <ChannelSalesView
         onOpenCustomer={onOpenCustomer} workspace={workspace} search={props.search} setSearch={props.setSearch}
         canRegister={can('channel_sales.approach.register')} canAddActivity={can('channel_sales.activity.create')}

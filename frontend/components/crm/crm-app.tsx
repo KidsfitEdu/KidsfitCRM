@@ -151,6 +151,9 @@ const apiBase =
     ? ''
     : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
 
+/** Disabled legacy education dashboard until its API contract is re-enabled explicitly. */
+const legacyEducationDashboardEnabled = () => false;
+
 const defaultTasks: Task[] = [
   {
     id: 1,
@@ -248,7 +251,7 @@ function CrmWorkspace({
     demoChannelSalesWorkspace,
   );
   const [tasks, setTasks] = useState<Task[]>(defaultTasks);
-  const [pipeline, setPipeline] = useState(demoPipeline);
+  const [_pipeline, setPipeline] = useState(demoPipeline);
   const [metrics, setMetrics] = useState({
     new_leads: 24,
     follow_ups_due: 8,
@@ -329,7 +332,7 @@ function CrmWorkspace({
         catalogs,
         channelSalesData,
       ] = await Promise.all([
-        false && has('crm.dashboard.view')
+        legacyEducationDashboardEnabled() && has('crm.dashboard.view')
           ? request<{
               metrics: typeof metrics;
               pipeline: typeof demoPipeline;
@@ -689,7 +692,7 @@ function CrmWorkspace({
     setNotice(`Đã ghi nhận thanh toán cho ${invoice.invoice_code}.`);
   };
 
-  const completeTask = async (taskId: number) => {
+  const _completeTask = async (taskId: number) => {
     const task = tasks.find((item) => item.id === taskId);
     if (!task || task.done) return;
     try {
@@ -1092,7 +1095,7 @@ function CrmWorkspace({
                   <Download /> Xuất báo cáo
                 </Button>
               )}
-              {false && currentView !== 'channel-sales' && can('crm.lead.create') && (
+              {legacyEducationDashboardEnabled() && currentView !== 'channel-sales' && can('crm.lead.create') && (
                 <Button
                   onClick={() => setAddOpen(true)}
                   size="lg"
@@ -1256,7 +1259,7 @@ function CrmWorkspace({
   );
 }
 
-function SchoolDashboard({ workspace }: { workspace: ChannelSalesWorkspace }) {
+export function SchoolDashboard({ workspace }: { workspace: ChannelSalesWorkspace }) {
   const cards = [
     { title: 'Tổng số khách hàng', value: workspace.metrics.available + workspace.metrics.approaching + workspace.metrics.contracted },
     { title: 'Chưa đăng ký', value: workspace.metrics.available },
@@ -1282,7 +1285,7 @@ function SchoolDashboard({ workspace }: { workspace: ChannelSalesWorkspace }) {
   );
 }
 
-function Dashboard({
+export function Dashboard({
   metrics,
   pipeline,
   tasks,

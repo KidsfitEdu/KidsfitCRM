@@ -29,6 +29,7 @@ export function schoolOperationsPreview(
         ? [
             {
               id: 1,
+              version: 1,
               organization_id: 1,
               school_code: 'SCH-M-004',
               name: 'Trường Mầm non Cầu Vồng',

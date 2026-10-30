@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactNode } from 'react';
+import type { SyntheticEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { RotateCcw, Search } from 'lucide-react';
 import { AppButton } from '@/components/common/app-button';
@@ -33,12 +33,12 @@ export function AdminListToolbar({
   placeholder: string;
   searchLabel: string;
 }) {
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSearch();
   };
   return (
-    <form role="search" onSubmit={submit}
+    <form onSubmit={submit}
       className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6">
       <div className="relative min-w-[220px] flex-[1_1_320px]">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

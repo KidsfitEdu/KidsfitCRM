@@ -1,5 +1,5 @@
 'use client';
-import type { ManagerPageProps } from '@/src/types/manager-pages';
+import type { ManagerPageProps } from '@/types/manager-pages';
 import { DashboardPage } from './Dashboard/DashboardPage';
 import { ProposalsPage } from './Proposals/ProposalsPage';
 import { AllocationsPage } from './Allocations/AllocationsPage';

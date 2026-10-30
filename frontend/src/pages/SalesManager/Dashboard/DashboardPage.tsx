@@ -4,7 +4,7 @@ import { AppStatCard } from '@/components/common/app-stat-card';
 import { Building2, ClipboardList, CalendarClock, Handshake, TrendingUp } from 'lucide-react';
 import { channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace,SchoolOperationsReport } from '@/lib/school-operations';
-import type { ManagerPageProps } from '@/src/types/manager-pages';
+import type { ManagerPageProps } from '@/types/manager-pages';
 export function DashboardPage({apiBase,token,abilities}:ManagerPageProps){
  const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.allocation.manage');
  const overview=useQuery({queryKey:['sales-manager-overview',token],enabled:!!apiBase&&!!token&&allowed,queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page=1')});

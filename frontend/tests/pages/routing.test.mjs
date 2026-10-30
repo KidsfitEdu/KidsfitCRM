@@ -19,7 +19,7 @@ test('Vinext view route validates known IDs, without React Router', () => {
 });
 
 test('Sidebar click and browser history use the same guarded navigation callback', () => {
-  const app = read('components/crm/crm-app.tsx');
+  const app = read('src/components/crm/crm-app.tsx');
   const sidebar = read('src/components/layout/Sidebar.tsx');
   assert.match(app, /visibleNav\.some\(item=>item\.id===next\)/);
   assert.match(app, /window\.history\.pushState\(null,'',viewToPath\(next\)\)/);

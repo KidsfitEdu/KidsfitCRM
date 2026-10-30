@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/postcss';
 import { defineConfig } from 'vite';
 
 const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
+const srcRoot = path.join(frontendRoot, 'src');
 
 // A separate static target: keep the API/Vinext/Sites build unchanged.
 export default defineConfig({
@@ -21,7 +22,7 @@ export default defineConfig({
     },
   }],
   css: { postcss: { plugins: [tailwindcss()] } },
-  resolve: { alias: { '@': frontendRoot } },
+  resolve: { alias: { '@': srcRoot } },
   define: {
     'process.env.NEXT_PUBLIC_DEMO_MODE': JSON.stringify('true'),
     'process.env.NEXT_PUBLIC_API_URL': JSON.stringify(''),

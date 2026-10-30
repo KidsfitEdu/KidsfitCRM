@@ -100,3 +100,7 @@ commission stay governed by their own separate product decisions.
 - All page-specific CRUD, Dialog, pagination, API contract, and RBAC flows still require integrated staging tests with an isolated .NET/MySQL test database. Do not run test writes against production.
 - Auth/session and URL refresh/back/forward, unauthorized deep links, 8 UI groups, desktop/mobile pixel parity, a11y and cross-account cache isolation still require real browser verification on a build of this PR. A public GitHub Pages demo reflects its deployed commit and is not a preview of this branch.
 - Only merge after required CI is green and manual/automated staging approval is recorded.
+
+## Unified source directory migration
+
+The legacy `frontend/components`, `frontend/hooks` and `frontend/lib` files were moved under `frontend/src`, without changing the domain behavior. Vinext `app/`, static `public/`, `demo/` and `tests/` remain at project root. Both TypeScript and Vite Pages resolve `@/` from `frontend/src` and `@/src/` is not used by application modules. Verify frontend CI and Chromium role smoke tests before accepting this migration; staging API permissions and write-flow E2E require a separate isolated environment.

@@ -19,7 +19,7 @@ test('Vinext view route validates known IDs, without React Router', () => {
 });
 
 test('Sidebar click and browser history use the same guarded navigation callback', () => {
-  const app = read('src/components/crm/crm-app.tsx');
+  const app = read('src/src/components/crm/crm-app.tsx');
   const sidebar = read('src/components/layout/Sidebar.tsx');
   assert.match(app, /visibleNav\.some\(item=>item\.id===next\)/);
   assert.match(app, /window\.history\.pushState\(null,'',viewToPath\(next\)\)/);
@@ -28,7 +28,7 @@ test('Sidebar click and browser history use the same guarded navigation callback
 });
 
 test('shared QueryClient belongs to a keyed session, not separate role workspaces', () => {
-  const app = read('components/crm/crm-app.tsx');
+  const app = read('src/components/crm/crm-app.tsx');
   const provider = read('src/providers/AppProviders.tsx');
   assert.match(app, /<AppProviders key=\{demoAccount\?\.id \?\? token/);
   assert.match(provider, /new QueryClient\(/);

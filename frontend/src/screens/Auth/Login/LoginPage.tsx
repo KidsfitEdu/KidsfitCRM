@@ -53,7 +53,6 @@ export function LoginPage({
               <Input
                 name="password"
                 type="password"
-                defaultValue="Kidsfit@2026"
                 required
                 className="h-11 rounded-xl"
               />
@@ -68,7 +67,7 @@ export function LoginPage({
             </Button>
           </form>
           <p className="mt-5 text-center text-xs text-muted-foreground">
-            Tài khoản demo đã được điền sẵn.
+            Nhập mật khẩu được cấu hình riêng cho tài khoản demo trong môi trường backend.
           </p>
         </CardContent>
       </Card>

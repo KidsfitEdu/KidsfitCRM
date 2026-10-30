@@ -1,5 +1,5 @@
 import { CrmApp } from '@/components/crm/crm-app';
-import { isView } from '@/src/config/routes';
+import { isView } from '@/config/routes';
 import { notFound } from 'next/navigation';
 
 /** Role-specific deep link, validated against known view IDs. Runtime permissions

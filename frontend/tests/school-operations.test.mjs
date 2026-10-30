@@ -3,9 +3,9 @@ import test from 'node:test';
 import {
   workflowFormValue,
   vietnamDateTimeInput,
-} from '../lib/school-operations.ts';
-import { schoolOperationsPreview } from '../lib/school-operations-preview.ts';
-import { demoAccounts } from '../lib/demo-auth.ts';
+} from '../src/lib/school-operations.ts';
+import { schoolOperationsPreview } from '../src/lib/school-operations-preview.ts';
+import { demoAccounts } from '../src/lib/demo-auth.ts';
 
 test('workflow deadlines use Vietnam time independently of browser time zone', () => {
   assert.equal(

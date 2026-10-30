@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { composeSchoolPage, schoolPageWindow, SCHOOL_ROWS_PER_PAGE } from '../lib/school-page-window.ts';
+import { composeSchoolPage, schoolPageWindow, SCHOOL_ROWS_PER_PAGE } from '../src/lib/school-page-window.ts';
 
 test('10-row UI pages select the correct half of the server page', () => {
   assert.deepEqual(schoolPageWindow(1, 10), { firstApiPage: 1, lastApiPage: 1, offsetWithinFirstPage: 0 });

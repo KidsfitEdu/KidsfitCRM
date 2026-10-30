@@ -12,7 +12,6 @@ import {
 } from 'react';
 import {
   ArrowUpRight,
-  Bell,
   BookOpenCheck,
   CalendarDays,
   Check,
@@ -23,13 +22,11 @@ import {
   Download,
   GraduationCap,
   LogOut,
-  Moon,
   MoreHorizontal,
   Phone,
   Plus,
   Search,
   ShieldCheck,
-  Sun,
   TrendingUp,
   UsersRound,
   WalletCards,
@@ -46,7 +43,6 @@ import {
 } from 'recharts';
 
 import { Badge } from '@/components/ui/badge';
-import { AppBrand } from '@/components/common/app-brand';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -201,6 +197,9 @@ const todayLabel = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
 }).format(new Date());
 
+const initials = (name: string) =>
+  name.split(' ').slice(-2).map(part => part[0]).join('').toUpperCase();
+
 const request = createApiClient(apiBase);
 
 export function CrmApp({initialView}:{initialView?:View}={}) {
@@ -303,6 +302,16 @@ function CrmWorkspace({
       capacity: item.capacity,
     })),
   );
+
+  useEffect(() => {
+    if (!apiBase || typeof window==='undefined') return;
+    const onPop = () => {
+      const next = pathToView(window.location.pathname);
+      if(next) setView(next);
+    };
+    window.addEventListener('popstate',onPop);
+    return () => window.removeEventListener('popstate',onPop);
+  },[]);
 
   useEffect(() => {
     if (!apiBase) return;
@@ -987,15 +996,7 @@ function CrmWorkspace({
     setView(next);
     if (apiBase && typeof window !== 'undefined') window.history.pushState(null,'',viewToPath(next));
   };
-  useEffect(() => {
-    if (!apiBase || typeof window==='undefined') return;
-    const onPop = () => {
-      const next = pathToView(window.location.pathname);
-      if(next) setView(next);
-    };
-    window.addEventListener('popstate',onPop);
-    return () => window.removeEventListener('popstate',onPop);
-  },[]);
+
   const activeCopy = viewCopy[currentView];
 
   return (

@@ -198,9 +198,6 @@ const todayLabel = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
 }).format(new Date());
 
-const initials = (name: string) =>
-  name.split(' ').slice(-2).map(part => part[0]).join('').toUpperCase();
-
 const request = createApiClient(apiBase);
 
 export function CrmApp({initialView}:{initialView?:View}={}) {

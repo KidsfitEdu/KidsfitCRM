@@ -18,10 +18,10 @@ reviewed permission migration.
 
 ```text
 frontend/
-  app/                      Vinext route entries, root layout and metadata
   public/                   public-safe icons, branding and assets
   src/
-    pages/
+    app/                    Vinext route entries, root layout and metadata
+    screens/
       Admin/{Dashboard,Schools,Proposals,Personnel,Capacities,Policies,Reports}/
       SalesManager/ SalesStaff/ Collaborator/ Board/ Accounting/
       CustomerCare/ Checkee/ Auth/
@@ -38,7 +38,7 @@ frontend/
   tests/
 ```
 
-Do **not** replace Vinext with React Router; `app/` owns actual URLs.
+Do **not** replace Vinext with React Router; `src/app/` owns actual URLs.
 Do not change `vite.pages.config.ts`, static demo setup, MySQL contracts,
 financial history, customer ownership, UI copy or role capabilities merely to
 match the new folder names.
@@ -48,8 +48,8 @@ match the new folder names.
 - `src/config/navigation.ts` moves existing view IDs, menu labels and copy.
 - `src/services/api.client.ts` moves the original `request` adapter without
   changing its response/error behavior.
-- `src/pages/Auth/Login/LoginPage.tsx` moves the existing login screen.
-- `src/pages/Admin/Capacities/CapacitiesPage.tsx` owns the capacity screen;
+- `src/screens/Auth/Login/LoginPage.tsx` moves the existing login screen.
+- `src/screens/Admin/Capacities/CapacitiesPage.tsx` owns the capacity screen;
   the previous import path re-exports the page until consumers move.
 - `src/components/common/admin-list-ui.tsx` owns admin list primitives,
   with a compatible legacy barrel.
@@ -59,7 +59,7 @@ match the new folder names.
 ## Stage 3–4 implementation status
 
 - Six role page groups (`Board`, `Accounting`, `CustomerCare`, `SalesStaff`, `Checkee`, `Collaborator`) contain 33 presentation-page entries; `SalesManager` has six additional page entries. Shared dashboards and operations panels remain in `src/components/roles/`, preserving the existing backend permission and panel mapping.
-- `CrmApp` now imports the role workspaces from `src/pages/<Role>/` directly; the 10 obsolete compatibility re-export files were removed after rewiring consumers. `CrmApp` remains the state/session controller until a separately verified auth extraction.
+- `CrmApp` now imports the role workspaces from `src/screens/<Role>/` directly; the 10 obsolete compatibility re-export files were removed after rewiring consumers. `CrmApp` remains the state/session controller until a separately verified auth extraction.
 - `src/components/layout/Sidebar.tsx`, `Header.tsx`, `AppShell.tsx` own the surrounding UI and preserve the original CSS classes.
 - `src/providers/AppProviders.tsx` owns one React Query cache for each signed-in workspace, keyed by token/demo profile. Role workspaces no longer construct their own query clients.
 - `src/config/routes.ts` and Vinext `app/crm/[view]/page.tsx` provide optional canonical deep links. Menu navigation uses browser history only with a configured real API; the static GitHub Pages demo remains root-only.
@@ -73,7 +73,7 @@ match the new folder names.
 2. Add navigation/permission parity tests and extract shared AppShell,
    sidebar/header and auth session without changing visible UI.
 3. **Extracted (not signed off):** Admin page JSX, state, effects and mutations have moved out of `AdminWorkspace`. Add regression tests and verify API / dialog parity before marking this phase complete.
-4. Move each other role's visible page into `src/pages/<Role>/`; share
+4. Move each other role's visible page into `src/screens/<Role>/`; share
    services and hooks instead of duplicating finance/contract actions.
 5. Consolidate React Query providers with auth/organization-scoped query
    keys; verify sign-out clears sensitive cached data.
@@ -104,3 +104,9 @@ commission stay governed by their own separate product decisions.
 ## Unified source directory migration
 
 The legacy `frontend/components`, `frontend/hooks` and `frontend/lib` files were moved under `frontend/src`, without changing the domain behavior. Vinext `app/`, static `public/`, `demo/` and `tests/` remain at project root. Both TypeScript and Vite Pages resolve `@/` from `frontend/src` and `@/src/` is not used by application modules. Verify frontend CI and Chromium role smoke tests before accepting this migration; staging API permissions and write-flow E2E require a separate isolated environment.
+
+## Stage 6 — unified src routes and role screens
+
+The Vinext route tree is now `frontend/src/app/`, and the 46 role menu page components are organized under `frontend/src/screens/` (56 source files including workspaces and types). There is no `frontend/app/` or `frontend/src/pages/` code left. This separates route entries from screen components and leaves `public/`, `demo/`, `docs/` and `tests/` at the frontend root.
+
+The `@/` alias continues to point to `frontend/src`; imports must use `@/screens/...`. Vite's demo stylesheet entry and shadcn's CSS path point to `src/app/globals.css`. Vinext discovery in dev **must be checked separately** from successful production compilation; see the corresponding CI check.

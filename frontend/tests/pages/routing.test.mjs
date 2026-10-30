@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '../..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 
 test('Vinext view route validates known IDs, without React Router', () => {
-  const route = read('app/crm/[view]/page.tsx');
+  const route = read('src/app/crm/[view]/page.tsx');
   const map = read('src/config/routes.ts');
   const navigation = read('src/config/navigation.ts');
   assert.match(route, /if\(!isView\(view\)\)notFound\(\)/);
@@ -33,7 +33,7 @@ test('shared QueryClient belongs to a keyed session, not separate role workspace
   assert.match(app, /<AppProviders key=\{demoAccount\?\.id \?\? token/);
   assert.match(provider, /new QueryClient\(/);
   for (const profile of ['Board','Accounting','CustomerCare','SalesStaff','Collaborator','Checkee','SalesManager']) {
-    const workspace = read('src/pages/'+profile+'/'+profile+'Workspace.tsx');
+    const workspace = read('src/screens/'+profile+'/'+profile+'Workspace.tsx');
     assert.doesNotMatch(workspace, /new QueryClient\(/);
   }
 });

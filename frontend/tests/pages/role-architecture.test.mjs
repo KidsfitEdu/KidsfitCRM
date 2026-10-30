@@ -21,7 +21,7 @@ test('All 46 role menu pages exist and are compiled from src/pages', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
-      const source = 'src/pages/' + profile + '/' + screen + '/' + screen + 'Page.tsx';
+      const source = 'src/screens/' + profile + '/' + screen + '/' + screen + 'Page.tsx';
       assert.ok(existsSync(file(source)), 'Missing role page: ' + source);
       const text = read(source);
       assert.match(text, new RegExp('export function ' + screen + 'Page\\b'));
@@ -55,7 +55,7 @@ test('No obsolete workspace compatibility imports remain in CrmApp', () => {
   assert.ok(!app.includes('@/components/crm/admin/admin-workspace'), 'Legacy admin import found');
   assert.ok(!app.includes('@/components/crm/sales-manager-workspace'), 'Legacy manager import found');
   for (const profile of Object.keys(profileSections)) {
-    assert.match(app, new RegExp('@/pages/' + profile + '/' + profile + 'Workspace'));
+    assert.match(app, new RegExp('@/screens/' + profile + '/' + profile + 'Workspace'));
   }
 });
 

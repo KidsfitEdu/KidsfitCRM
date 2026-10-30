@@ -359,9 +359,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var id = await new ChannelSalesActions(db).CreateSalesAccount(new(organizationId, "Nhân sự CHECKEE", Key() + "@example.test", "TestPassword@2026", "SALES"), admin, new PasswordHasher<User>(), Http(), Ct);
         var access = await ChannelSalesAccess.Load(db, id, Ct);
         Assert.True(access.Has(Permissions.ChannelSalesRegister));
-        Assert.False(access.Has(Permissions.LeadView));
-        Assert.False(access.Has(Permissions.StudentView));
-        Assert.False(access.Has(Permissions.PaymentView));
+        Assert.DoesNotContain(access.PermissionCodes, code => code.StartsWith("crm.lead.") || code.StartsWith("student.") || code.StartsWith("payment."));
     }
 
     [MySqlFact]

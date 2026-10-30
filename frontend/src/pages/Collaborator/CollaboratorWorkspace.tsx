@@ -1,7 +1,7 @@
 'use client';
 
-import type { RolePageProps } from '@/src/types/role-pages';
-import { rolePageSections } from '@/src/config/role-pages';
+import type { RolePageProps } from '@/types/role-pages';
+import { rolePageSections } from '@/config/role-pages';
 import { DashboardPage } from './Dashboard/DashboardPage';
 import { SchoolsPage } from './Schools/SchoolsPage';
 import { ProposalsPage } from './Proposals/ProposalsPage';

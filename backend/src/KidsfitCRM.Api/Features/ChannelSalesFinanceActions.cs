@@ -223,13 +223,22 @@ public sealed partial class ChannelSalesActions
         if (!MailAddress.TryCreate(email, out var address) || address.Address != email) throw ApiValidationException.For("email", "Email không hợp lệ.");
         var password = Validation.Required(request.Password, "password", "Vui lòng nhập mật khẩu tối thiểu 12 ký tự.", 128);
         if (password.Length < 12) throw ApiValidationException.For("password", "Mật khẩu tối thiểu 12 ký tự.");
-        var roleCode = access.Has(Permissions.ChannelSalesIdentityManage) ? (request.RoleCode ?? "CHANNEL_SALES").ToUpperInvariant() : "PARTNER_COLLABORATOR";
-        // Explicit compatibility mapping: new CHECKEE sellers must not inherit education CRM permissions.
-        if (roleCode == "SALES") roleCode = "CHANNEL_SALES";
-        var allowed = new[] { "ADMIN", "BOARD", "ACCOUNTANT", "SALES_MANAGER", "CUSTOMER_CARE", "CHANNEL_SALES", "CHECKEE", "PARTNER_ADMIN", "PARTNER_COLLABORATOR" };
+        var requestedRole = (request.RoleCode ?? "SALES").Trim().ToUpperInvariant();
+        // Canonical seven-role permission model. Partner scope is controlled by memberships,
+        // never by a global PARTNER_ADMIN or PARTNER_COLLABORATOR role.
+        var roleCode = requestedRole switch
+        {
+            "BOARD" => "DIRECTOR",
+            "CUSTOMER_CARE" => "CUSTOMER_SERVICE",
+            "CHANNEL_SALES" or "PARTNER_COLLABORATOR" => "SALES",
+            "PARTNER_ADMIN" => "SALES_MANAGER",
+            _ => requestedRole
+        };
+        var allowed = new[] { "ADMIN", "DIRECTOR", "ACCOUNTANT", "SALES_MANAGER", "CUSTOMER_SERVICE", "SALES", "CHECKEE" };
         if (!allowed.Contains(roleCode)) throw ApiValidationException.For("role_code", "Vai trò không được hỗ trợ.");
-        // Sensitive executive roles require a separate KIDSFIT authorization workflow.
-        if (roleCode is "ADMIN" or "BOARD") throw new ApiConflictException("Không cấp vai trò Admin/BGĐ qua chức năng quản lý nhân sự thông thường.");
+        if (!access.Has(Permissions.ChannelSalesIdentityManage) && roleCode != "SALES")
+            throw new KeyNotFoundException();
+        if (roleCode is "ADMIN" or "DIRECTOR") throw new ApiConflictException("Không cấp vai trò Admin/BGĐ qua chức năng quản lý nhân sự thông thường.");
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Code == roleCode, ct) ?? throw new KeyNotFoundException();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var user = new User { Code = "USR-" + Guid.NewGuid().ToString("N")[..16].ToUpperInvariant(), Name = name, Email = email, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
@@ -238,7 +247,7 @@ public sealed partial class ChannelSalesActions
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { throw new ApiConflictException("Email đã được sử dụng. Không tự gán tài khoản đã tồn tại vào tổ chức khác."); }
         db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
-        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = request.OrganizationId, ManagerUserId = actorId, MembershipType = roleCode, Status = "ACTIVE", IsPrimary = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = request.OrganizationId, ManagerUserId = actorId, MembershipType = roleCode == "SALES" ? "SALES" : roleCode, Status = "ACTIVE", IsPrimary = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.OrganizationMemberships.Add(membership);
         Audit.Add(db, actorId, "CREATE_CHANNEL_ACCOUNT", nameof(User), user.Id, null, new { request.OrganizationId, roleCode }, http);
         await db.SaveChangesAsync(ct);
@@ -268,7 +277,7 @@ public sealed partial class ChannelSalesActions
         var access = await RequirePermission(actorId, Permissions.ChannelSalesTeamManage, ct);
         var membership = await db.OrganizationMemberships.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(membership.OrganizationId) || membership.UserId == actorId) throw new KeyNotFoundException();
-        if (!access.Has(Permissions.ChannelSalesIdentityManage) && membership.MembershipType != "PARTNER_COLLABORATOR" && membership.MembershipType != "COLLABORATOR") throw new KeyNotFoundException();
+        if (!access.Has(Permissions.ChannelSalesIdentityManage) && membership.MembershipType is not ("SALES" or "COLLABORATOR" or "PARTNER_COLLABORATOR")) throw new KeyNotFoundException();
         var status = request.Status?.ToUpperInvariant();
         if (status is not ("ACTIVE" or "SUSPENDED")) throw ApiValidationException.For("status", "Trạng thái không hợp lệ.");
         var previous = membership.Status;

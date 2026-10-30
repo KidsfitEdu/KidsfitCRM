@@ -1,6 +1,7 @@
 using KidsfitCRM.Api.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 
 namespace KidsfitCRM.Api.Infrastructure;
 

@@ -53,8 +53,8 @@ match the new folder names.
   the previous import path re-exports the page until consumers move.
 - `src/components/common/admin-list-ui.tsx` owns admin list primitives,
   with a compatible legacy barrel.
-- Other six Admin pages are entrypoints delegating to the original
-  `AdminWorkspace` — **not yet independent page implementations**.
+- All seven Admin pages now contain their own presentation, local form state, data loading and actions; the old `AdminWorkspace` is a compatibility switch that chooses a page and supplies the existing QueryClient.
+- The page extraction is **not accepted yet**: CI still reports existing lint and type errors and the static demo build has a `next/image` import resolution error. Integration/browser parity has not been verified.
 
 ## Planned migration and verification
 
@@ -62,8 +62,7 @@ match the new folder names.
    pre-existing failures from migration regressions.
 2. Add navigation/permission parity tests and extract shared AppShell,
    sidebar/header and auth session without changing visible UI.
-3. Move Admin page state, effects and forms out of `AdminWorkspace` one page
-   at a time; remove delegation only after regression tests.
+3. **Extracted (not signed off):** Admin page JSX, state, effects and mutations have moved out of `AdminWorkspace`. Add regression tests and verify API / dialog parity before marking this phase complete.
 4. Move each other role's visible page into `src/pages/<Role>/`; share
    services and hooks instead of duplicating finance/contract actions.
 5. Consolidate React Query providers with auth/organization-scoped query

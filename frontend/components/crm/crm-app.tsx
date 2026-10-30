@@ -34,6 +34,7 @@ import {
   UsersRound,
   WalletCards,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   Area,

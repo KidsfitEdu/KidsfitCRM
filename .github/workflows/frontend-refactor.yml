@@ -27,13 +27,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-        continue-on-error: true # Legacy lint failures: collect independent type/build diagnostics
       - run: npx tsc --noEmit
-        continue-on-error: true
       - run: npm run test:demo
-        continue-on-error: true
       - run: npm run build
-        continue-on-error: true
       - run: npm run build:pages
-        continue-on-error: true
       - run: npm run test:pages

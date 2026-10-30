@@ -55,7 +55,7 @@ test('No obsolete workspace compatibility imports remain in CrmApp', () => {
   assert.ok(!app.includes('@/components/crm/admin/admin-workspace'), 'Legacy admin import found');
   assert.ok(!app.includes('@/components/crm/sales-manager-workspace'), 'Legacy manager import found');
   for (const profile of Object.keys(profileSections)) {
-    assert.match(app, new RegExp('@/src/pages/' + profile + '/' + profile + 'Workspace'));
+    assert.match(app, new RegExp('@/pages/' + profile + '/' + profile + 'Workspace'));
   }
 });
 

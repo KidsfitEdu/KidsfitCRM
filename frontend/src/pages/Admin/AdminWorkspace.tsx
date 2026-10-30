@@ -15,7 +15,7 @@ type Props=AdminPageProps&{section:AdminSection};
 
 /** Temporary compatibility boundary for the existing state-driven CRM router.
  * All seven page bodies and their own data/form state live under src/pages/Admin.
- * Move the provider to AppProviders when the URL route migration is ready.
+ * AppProviders now owns the session-scoped QueryClient.
  */
 export function AdminWorkspace({section,...props}:Props) {
   return <>

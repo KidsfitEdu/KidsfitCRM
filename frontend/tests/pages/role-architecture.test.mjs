@@ -70,3 +70,16 @@ test('Legacy re-export files removed only after moving their consumers', () => {
   ];
   for(const path of removed)assert.equal(existsSync(file(path)),false,'Orphan compatibility file: '+path);
 });
+
+
+test('src/app route tree and src/screens have no conflicting legacy directories', () => {
+  for (const route of ['src/app/layout.tsx','src/app/page.tsx','src/app/globals.css','src/app/crm/[view]/page.tsx']) {
+    assert.ok(existsSync(file(route)), 'Missing Vinext route asset: ' + route);
+  }
+  assert.equal(existsSync(file('app')), false, 'Legacy root app/ must be absent');
+  assert.equal(existsSync(file('src/pages')), false, 'Legacy src/pages must be absent');
+  const demoEntry = read('demo/main.tsx');
+  assert.match(demoEntry, /\.\.\/src\/app\/globals\.css/);
+  const config = read('components.json');
+  assert.match(config, /src\/app\/globals\.css/);
+});

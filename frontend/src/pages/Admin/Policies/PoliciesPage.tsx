@@ -4,10 +4,10 @@ import { useCallback,useEffect,useState } from 'react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AdminListPanel,AdminListToolbar,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/src/components/common/admin-list-ui';
-import { fetchAdminPolicies } from '@/src/services/policy.service';
+import { AdminListPanel,AdminListToolbar,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/components/common/admin-list-ui';
+import { fetchAdminPolicies } from '@/services/policy.service';
 import { workflowLabels,type SchoolOperationsWorkspace } from '@/lib/school-operations';
-import { AdminPageStatus } from '@/src/components/admin/AdminPageStatus';
+import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
 export function PoliciesPage({apiBase,token}:AdminPageProps) {

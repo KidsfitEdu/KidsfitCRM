@@ -11,10 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormActions } from '@/components/common/form-actions';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/src/components/common/admin-list-ui';
-import { fetchAdminOperations,reviewAdminProposal,editAdminProposal,fetchProposalRevisions } from '@/src/services/proposal.service';
+import { AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/components/common/admin-list-ui';
+import { fetchAdminOperations,reviewAdminProposal,editAdminProposal,fetchProposalRevisions } from '@/services/proposal.service';
 import { workflowDate,workflowLabels,type SchoolOperationsWorkspace } from '@/lib/school-operations';
-import { AdminPageStatus } from '@/src/components/admin/AdminPageStatus';
+import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
 export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps) {

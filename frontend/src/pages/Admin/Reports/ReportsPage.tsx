@@ -4,8 +4,8 @@ import { useCallback,useEffect,useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { currentBusinessPeriod } from '@/lib/channel-operations';
 import type { SchoolOperationsReport } from '@/lib/school-operations';
-import { fetchAdminReport } from '@/src/services/report.service';
-import { AdminPageStatus } from '@/src/components/admin/AdminPageStatus';
+import { fetchAdminReport } from '@/services/report.service';
+import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
 export function ReportsPage({apiBase,token}:AdminPageProps) {

@@ -10,8 +10,8 @@ import { AppButton } from '@/components/common/app-button';
 import { FormActions } from '@/components/common/form-actions';
 import { FormError } from '@/components/common/form-error';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { createManualSchool } from '@/src/services/school.service';
-import { AdminPageStatus } from '@/src/components/admin/AdminPageStatus';
+import { createManualSchool } from '@/services/school.service';
+import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
 export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) {

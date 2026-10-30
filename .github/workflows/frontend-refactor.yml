@@ -33,7 +33,7 @@ jobs:
       - name: Verify vinext dev discovers src/app routes
         run: |
           set -euo pipefail
-          npm run dev -- --host 127.0.0.1 --port 3137 > /tmp/kidsfit-vinext-dev.log 2>&1 &
+          npm run dev -- --port 3137 > /tmp/kidsfit-vinext-dev.log 2>&1 &
           DEV_PID=$!
           trap 'kill "$DEV_PID" 2>/dev/null || true' EXIT
           READY=0
@@ -43,7 +43,7 @@ jobs:
               cat /tmp/kidsfit-vinext-dev.log
               exit 1
             fi
-            if curl --silent --fail --max-time 3 http://127.0.0.1:3137/ -o /tmp/kidsfit-dev-root.html; then
+            if curl --silent --fail --max-time 3 http://localhost:3137/ -o /tmp/kidsfit-dev-root.html; then
               READY=1
               break
             fi
@@ -54,7 +54,7 @@ jobs:
             cat /tmp/kidsfit-vinext-dev.log
             exit 1
           fi
-          curl --fail --silent --show-error --max-time 20 http://127.0.0.1:3137/crm/admin-schools -o /tmp/kidsfit-dev-schools.html
+          curl --fail --silent --show-error --max-time 20 http://localhost:3137/crm/admin-schools -o /tmp/kidsfit-dev-schools.html
           test -s /tmp/kidsfit-dev-root.html
           test -s /tmp/kidsfit-dev-schools.html
       - run: npm run build:pages

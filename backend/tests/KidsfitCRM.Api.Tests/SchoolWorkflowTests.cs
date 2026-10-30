@@ -146,6 +146,23 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         Assert.Equal(2, await check.SchoolCapacityChanges.CountAsync(x => x.MembershipId == ctv.MembershipId));
     }
 
+    [MySqlFact] public async Task EmployeeSalesHasTheSameSchoolCapacityAsCtv()
+    {
+        var customers = await Import();
+        var admin = await User("admin@kidsfit.vn");
+        var sales = await User("sales@kidsfit.vn");
+        await using var db = fixture.Open();
+        var membership = await db.OrganizationMemberships.SingleAsync(m => m.UserId == sales && m.MembershipType == "SALES");
+        var actions = new ChannelSalesActions(db);
+        await actions.ChangeSchoolCapacity(membership.Id, new(1, "Kiểm thử hạn mức Sales nhân viên"), admin, Http(), Ct);
+        var first = await actions.RegisterCustomerApproach(Claim(customers[0], Key()), sales, Http(), Ct);
+        Assert.True(first > 0);
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.RegisterCustomerApproach(Claim(customers[1], Key()), sales, Http(), Ct));
+        Assert.Equal(1, await db.ApproachRegistrations.CountAsync(a => a.OwnerUserId == sales && a.Status == "ACTIVE" && a.CustomerId == customers[0]));
+        await actions.ChangeSchoolCapacity(membership.Id, new(0, "Giảm không thu hồi"), admin, Http(), Ct);
+        Assert.Equal("ACTIVE", (await db.ApproachRegistrations.FindAsync(first))!.Status);
+    }
+
     [MySqlFact] public async Task OnlyAdminCanChangeCapacityAndReasonIsMandatory()
     {
         var ctv = await Ctv();

@@ -1,0 +1,47 @@
+name: Regenerate InitialCRM migration (one-time)
+on:
+  push:
+    branches: [feat/crm-one-shot-safe-upgrade-20261030]
+    paths: [.github/workflows/initialcrm-rebaseline.yml]
+permissions:
+  contents: write
+jobs:
+  rebaseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Generate CRM-only migration from actual compiled EF model
+        shell: bash
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ConnectionStrings__MySql: 'Server=127.0.0.1;Port=3306;Database=kidsfit_crm_demo;User=ci;Password=ci;'
+          Jwt__Issuer: KidsfitCRM.Api
+          Jwt__Audience: KidsfitCRM.Web
+          Jwt__Key: ephemeral-ci-only-jwt-signing-secret-0000000000000000
+        run: |
+          set -euo pipefail
+          dotnet tool install --global dotnet-ef --version '10.0.0'
+          rm -f backend/src/KidsfitCRM.Api/Infrastructure/Migrations/*.cs
+          dotnet ef migrations add InitialCRM --context KidsfitDbContext \
+            --project backend/src/KidsfitCRM.Api/KidsfitCRM.Api.csproj \
+            --startup-project backend/src/KidsfitCRM.Api/KidsfitCRM.Api.csproj \
+            --output-dir Infrastructure/Migrations
+          dotnet build backend/src/KidsfitCRM.Api/KidsfitCRM.Api.csproj --no-restore
+          ls -lah backend/src/KidsfitCRM.Api/Infrastructure/Migrations/
+          test "$(find backend/src/KidsfitCRM.Api/Infrastructure/Migrations -maxdepth 1 -name '*_InitialCRM.cs' | wc -l)" = 1
+      - name: Commit migration files to existing PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A backend/src/KidsfitCRM.Api/Infrastructure/Migrations
+          git diff --cached --quiet && exit 0
+          git commit -m 'refactor(db): replace legacy migrations with CRM-only InitialCRM'
+          git push origin HEAD:feat/crm-one-shot-safe-upgrade-20261030

@@ -1,0 +1,59 @@
+name: Phase 1 isolated MySQL integrity
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'backend/**'
+      - 'docs/implementation/PHASE_1_DB_SAFETY.md'
+      - '.github/workflows/phase-1-mysql.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mysql-84-isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ephemeral-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pephemeral-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      KIDSFIT_TEST_MYSQL_ADMIN: "Server=127.0.0.1;Port=3306;User ID=root;Password=ephemeral-ci-only;SslMode=None;"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Verify CI database is isolated MySQL 8.4
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq default-mysql-client
+          mysql --protocol=TCP -h127.0.0.1 -uroot -p'ephemeral-ci-only' --skip-column-names -e "SELECT VERSION();" | tee /tmp/kidsfit-mysql-version.txt
+          grep -E '^8\.4\.' /tmp/kidsfit-mysql-version.txt
+          test "$GITHUB_EVENT_NAME" = "pull_request" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+      - name: Full EF migrations, seed replay, transaction and concurrency tests
+        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
+      - name: Separate synthetic backup and restore smoke test
+        run: |
+          set -euo pipefail
+          export MYSQL_PWD='ephemeral-ci-only'
+          # These two schemas exist solely inside the ephemeral CI MySQL service.
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE phase1_backup_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE DATABASE phase1_restore_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+          mysql -h127.0.0.1 -uroot phase1_backup_fixture -e "CREATE TABLE synthetic_audit (id BIGINT PRIMARY KEY, note VARCHAR(90) NOT NULL) ENGINE=InnoDB; INSERT INTO synthetic_audit VALUES (1, 'isolated phase1 fixture'), (2, 'no customer data');"
+          mysqldump -h127.0.0.1 -uroot --single-transaction --no-tablespaces phase1_backup_fixture > "$RUNNER_TEMP/phase1-synthetic-only.sql"
+          mysql -h127.0.0.1 -uroot phase1_restore_fixture < "$RUNNER_TEMP/phase1-synthetic-only.sql"
+          rows=$(mysql -h127.0.0.1 -uroot -N phase1_restore_fixture -e "SELECT COUNT(*) FROM synthetic_audit")
+          test "$rows" = "2"
+          mysql -h127.0.0.1 -uroot -e "DROP DATABASE phase1_restore_fixture; DROP DATABASE phase1_backup_fixture;"
+          rm -f "$RUNNER_TEMP/phase1-synthetic-only.sql"
+          echo "PASS: independent synthetic fixture backup and restore, row count 2."

@@ -88,4 +88,4 @@ Confirm extension duration, maximum cumulative extension, pending-hold SLA,
 escalation SLA, proposal-priority duration, allocation-response SLA, cross-partner
 directory visibility and handover/cancellation authority. No automatic email/Zalo
 integration is authorized by the documents. Track implemented versus planned work
-in `docs/SCHOOL_CRM_IMPLEMENTATION.md`; do not describe backlog as completed.
+in `docs/implementation/SCHOOL_CRM_IMPLEMENTATION.md`; do not describe backlog as completed.

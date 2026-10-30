@@ -4,18 +4,18 @@ Refer to the actual implementation before modifying signatures or behavior. Path
 
 | UI pattern | Existing component/source | Design / behavior contract |
 | --- | --- | --- |
-| Title/eyebrow/description/action | \`frontend/components/common/app-page-header.tsx\` | Consistent title hierarchy; responsive action wrapping |
-| Action buttons (tones, pending) | \`frontend/components/common/app-button.tsx\` | Prefer \`AppButton\` \`green/orange/blue/outline/ghost/danger\`; honor \`busy\` & disabled, avoid multiple indistinguishable primaries |
-| Search/filter/reset | \`frontend/components/crm/admin/admin-list-ui.tsx\` (\`AdminListToolbar\`) | Form submit on Enter, explicit filter reset, separate **data refresh** action |
+| Title/eyebrow/description/action | \`frontend/src/components/common/app-page-header.tsx\` | Consistent title hierarchy; responsive action wrapping |
+| Action buttons (tones, pending) | \`frontend/src/components/common/app-button.tsx\` | Prefer \`AppButton\` \`green/orange/blue/outline/ghost/danger\`; honor \`busy\` & disabled, avoid multiple indistinguishable primaries |
+| Search/filter/reset | \`frontend/src/components/common/admin-list-ui.tsx\` (\`AdminListToolbar\`) | Form submit on Enter, explicit filter reset, separate **data refresh** action |
 | Lists + row actions | Same file (\`AdminListPanel\`, \`AdminIconAction\`, \`AdminStatusBadge\`) | Semantic table header, explicit status label, \`aria-label\`, permissions and tooltip |
-| Pagination | \`frontend/components/common/app-pagination.tsx\` | True total, page/size sync, disabled boundaries; preserve context on filter changes |
-| Select | \`frontend/components/common/app-native-select.tsx\` | Native label and predictable keyboard behavior |
-| Empty state | \`frontend/components/common/app-empty-state.tsx\` | Explain why empty and one useful recovery action |
-| Notices / toast | \`frontend/components/common/app-toast-provider.tsx\` | Success/failure messages grounded in server result, no false success |
-| Confirmations | \`frontend/components/common/confirm-dialog.tsx\` and shadcn Dialog | Name subject/action, show impact, confirm only for high-risk changes |
-| Inputs and errors | \`frontend/components/ui/input.tsx\`, \`form-error.tsx\` | Controlled state, programmatic labels and \`aria-invalid\` |
-| Shell/nav | \`frontend/components/crm/crm-app.tsx\` | Current nav, sidebar, topbar, mobile bottom nav; do not reimplement in each role |
-| Table CSS | \`frontend/app/globals.css\` \`.crm-workspace-content table:not(.crm-school-table)\` | Be aware global selector affects most CRM tables; special school table is excluded |
+| Pagination | \`frontend/src/components/common/app-pagination.tsx\` | True total, page/size sync, disabled boundaries; preserve context on filter changes |
+| Select | \`frontend/src/components/common/app-native-select.tsx\` | Native label and predictable keyboard behavior |
+| Empty state | \`frontend/src/components/common/app-empty-state.tsx\` | Explain why empty and one useful recovery action |
+| Notices / toast | \`frontend/src/components/common/app-toast-provider.tsx\` | Success/failure messages grounded in server result, no false success |
+| Confirmations | \`frontend/src/components/common/confirm-dialog.tsx\` and shadcn Dialog | Name subject/action, show impact, confirm only for high-risk changes |
+| Inputs and errors | \`frontend/src/components/ui/input.tsx\`, \`form-error.tsx\` | Controlled state, programmatic labels and \`aria-invalid\` |
+| Shell/nav | \`frontend/src/components/crm/crm-app.tsx\` | Current nav, sidebar, topbar, mobile bottom nav; do not reimplement in each role |
+| Table CSS | \`frontend/src/app/globals.css\` \`.crm-workspace-content table:not(.crm-school-table)\` | Be aware global selector affects most CRM tables; special school table is excluded |
 
 ## Search / filter / refresh / reset
 
@@ -51,4 +51,4 @@ Refer to the actual implementation before modifying signatures or behavior. Path
 
 ## Concrete screen reference: Admin → Quản lý đề xuất trường
 
-Current source \`frontend/components/crm/admin/admin-workspace.tsx\` uses \`AppPageHeader\`, \`AdminListToolbar\`, \`AppNativeSelect\`, semantic table, \`AdminIconAction\` and \`AppPagination\`. Preserve them. From screenshot: green sidebar, header with global search, title, separate "Làm mới", a toolbar with query/status/search/reset, proposal row and three small actions. Recommendations **for a later UI PR only**: distinguish reset/refresh icons, show overdue for unresolved past-due items, strengthen icon-action tooltip/accessible hit area and mobile overflow. This skill PR makes **no screen changes**.
+Current source \`frontend/src/screens/Admin/Proposals/ProposalsPage.tsx\` uses \`AppPageHeader\`, \`AdminListToolbar\`, \`AppNativeSelect\`, semantic table, \`AdminIconAction\` and \`AppPagination\`. Preserve them. From screenshot: green sidebar, header with global search, title, separate "Làm mới", a toolbar with query/status/search/reset, proposal row and three small actions. Recommendations **for a later UI PR only**: distinguish reset/refresh icons, show overdue for unresolved past-due items, strengthen icon-action tooltip/accessible hit area and mobile overflow. This skill PR makes **no screen changes**.

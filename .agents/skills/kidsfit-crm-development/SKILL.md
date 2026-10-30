@@ -7,6 +7,13 @@ description: Design, plan, implement, review, and test KidsfitCRM features using
 
 Use this skill to keep implementation decisions aligned with the relevant KidsfitCRM bounded context while respecting the user's current task and the code that already exists.
 
+## Source and phase safety (updated 2026-10-30)
+
+- **Always inspect the current checkout** and read `docs/implementation/CURRENT_SOURCE_MAP.md` before editing: frontend lives under `frontend/src/`, not `frontend/components/` or `frontend/app/`. Reuse feature modules and current API contracts; do not recreate the project.
+- Use `docs/implementation/PHASED_DELIVERY_PLAN.md` for staged work and `docs/prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md` for a runnable orchestrator. Each phase requires audit/test evidence; don't silently start migrations/seeding or production actions.
+- `start-local.ps1` invokes `--migrate --seed-demo` and provisions local MySQL credentials; `compose.yaml` is demo-oriented. Migration, synthetic seed and actual MySQL dumps are distinct. Never target populated/shared/prod databases without safe approval and backup/restore plan.
+- Preserve migration history, legacy role rows/user memberships, financial ledger/audit/contract claims and unrelated education-center modules. Prefer additive changes and compatibility adapters.
+
 ## Current school-sales source of truth (2026-10-30)
 
 - **Mandatory for current school CRM**: read `docs/README.md`, then the task's relevant files from `docs/requirements/`: `CRM_FUNCTIONAL_SPECIFICATION.md`, `ROLES_AND_PERMISSIONS.md`, `BUSINESS_RULES.md`, `BUSINESS_WORKFLOWS.md`, `DECISION_LOG.md`. Inspect `CODEBASE_GAP_ANALYSIS.md` before editing existing implementations.

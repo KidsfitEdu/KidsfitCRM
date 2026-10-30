@@ -1,6 +1,6 @@
 # Responsive layout and state coverage
 
-Current KIDSFIT shell source: \`frontend/components/crm/crm-app.tsx\` and \`frontend/app/globals.css\`. Existing desktop sidebar is \`w-[248px]\` at \`lg\`; mobile/tablet get bottom navigation below \`lg\`; header is sticky and content wrapper is \`max-w-[1480px]\`. New UI must fit the shell, not replace it.
+Current KIDSFIT shell source: \`frontend/src/components/crm/crm-app.tsx\` and \`frontend/src/app/globals.css\`. Existing desktop sidebar is \`w-[248px]\` at \`lg\`; mobile/tablet get bottom navigation below \`lg\`; header is sticky and content wrapper is \`max-w-[1480px]\`. New UI must fit the shell, not replace it.
 
 ## Expected behavior by viewport (check representative widths)
 

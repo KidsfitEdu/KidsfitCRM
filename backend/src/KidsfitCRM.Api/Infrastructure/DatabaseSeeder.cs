@@ -9,9 +9,18 @@ public static class DatabaseSeeder
     public static async Task SeedAsync(IServiceProvider services)
     {
         var db = services.GetRequiredService<KidsfitDbContext>();
+        var configuration = services.GetRequiredService<IConfiguration>();
+        var demoPassword = configuration["Seed:DemoPassword"];
+        if (string.IsNullOrWhiteSpace(demoPassword))
+            throw new InvalidOperationException("Seed:DemoPassword is required for demo seed.");
+        if (!configuration.GetValue<bool>("Seed:DisposableDatabase"))
+            throw new InvalidOperationException("Seed:DisposableDatabase=true is required for isolated demo seeding.");
+        if (services.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>()?.IsProduction() == true)
+            throw new InvalidOperationException("Demo seeding is forbidden in Production.");
         if (await db.Roles.AnyAsync())
         {
-            await SeedChannelSalesAsync(services);
+            await SeedChannelSalesAsync(services, demoPassword);
+            await NormalizeDemoPasswordsAsync(db, services.GetRequiredService<IPasswordHasher<User>>(), demoPassword);
             await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
             return;
         }
@@ -33,8 +42,8 @@ public static class DatabaseSeeder
         var salesRole = new Role { Code = "SALES", Name = "Tư vấn tuyển sinh", CreatedAt = now, UpdatedAt = now };
         var admin = new User { Code = "ADMIN001", Name = "Minh Anh", Email = "admin@kidsfit.vn", Phone = "0901 234 567", Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
         var sales = new User { Code = "SALES001", Name = "Lan Phương", Email = "sales@kidsfit.vn", Phone = "0908 765 432", Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
-        admin.Password = hasher.HashPassword(admin, "Kidsfit@2026");
-        sales.Password = hasher.HashPassword(sales, "Sales@2026");
+        admin.Password = hasher.HashPassword(admin, demoPassword);
+        sales.Password = hasher.HashPassword(sales, demoPassword);
         db.AddRange(permissions); db.AddRange(adminRole, salesRole, admin, sales);
         await db.SaveChangesAsync();
         db.UserRoles.AddRange(new UserRole { UserId = admin.Id, RoleId = adminRole.Id }, new UserRole { UserId = sales.Id, RoleId = salesRole.Id });
@@ -140,7 +149,8 @@ public static class DatabaseSeeder
         db.Notifications.Add(new Notification { UserId = sales.Id, Type = "TRIAL_REMINDER", Title = "Lịch học thử sắp diễn ra", Content = "Khánh Linh có lịch học thử trong hôm nay.", Data = $"{{\"lead_id\":{leads[3].Id}}}", CreatedAt = now, UpdatedAt = now });
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
-        await SeedChannelSalesAsync(services);
+        await SeedChannelSalesAsync(services, demoPassword);
+        await NormalizeDemoPasswordsAsync(db, hasher, demoPassword);
         await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
 
         LeadStatus Status(string code, string name, string color, int sort, bool terminal) => new() { Code = code, Name = name, Color = color, SortOrder = sort, IsTerminal = terminal, CreatedAt = now, UpdatedAt = now };
@@ -151,9 +161,38 @@ public static class DatabaseSeeder
         WorkTask Task(string title, string relatedType, long relatedId, long assignedTo, DateTime dueAt, string priority) => new() { Title = title, RelatedType = relatedType, RelatedId = relatedId, AssignedTo = assignedTo, DueAt = dueAt, Status = "OPEN", Priority = priority, CreatedAt = now, UpdatedAt = now };
     }
 
+    private static async Task NormalizeDemoPasswordsAsync(KidsfitDbContext db, IPasswordHasher<User> hasher, string password)
+    {
+        // This routine is restricted to the explicitly disposable database by SeedAsync.
+        var demoAccounts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["admin@kidsfit.vn"] = "ADMIN001",
+            ["sales@kidsfit.vn"] = "SALES001",
+            ["checkee@kidsfit.vn"] = "CHECKEE001",
+            ["partner@kidsfit.vn"] = "PARTNER001",
+            ["ctv@kidsfit.vn"] = "CTV001",
+            ["accountant@kidsfit.vn"] = "ACC001",
+            ["board@kidsfit.vn"] = "BOARD001",
+            ["manager@kidsfit.vn"] = "MANAGER001",
+            ["care@kidsfit.vn"] = "CARE001",
+        };
+        var users = await db.Users.Where(user => demoAccounts.Keys.Contains(user.Email)).ToListAsync();
+        foreach (var user in users)
+        {
+            if (user.Code != demoAccounts[user.Email])
+                throw new InvalidOperationException("Demo account identity collision; seed refused.");
+            if (hasher.VerifyHashedPassword(user, user.Password, password) != PasswordVerificationResult.Success)
+            {
+                user.Password = hasher.HashPassword(user, password);
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+        await db.SaveChangesAsync();
+    }
+
     private static string Digits(string value) => string.Concat(value.Where(char.IsDigit));
 
-    private static async Task SeedChannelSalesAsync(IServiceProvider services)
+    private static async Task SeedChannelSalesAsync(IServiceProvider services, string demoPassword)
     {
         var db = services.GetRequiredService<KidsfitDbContext>();
         var hasher = services.GetRequiredService<IPasswordHasher<User>>();
@@ -262,13 +301,13 @@ public static class DatabaseSeeder
             }
         }
 
-        async Task<User> EnsureUser(string code, string name, string email, string password, string roleCode)
+        async Task<User> EnsureUser(string code, string name, string email, string roleCode)
         {
             var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email);
             if (user is null)
             {
                 user = new User { Code = code, Name = name, Email = email, Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
-                user.Password = hasher.HashPassword(user, password);
+                user.Password = hasher.HashPassword(user, demoPassword);
                 db.Users.Add(user);
                 await db.SaveChangesAsync();
             }
@@ -279,13 +318,13 @@ public static class DatabaseSeeder
 
         var admin = await db.Users.SingleAsync(x => x.Email == "admin@kidsfit.vn");
         var sales = await db.Users.SingleAsync(x => x.Email == "sales@kidsfit.vn");
-        var checkeeUser = await EnsureUser("CHECKEE001", "CHECKEE Đối soát", "checkee@kidsfit.vn", "Checkee@2026", "CHECKEE");
-        var partnerUser = await EnsureUser("PARTNER001", "Đối tác An Phát", "partner@kidsfit.vn", "Partner@2026", "PARTNER_ADMIN");
-        var collaborator = await EnsureUser("CTV001", "CTV Thu Hà", "ctv@kidsfit.vn", "Ctv@2026", "PARTNER_COLLABORATOR");
-        var accountant = await EnsureUser("ACC001", "Kế toán KIDSFIT", "accountant@kidsfit.vn", "Accountant@2026", "ACCOUNTANT");
-        var board = await EnsureUser("BOARD001", "Ban giám đốc", "board@kidsfit.vn", "Board@2026", "BOARD");
-        var manager = await EnsureUser("MANAGER001", "Quản lý bán hàng", "manager@kidsfit.vn", "Manager@2026", "SALES_MANAGER");
-        var care = await EnsureUser("CARE001", "Chăm sóc khách hàng", "care@kidsfit.vn", "CustomerCare@2026", "CUSTOMER_CARE");
+        var checkeeUser = await EnsureUser("CHECKEE001", "CHECKEE Đối soát", "checkee@kidsfit.vn", "CHECKEE");
+        var partnerUser = await EnsureUser("PARTNER001", "Đối tác An Phát", "partner@kidsfit.vn", "PARTNER_ADMIN");
+        var collaborator = await EnsureUser("CTV001", "CTV Thu Hà", "ctv@kidsfit.vn", "PARTNER_COLLABORATOR");
+        var accountant = await EnsureUser("ACC001", "Kế toán KIDSFIT", "accountant@kidsfit.vn", "ACCOUNTANT");
+        var board = await EnsureUser("BOARD001", "Ban giám đốc", "board@kidsfit.vn", "BOARD");
+        var manager = await EnsureUser("MANAGER001", "Quản lý bán hàng", "manager@kidsfit.vn", "SALES_MANAGER");
+        var care = await EnsureUser("CARE001", "Chăm sóc khách hàng", "care@kidsfit.vn", "CUSTOMER_CARE");
 
         async Task<Organization> EnsureOrganization(string code, string name, string type)
         {

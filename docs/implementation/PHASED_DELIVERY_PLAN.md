@@ -1,3 +1,7 @@
+# One-shot delivery/cleanup scope amendment
+
+This repository is in a demo implementation stage. For the next end-to-end delivery use `.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md`. One agent run moves through all 10 stages, while recording checkpoints. **Allow proven unnecessary/duplicate demo-only code removal** after a KEEP/FIX/MERGE/REMOVE dependency matrix. Prior blanket preservation applies to real/unknown data, finance/audit and required functionality, not dead demo modules. All backend demo login accounts use an environment-provided `Seed__DemoPassword`; never commit its literal value, and never use it as MySQL password. Demo DB reset only with verified disposable environment and dump/restore safety.
+
 # KidsfitCRM — phased delivery plan for coding agent
 
 **Version 2, 2026-10-30.** Source baseline `develop` commit `0b30cbf28397a453628aedabf863ebb3a101cd6a`. For **execution**, re-check current HEAD, branches, code, DB and tests. This plan does **not** authorize production writes. Business authority: `docs/requirements/`; runnable prompt: [Master Prompt v2](../prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md).

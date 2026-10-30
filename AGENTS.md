@@ -1,3 +1,10 @@
+## One-shot demo upgrade override (approved scope)
+
+- When the user asks for end-to-end CRM demo implementation in one run, load `.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md` before execution. Its cleanup policy **supersedes earlier blanket no-deletion language** for demonstrably unused/duplicate/superseded *demo-only* code. Prove dependency removal via routes, service consumers, EF models and tests. Do not delete real/unknown-custody records, audit/finance history, or modify production.
+- The latest approved business model is 7 roles KIDSFIT/CHECKEE CRM. Historical education-center features are candidates for cleanup **if out of scope and dependencies are safely replaced**; do not retain dead code solely for backward demo compatibility.
+- Synthetic backend accounts must share the **environment-provided** `Seed__DemoPassword` when opt-in demo seed runs on disposable DB. Never hardcode the user-selected password; never use it for MySQL or JWT. Frontend static preview is not backend authentication.
+- Execute the 10 internal stages in one agent run with actual tests and incremental commits; stop only unsafe/policy-blocked slices; final reviewable PR, no auto-merge.
+
 # KidsfitCRM repository instructions
 
 ## Scope and sources of truth

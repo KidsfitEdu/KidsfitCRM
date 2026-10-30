@@ -1,3 +1,7 @@
+## Demo one-run cleanup scope
+
+For a user-approved one-shot CRM demo upgrade, defer orchestration and justified obsolete-code cleanup to `.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md`; the old general preserve-all language does not forbid removing **proven unused/duplicate demo-only** routes/modules, including education-center business context candidates. Do not destroy real/unknown data, financial/audit history, or production DB. Demo login passwords come from `Seed__DemoPassword` at runtime, not hardcoded in seeders/skills. Execute tests and preserve the 7-role business policy fences.
+
 ---
 name: kidsfit-crm-development
 description: Design, plan, implement, review, and test KidsfitCRM features using ASP.NET Core .NET 10, React, EF Core, and MySQL, including education-center operations and CHECKEE school directories/imports, customer protection, partner/CTV capacity, contracts, revenue, commissions, reconciliation, RBAC, APIs, schemas, and UI. Use only for this repository or when the user explicitly asks to apply the KidsfitCRM domain model.

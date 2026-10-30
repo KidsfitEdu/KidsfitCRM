@@ -13,6 +13,7 @@
 | Extension, limits, conflicts, departure | [Rules](requirements/BUSINESS_RULES.md) | [Workflows](requirements/BUSINESS_WORKFLOWS.md), regression tests |
 | Contract verification, CHECKEE, finance | [Functional spec](requirements/CRM_FUNCTIONAL_SPECIFICATION.md) | [Workflows](requirements/BUSINESS_WORKFLOWS.md), [decisions](requirements/DECISION_LOG.md) |
 | What is currently implemented? | [Codebase gaps](requirements/CODEBASE_GAP_ANALYSIS.md) | [Implementation records](implementation/), code and tests |
+| Frontend design / responsive / UI review | [KIDSFIT design system](design/FRONTEND_DESIGN_SYSTEM.md) | [Frontend skill](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md), current components and screenshots |
 | Engineering conventions | [Repository AGENTS](../AGENTS.md) | [Skill](../.agents/skills/kidsfit-crm-development/SKILL.md) |
 | Testing, demo and operations | [Testing](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md) | [Demo deployment](operations/DEMO_DEPLOYMENT.md) |
 

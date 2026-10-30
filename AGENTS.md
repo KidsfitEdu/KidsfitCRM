@@ -9,6 +9,7 @@
 
 
 - Implement only the user's requested slice. The product requirement is a baseline, not a request to scaffold the entire CRM.
+- For **KidsfitCRM frontend design, layout, component styling, responsive behavior, accessibility or screenshot/UI review**, use `.agents/skills/kidsfit-crm-frontend-design/SKILL.md` and the relevant references plus `docs/design/FRONTEND_DESIGN_SYSTEM.md`. For any business status, permission, contract, finance or data mutation, ALSO use the domain engineering skill and `docs/requirements/`; design instructions never supersede backend authorization. A user-provided screenshot is visual evidence, not a permission to change adjacent screens or business logic.
 - For KidsfitCRM domain, schema, workflow, API, UI, architecture, security, or review work, use the repository skill at `.agents/skills/kidsfit-crm-development/SKILL.md` and load only its relevant references. Database work must also load `references/mysql-conventions.md`.
 - For every CHECKEE, customer-protection, partner/CTV, contract, revenue, commission, payout, or reconciliation request, also load `.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md` before planning or editing.
 - For school directory/import, branch, CTV capacity, assignment, proposal, extension, or school-contract verification work, also load `.agents/skills/kidsfit-crm-development/references/school-directory-workflows.md`.

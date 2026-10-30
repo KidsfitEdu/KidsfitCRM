@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Settings2, RefreshCw } from 'lucide-react';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableHeadClass } from './admin-list-ui';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppButton } from '@/components/common/app-button';
@@ -61,11 +62,10 @@ export function AdminCapacityManagement({apiBase,token,abilities}:Props) {
     finally{setLoading(false);}
   };
   return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h3 className="text-lg font-bold">Hạn mức tiếp cận Nhân viên/CTV</h3>
-        <p className="mt-1 text-sm text-muted-foreground">Điều chỉnh hạn mức không thu hồi các quyền tiếp cận hợp lệ hiện có.</p></div>
-      <AppButton tone="blue" premium leadingIcon={<RefreshCw className="size-4"/>} disabled={loading||!apiBase} onClick={()=>void reload()}>Làm mới</AppButton>
-    </div>
+    <AppPageHeader eyebrow="QUẢN TRỊ / HẠN MỨC TIẾP CẬN" title="Quản lý hạn mức tiếp cận"
+      description="Theo dõi hạn mức trường đang tiếp cận của Nhân viên/CTV. Giảm hạn mức không thu hồi quyền hợp lệ hiện có."
+      actions={<AppButton tone="blue" premium leadingIcon={<RefreshCw className="size-4"/>}
+        disabled={loading||!apiBase} onClick={()=>void reload()}>Làm mới</AppButton>}/>
     {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     <AdminListPanel>
       <AdminListToolbar search={searchDraft} onSearchChange={setSearchDraft}
@@ -93,7 +93,7 @@ export function AdminCapacityManagement({apiBase,token,abilities}:Props) {
         </table>
         {!loading&&filtered.length===0&&<p className="p-8 text-center text-sm text-muted-foreground">{apiBase?'Không có nhân sự phù hợp.':'Chưa kết nối API.'}</p>}
       </div>
-      <AppPagination page={page} pageSize={pageSize} total={filtered.length} itemLabel="nhân sự"
+      <AppPagination page={page} pageSize={pageSize} total={filtered.length} itemLabel="nhân sự" showSummary={false}
         pageSizeOptions={[10,20,50]} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </AdminListPanel>
     <Dialog open={selected!==null} onOpenChange={open=>{if(!open&&!loading)setSelected(null);}}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>Điều chỉnh hạn mức</DialogTitle><DialogDescription>{selected?.name} · {selected?.organization_name}. Giảm hạn mức không thu hồi quyền hiện tại.</DialogDescription></DialogHeader><label className="text-sm font-medium">Số trường tối đa<Input className="mt-1" type="text" inputMode="numeric" aria-invalid={!!fieldErrors.limit} aria-describedby={fieldErrors.limit?'capacity-limit-error':undefined} value={limitInput} onChange={e=>{setLimitInput(e.target.value);setFieldErrors(x=>({...x,limit:undefined}));}}/><FormError id="capacity-limit-error">{fieldErrors.limit}</FormError></label><label className="text-sm font-medium">Lý do thay đổi<Input className="mt-1" value={reason} aria-invalid={!!fieldErrors.reason} aria-describedby={fieldErrors.reason?'capacity-reason-error':undefined} onChange={e=>{setReason(e.target.value);setFieldErrors(x=>({...x,reason:undefined}));}}/><FormError id="capacity-reason-error">{fieldErrors.reason}</FormError></label><div className="space-y-2"><h4 className="text-sm font-semibold">Lịch sử gần đây</h4>{selected?.history.map((h,i)=><p className="border-t py-2 text-xs text-muted-foreground" key={i}>{h.previous_limit} → {h.new_limit} · {new Date(h.created_at).toLocaleString('vi-VN')} · {h.reason}</p>)}{selected?.history.length===0&&<p className="text-xs text-muted-foreground">Chưa có thay đổi.</p>}</div><FormActions busy={loading} onCancel={()=>setSelected(null)} onSave={()=>{if(validate())setConfirmOpen(true);}} saveLabel="Lưu hạn mức"/></DialogContent></Dialog>

@@ -22,7 +22,7 @@ import { channelRequest, currentBusinessPeriod, type ChannelManagement } from '@
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace, type SchoolOperationsReport } from '@/lib/school-operations';
 import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
 
-export type AdminSection = 'dashboard' | 'admin-schools' | 'admin-proposals' | 'admin-team' | 'admin-settings' | 'admin-reports';
+export type AdminSection = 'dashboard' | 'admin-schools' | 'admin-proposals' | 'admin-team' | 'admin-capacity' | 'admin-policies' | 'admin-reports';
 type Props = { section: AdminSection; apiBase: string; token: string; abilities: string[]; workspace: ChannelSalesWorkspace; onChanged: () => Promise<void> };
 const panel = 'crm-brand-surface rounded-2xl border border-border/80 bg-card p-5';
 const fmt = (value: number) => value.toLocaleString('vi-VN');
@@ -54,6 +54,15 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   const [teamForm, setTeamForm] = useState({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});
   const [manual, setManual] = useState<Record<string,string>>({unit_type:'MAIN'});
   const [page, setPage] = useState(1);
+  const [proposalPageSize, setProposalPageSize] = useState(20);
+  // The existing API returns 100 proposals per server page. 10/20/50 all divide 100,
+  // so each displayed client page fits entirely inside one server page.
+  const proposalServerPage = Math.floor(((page - 1) * proposalPageSize) / 100) + 1;
+  const [policyDraft, setPolicyDraft] = useState('');
+  const [policySearch, setPolicySearch] = useState('');
+  const [policyStatus, setPolicyStatus] = useState('ALL');
+  const [policyPage, setPolicyPage] = useState(1);
+  const [policyPageSize, setPolicyPageSize] = useState(20);
   const [error, setError] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string,string>>({});
   const [busy, setBusy] = useState(false);
@@ -70,15 +79,15 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     if (preview || !token) return;
     setBusy(true); setError('');
     try {
-      if (section === 'admin-proposals' || section === 'admin-settings' || section === 'admin-reports' || section === 'dashboard') {
-        setOperations(await api<SchoolOperationsWorkspace>('/school-operations?page=' + page + '&search=' + encodeURIComponent(search) + (section === 'admin-proposals' && statusFilter !== 'ALL' ? '&status=' + encodeURIComponent(statusFilter) : '')));
+      if (section === 'admin-proposals' || section === 'admin-policies' || section === 'admin-reports' || section === 'dashboard') {
+        setOperations(await api<SchoolOperationsWorkspace>('/school-operations?page=' + (section === 'admin-proposals' ? proposalServerPage : page) + '&search=' + encodeURIComponent(search) + (section === 'admin-proposals' && statusFilter !== 'ALL' ? '&status=' + encodeURIComponent(statusFilter) : '')));
       }
       if (section === 'admin-team') setManagement(await api<ChannelManagement>('/management'));
       if (section === 'admin-reports') setReport(await api<SchoolOperationsReport>('/school-operations/report?period=' + period));
     } catch (e) { setError(e instanceof Error ? e.message : 'Không tải được dữ liệu.'); }
     finally { setBusy(false); }
   };
-  useEffect(() => { void reload(); }, [section, token, page, period, statusFilter, search]);
+  useEffect(() => { void reload(); }, [section, token, proposalServerPage, period, statusFilter, search]);
   const updateProposal = async (id: number, approve: boolean, duplicateReviewed: boolean) => {
     if (!reason.trim()) { setError('Cần nhập căn cứ quyết định.'); return; }
     setBusy(true); setError('');
@@ -117,7 +126,14 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     } catch(e) { setError(e instanceof Error ? e.message : 'Không xem được lịch sử.'); }
     finally { setBusy(false); }
   };
-  const proposals = operations?.proposals.filter(p => (statusFilter==='ALL' || p.status===statusFilter) && [p.name,p.school_code,p.submitted_by].some(x => x.toLowerCase().includes(search.toLowerCase()))) ?? [];
+  const proposalOffset = ((page - 1) * proposalPageSize) % 100;
+  const proposals = operations?.pagination?.page === proposalServerPage
+    ? operations.proposals.slice(proposalOffset, proposalOffset + proposalPageSize)
+    : [];
+  const filteredPolicies = (operations?.policies ?? []).filter(p =>
+    (policyStatus === 'ALL' || p.status === policyStatus) &&
+    (policySearch === '' || `Phiên bản ${p.version} ${workflowLabels[p.status] ?? p.status}`.toLocaleLowerCase('vi').includes(policySearch.toLocaleLowerCase('vi')))
+  );
   const createManual = async () => {
     const errs: Record<string,string> = {};
     for(const key of ['school_code','name','province','ward','reason']) if(!manual[key]?.trim()) errs[key]='Trường này là bắt buộc.';
@@ -192,7 +208,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
   <AdminListPanel>
     <AdminListToolbar search={proposalDraft} onSearchChange={setProposalDraft} onSearch={()=>{setPage(1);setSearch(proposalDraft.trim());}}
       onReset={()=>{setProposalDraft('');setSearch('');setStatusFilter('ALL');setPage(1);}}
-      placeholder="Tên trường, mã trường, người đề xuất..." searchLabel="Tìm đề xuất trường"
+      placeholder="Tên trường, mã trường..." searchLabel="Tìm đề xuất trường"
       filters={<AppNativeSelect aria-label="Lọc trạng thái đề xuất" value={statusFilter} containerClassName="h-11 w-full sm:w-[200px]" onChange={e=>{setStatusFilter(e.target.value);setPage(1);}}>
         <option value="ALL">Tất cả trạng thái</option><option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option>
         <option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option>
@@ -217,15 +233,12 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       </table>
       {!busy && proposals.length===0 && <p className="p-8 text-center text-sm text-muted-foreground">Không có đề xuất phù hợp.</p>}
     </div>
-    {operations?.pagination && <div className="flex items-center justify-between gap-3 border-t border-border/80 px-5 py-4">
-      <span className="text-sm text-muted-foreground">Trang {page} · {operations.proposals.length} hồ sơ trên trang</span>
-      <div className="flex items-center gap-2">
-        <AppButton tone="outline" disabled={busy||page<=1} onClick={()=>setPage(v=>v-1)}>Trước</AppButton>
-        <span className="grid size-9 place-items-center rounded-lg bg-[#1b5e20] text-sm font-bold text-white">{page}</span>
-        <AppButton tone="outline" disabled={busy||operations.proposals.length<operations.pagination.page_size} onClick={()=>setPage(v=>v+1)}>Sau</AppButton>
-      </div>
-    </div>}
-  </AdminListPanel>
+    {operations?.pagination && <AppPagination page={page} pageSize={proposalPageSize}
+      total={operations.pagination.totals.proposals ?? 0} showSummary={false}
+      disabled={busy} pageSizeOptions={[10,20,50]}
+      onPageChange={setPage}
+      onPageSizeChange={size=>{setProposalPageSize(size);setPage(1);}}/>}
+
 </div>}
     {section === 'admin-team' && <div className="space-y-5">
   <AppPageHeader eyebrow="QUẢN TRỊ / NHÂN SỰ & ĐỐI TÁC" title="Nhân sự & đối tác"
@@ -261,7 +274,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     </div>
     {management && <AppPagination page={teamPage} pageSize={teamPageSize}
       total={management.team.filter(u=>(teamStatus==='ALL'||u.status===teamStatus)&&[u.name,u.email,u.organization_name].some(x=>x.toLocaleLowerCase('vi').includes(teamSearch.toLocaleLowerCase('vi')))).length}
-      itemLabel="nhân sự" pageSizeOptions={[10,20,50]}
+      itemLabel="nhân sự" showSummary={false} pageSizeOptions={[10,20,50]}
       onPageChange={setTeamPage} onPageSizeChange={v=>{setTeamPageSize(v);setTeamPage(1);}}/>}
   </AdminListPanel>
   <Dialog open={teamFormOpen} onOpenChange={open=>{if(!busy)setTeamFormOpen(open);}}>
@@ -301,11 +314,47 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     </DialogContent>
   </Dialog>
 </div>}
-    {section === 'admin-settings' && <div className="space-y-5"><AppPageHeader eyebrow="QUẢN TRỊ / CHÍNH SÁCH & HẠN MỨC" title="Chính sách & hạn mức" description="Theo dõi hạn mức tiếp cận, lịch sử điều chỉnh và phiên bản chính sách vận hành."/><AdminCapacityManagement apiBase={apiBase} token={token} abilities={abilities}/><div className={panel}>
-      <h3 className="mb-2 font-semibold">Chính sách vận hành</h3><p className="mb-4 text-sm text-muted-foreground">Chỉ hiển thị phiên bản chính sách đã lưu. Chưa kích hoạt thông số SLA chưa được phê duyệt.</p>
-      <div className="overflow-x-auto rounded-xl border"><table className={adminTableClass}><thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Phiên bản</th><th className="px-5 py-4">Quản lý duyệt</th><th className="px-5 py-4">Admin duyệt</th><th className="px-5 py-4 text-center">Trạng thái</th></tr></thead><tbody>{operations?.policies.map(p=><tr key={p.id} className="border-t even:bg-muted/20"><td className="px-5 py-4 font-semibold">Phiên bản {p.version}</td><td className="px-5 py-4">{p.manager_review_hours} giờ</td><td className="px-5 py-4">{p.admin_review_hours} giờ</td><td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status} label={workflowLabels[p.status]??p.status}/></td></tr>)}</tbody></table></div>
-      {!operations?.policies.length && <p className="text-sm text-muted-foreground">Chưa có chính sách được tải.</p>}
-    </div></div>}
+    {section === 'admin-capacity' && <AdminCapacityManagement apiBase={apiBase} token={token} abilities={abilities}/>}
+    {section === 'admin-policies' && <div className="space-y-5">
+      <AppPageHeader eyebrow="QUẢN TRỊ / CHÍNH SÁCH VẬN HÀNH" title="Quản lý chính sách vận hành"
+        description="Theo dõi phiên bản chính sách và thời hạn xử lý đang được ghi nhận."/>
+      <AdminListPanel>
+        <AdminListToolbar search={policyDraft} onSearchChange={setPolicyDraft}
+          onSearch={()=>{setPolicySearch(policyDraft.trim());setPolicyPage(1);}}
+          onReset={()=>{setPolicyDraft('');setPolicySearch('');setPolicyStatus('ALL');setPolicyPage(1);}}
+          placeholder="Tìm phiên bản hoặc trạng thái..." searchLabel="Tìm chính sách"
+          filters={<AppNativeSelect aria-label="Lọc trạng thái chính sách" containerClassName="h-11 w-full sm:w-[200px]"
+            value={policyStatus} onChange={e=>{setPolicyStatus(e.target.value);setPolicyPage(1);}}>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACTIVE">Đang áp dụng</option>
+            <option value="DRAFT">Bản nháp</option>
+            <option value="SUPERSEDED">Đã thay phiên bản</option>
+          </AppNativeSelect>}/>
+        <div className="overflow-x-auto">
+          <table className={adminTableClass}>
+            <thead className={adminTableHeadClass}><tr>
+              <th className="px-5 py-4">Phiên bản</th><th className="px-5 py-4 text-center">Quản lý duyệt</th>
+              <th className="px-5 py-4 text-center">Admin duyệt</th><th className="px-5 py-4 text-center">Trạng thái</th>
+            </tr></thead>
+            <tbody>{filteredPolicies.slice((policyPage - 1) * policyPageSize, policyPage * policyPageSize).map(p=>
+              <tr key={p.id} className="border-t border-border/70 even:bg-muted/20 hover:bg-accent">
+                <td className="px-5 py-4 font-semibold">Phiên bản {p.version}</td>
+                <td className="px-5 py-4 text-center">{p.manager_review_hours} giờ</td>
+                <td className="px-5 py-4 text-center">{p.admin_review_hours} giờ</td>
+                <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status} label={workflowLabels[p.status]??p.status}/></td>
+              </tr>)}</tbody>
+          </table>
+          {!busy && filteredPolicies.length === 0 &&
+            <p className="p-8 text-center text-sm text-muted-foreground">Không có chính sách phù hợp.</p>}
+          {busy && <p className="p-5 text-sm text-muted-foreground">Đang tải chính sách…</p>}
+        </div>
+        <AppPagination page={policyPage} pageSize={policyPageSize} total={filteredPolicies.length}
+          showSummary={false} disabled={busy} pageSizeOptions={[10,20,50]}
+          onPageChange={setPolicyPage}
+          onPageSizeChange={size=>{setPolicyPageSize(size);setPolicyPage(1);}}/>
+      </AdminListPanel>
+      <p className="text-xs text-muted-foreground">Chỉ hiển thị chính sách đã lưu; các SLA chưa được phê duyệt không tự động kích hoạt.</p>
+    </div>}
     {section === 'admin-reports' && <div className={panel}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Báo cáo vận hành</h3><Input className="max-w-44" type="month" aria-label="Kỳ báo cáo" value={period} onChange={e=>setPeriod(e.target.value)} /></div>
       <div className="grid gap-3 sm:grid-cols-2"><Summary label="Trường chưa đăng ký" value={report?.available_schools ?? null}/><Summary label="Hợp đồng đang hiệu lực" value={report?.active_contracts ?? null}/><Summary label="Đề xuất quá hạn" value={report?.overdue_proposals ?? null}/><Summary label="Tiếp cận hết hạn" value={report?.expired_approaches ?? null}/></div>

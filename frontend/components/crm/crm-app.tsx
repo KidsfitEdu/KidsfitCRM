@@ -87,7 +87,8 @@ type View =
   | 'admin-schools'
   | 'admin-proposals'
   | 'admin-team'
-  | 'admin-settings'
+  | 'admin-capacity'
+  | 'admin-policies'
   | 'admin-reports'
   | 'manager-dashboard'
   | 'manager-proposals'
@@ -205,7 +206,8 @@ const nav: { id: View; label: string; shortLabel: string; icon: LucideIcon }[] =
   { id: 'admin-schools', label: 'Trường học', shortLabel: 'Trường', icon: GraduationCap },
   { id: 'admin-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'admin-team', label: 'Nhân sự & đối tác', shortLabel: 'Nhân sự', icon: UsersRound },
-  { id: 'admin-settings', label: 'Chính sách & hạn mức', shortLabel: 'Chính sách', icon: ShieldCheck },
+  { id: 'admin-capacity', label: 'Hạn mức tiếp cận', shortLabel: 'Hạn mức', icon: UsersRound },
+  { id: 'admin-policies', label: 'Chính sách vận hành', shortLabel: 'Chính sách', icon: ShieldCheck },
   { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
   { id: 'role-board-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-board-oversight', label: 'Báo cáo', shortLabel: 'Báo cáo', icon: TrendingUp },
@@ -267,7 +269,8 @@ const viewCopy: Record<
   'admin-proposals': { eyebrow: 'Quản trị đề xuất', title: 'Đề xuất & phê duyệt', description: 'Theo dõi đề xuất trường mới và quyết định duyệt.' },
   'admin-team': { eyebrow: 'Tổ chức & nhân sự', title: 'Nhân sự & đối tác', description: 'Quản lý CTV, nhân viên và đối tác bán hàng.' },
   'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
-  'admin-settings': { eyebrow: 'Thiết lập CRM', title: 'Cấu hình hệ thống', description: 'Quản trị chính sách và hạn mức nghiệp vụ.' },
+  'admin-capacity': { eyebrow: 'Quản trị / Hạn mức tiếp cận', title: 'Quản lý hạn mức tiếp cận', description: 'Quản lý giới hạn trường đang tiếp cận của Nhân viên và CTV.' },
+  'admin-policies': { eyebrow: 'Quản trị / Chính sách vận hành', title: 'Quản lý chính sách vận hành', description: 'Xem phiên bản chính sách và thời hạn xử lý theo quy định.' },
   'role-board-dashboard': {eyebrow:'Ban giám đốc',title:'Tổng quan',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-oversight': {eyebrow:'Ban giám đốc',title:'Báo cáo',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-overdue': {eyebrow:'Ban giám đốc',title:'Quá hạn',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
@@ -1151,7 +1154,8 @@ function CrmWorkspace({
         if (item.id === 'dashboard') return can('channel_sales.customer.view');
         if (item.id === 'admin-schools' || item.id === 'admin-proposals') return can('channel_sales.school.directory.manage');
         if (item.id === 'admin-team') return can('channel_sales.team.manage');
-        if (item.id === 'admin-settings') return can('channel_sales.school.workflow_policy.manage');
+        if (item.id === 'admin-capacity') return can('channel_sales.school.capacity.manage');
+        if (item.id === 'admin-policies') return can('channel_sales.school.workflow_policy.manage');
         if (item.id === 'admin-reports') return can('channel_sales.customer.view');
         return false;
       })
@@ -1282,7 +1286,7 @@ function CrmWorkspace({
               </Button>
             </aside>
           )}
-          {currentView !== 'admin-schools' && <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
+          {!['admin-schools', 'admin-proposals', 'admin-team', 'admin-capacity', 'admin-policies'].includes(currentView) && <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
             actions={<div className="flex flex-wrap gap-2">
               {currentView === 'finance' && (
                 <Button
@@ -1349,7 +1353,7 @@ function CrmWorkspace({
                   />
                 </Suspense>
               )}
-              {(['dashboard', 'admin-schools', 'admin-proposals', 'admin-team', 'admin-settings', 'admin-reports'] as View[]).includes(currentView) && (
+              {(['dashboard', 'admin-schools', 'admin-proposals', 'admin-team', 'admin-capacity', 'admin-policies', 'admin-reports'] as View[]).includes(currentView) && (
                 <Suspense fallback={<LoadingGrid />}>
                   <AdminWorkspace
                     key={currentView}

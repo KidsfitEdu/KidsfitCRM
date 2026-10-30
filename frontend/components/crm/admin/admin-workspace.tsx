@@ -238,7 +238,7 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
       disabled={busy} pageSizeOptions={[10,20,50]}
       onPageChange={setPage}
       onPageSizeChange={size=>{setProposalPageSize(size);setPage(1);}}/>}
-
+  </AdminListPanel>
 </div>}
     {section === 'admin-team' && <div className="space-y-5">
   <AppPageHeader eyebrow="QUẢN TRỊ / NHÂN SỰ & ĐỐI TÁC" title="Nhân sự & đối tác"

@@ -3,7 +3,7 @@
 import { RoleOperationsPage } from '@/src/components/roles/RoleOperationsPage';
 import type { RolePageProps } from '@/src/types/role-pages';
 
-/** SalesStaff · Danh sách trường (view uses shared CRM business components). */
+/** SalesStaff · Schools (shared domain view). */
 export function SchoolsPage(props: RolePageProps) {
-  return <RoleOperationsPage role="SalesStaff" section="schools" {...props}/>;
+  return <RoleOperationsPage profile="SalesStaff" section="schools" {...props}/>;
 }

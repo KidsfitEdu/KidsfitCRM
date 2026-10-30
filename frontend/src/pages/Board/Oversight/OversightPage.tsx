@@ -3,7 +3,7 @@
 import { RoleOperationsPage } from '@/src/components/roles/RoleOperationsPage';
 import type { RolePageProps } from '@/src/types/role-pages';
 
-/** Board · Giám sát & báo cáo (view uses shared CRM business components). */
+/** Board · Oversight (shared domain view). */
 export function OversightPage(props: RolePageProps) {
-  return <RoleOperationsPage role="Board" section="oversight" {...props}/>;
+  return <RoleOperationsPage profile="Board" section="oversight" {...props}/>;
 }

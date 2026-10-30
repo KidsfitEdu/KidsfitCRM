@@ -3,7 +3,7 @@
 import { RoleDashboard } from '@/src/components/roles/RoleDashboard';
 import type { RolePageProps } from '@/src/types/role-pages';
 
-/** Accounting · Tổng quan (view uses shared CRM business components). */
+/** Accounting · Dashboard (shared domain view). */
 export function DashboardPage(props: RolePageProps) {
-  return <RoleDashboard role="Accounting" {...props}/>;
+  return <RoleDashboard profile="Accounting" {...props}/>;
 }

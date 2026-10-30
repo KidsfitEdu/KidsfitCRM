@@ -10,12 +10,12 @@ import type { RolePageProps } from '@/src/types/role-pages';
 import type { RolePageGroup } from '@/src/config/role-pages';
 
 /** Exact dashboard tiles and authorization behavior shared by six UI profiles. */
-export function RoleDashboard({ role, ...props }: RolePageProps & { role: RolePageGroup }) {
+export function RoleDashboard({ profile, ...props }: RolePageProps & { profile: RolePageGroup }) {
   const { apiBase, token, abilities, workspace } = props;
   const preview = !apiBase;
   const canView = abilities.includes('channel_sales.customer.view') || abilities.includes('*');
   const operations = useQuery({
-    queryKey: [role.toLowerCase().replace(/([a-z])([A-Z])/g, '$1-$2') + '-summary', token],
+    queryKey: [profile.toLowerCase().replace(/([a-z])([A-Z])/g, '$1-$2') + '-summary', token],
     queryFn: () => channelRequest<SchoolOperationsWorkspace>(apiBase, token, '/school-operations?page=1'),
     enabled: !preview && !!token && canView,
   });

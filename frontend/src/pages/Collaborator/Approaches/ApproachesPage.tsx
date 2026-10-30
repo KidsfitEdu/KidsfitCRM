@@ -3,7 +3,7 @@
 import { RoleOperationsPage } from '@/src/components/roles/RoleOperationsPage';
 import type { RolePageProps } from '@/src/types/role-pages';
 
-/** Collaborator · Tiếp cận & tư vấn (view uses shared CRM business components). */
+/** Collaborator · Approaches (shared domain view). */
 export function ApproachesPage(props: RolePageProps) {
-  return <RoleOperationsPage role="Collaborator" section="approaches" {...props}/>;
+  return <RoleOperationsPage profile="Collaborator" section="approaches" {...props}/>;
 }

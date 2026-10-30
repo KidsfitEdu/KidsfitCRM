@@ -3,7 +3,7 @@
 import { RoleOperationsPage } from '@/src/components/roles/RoleOperationsPage';
 import type { RolePageProps } from '@/src/types/role-pages';
 
-/** Accounting · Hủy & hoàn (view uses shared CRM business components). */
+/** Accounting · Refunds (shared domain view). */
 export function RefundsPage(props: RolePageProps) {
-  return <RoleOperationsPage role="Accounting" section="refunds" {...props}/>;
+  return <RoleOperationsPage profile="Accounting" section="refunds" {...props}/>;
 }

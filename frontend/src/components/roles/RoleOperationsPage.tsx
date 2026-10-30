@@ -10,8 +10,8 @@ type Panel = ComponentProps<typeof ChannelOperations>['allowedPanels'];
 type SectionDefinition = {label: string; panel: string; tab: string};
 
 /** Presents an existing ChannelOperations view without copying business rules into each role. */
-export function RoleOperationsPage({ role, section, ...props }: RolePageProps & { role: RolePageGroup; section: string }) {
-  const sections: Record<string, SectionDefinition> = rolePageSections[role];
+export function RoleOperationsPage({ profile, section, ...props }: RolePageProps & { profile: RolePageGroup; section: string }) {
+  const sections: Record<string, SectionDefinition> = rolePageSections[profile];
   const active = sections[section];
   if (!active || active.panel === 'dashboard') return <p role="alert">Không tìm thấy chức năng được yêu cầu.</p>;
   const { apiBase, token, abilities, workspace, search, setSearch, onChanged } = props;

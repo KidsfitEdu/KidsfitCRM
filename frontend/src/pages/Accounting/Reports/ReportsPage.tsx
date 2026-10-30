@@ -3,7 +3,7 @@
 import { RoleOperationsPage } from '@/src/components/roles/RoleOperationsPage';
 import type { RolePageProps } from '@/src/types/role-pages';
 
-/** Accounting · Báo cáo (view uses shared CRM business components). */
+/** Accounting · Reports (shared domain view). */
 export function ReportsPage(props: RolePageProps) {
-  return <RoleOperationsPage role="Accounting" section="reports" {...props}/>;
+  return <RoleOperationsPage profile="Accounting" section="reports" {...props}/>;
 }

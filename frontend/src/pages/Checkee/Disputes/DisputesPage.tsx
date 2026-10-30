@@ -3,7 +3,7 @@
 import { RoleOperationsPage } from '@/src/components/roles/RoleOperationsPage';
 import type { RolePageProps } from '@/src/types/role-pages';
 
-/** Checkee · Tranh chấp (view uses shared CRM business components). */
+/** Checkee · Disputes (shared domain view). */
 export function DisputesPage(props: RolePageProps) {
-  return <RoleOperationsPage role="Checkee" section="disputes" {...props}/>;
+  return <RoleOperationsPage profile="Checkee" section="disputes" {...props}/>;
 }

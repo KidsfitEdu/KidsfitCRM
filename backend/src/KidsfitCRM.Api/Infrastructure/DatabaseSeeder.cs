@@ -18,15 +18,6 @@ public static class DatabaseSeeder
             throw new InvalidOperationException("Seed:DisposableDatabase=true is required for isolated demo seeding.");
         if (services.GetService<Microsoft.Extensions.Hosting.IHostEnvironment>()?.IsProduction() == true)
             throw new InvalidOperationException("Demo seeding is forbidden in Production.");
-        if (string.Equals(configuration["Seed:Profile"], "CRM_V2", StringComparison.OrdinalIgnoreCase))
-        {
-            var databaseName = db.Database.GetDbConnection().Database;
-            if (!string.Equals(databaseName, "kidsfit_crm_demo_v2", StringComparison.Ordinal)
-                && !databaseName.StartsWith("kidsfit_it_", StringComparison.Ordinal))
-                throw new InvalidOperationException("CRM_V2 seed must run against a dedicated disposable v2 database.");
-            await SeedCrmV2Async(services, demoPassword);
-            return;
-        }
         if (await db.Roles.AnyAsync())
         {
             await SeedChannelSalesAsync(services, demoPassword);
@@ -171,39 +162,6 @@ public static class DatabaseSeeder
         WorkTask Task(string title, string relatedType, long relatedId, long assignedTo, DateTime dueAt, string priority) => new() { Title = title, RelatedType = relatedType, RelatedId = relatedId, AssignedTo = assignedTo, DueAt = dueAt, Status = "OPEN", Priority = priority, CreatedAt = now, UpdatedAt = now };
     }
 
-    private static async Task SeedCrmV2Async(IServiceProvider services, string password)
-    {
-        var db = services.GetRequiredService<KidsfitDbContext>();
-        var hasher = services.GetRequiredService<IPasswordHasher<User>>();
-        var now = DateTime.UtcNow;
-        var alreadyInitialized = await db.Roles.AnyAsync();
-        if (alreadyInitialized && !await db.DirectorySchools.AnyAsync(s => s.SchoolCode == "V2-SCH-AVAILABLE"))
-            throw new InvalidOperationException("CRM_V2 refuses a pre-existing non-v2 database.");
-
-        if (!alreadyInitialized)
-        {
-            await using var transaction = await db.Database.BeginTransactionAsync();
-            var adminRole = new Role { Code = "ADMIN", Name = "Quản trị viên", CreatedAt = now, UpdatedAt = now };
-            var salesRole = new Role { Code = "SALES", Name = "Sales", CreatedAt = now, UpdatedAt = now };
-            var admin = new User { Code = "ADMIN001", Name = "Quản trị Demo", Email = "admin@kidsfit.vn",
-                Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
-            var sales = new User { Code = "SALES001", Name = "Sales Demo", Email = "sales@kidsfit.vn",
-                Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
-            admin.Password = hasher.HashPassword(admin, password);
-            sales.Password = hasher.HashPassword(sales, password);
-            db.AddRange(adminRole, salesRole, admin, sales);
-            await db.SaveChangesAsync();
-            db.UserRoles.AddRange(new UserRole { UserId = admin.Id, RoleId = adminRole.Id },
-                new UserRole { UserId = sales.Id, RoleId = salesRole.Id });
-            await db.SaveChangesAsync();
-            await transaction.CommitAsync();
-        }
-
-        await SeedChannelSalesAsync(services, password, includeLegacyFixtures: false);
-        await NormalizeDemoPasswordsAsync(db, hasher, password);
-        await CrmV2ScenarioSeeder.SeedAsync(db, hasher, password, now);
-    }
-
     private static async Task NormalizeDemoPasswordsAsync(KidsfitDbContext db, IPasswordHasher<User> hasher, string password)
     {
         // This routine is restricted to the explicitly disposable database by SeedAsync.
@@ -235,7 +193,7 @@ public static class DatabaseSeeder
 
     private static string Digits(string value) => string.Concat(value.Where(char.IsDigit));
 
-    private static async Task SeedChannelSalesAsync(IServiceProvider services, string demoPassword, bool includeLegacyFixtures = true)
+    private static async Task SeedChannelSalesAsync(IServiceProvider services, string demoPassword)
     {
         var db = services.GetRequiredService<KidsfitDbContext>();
         var hasher = services.GetRequiredService<IPasswordHasher<User>>();
@@ -429,13 +387,6 @@ public static class DatabaseSeeder
             UpdatedAt = now,
         }));
         await db.SaveChangesAsync();
-
-        if (!includeLegacyFixtures)
-        {
-            // Do not create historical education-center customers, sample contracts or active demo commission policies.
-            await transaction.CommitAsync();
-            return;
-        }
 
         if (!await db.CommissionPolicyVersions.AnyAsync(x => x.Code == "KIDSFIT-2026-V1"))
         {

@@ -54,7 +54,17 @@ match the new folder names.
 - `src/components/common/admin-list-ui.tsx` owns admin list primitives,
   with a compatible legacy barrel.
 - All seven Admin pages now contain their own presentation, local form state, data loading and actions; the old `AdminWorkspace` is a compatibility switch that chooses a page and supplies the existing QueryClient.
-- The page extraction is **not accepted yet**: CI still reports existing lint and type errors and the static demo build has a `next/image` import resolution error. Integration/browser parity has not been verified.
+- CI passed for the Phase-4 interim commit on 30 Oct 2026 (lint, tsc, demo tests, Vinext build, Vite build, Pages artifact tests). This is compilation-level validation, **not** API integration or browser parity sign-off.
+
+## Stage 3–4 implementation status
+
+- Six role page groups (`Board`, `Accounting`, `CustomerCare`, `SalesStaff`, `Checkee`, `Collaborator`) contain 33 presentation-page entries; `SalesManager` has six additional page entries. Shared dashboards and operations panels remain in `src/components/roles/`, preserving the existing backend permission and panel mapping.
+- The former role workspaces now re-export their new `src/pages/<Role>/` counterparts for compatibility; `CrmApp` remains the state/session controller until the auth extraction is complete.
+- `src/components/layout/Sidebar.tsx`, `Header.tsx`, `AppShell.tsx` own the surrounding UI and preserve the original CSS classes.
+- `src/providers/AppProviders.tsx` owns one React Query cache for each signed-in workspace, keyed by token/demo profile. Role workspaces no longer construct their own query clients.
+- `src/config/routes.ts` and Vinext `app/crm/[view]/page.tsx` provide optional canonical deep links. Menu navigation uses browser history only with a configured real API; the static GitHub Pages demo remains root-only.
+- The route is checked against known view identifiers. **Frontend view checks are not a substitute for backend RBAC**. A user with a URL outside their visible navigation is still restricted to their allowed UI. Server-side permissions must continue to enforce all data access/actions.
+- Browser-based checks of real authenticated deep links, refresh/back, session expiry, screen-reader navigation, visual parity and cross-role data isolation have **not been completed**. Do not mark this phase production-accepted solely because CI is green.
 
 ## Planned migration and verification
 

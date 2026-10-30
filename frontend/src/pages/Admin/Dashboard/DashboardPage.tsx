@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Building2, ClipboardList, CalendarClock, Handshake, TrendingUp, UsersRound } from 'lucide-react';
 import { AppStatCard } from '@/components/common/app-stat-card';
-import { fetchAdminOperations } from '@/src/services/proposal.service';
+import { fetchAdminOperations } from '@/services/proposal.service';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
-import { AdminPageStatus } from '@/src/components/admin/AdminPageStatus';
+import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
 export function DashboardPage({apiBase,token,workspace}:AdminPageProps) {

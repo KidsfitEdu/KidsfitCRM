@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Settings2, RefreshCw } from 'lucide-react';
-import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableHeadClass } from '@/src/components/common/admin-list-ui';
+import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppButton } from '@/components/common/app-button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { fetchCapacities, updateCapacity } from '@/src/services/capacity.service';
-import type { Capacity } from '@/src/types/capacity';
+import { fetchCapacities, updateCapacity } from '@/services/capacity.service';
+import type { Capacity } from '@/types/capacity';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { FormActions } from '@/components/common/form-actions';

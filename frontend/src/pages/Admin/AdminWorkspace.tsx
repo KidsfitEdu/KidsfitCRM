@@ -1,14 +1,14 @@
 'use client';
 
-import type { AdminPageProps } from '@/src/pages/Admin/types';
-import { DashboardPage } from '@/src/pages/Admin/Dashboard/DashboardPage';
-import { SchoolsPage } from '@/src/pages/Admin/Schools/SchoolsPage';
-import { ProposalsPage } from '@/src/pages/Admin/Proposals/ProposalsPage';
-import { PersonnelPage } from '@/src/pages/Admin/Personnel/PersonnelPage';
-import { CapacitiesPage } from '@/src/pages/Admin/Capacities/CapacitiesPage';
-import { PoliciesPage } from '@/src/pages/Admin/Policies/PoliciesPage';
-import { ReportsPage } from '@/src/pages/Admin/Reports/ReportsPage';
-import { AdminPageStatus } from '@/src/components/admin/AdminPageStatus';
+import type { AdminPageProps } from '@/pages/Admin/types';
+import { DashboardPage } from '@/pages/Admin/Dashboard/DashboardPage';
+import { SchoolsPage } from '@/pages/Admin/Schools/SchoolsPage';
+import { ProposalsPage } from '@/pages/Admin/Proposals/ProposalsPage';
+import { PersonnelPage } from '@/pages/Admin/Personnel/PersonnelPage';
+import { CapacitiesPage } from '@/pages/Admin/Capacities/CapacitiesPage';
+import { PoliciesPage } from '@/pages/Admin/Policies/PoliciesPage';
+import { ReportsPage } from '@/pages/Admin/Reports/ReportsPage';
+import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 
 export type AdminSection='dashboard'|'admin-schools'|'admin-proposals'|'admin-team'|'admin-capacity'|'admin-policies'|'admin-reports';
 type Props=AdminPageProps&{section:AdminSection};

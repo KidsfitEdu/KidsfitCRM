@@ -11,10 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { FormActions } from '@/components/common/form-actions';
 import { FormError } from '@/components/common/form-error';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/src/components/common/admin-list-ui';
-import { fetchAdminManagement,createAdminTeamMember } from '@/src/services/personnel.service';
+import { AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/components/common/admin-list-ui';
+import { fetchAdminManagement,createAdminTeamMember } from '@/services/personnel.service';
 import type { ChannelManagement } from '@/lib/channel-operations';
-import { AdminPageStatus } from '@/src/components/admin/AdminPageStatus';
+import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
 export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {

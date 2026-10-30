@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Clock3, Eye, History, Plus, RotateCcw, X, Ban, ListChecks } from 'lucide-react';
+import { Check, Eye, History, Plus, RotateCcw, X, Ban, ListChecks } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -168,7 +168,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const busy = section === 'progress' ? customers.isPending || report.isPending : operations.isPending;
   const failed = section === 'progress' ? customers.error ?? report.error : operations.error;
   const config = headings[section];
-  const columnCount = section === 'proposals' ? 6 : section === 'progress' ? 7 : 6;
   const reset = () => { setDraft(''); setSearch(''); setFilter('ALL'); setPage(1); };
 
   return <div className="space-y-5">
@@ -181,7 +180,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
         <AppButton tone="outline" leadingIcon={<RotateCcw className="size-4"/>} onClick={() => void refresh()}>Làm mới</AppButton>
       </div>}/>
     {preview && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Dữ liệu minh họa chỉ đọc. Đăng nhập hệ thống kết nối API để phê duyệt và phân bổ.</p>}
-    {notice && <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" role="status">{notice}</output>}
+    {notice && <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" >{notice}</output>}
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {failed && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{failed.message}</p>}
     {section === 'progress' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

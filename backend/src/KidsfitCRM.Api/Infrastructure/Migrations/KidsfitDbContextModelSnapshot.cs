@@ -154,8 +154,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
-
                     b.ToTable("audit_logs");
                 });
 
@@ -342,119 +340,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("checkee_product_packages");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.ClassRoom", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Capacity")
-                        .HasColumnType("int")
-                        .HasColumnName("capacity");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("code");
-
-                    b.Property<long>("CourseId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("course_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("date")
-                        .HasColumnName("end_date");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("date")
-                        .HasColumnName("start_date");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<long?>("TeacherId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("teacher_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("TeacherId");
-
-                    b.HasIndex("CourseId", "Status");
-
-                    b.ToTable("classes", (string)null);
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.ClassSchedule", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<long>("ClassId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("class_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int")
-                        .HasColumnName("day_of_week");
-
-                    b.Property<TimeOnly>("EndTime")
-                        .HasColumnType("time")
-                        .HasColumnName("end_time");
-
-                    b.Property<string>("Room")
-                        .HasColumnType("longtext")
-                        .HasColumnName("room");
-
-                    b.Property<TimeOnly>("StartTime")
-                        .HasColumnType("time")
-                        .HasColumnName("start_time");
-
-                    b.Property<long?>("TeacherId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("teacher_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClassId");
-
-                    b.HasIndex("TeacherId");
-
-                    b.ToTable("class_schedules");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.CommissionLedgerEntry", b =>
@@ -788,60 +673,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasIndex("PreviousUserId");
 
                     b.ToTable("contract_care_handovers");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Course", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("NumberOfSessions")
-                        .HasColumnType("int")
-                        .HasColumnName("number_of_sessions");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<decimal>("TuitionFee")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("tuition_fee");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("courses");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.CustomerActivity", b =>
@@ -1178,642 +1009,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("directory_schools");
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Enrollment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<long>("ClassId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("class_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("discount_amount");
-
-                    b.Property<decimal>("FinalFee")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("final_fee");
-
-                    b.Property<decimal>("OriginalFee")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("original_fee");
-
-                    b.Property<long>("RegisteredBy")
-                        .HasColumnType("bigint")
-                        .HasColumnName("registered_by");
-
-                    b.Property<DateTime>("RegistrationDate")
-                        .HasColumnType("date")
-                        .HasColumnName("registration_date");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<long>("StudentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("student_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RegisteredBy");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("ClassId", "Status");
-
-                    b.ToTable("enrollments");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Invoice", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("discount_amount");
-
-                    b.Property<DateTime?>("DueAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("due_at");
-
-                    b.Property<long>("EnrollmentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("enrollment_id");
-
-                    b.Property<decimal>("FinalAmount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("final_amount");
-
-                    b.Property<string>("InvoiceCode")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("invoice_code");
-
-                    b.Property<DateTime>("IssuedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("issued_at");
-
-                    b.Property<decimal>("PaidAmount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("paid_amount");
-
-                    b.Property<long>("ParentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("parent_id");
-
-                    b.Property<decimal>("RemainingAmount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("remaining_amount");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<long>("StudentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("student_id");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("total_amount");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EnrollmentId");
-
-                    b.HasIndex("InvoiceCode")
-                        .IsUnique();
-
-                    b.HasIndex("ParentId");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("Status", "DueAt");
-
-                    b.ToTable("invoices");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.InvoiceItem", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("amount");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("description");
-
-                    b.Property<long>("InvoiceId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("invoice_id");
-
-                    b.Property<long?>("ItemId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("item_id");
-
-                    b.Property<string>("ItemType")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("item_type");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)")
-                        .HasColumnName("quantity");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("unit_price");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvoiceId");
-
-                    b.ToTable("invoice_items");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Lead", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<long?>("AssignedUserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("assigned_user_id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("code");
-
-                    b.Property<long?>("ConvertedParentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("converted_parent_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("longtext")
-                        .HasColumnName("email");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
-                        .HasColumnName("full_name");
-
-                    b.Property<long?>("InterestedCourseId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("interested_course_id");
-
-                    b.Property<DateTime?>("NextFollowUpAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("next_follow_up_at");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("longtext")
-                        .HasColumnName("note");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("phone");
-
-                    b.Property<string>("PhoneNormalized")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("phone_normalized");
-
-                    b.Property<long>("SourceId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("source_id");
-
-                    b.Property<long>("StatusId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("status_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedUserId");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("ConvertedParentId");
-
-                    b.HasIndex("InterestedCourseId");
-
-                    b.HasIndex("PhoneNormalized");
-
-                    b.HasIndex("SourceId");
-
-                    b.HasIndex("StatusId", "AssignedUserId", "NextFollowUpAt");
-
-                    b.ToTable("leads");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadActivity", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ActivityType")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("activity_type");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("content");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("LeadId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("lead_id");
-
-                    b.Property<string>("Metadata")
-                        .HasColumnType("json")
-                        .HasColumnName("metadata");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LeadId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("lead_activities");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadAssignment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("assigned_at");
-
-                    b.Property<long>("AssignedBy")
-                        .HasColumnType("bigint")
-                        .HasColumnName("assigned_by");
-
-                    b.Property<long>("AssignedTo")
-                        .HasColumnType("bigint")
-                        .HasColumnName("assigned_to");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("LeadId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("lead_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedBy");
-
-                    b.HasIndex("AssignedTo");
-
-                    b.HasIndex("LeadId");
-
-                    b.ToTable("lead_assignments");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadConversion", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("ConvertedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("converted_at");
-
-                    b.Property<long>("ConvertedBy")
-                        .HasColumnType("bigint")
-                        .HasColumnName("converted_by");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("EnrollmentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("enrollment_id");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("varchar(120)")
-                        .HasColumnName("idempotency_key")
-                        .UseCollation("utf8mb4_bin");
-
-                    b.Property<long>("InvoiceId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("invoice_id");
-
-                    b.Property<long>("LeadId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("lead_id");
-
-                    b.Property<long>("ParentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("parent_id");
-
-                    b.Property<long>("StudentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("student_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConvertedBy");
-
-                    b.HasIndex("EnrollmentId");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
-
-                    b.HasIndex("InvoiceId");
-
-                    b.HasIndex("LeadId")
-                        .IsUnique();
-
-                    b.HasIndex("ParentId");
-
-                    b.HasIndex("StudentId");
-
-                    b.ToTable("lead_conversions");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadNote", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("content");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("LeadId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("lead_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LeadId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("lead_notes");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadSource", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("code");
-
-                    b.Property<string>("Color")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("varchar(16)")
-                        .HasColumnName("color");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("varchar(120)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("lead_sources");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadStatus", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("code");
-
-                    b.Property<string>("Color")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("varchar(16)")
-                        .HasColumnName("color");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsTerminal")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_terminal");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("varchar(120)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("lead_statuses");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Notification", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("content");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Data")
-                        .HasColumnType("json")
-                        .HasColumnName("data");
-
-                    b.Property<DateTime?>("ReadAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("read_at");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("title");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("type");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("notifications");
-                });
-
             modelBuilder.Entity("KidsfitCRM.Api.Domain.Organization", b =>
                 {
                     b.Property<long>("Id")
@@ -1925,189 +1120,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasIndex("UserId", "Status");
 
                     b.ToTable("organization_memberships");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Parent", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Address")
-                        .HasColumnType("longtext")
-                        .HasColumnName("address");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("longtext")
-                        .HasColumnName("email");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
-                        .HasColumnName("full_name");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("phone");
-
-                    b.Property<string>("PhoneNormalized")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("phone_normalized");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("PhoneNormalized");
-
-                    b.ToTable("parents");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.ParentStudent", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsPrimaryContact")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_primary_contact");
-
-                    b.Property<long>("ParentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("parent_id");
-
-                    b.Property<string>("Relationship")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("relationship");
-
-                    b.Property<long>("StudentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("student_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("ParentId", "StudentId")
-                        .IsUnique();
-
-                    b.ToTable("parent_student", (string)null);
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Payment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("amount");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("CreatedBy")
-                        .HasColumnType("bigint")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasMaxLength(120)
-                        .HasColumnType("varchar(120)")
-                        .HasColumnName("idempotency_key")
-                        .UseCollation("utf8mb4_bin");
-
-                    b.Property<long>("InvoiceId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("invoice_id");
-
-                    b.Property<long>("ParentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("parent_id");
-
-                    b.Property<DateTime>("PaymentDate")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("payment_date");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("payment_method");
-
-                    b.Property<string>("ReferenceCode")
-                        .IsRequired()
-                        .HasMaxLength(48)
-                        .HasColumnType("varchar(48)")
-                        .HasColumnName("reference_code");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<long>("StudentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("student_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
-
-                    b.HasIndex("InvoiceId");
-
-                    b.HasIndex("ParentId");
-
-                    b.HasIndex("ReferenceCode")
-                        .IsUnique();
-
-                    b.HasIndex("StudentId");
-
-                    b.ToTable("payments");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.Payout", b =>
@@ -3597,6 +2609,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("updated_at");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
                     b.Property<string>("Ward")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -3621,6 +2638,58 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasIndex("ManagerUserId", "Status", "ReviewDueAt");
 
                     b.ToTable("school_proposals");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolProposalRevision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<string>("AfterValues")
+                        .IsRequired()
+                        .HasColumnType("json")
+                        .HasColumnName("after_values");
+
+                    b.Property<string>("BeforeValues")
+                        .IsRequired()
+                        .HasColumnType("json")
+                        .HasColumnName("before_values");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("SchoolProposalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("school_proposal_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("SchoolProposalId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("school_proposal_revisions");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolUnit", b =>
@@ -3860,131 +2929,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("school_workflow_policies");
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Student", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DateOfBirth")
-                        .HasColumnType("date")
-                        .HasColumnName("date_of_birth");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
-                        .HasColumnName("full_name");
-
-                    b.Property<string>("Gender")
-                        .HasColumnType("longtext")
-                        .HasColumnName("gender");
-
-                    b.Property<string>("SchoolGrade")
-                        .HasColumnType("longtext")
-                        .HasColumnName("school_grade");
-
-                    b.Property<string>("SchoolName")
-                        .HasColumnType("longtext")
-                        .HasColumnName("school_name");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("students");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.TrialSession", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("AttendanceStatus")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("attendance_status");
-
-                    b.Property<long?>("ClassId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("class_id");
-
-                    b.Property<long>("CourseId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("course_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("LeadId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("lead_id");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("longtext")
-                        .HasColumnName("note");
-
-                    b.Property<string>("Result")
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("result");
-
-                    b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("scheduled_at");
-
-                    b.Property<long>("StaffId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("staff_id");
-
-                    b.Property<long?>("StudentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("student_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClassId");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("LeadId");
-
-                    b.HasIndex("StaffId");
-
-                    b.HasIndex("StudentId");
-
-                    b.ToTable("trial_sessions");
-                });
-
             modelBuilder.Entity("KidsfitCRM.Api.Domain.User", b =>
                 {
                     b.Property<long>("Id")
@@ -4071,63 +3015,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("role_user", (string)null);
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.WorkTask", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<long>("AssignedTo")
-                        .HasColumnType("bigint")
-                        .HasColumnName("assigned_to");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime>("DueAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("due_at");
-
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("varchar(16)")
-                        .HasColumnName("priority");
-
-                    b.Property<long>("RelatedId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("related_id");
-
-                    b.Property<string>("RelatedType")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("related_type");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedTo");
-
-                    b.ToTable("tasks", (string)null);
-                });
-
             modelBuilder.Entity("KidsfitCRM.Api.Domain.ApproachRegistration", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
@@ -4155,14 +3042,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.AuditLog", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
             modelBuilder.Entity("KidsfitCRM.Api.Domain.ChannelCustomer", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
@@ -4176,34 +3055,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.ClassRoom", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.Course", null)
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("TeacherId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.ClassSchedule", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.ClassRoom", null)
-                        .WithMany()
-                        .HasForeignKey("ClassId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("TeacherId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.CommissionLedgerEntry", b =>
@@ -4417,185 +3268,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Enrollment", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.ClassRoom", null)
-                        .WithMany()
-                        .HasForeignKey("ClassId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("RegisteredBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Student", null)
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Invoice", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.Enrollment", null)
-                        .WithMany()
-                        .HasForeignKey("EnrollmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Parent", null)
-                        .WithMany()
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Student", null)
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.InvoiceItem", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.Invoice", null)
-                        .WithMany()
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Lead", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Parent", null)
-                        .WithMany()
-                        .HasForeignKey("ConvertedParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Course", null)
-                        .WithMany()
-                        .HasForeignKey("InterestedCourseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("KidsfitCRM.Api.Domain.LeadSource", null)
-                        .WithMany()
-                        .HasForeignKey("SourceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.LeadStatus", null)
-                        .WithMany()
-                        .HasForeignKey("StatusId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadActivity", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadAssignment", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedTo")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadConversion", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("ConvertedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Enrollment", null)
-                        .WithMany()
-                        .HasForeignKey("EnrollmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Invoice", null)
-                        .WithMany()
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Parent", null)
-                        .WithMany()
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Student", null)
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.LeadNote", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Notification", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("KidsfitCRM.Api.Domain.OrganizationMembership", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
@@ -4612,48 +3284,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.ParentStudent", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.Parent", null)
-                        .WithMany()
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Student", null)
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.Payment", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Invoice", null)
-                        .WithMany()
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Parent", null)
-                        .WithMany()
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Student", null)
-                        .WithMany()
-                        .HasForeignKey("StudentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -5086,6 +3716,21 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolProposalRevision", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.SchoolProposal", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolProposalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolUnit", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.DirectorySchool", null)
@@ -5125,37 +3770,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.TrialSession", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.ClassRoom", null)
-                        .WithMany()
-                        .HasForeignKey("ClassId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Course", null)
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("StaffId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Student", null)
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
             modelBuilder.Entity("KidsfitCRM.Api.Domain.UserRole", b =>
                 {
                     b.HasOne("KidsfitCRM.Api.Domain.Role", null)
@@ -5167,15 +3781,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.WorkTask", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedTo")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

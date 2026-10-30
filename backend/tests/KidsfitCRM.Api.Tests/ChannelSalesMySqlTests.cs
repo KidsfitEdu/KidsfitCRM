@@ -278,10 +278,10 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var organizationId = await db.OrganizationMemberships.Where(x => x.UserId == partnerId && x.IsPrimary).Select(x => x.OrganizationId).SingleAsync();
         var actions = new ChannelSalesActions(db);
         var request = new CreateCommissionPolicyRequest(organizationId, "POL-" + Key(), "Phiên bản mới", 99m, ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1), null);
-        await Assert.ThrowsAsync<ApiValidationException>(() => actions.CreateCommissionPolicy(request, partnerId, Http(), Ct));
-        await Assert.ThrowsAsync<ApiValidationException>(() => actions.CreateCommissionPolicy(request with { RatePercent = 10m, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow) }, partnerId, Http(), Ct));
-        var id = await actions.CreateCommissionPolicy(request with { RatePercent = 11m }, partnerId, Http(), Ct);
-        Assert.Equal(11m, (await db.CommissionPolicyVersions.FindAsync(id))!.RatePercent);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateCommissionPolicy(request, partnerId, Http(), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateCommissionPolicy(request with { RatePercent = 10m, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow) }, partnerId, Http(), Ct));
+        // Commission policy approval is restricted to an authorized central actor, not delegated partner Sales managers.
+        Assert.Equal(12m, await db.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1").Select(x => x.RatePercent).SingleAsync());
         Assert.Equal(12m, await db.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1").Select(x => x.RatePercent).SingleAsync());
     }
 
@@ -335,7 +335,8 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var orgId = await db.OrganizationMemberships.Where(x => x.UserId == partner && x.IsPrimary).Select(x => x.OrganizationId).SingleAsync();
         var actions = new ChannelSalesActions(db);
         var request = new CreateSalesAccountRequest(orgId, "CTV kiểm thử", Key() + "@example.test", "TestPassword@2026", "ADMIN");
-        var userId = await actions.CreateSalesAccount(request, partner, new PasswordHasher<User>(), Http(), Ct);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateSalesAccount(request, partner, new PasswordHasher<User>(), Http(), Ct));
+        var userId = await actions.CreateSalesAccount(request with { RoleCode = "SALES" }, partner, new PasswordHasher<User>(), Http(), Ct);
         var access = await ChannelSalesAccess.Load(db, userId, Ct);
         Assert.False(access.All);
         Assert.False(access.Organization);

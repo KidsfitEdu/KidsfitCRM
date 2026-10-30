@@ -50,7 +50,7 @@ test('Navigation targets and role-to-page config preserve legacy IDs', () => {
 });
 
 test('No obsolete workspace compatibility imports remain in CrmApp', () => {
-  const app = read('src/src/components/crm/crm-app.tsx');
+  const app = read('src/components/crm/crm-app.tsx');
   assert.ok(!app.includes('@/components/crm/roles/'), 'Legacy role import found');
   assert.ok(!app.includes('@/components/crm/admin/admin-workspace'), 'Legacy admin import found');
   assert.ok(!app.includes('@/components/crm/sales-manager-workspace'), 'Legacy manager import found');

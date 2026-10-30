@@ -1,5 +1,5 @@
 import { channelRequest } from '@/lib/channel-operations';
-import type { Capacity } from '@/src/types/capacity';
+import type { Capacity } from '@/types/capacity';
 
 export function fetchCapacities(apiBase: string, token: string) {
   return channelRequest<{ data: Capacity[] }>(apiBase, token, '/school-capacities');

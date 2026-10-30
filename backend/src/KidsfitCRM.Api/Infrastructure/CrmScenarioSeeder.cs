@@ -100,6 +100,25 @@ internal static class CrmScenarioSeeder
                 });
             }
         }
+        // Show a resolved case beside the open case, without changing financial or contract history.
+        if (contracted is not null)
+        {
+            var contract = await db.SalesContracts.SingleOrDefaultAsync(x => x.CustomerId == contracted.Id);
+            var care = await db.Users.SingleAsync(x => x.Code == "CARE001");
+            if (contract is not null && !await db.CustomerSupportCases.AnyAsync(x => x.IdempotencyKey == "scenario-support-resolved"))
+                db.CustomerSupportCases.Add(new CustomerSupportCase
+                {
+                    ContractId = contract.Id, CustomerId = contracted.Id, OrganizationId = kidsfit.Id,
+                    AssignedUserId = care.Id, CreatedByUserId = care.Id,
+                    Subject = "Hướng dẫn sử dụng CHECKEE đã hoàn tất (demo)",
+                    Description = "Tình huống giả lập CSKH đã giải quyết, không có dữ liệu cá nhân.",
+                    Status = "RESOLVED", Outcome = "Đã hướng dẫn thành công (demo)",
+                    ResolvedAt = now.AddHours(-2),
+                    IdempotencyKey = "scenario-support-resolved",
+                    RequestFingerprint = "synthetic-support-resolved",
+                    CreatedAt = now.AddDays(-1), UpdatedAt = now
+                });
+        }
         await db.SaveChangesAsync();
     }
 }

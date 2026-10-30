@@ -54,6 +54,8 @@ import { Input } from '@/components/ui/input';
 import { DemoAccess } from '@/components/crm/demo-access';
 import { nav, viewCopy, type View } from '@/src/config/navigation';
 import { Sidebar } from '@/src/components/layout/Sidebar';
+import { viewToPath, pathToView } from '@/src/config/routes';
+import { AppShell } from '@/src/components/layout/AppShell';
 import { Header } from '@/src/components/layout/Header';
 import { createApiClient } from '@/src/services/api.client';
 import { LoginPage } from '@/src/pages/Auth/Login/LoginPage';
@@ -201,13 +203,14 @@ const todayLabel = new Intl.DateTimeFormat('vi-VN', {
 
 const request = createApiClient(apiBase);
 
-export function CrmApp() {
-  if (apiBase) return <CrmWorkspace />;
+export function CrmApp({initialView}:{initialView?:View}={}) {
+  if (apiBase) return <CrmWorkspace initialView={initialView} />;
   return (
     <DemoAccess>
       {(account, logout) => (
         <CrmWorkspace
           key={account.id}
+          initialView={initialView}
           demoAccount={account}
           onDemoLogout={logout}
         />
@@ -217,16 +220,18 @@ export function CrmApp() {
 }
 
 function CrmWorkspace({
+  initialView,
   demoAccount,
   onDemoLogout,
 }: {
   demoAccount?: DemoAccount;
+  initialView?: View;
   onDemoLogout?: () => void;
 }) {
   const [view, setView] = useState<View>(
-    demoAccount && !demoAccount.abilities.includes('channel_sales.customer.view')
+    initialView ?? (demoAccount && !demoAccount.abilities.includes('channel_sales.customer.view')
       ? 'channel-sales'
-      : 'dashboard',
+      : 'dashboard'),
   );
   const [search, setSearch] = useState('');
   const [dark, setDark] = useState(false);
@@ -976,10 +981,25 @@ function CrmWorkspace({
       ? [{ id: 'channel-sales' as View, label: 'CHECKEE Sales', shortLabel: 'CHECKEE', icon: ShieldCheck }]
       : [];
   const currentView = visibleNav.some((item) => item.id === view) ? view : visibleNav[0]?.id ?? 'channel-sales';
+  // Navigation remains permission-filtered: URL alone never grants access.
+  const navigate = (next: View) => {
+    if (!visibleNav.some(item=>item.id===next)) return;
+    setView(next);
+    if (apiBase && typeof window !== 'undefined') window.history.pushState(null,'',viewToPath(next));
+  };
+  useEffect(() => {
+    if (!apiBase || typeof window==='undefined') return;
+    const onPop = () => {
+      const next = pathToView(window.location.pathname);
+      if(next) setView(next);
+    };
+    window.addEventListener('popstate',onPop);
+    return () => window.removeEventListener('popstate',onPop);
+  },[]);
   const activeCopy = viewCopy[currentView];
 
   return (
-    <main className="min-h-screen bg-background text-foreground">      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdminWorkspace} apiBase={apiBase} onLogout={logout}/>
+    <AppShell>      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdminWorkspace} apiBase={apiBase} onLogout={logout}/>
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
         <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark}/>
         <div className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
@@ -1161,7 +1181,7 @@ function CrmWorkspace({
           {notice}
         </output>
       )}
-    </main>
+    </AppShell>
   );
 }
 

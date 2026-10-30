@@ -53,6 +53,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DemoAccess } from '@/components/crm/demo-access';
 import { nav, viewCopy, type View } from '@/src/config/navigation';
+import { Sidebar } from '@/src/components/layout/Sidebar';
+import { Header } from '@/src/components/layout/Header';
 import { createApiClient } from '@/src/services/api.client';
 import { LoginPage } from '@/src/pages/Auth/Login/LoginPage';
 import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
@@ -977,89 +979,9 @@ function CrmWorkspace({
   const activeCopy = viewCopy[currentView];
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <aside className="crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white lg:flex">
-        <div className="flex h-20 items-center px-5"><AppBrand inverted /></div>
-        <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Điều hướng chính">
-          {visibleNav.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all ${currentView === item.id ? 'crm-brand-menu-active font-semibold text-white' : 'text-[#c7ddcc] hover:bg-white/10 hover:text-white'}`}
-            >
-              <item.icon
-                className={`size-[18px] ${currentView === item.id ? 'text-[#a5d6a7]' : ''}`}
-              />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="mx-4 mb-5 flex shrink-0 items-center gap-3 rounded-xl p-2">
-          <div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">
-            {initials(userName)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{userName}</p>
-            <p className="text-[11px] text-slate-400">
-              {demoAccount?.roleLabel ?? (isAdminWorkspace ? 'Quản trị viên' : membershipType === 'COLLABORATOR' || membershipType === 'PARTNER_COLLABORATOR' ? 'CTV' : membershipType === 'SALES' ? 'Nhân viên bán hàng' : membershipType === 'SALES_MANAGER' || membershipType === 'PARTNER_ADMIN' ? 'Quản lý bán hàng' : 'Thành viên CRM')}{organizationName ? ` · ${organizationName}` : ''}
-            </p>
-          </div>
-          {(apiBase || demoAccount) && (
-            <button
-              onClick={logout}
-              aria-label="Đăng xuất"
-              className="text-slate-400 hover:text-white"
-            >
-              <LogOut className="size-4" />
-            </button>
-          )}
-        </div>
-      </aside>
-
+    <main className="min-h-screen bg-background text-foreground">      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdminWorkspace} apiBase={apiBase} onLogout={logout}/>
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
-        <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">
-              {todayLabel}
-            </p>
-            <h1 className="mt-1 text-lg font-bold tracking-[-0.03em] sm:text-xl">
-              Chào buổi sáng, {userName}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative hidden xl:block">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="h-10 w-64 rounded-xl bg-card pl-9"
-                placeholder="Tìm kiếm nhanh…"
-              />
-            </div>
-            <Button
-              onClick={() => setDark((value) => !value)}
-              variant="outline"
-              size="icon"
-              aria-label="Đổi giao diện"
-              className="rounded-xl"
-            >
-              {dark ? <Sun /> : <Moon />}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Thông báo"
-              className="relative rounded-xl"
-            >
-              <Bell />
-              <span className="absolute right-2 top-2 size-1.5 rounded-full bg-[#f46f64] ring-2 ring-background" />
-            </Button>
-            <div className="ml-1 grid size-10 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-sm font-bold text-[#633b38]">
-              {initials(userName)}
-            </div>
-          </div>
-        </header>
-
+        <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark}/>
         <div className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && (
             <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#a5d6a7] bg-[#e8f5e9] p-4 text-sm text-[#1b5e20] dark:border-[#315e3d] dark:bg-[#17341f] dark:text-[#d5ead7]">
@@ -1191,22 +1113,6 @@ function CrmWorkspace({
           )}
         </div>
       </div>
-
-      <nav
-        className="fixed inset-x-3 bottom-3 z-40 flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
-        aria-label="Điều hướng di động"
-      >
-        {visibleNav.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setView(item.id)}
-            className={`flex min-w-[88px] flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-[#e8f5e9]/15 text-[#a5d6a7]' : 'text-slate-400'}`}
-          >
-            <item.icon className="size-[18px]" />
-            <span>{item.shortLabel}</span>
-          </button>
-        ))}
-      </nav>
 
       {addOpen && (
         <AddLeadDialog

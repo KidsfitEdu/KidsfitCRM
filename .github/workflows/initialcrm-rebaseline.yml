@@ -26,6 +26,7 @@ jobs:
           Jwt__Key: ephemeral-ci-only-jwt-signing-secret-0000000000000000
         run: |
           set -euo pipefail
+          dotnet restore backend/KidsfitCRM.slnx
           dotnet tool install --global dotnet-ef --version '10.0.0'
           rm -f backend/src/KidsfitCRM.Api/Infrastructure/Migrations/*.cs
           dotnet ef migrations add InitialCRM --context KidsfitDbContext \

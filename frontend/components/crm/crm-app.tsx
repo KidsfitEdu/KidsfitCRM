@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DemoAccess } from '@/components/crm/demo-access';
+import { createApiClient } from '@/lib/api/client';
 import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import {
@@ -375,32 +376,7 @@ const todayLabel = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
 }).format(new Date());
 
-async function request<T>(
-  path: string,
-  token?: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const headers = new Headers(options.headers);
-  headers.set('Content-Type', 'application/json');
-  headers.set('Accept', 'application/json');
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(`${apiBase}${path}`, {
-    ...options,
-    headers,
-  });
-  const payload = (await response.json().catch(() => ({}))) as {
-    message?: string;
-    errors?: Record<string, string[]>;
-  };
-  const firstError = payload.errors
-    ? Object.values(payload.errors).flat()[0]
-    : undefined;
-  if (!response.ok)
-    throw new Error(
-      firstError ?? payload.message ?? 'Không thể kết nối máy chủ.',
-    );
-  return payload as T;
-}
+const request = createApiClient(apiBase);
 
 export function CrmApp() {
   if (apiBase) return <CrmWorkspace />;

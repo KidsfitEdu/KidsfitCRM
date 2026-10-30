@@ -282,7 +282,7 @@ public static class DatabaseSeeder
                 Name = "Chính sách mẫu đối tác 2026",
                 RatePercent = 0m,
                 EffectiveFrom = new DateOnly(2026, 1, 1),
-                Status = "ACTIVE",
+                Status = "DRAFT",
                 CreatedByUserId = admin.Id,
                 CreatedAt = now,
                 UpdatedAt = now,

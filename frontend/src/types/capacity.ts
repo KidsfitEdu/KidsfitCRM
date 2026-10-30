@@ -1,0 +1,1 @@
+export type Capacity = { id:number; name:string; organization_name:string; school_approach_limit:number; active:number; history:{previous_limit:number;new_limit:number;reason:string;created_at:string}[] };

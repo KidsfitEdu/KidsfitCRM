@@ -16,6 +16,11 @@ Use this skill to keep implementation decisions aligned with the relevant Kidsfi
 - **Money:** 30% is only a proposed Sales commission rate, not a production rule; base/trigger/effective date OPEN. No referrer/split feature.
 - `docs/implementation/` records past/current delivery. Do not call a requirement implemented before tests and source confirm it.
 
+## When the task involves frontend UI
+
+- Load `.agents/skills/kidsfit-crm-frontend-design/SKILL.md` and applicable references for UI design, styling, responsive behavior, screenshot review, accessibility and interaction QA. Use `docs/design/FRONTEND_DESIGN_SYSTEM.md` as the design-language overview; preserve existing component APIs and runtime behavior unless explicitly asked.
+- Use this engineering skill and `docs/requirements/` for business role/scope/status/contract/financial behavior. Visual affordances never replace backend permission checks.
+
 ## Start with the requested scope
 
 - Inspect the relevant code, tests, schema, and repository instructions before proposing changes.

@@ -452,9 +452,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(specific.Id, collaboratorEntry.PolicyVersionId); Assert.Equal(120_000m, collaboratorEntry.Amount);
         Assert.Equal(100_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == employeeContract).Select(x => x.Amount).SingleAsync());
         var future = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1);
-        var nextPolicy = await a.CreateCommissionPolicy(new(s.OrgId, "NEXT-" + Key(), "Phiên bản CTV tiếp theo", 11m, future, null, "SALES"), s.Manager.UserId, Http(), Ct);
+        var nextPolicy = await a.CreateCommissionPolicy(new(s.OrgId, "NEXT-" + Key(), "Phiên bản CTV tiếp theo", 11m, future, null, "SALES"), admin, Http(), Ct);
         Assert.Equal("COLLABORATOR", (await db.CommissionPolicyVersions.FindAsync(nextPolicy))!.PersonnelType);
-        await Assert.ThrowsAsync<ApiValidationException>(() => a.CreateCommissionPolicy(new(s.OrgId, "BAD-" + Key(), "Nhóm không hợp lệ", 10m, future, null, "UNKNOWN"), s.Manager.UserId, Http(), Ct));
+        await Assert.ThrowsAsync<ApiValidationException>(() => a.CreateCommissionPolicy(new(s.OrgId, "BAD-" + Key(), "Nhóm không hợp lệ", 10m, future, null, "UNKNOWN"), admin, Http(), Ct));
     }
 
     [MySqlFact] public async Task LegacyContractSnapshotsInactiveOwnersGroupOnNextReceiptWithoutRewritingOldLedger()

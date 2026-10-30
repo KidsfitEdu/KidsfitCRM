@@ -1353,7 +1353,7 @@ function CrmWorkspace({
                   />
                 </Suspense>
               )}
-              {(['dashboard', 'admin-schools', 'admin-proposals', 'admin-team', 'admin-settings', 'admin-reports'] as View[]).includes(currentView) && (
+              {(['dashboard', 'admin-schools', 'admin-proposals', 'admin-team', 'admin-capacity', 'admin-policies', 'admin-reports'] as View[]).includes(currentView) && (
                 <Suspense fallback={<LoadingGrid />}>
                   <AdminWorkspace
                     key={currentView}

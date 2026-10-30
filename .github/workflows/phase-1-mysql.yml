@@ -27,7 +27,7 @@ jobs:
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pephemeral-ci-only"
           --health-interval=10s --health-timeout=5s --health-retries=12
     env:
-      KIDSFIT_TEST_MYSQL_ADMIN: "Server=127.0.0.1;Port=3306;User ID=root;Password=ephemeral-ci-only;SslMode=None;"
+      KIDSFIT_TEST_MYSQL_ADMIN: "Server=127.0.0.1;Port=3306;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4

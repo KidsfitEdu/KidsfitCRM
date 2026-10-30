@@ -227,31 +227,83 @@ function AdminWorkspaceContent({ section, apiBase, token, abilities, workspace, 
     </div>}
   </AdminListPanel>
 </div>}
-    {section === 'admin-team' && <div className={panel}>
-      <div className="mb-4 flex justify-between gap-3"><h3 className="font-semibold">Nhân sự & tổ chức</h3><Button disabled={preview || !can('channel_sales.team.manage')} onClick={()=>{setFormErrors({});setTeamFormOpen(v=>!v);}}>+ Thêm nhân sự</Button></div>
-      <Dialog open={teamFormOpen} onOpenChange={open => { if (!busy) setTeamFormOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm nhân sự</DialogTitle><DialogDescription>Tạo tài khoản thuộc tổ chức được quản lý. Không cấp quyền Admin/BGĐ tại đây.</DialogDescription></DialogHeader><div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(['name','email','password'] as const).map(k=><label className="text-sm" key={k}>{({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (tối thiểu 12 ký tự)'} as Record<string,string>)[k]}<Input className="mt-1" type={k==='password'?'password':'text'} aria-invalid={!!formErrors[k]} value={teamForm[k]} onChange={e=>{setTeamForm(t=>({...t,[k]:e.target.value}));setFormErrors(x=>({...x,[k]:''}));}}/><FormError>{formErrors[k]}</FormError></label>)}
-          <label className="text-sm">Tổ chức<select className="mt-1 w-full rounded-lg border bg-background p-2" value={teamForm.organization_id} onChange={e=>setTeamForm(t=>({...t,organization_id:e.target.value}))}><option value="">Chọn tổ chức</option>{management?.organizations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select></label>
-          <label className="text-sm">Vai trò<select className="mt-1 w-full rounded-lg border bg-background p-2" value={teamForm.role_code} onChange={e=>setTeamForm(t=>({...t,role_code:e.target.value}))}>{management?.roles.filter(x=>!['ADMIN','BOARD'].includes(x.code)).map(x=><option key={x.code} value={x.code}>{x.name}</option>)}</select></label>
-        </div>
-        <FormActions busy={busy} onCancel={()=>setTeamFormOpen(false)} onSave={()=>void createTeamMember()} saveLabel="Tạo tài khoản"/>
-      </div></DialogContent></Dialog>
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Input className="min-w-52 flex-1" placeholder="Tìm tên hoặc email nhân sự…" aria-label="Tìm nhân sự" value={teamSearch} onChange={e=>setTeamSearch(e.target.value)}/>
-        <select className="rounded-lg border bg-background px-3" aria-label="Lọc trạng thái nhân sự" value={teamStatus} onChange={e=>setTeamStatus(e.target.value)}><option value="ALL">Tất cả trạng thái</option><option value="ACTIVE">Hoạt động</option><option value="SUSPENDED">Tạm khóa</option></select>
-        <Button variant="outline" onClick={()=>{setTeamSearch('');setTeamStatus('ALL');}}>Reset bộ lọc</Button>
+    {section === 'admin-team' && <div className="space-y-5">
+  <AppPageHeader eyebrow="QUẢN TRỊ / NHÂN SỰ & ĐỐI TÁC" title="Nhân sự & đối tác"
+    description="Quản lý tài khoản, tổ chức, vai trò và trạng thái nhân sự."
+    actions={<AppButton tone="green" premium leadingIcon={<Plus className="size-4"/>}
+      disabled={preview||!can('channel_sales.team.manage')} onClick={()=>{setFormErrors({});setTeamFormOpen(true);}}>Thêm nhân sự</AppButton>}/>
+  <AdminListPanel>
+    <AdminListToolbar search={teamDraft} onSearchChange={setTeamDraft}
+      onSearch={()=>{setTeamSearch(teamDraft.trim());setTeamPage(1);}}
+      onReset={()=>{setTeamDraft('');setTeamSearch('');setTeamStatus('ALL');setTeamPage(1);}}
+      placeholder="Tên nhân sự, email hoặc tổ chức..." searchLabel="Tìm nhân sự và đối tác"
+      filters={<AppNativeSelect aria-label="Lọc trạng thái nhân sự" value={teamStatus} containerClassName="h-11 w-full sm:w-[200px]"
+        onChange={e=>{setTeamStatus(e.target.value);setTeamPage(1);}}>
+        <option value="ALL">Tất cả trạng thái</option><option value="ACTIVE">Hoạt động</option><option value="SUSPENDED">Tạm khóa</option>
+      </AppNativeSelect>}/>
+    <div className="overflow-x-auto">
+      <table className={adminTableClass}>
+        <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Nhân sự</th><th className="px-5 py-4">Tổ chức</th>
+          <th className="px-5 py-4 text-center">Vai trò</th><th className="px-5 py-4 text-center">Trạng thái</th>
+          <th className="px-5 py-4 text-center">Thao tác</th></tr></thead>
+        <tbody>{management?.team.filter(u=>(teamStatus==='ALL'||u.status===teamStatus)&&[u.name,u.email,u.organization_name].some(x=>x.toLocaleLowerCase('vi').includes(teamSearch.toLocaleLowerCase('vi'))))
+          .slice((teamPage-1)*teamPageSize,teamPage*teamPageSize).map(u=><tr key={u.id} className="border-t border-border/70 even:bg-muted/20 hover:bg-accent">
+          <td className="px-5 py-4"><p className="font-semibold">{u.name}</p><p className="mt-1 text-xs text-muted-foreground">{u.email}</p></td>
+          <td className="px-5 py-4">{u.organization_name}</td>
+          <td className="px-5 py-4 text-center">{management.roles.find(r=>r.code===u.membership_type)?.name??u.membership_type}</td>
+          <td className="px-5 py-4 text-center"><AdminStatusBadge status={u.status} label={u.status==='ACTIVE'?'Hoạt động':u.status==='SUSPENDED'?'Tạm khóa':u.status}/></td>
+          <td className="px-5 py-4 text-center"><AdminIconAction icon={Eye} label={`Xem ${u.name}`} onClick={()=>setTeamDetail(u)}/></td>
+        </tr>)}</tbody>
+      </table>
+      {!busy && management && !management.team.some(u=>(teamStatus==='ALL'||u.status===teamStatus)&&[u.name,u.email,u.organization_name].some(x=>x.toLocaleLowerCase('vi').includes(teamSearch.toLocaleLowerCase('vi'))))
+        && <p className="p-8 text-center text-sm text-muted-foreground">Không có nhân sự phù hợp.</p>}
+      {!management && <p className="p-8 text-center text-sm text-muted-foreground">{busy?'Đang tải nhân sự…':'Chưa có dữ liệu hoặc chưa đủ quyền.'}</p>}
+    </div>
+    {management && <AppPagination page={teamPage} pageSize={teamPageSize}
+      total={management.team.filter(u=>(teamStatus==='ALL'||u.status===teamStatus)&&[u.name,u.email,u.organization_name].some(x=>x.toLocaleLowerCase('vi').includes(teamSearch.toLocaleLowerCase('vi')))).length}
+      itemLabel="nhân sự" pageSizeOptions={[10,20,50]}
+      onPageChange={setTeamPage} onPageSizeChange={v=>{setTeamPageSize(v);setTeamPage(1);}}/>}
+  </AdminListPanel>
+  <Dialog open={teamFormOpen} onOpenChange={open=>{if(!busy)setTeamFormOpen(open);}}>
+    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogHeader><DialogTitle>Thêm nhân sự</DialogTitle><DialogDescription>Tạo tài khoản thuộc tổ chức được quản lý. Không cấp quyền Admin/BGĐ tại đây.</DialogDescription></DialogHeader>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {(['name','email','password'] as const).map(k=><label className="text-sm font-medium" key={k}>
+          {({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (tối thiểu 12 ký tự)'} as Record<string,string>)[k]}
+          <Input className="mt-1.5 h-11" type={k==='password'?'password':'text'} aria-invalid={!!formErrors[k]} value={teamForm[k]}
+            onChange={e=>{setTeamForm(t=>({...t,[k]:e.target.value}));setFormErrors(x=>({...x,[k]:''}));}}/><FormError>{formErrors[k]}</FormError>
+        </label>)}
+        <label className="text-sm font-medium">Tổ chức
+          <select className="mt-1.5 h-11 w-full rounded-xl border bg-background px-3" value={teamForm.organization_id} onChange={e=>setTeamForm(t=>({...t,organization_id:e.target.value}))}>
+            <option value="">Chọn tổ chức</option>{management?.organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
+          </select><FormError>{formErrors.organization_id}</FormError>
+        </label>
+        <label className="text-sm font-medium">Vai trò
+          <select className="mt-1.5 h-11 w-full rounded-xl border bg-background px-3" value={teamForm.role_code} onChange={e=>setTeamForm(t=>({...t,role_code:e.target.value}))}>
+            {management?.roles.filter(x=>!['ADMIN','BOARD'].includes(x.code)).map(x=><option key={x.code} value={x.code}>{x.name}</option>)}
+          </select>
+        </label>
       </div>
-      {management ? <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-[#1b5e20] text-xs font-bold uppercase text-white"><tr><th className="p-3">Nhân sự</th><th className="p-3">Tổ chức</th><th className="p-3">Vai trò</th><th className="p-3">Trạng thái</th></tr></thead>
-          <tbody>{management.team.filter(u=>(teamStatus==='ALL'||u.status===teamStatus)&&[u.name,u.email,u.organization_name].some(x=>x.toLowerCase().includes(teamSearch.toLowerCase()))).map(u=><tr key={u.id} className="border-t hover:bg-muted/30"><td className="p-3"><strong>{u.name}</strong><p className="text-xs text-muted-foreground">{u.email}</p></td><td className="p-3">{u.organization_name}</td><td className="p-3">{u.membership_type}</td><td className="p-3">{u.status}</td></tr>)}</tbody>
-        </table>
-        {management.team.length===0&&<p className="p-8 text-center text-sm text-muted-foreground">Chưa có nhân sự.</p>}
-      </div>:<p className="text-sm text-muted-foreground">{busy?'Đang tải…':'Chưa có dữ liệu hoặc chưa đủ quyền.'}</p>}
-    </div>}
-    {section === 'admin-settings' && <div className="space-y-5"><AdminCapacityManagement apiBase={apiBase} token={token} abilities={abilities}/><div className={panel}>
+      <FormActions busy={busy} onCancel={()=>setTeamFormOpen(false)} onSave={()=>void createTeamMember()} saveLabel="Tạo tài khoản"/>
+    </DialogContent>
+  </Dialog>
+  <Dialog open={teamDetail!==null} onOpenChange={open=>{if(!open)setTeamDetail(null);}}>
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader><DialogTitle>Thông tin nhân sự</DialogTitle><DialogDescription>Chi tiết từ danh sách nhân sự được cấp quyền xem.</DialogDescription></DialogHeader>
+      {teamDetail && <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-3 text-sm">
+        <dt className="text-muted-foreground">Họ và tên</dt><dd className="font-semibold">{teamDetail.name}</dd>
+        <dt className="text-muted-foreground">Email</dt><dd className="break-all">{teamDetail.email}</dd>
+        <dt className="text-muted-foreground">Tổ chức</dt><dd>{teamDetail.organization_name}</dd>
+        <dt className="text-muted-foreground">Vai trò</dt><dd>{management?.roles.find(r=>r.code===teamDetail.membership_type)?.name??teamDetail.membership_type}</dd>
+        <dt className="text-muted-foreground">Trạng thái</dt><dd><AdminStatusBadge status={teamDetail.status} label={teamDetail.status==='ACTIVE'?'Hoạt động':teamDetail.status==='SUSPENDED'?'Tạm khóa':teamDetail.status}/></dd>
+      </dl>}
+      <div className="flex justify-end"><AppButton tone="outline" onClick={()=>setTeamDetail(null)}>Đóng</AppButton></div>
+    </DialogContent>
+  </Dialog>
+</div>}
+    {section === 'admin-settings' && <div className="space-y-5"><AppPageHeader eyebrow="QUẢN TRỊ / CHÍNH SÁCH & HẠN MỨC" title="Chính sách & hạn mức" description="Theo dõi hạn mức tiếp cận, lịch sử điều chỉnh và phiên bản chính sách vận hành."/><AdminCapacityManagement apiBase={apiBase} token={token} abilities={abilities}/><div className={panel}>
       <h3 className="mb-2 font-semibold">Chính sách vận hành</h3><p className="mb-4 text-sm text-muted-foreground">Chỉ hiển thị phiên bản chính sách đã lưu. Chưa kích hoạt thông số SLA chưa được phê duyệt.</p>
-      {operations?.policies.map(p=><div className="flex justify-between gap-3 border-b py-3 text-sm" key={p.id}><div><strong>Phiên bản {p.version}</strong><p className="text-muted-foreground">Quản lý: {p.manager_review_hours} giờ · Admin: {p.admin_review_hours} giờ</p></div><span>{workflowLabels[p.status] ?? p.status}</span></div>)}
+      <div className="overflow-x-auto rounded-xl border"><table className={adminTableClass}><thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Phiên bản</th><th className="px-5 py-4">Quản lý duyệt</th><th className="px-5 py-4">Admin duyệt</th><th className="px-5 py-4 text-center">Trạng thái</th></tr></thead><tbody>{operations?.policies.map(p=><tr key={p.id} className="border-t even:bg-muted/20"><td className="px-5 py-4 font-semibold">Phiên bản {p.version}</td><td className="px-5 py-4">{p.manager_review_hours} giờ</td><td className="px-5 py-4">{p.admin_review_hours} giờ</td><td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status} label={workflowLabels[p.status]??p.status}/></td></tr>)}</tbody></table></div>
       {!operations?.policies.length && <p className="text-sm text-muted-foreground">Chưa có chính sách được tải.</p>}
     </div></div>}
     {section === 'admin-reports' && <div className={panel}>

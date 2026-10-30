@@ -1,3 +1,7 @@
+## Updated acceptance: shared synthetic demo logins (2026-10-30)
+
+For **backend demo accounts only**, opt-in seed shall take a single shared password from runtime configuration `Seed__DemoPassword`, hash it independently for each synthetic user, and verify it for all target-role and deliberately retained compatibility demo accounts on a disposable test database. Re-seed must not duplicate records or reset authentic real users. Frontend static preview identities are separate. The chosen password is intentionally not committed to repository text. Database connection credentials and JWT keys remain independent. See [one-shot credential reference](../../.agents/skills/kidsfit-crm-one-shot-implementation/references/demo-data-and-credentials.md).
+
 > **Historical implementation record.** Current accepted school-sales rules: [requirements](../requirements/CRM_FUNCTIONAL_SPECIFICATION.md), [decision log](../requirements/DECISION_LOG.md). Previously implemented behavior, demo rates and DRAFT policy suggestions below do not supersede these rules.
 
 # CRM synthetic seed scenarios (local/testing only)

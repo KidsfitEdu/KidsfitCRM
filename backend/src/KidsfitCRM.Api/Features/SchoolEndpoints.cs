@@ -164,7 +164,7 @@ public static class SchoolEndpoints
     private static async Task<IResult> Capacities(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        var query = db.OrganizationMemberships.AsNoTracking().Where(x => (x.MembershipType == "COLLABORATOR" || x.MembershipType == "PARTNER_COLLABORATOR")
+        var query = db.OrganizationMemberships.AsNoTracking().Where(x => (x.MembershipType == "SALES" || x.MembershipType == "CHANNEL_SALES" || x.MembershipType == "COLLABORATOR" || x.MembershipType == "PARTNER_COLLABORATOR")
             && (access.All || (access.OrganizationIds.Contains(x.OrganizationId) && (access.Has(Permissions.ChannelSalesManage) || x.UserId == access.UserId))));
         var now = DateTime.UtcNow;
         return Results.Ok(new { data = await (from membership in query

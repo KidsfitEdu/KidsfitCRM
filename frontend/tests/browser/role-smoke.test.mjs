@@ -39,7 +39,7 @@ async function login(profileLabel, viewport={width:1400,height:900}) {
   await page.goto(url);
   await page.getByRole('button',{name:profileLabel,exact:true}).click();
   await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();
-  const navigation = page.getByRole('navigation',{name:'Điều hướng chính'});
+  const navigation = page.getByRole('navigation',{name:viewport.width < 1024 ? 'Điều hướng di động' : 'Điều hướng chính'});
   await navigation.locator('button').first().waitFor();
   return {context,page,navigation,errors};
 }

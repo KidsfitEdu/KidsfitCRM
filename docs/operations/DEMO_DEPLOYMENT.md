@@ -39,7 +39,7 @@ lập với repository CRM. Bản public hiện tại dùng GitHub Pages và wor
   trường nội bộ. Bộ 77 kiểm thử backend đã qua ở đợt triển khai Notes trước đó.
 
 Chi tiết 39 yêu cầu và các quyết định còn mở:
-[CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md](CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md).
+[CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md](../implementation/CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md).
 
 ## Giới hạn demo hosted
 

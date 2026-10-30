@@ -12,6 +12,8 @@
 | Sales registration, allocations, proposals | [Workflows](requirements/BUSINESS_WORKFLOWS.md) | [Rules](requirements/BUSINESS_RULES.md), school directory skill reference |
 | Extension, limits, conflicts, departure | [Rules](requirements/BUSINESS_RULES.md) | [Workflows](requirements/BUSINESS_WORKFLOWS.md), regression tests |
 | Contract verification, CHECKEE, finance | [Functional spec](requirements/CRM_FUNCTIONAL_SPECIFICATION.md) | [Workflows](requirements/BUSINESS_WORKFLOWS.md), [decisions](requirements/DECISION_LOG.md) |
+| Current live source/file map | [Current source map](implementation/CURRENT_SOURCE_MAP.md) | [Frontend architecture](../frontend/docs/architecture.md), latest files and tests |
+| Phased implementation preparation | [Delivery phases](implementation/PHASED_DELIVERY_PLAN.md) | [Gap analysis](requirements/CODEBASE_GAP_ANALYSIS.md), [Master Prompt](prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md) |
 | What is currently implemented? | [Codebase gaps](requirements/CODEBASE_GAP_ANALYSIS.md) | [Implementation records](implementation/), code and tests |
 | Frontend design / responsive / UI review | [KIDSFIT design system](design/FRONTEND_DESIGN_SYSTEM.md) | [Frontend skill](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md), current components and screenshots |
 | Engineering conventions | [Repository AGENTS](../AGENTS.md) | [Skill](../.agents/skills/kidsfit-crm-development/SKILL.md) |

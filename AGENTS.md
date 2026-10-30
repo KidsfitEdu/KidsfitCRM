@@ -2,6 +2,12 @@
 
 ## Scope and sources of truth
 
+- **Live code map (2026-10-30):** `docs/implementation/CURRENT_SOURCE_MAP.md`. UI source now lives in `frontend/src/`: Vinext routes `src/app/`, workspace/screens `src/screens/`, components `src/components/`, services `src/services/`. Do not follow deprecated paths such as `frontend/components/` or create parallel `frontend/app/` directories.
+- **Phased delivery:** `docs/implementation/PHASED_DELIVERY_PLAN.md` is the execution framework; read `docs/requirements/` first for approved policy. Stages require baseline tests, explicit test DB isolation, additive migrations and actual evidence. Never delete working code merely to align names.
+- **Data safety:** `--migrate` and `--seed-demo` are distinct; `start-local.ps1` and `compose.yaml` can trigger migration/seeding and must never be run blindly against databases containing real data. Database dumps are backups, not synthetic seeds.
+
+## Scope and sources of truth
+
 - For **current KIDSFIT/CHECKEE school-sales business requirements**, start at `docs/README.md`, then read the task-specific file under `docs/requirements/`. The current seven-role business model, 10-slot Sales limit, 5+7×3 protection, and Sales Manager→CHECKEE contract verification supersede historical product recommendations. This is a target specification, not a statement that code has been migrated.
 - Compare any product requirement with `docs/requirements/CODEBASE_GAP_ANALYSIS.md`. Never silently delete legacy `BOARD`, `CHANNEL_SALES`, `PARTNER_ADMIN`, `PARTNER_COLLABORATOR` roles or historical/audit/financial data. Their technical code names may remain while business UI converges on seven roles.
 - **OPEN**: the KIDSFIT actor who grants five-year protection after CHECKEE verification; commission 30% is provisional and its base/activation remain unapproved. Do not choose either implicitly.

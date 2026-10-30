@@ -2,12 +2,16 @@
 
 **Version:** 2026-10-30. **Purpose:** one consistent presentation language for the seven-role school-sales CRM, while respecting existing frontend code, legacy role compatibility and business rules. **Reference screen:** user-provided Admin → Quản lý đề xuất trường image dated 30/10/2026. That image is **not committed**; inspect the source and, when available, render the live UI to compare.
 
+## Source architecture as of 2026-10-30
+
+The Vinext/React frontend now uses `frontend/src/app/` for routes, `frontend/src/screens/` for role pages, `frontend/src/components/` for shared UI, `frontend/src/config/` for navigation, and `frontend/src/services/` for API clients. Current role page registries are `frontend/src/config/navigation.ts` and `frontend/src/config/role-pages.ts`. Seven **business** roles still coexist with legacy distinct `SalesStaff` and `Collaborator` presentation workspaces until the explicitly reviewed code migration is implemented. Read [current source map](../implementation/CURRENT_SOURCE_MAP.md) and [architecture](../../frontend/docs/architecture.md) before implementing UI.
+
 ## Reference implementation
 
-- App shell and role navigation: \`frontend/components/crm/crm-app.tsx\`.
-- Active brand tokens and dark theme: \`frontend/app/globals.css\` (later KIDSFIT \`:root\` definitions override earlier theme defaults).
-- Shared components: \`frontend/components/common/app-page-header.tsx\`, \`app-button.tsx\`, \`app-native-select.tsx\`, \`app-pagination.tsx\`, \`app-empty-state.tsx\`; Admin list components at \`frontend/components/crm/admin/admin-list-ui.tsx\`.
-- Admin proposal screen: \`frontend/components/crm/admin/admin-workspace.tsx\`; preserve current API handlers and permission controls.
+- App shell and role navigation: \`frontend/src/components/crm/crm-app.tsx\`.
+- Active brand tokens and dark theme: \`frontend/src/app/globals.css\` (later KIDSFIT \`:root\` definitions override earlier theme defaults).
+- Shared components: \`frontend/src/components/common/app-page-header.tsx\`, \`app-button.tsx\`, \`app-native-select.tsx\`, \`app-pagination.tsx\`, \`app-empty-state.tsx\`; Admin list components at \`frontend/src/components/common/admin-list-ui.tsx\`.
+- Admin proposal screen: \`frontend/src/screens/Admin/Proposals/ProposalsPage.tsx\`; preserve current API handlers and permission controls.
 - Stack: React 19, TypeScript, Vinext, Tailwind CSS 4, shadcn/ui, Lucide Icons, TanStack Query. Do not introduce a different UI framework from a design-only request.
 
 ## Design language

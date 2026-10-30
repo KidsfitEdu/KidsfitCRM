@@ -10,7 +10,7 @@ import { LoginPage } from '@/screens/Auth/Login/LoginPage';
 import { DemoAccess } from '@/components/crm/demo-access';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { nav, type View } from '@/config/navigation';
-import { viewToPath } from '@/config/routes';
+import { viewToPath, pathToView } from '@/config/routes';
 import { createApiClient } from '@/services/api.client';
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
 import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
@@ -148,10 +148,18 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     : item.id === 'channel-sales' && has('channel_sales.customer.view')
   );
   const currentView = visibleNav.some(item => item.id === view) ? view : visibleNav[0]?.id ?? 'channel-sales';
+  useEffect(()=>{
+    const onPop=()=>{
+      const next=pathToView(window.location.pathname);
+      if (next && visibleNav.some(item=>item.id===next)) setView(next);
+    };
+    window.addEventListener('popstate',onPop);
+    return ()=>window.removeEventListener('popstate',onPop);
+  },[visibleNav.map(item=>item.id).join('|')]);
   const navigate = (next: View) => {
-    if (!visibleNav.some(item => item.id === next)) return;
+    if (!visibleNav.some(item=>item.id===next)) return;
     setView(next);
-    if (apiBase) window.history.pushState(null, '', viewToPath(next));
+    if (apiBase) window.history.pushState(null,'',viewToPath(next));
   };
 
   const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue };

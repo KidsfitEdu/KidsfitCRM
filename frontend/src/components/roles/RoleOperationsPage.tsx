@@ -3,8 +3,8 @@
 import type { ComponentProps } from 'react';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
-import { rolePageSections, type RolePageGroup } from '@/src/config/role-pages';
-import type { RolePageProps } from '@/src/types/role-pages';
+import { rolePageSections, type RolePageGroup } from '@/config/role-pages';
+import type { RolePageProps } from '@/types/role-pages';
 
 type Panel = ComponentProps<typeof ChannelOperations>['allowedPanels'];
 type SectionDefinition = {label: string; panel: string; tab: string};

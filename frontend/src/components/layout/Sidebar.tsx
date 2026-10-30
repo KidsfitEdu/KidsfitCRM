@@ -1,7 +1,7 @@
 'use client';
 import { LogOut } from 'lucide-react';
 import { AppBrand } from '@/components/common/app-brand';
-import { nav, type View } from '@/src/config/navigation';
+import { nav, type View } from '@/config/navigation';
 import type { DemoAccount } from '@/lib/demo-auth';
 
 type Props={visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;demoAccount?:DemoAccount;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};

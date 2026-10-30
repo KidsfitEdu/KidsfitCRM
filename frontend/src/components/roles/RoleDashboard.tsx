@@ -6,8 +6,8 @@ import { AppButton } from '@/components/common/app-button';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { channelRequest } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
-import type { RolePageProps } from '@/src/types/role-pages';
-import type { RolePageGroup } from '@/src/config/role-pages';
+import type { RolePageProps } from '@/types/role-pages';
+import type { RolePageGroup } from '@/config/role-pages';
 
 /** Exact dashboard tiles and authorization behavior shared by six UI profiles. */
 export function RoleDashboard({ profile, ...props }: RolePageProps & { profile: RolePageGroup }) {

@@ -1,0 +1,120 @@
+name: Frontend refactor validation
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-refactor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:demo
+      - run: npm run build
+      - name: Verify vinext dev discovers src/app routes
+        run: |
+          set -euo pipefail
+          npm run dev -- --port 3137 > /tmp/kidsfit-vinext-dev.log 2>&1 &
+          DEV_PID=$!
+          trap 'kill "$DEV_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 90); do
+            if ! kill -0 "$DEV_PID" 2>/dev/null; then
+              echo "Vinext dev exited unexpectedly"
+              cat /tmp/kidsfit-vinext-dev.log
+              exit 1
+            fi
+            if curl --silent --fail --max-time 3 http://localhost:3137/ -o /tmp/kidsfit-dev-root.html; then
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Vinext dev failed to serve /"
+            cat /tmp/kidsfit-vinext-dev.log
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 20 http://localhost:3137/crm/admin-schools -o /tmp/kidsfit-dev-schools.html
+          test -s /tmp/kidsfit-dev-root.html
+          test -s /tmp/kidsfit-dev-schools.html
+      - run: npm run build:pages
+      - run: npm run test:pages
+      - name: Install Chromium for browser smoke tests
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.58.2
+          npx playwright install chromium
+      - name: Verify demo role navigation in Chromium
+        run: node --test tests/browser/*.test.mjs
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crm-browser-smoke
+          path: frontend/tests/browser/screenshots/
+          if-no-files-found: ignore
+
+  windows-route-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 14
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Verify src/app routes in vinext dev on Windows
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'vinext-dev-windows.out.log'
+          $err = Join-Path $env:RUNNER_TEMP 'vinext-dev-windows.err.log'
+          $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/d /c npm run dev -- --host localhost --port 3137' -WorkingDirectory (Get-Location).Path -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          try {
+            foreach ($route in @('/', '/crm/admin-schools')) {
+              $ready = $false
+              for ($i = 0; $i -lt 75; $i++) {
+                try {
+                  $response = Invoke-WebRequest -Uri ("http://localhost:3137" + $route) -UseBasicParsing -TimeoutSec 5
+                  if ($response.StatusCode -eq 200 -and $response.Content.Length -gt 100) {
+                    $ready = $true
+                    break
+                  }
+                } catch {
+                  Start-Sleep -Seconds 2
+                }
+              }
+              if (-not $ready) {
+                Get-Content $out -ErrorAction SilentlyContinue
+                Get-Content $err -ErrorAction SilentlyContinue
+                throw "Vinext Windows dev did not serve a usable response for $route"
+              }
+            }
+          } finally {
+            Get-Content $out -ErrorAction SilentlyContinue
+            Get-Content $err -ErrorAction SilentlyContinue
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }

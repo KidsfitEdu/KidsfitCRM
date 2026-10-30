@@ -9,8 +9,8 @@ import {
   readDemoSession,
   saveDemoSession,
   presentDemoWorkspace,
-} from '../lib/demo-auth.ts';
-import { demoChannelSalesWorkspace } from '../lib/channel-sales.ts';
+} from '../src/lib/demo-auth.ts';
+import { demoChannelSalesWorkspace } from '../src/lib/channel-sales.ts';
 
 function memoryStorage() {
   const values = new Map();

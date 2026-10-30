@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readSchoolDemo } from '../lib/school-demo.ts';
+import { readSchoolDemo } from '../src/lib/school-demo.ts';
 
 test('demo directory has fictional schools with readonly actions', async () => {
   const result = await readSchoolDemo('/schools?page=1');

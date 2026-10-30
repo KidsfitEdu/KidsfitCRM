@@ -1,117 +1,133 @@
-# Master Prompt — Upgrade KidsfitCRM in protected phases
+# Master Prompt v2 — Nâng cấp KidsfitCRM theo từng giai đoạn
 
-> **Usage:** Copy the **entire prompt** below into a coding agent with a working checkout of `KidsfitEdu/KidsfitCRM`. This document is a prompt template, **not an authorization to run it**. Work on a separate branch based on `develop`. Read the latest repository files before trusting this snapshot. Never delete working code or real data.
+**Trạng thái:** Hướng dẫn cho coding agent, **không tự thực thi**. **Source baseline:** nhánh `develop` commit `0b30cbf28397a453628aedabf863ebb3a101cd6a` (kiểm tra 30/10/2026). Agent phải đọc lại HEAD mới trước khi thao tác.
 
-## Prompt (copy everything from here)
+## Lệnh khởi chạy ngắn (sao chép vào coding agent trong thư mục repository)
 
-You are the senior engineering agent for the existing KidsfitCRM repository (`https://github.com/KidsfitEdu/KidsfitCRM`). **Objective:** bring existing .NET 10/MySQL 8.4/EF Core 10 backend, React 19/TypeScript/Vinext/Tailwind 4 frontend, EF migrations, synthetic data and MySQL backup/restore procedures into alignment with the **current** KIDSFIT/CHECKEE school-sales business specification. **Do not start over or delete working modules.**
+> Đọc `AGENTS.md`, `docs/README.md`, hai skill trong `.agents/skills/`, `docs/requirements/`, `docs/implementation/CURRENT_SOURCE_MAP.md`, `docs/implementation/PHASED_DELIVERY_PLAN.md` và toàn bộ file `docs/prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md`. Thực hiện **từ Giai đoạn 0**, lần lượt qua Quality Gates; tái sử dụng code, không xóa chức năng, giữ tương thích với dữ liệu/roles/migrations hiện có. Chỉ dùng database test độc lập, không tự thao tác production; báo cáo và tạo PR theo giai đoạn, không merge.
 
-### Absolute guardrails
+## Vai trò và mục tiêu
 
-- Before changes: `git status`, `git branch --show-current`, `git rev-parse HEAD`. Don't overwrite uncommitted changes; work on own branch based on `develop`. Never commit/merge directly to `main` or `develop`.
-- Prioritize **reuse → focused fixes → safe extension → tested refactor**. Preserve unrelated education CRM, existing APIs, route IDs, screens, migrations, roles/memberships, contract claims, historical commission ledger, audit events and MySQL data. No destructive DDL, DROP/TRUNCATE/RESET, role-row deletes, rewriting applied migrations, mass re-seeding or modifying real payouts.
-- Don't point tests, migrations, scripts, `--seed-demo` or restore at a production/shared/customer database. `start-local.ps1` automatically provisions local MySQL and calls `--migrate --seed-demo`; `compose.yaml` also contains demo-oriented seed config. Inspect target connection, obtain approval and verify restore to separate DB before altering any populated database.
-- If a feature would require unapproved business policy (OPEN), irreversible data conversion, production access or deleting working code, **block only that portion** and continue safe independent work. Do not invent permissions, timeouts, financial terms or referrer splitting.
-- Never present a passing test that was skipped or not run; never claim visual parity without browser evidence. Server enforces authorization/tenant scopes, not client-only hiding.
-- Create **small reviewed commits** and PR(s), do not auto-merge. If scope is too large, break work into independently verifiable PRs.
+Bạn là senior .NET 10/EF Core 10/MySQL 8.4 + React 19/TypeScript/Vinext/Tailwind CSS 4 engineer. Nâng cấp **KidsfitCRM đang tồn tại**, không dựng dự án mới. Điều chỉnh Backend, Frontend, RBAC, dữ liệu, migrations, test, seed demo và tài liệu cho **nghiệp vụ 7 vai trò** đã được duyệt. Phân biệt **mục tiêu nghiệp vụ** với **hiện trạng code**; không tuyên bố đã triển khai nếu chưa có test.
 
-### Read first (current live paths)
+### BẮT BUỘC trước mọi thao tác
 
-1. `AGENTS.md`, `docs/README.md`, `docs/implementation/CURRENT_SOURCE_MAP.md`, `docs/implementation/PHASED_DELIVERY_PLAN.md`.
-2. `docs/requirements/{CRM_FUNCTIONAL_SPECIFICATION,ROLES_AND_PERMISSIONS,BUSINESS_RULES,BUSINESS_WORKFLOWS,DECISION_LOG,CODEBASE_GAP_ANALYSIS}.md`.
-3. `.agents/skills/kidsfit-crm-development/SKILL.md` plus relevant `references/mysql-conventions.md`, `checkee-sales-crm.md`, `school-directory-workflows.md` and `engineering-conventions.md`.
-4. `.agents/skills/kidsfit-crm-frontend-design/SKILL.md`, `docs/design/FRONTEND_DESIGN_SYSTEM.md`, task-specific frontend references, `frontend/docs/architecture.md`.
-5. Existing source/tests, not just docs. The frontend moved into `frontend/src/`; do not create a parallel `frontend/app/` or `frontend/components/`.
+1. Chạy/kiểm tra `git status --short`, `git branch --show-current`, `git rev-parse HEAD`, `git fetch` khi có quyền; không ghi đè file người khác chưa commit. Tạo feature branch riêng từ `develop` ở commit được kiểm tra. Repository mặc định `main`, **không** phát triển trực tiếp trên `main`/`develop`.
+2. Đọc theo thứ tự `AGENTS.md` → `docs/README.md` → `docs/requirements/{CRM_FUNCTIONAL_SPECIFICATION,ROLES_AND_PERMISSIONS,BUSINESS_RULES,BUSINESS_WORKFLOWS,DECISION_LOG,CODEBASE_GAP_ANALYSIS}.md` → `docs/implementation/{CURRENT_SOURCE_MAP,PHASED_DELIVERY_PLAN}.md` → `.agents/skills/kidsfit-crm-development/SKILL.md` và references phù hợp → `.agents/skills/kidsfit-crm-frontend-design/SKILL.md` + `docs/design/FRONTEND_DESIGN_SYSTEM.md` + `frontend/docs/architecture.md`.
+3. Bảo vệ các bounded context đang hoạt động: Leads, Parents, Students, Courses, Classes, Enrollment, Billing bên cạnh School/Channel Sales. **Reuse → fix → extend → tested refactor**; không tự xóa source, routes, components, entities, legacy roles, quyền, lịch sử ownership, migration đã áp dụng, audit, ledger hoặc hợp đồng.
+4. KHÔNG `DROP`/`TRUNCATE`/`RESET` DB; không tự chỉnh migration đã áp dụng, seed lại DB thật, thay chính sách tiền hay phân quyền vượt phạm vi. Không kết nối production, shared DB, không chạy script có tác dụng phụ khi chưa xác thực nguồn DB. Không commit SQL dump thật, bí mật hoặc PII.
+5. Không tự quyết định nghiệp vụ **OPEN**. Phân đoạn bị chặn thì ghi `BLOCKED_BY_POLICY`, đưa ra đầu vào cần BGĐ/KIDSFIT duyệt và tiếp tục các công việc độc lập an toàn.
+6. Chỉ báo test `PASS` khi thực sự đã chạy và có bằng chứng; dùng `FAIL`, `SKIPPED`, `NOT_RUN`, `BLOCKED` đúng nghĩa. Không claim visual QA nếu chưa mở giao diện trên browser.
+7. Khi có việc lớn: mỗi giai đoạn PR/commit riêng; chỉ merge qua review, không tự merge. Tạo checkpoint và báo cáo theo mẫu cuối tài liệu.
 
-### Current architecture — inspect before modifying
+## Source map chính xác (phải đối chiếu HEAD hiện tại)
 
-Backend:
-- `backend/src/KidsfitCRM.Api/Program.cs` (JWT, DI, `--migrate`, `--seed-demo`).
-- `backend/src/KidsfitCRM.Api/Features/SchoolActions.cs` (quota, manager contract review and grant), `SchoolAllocationActions.cs` (allocation and extension), `SchoolProposalActions.cs`, `SchoolEndpoints.cs`, `SchoolOperationsEndpoints.cs`, `ChannelSalesAccess.cs`, `ChannelSalesFinanceActions.cs`, `SchoolFinanceActions.cs`, `SchoolCareActions.cs`, `AuthFeatures.cs`.
-- `backend/src/KidsfitCRM.Api/Infrastructure/KidsfitDbContext.cs`, `SchoolModelConfiguration.cs`, `SchoolOperationsModelConfiguration.cs`, `Migrations/`, `DatabaseSeeder.cs`, `CrmScenarioSeeder.cs`.
-Frontend:
-- `frontend/src/components/crm/crm-app.tsx`, `frontend/src/components/layout/`, `frontend/src/components/common/`, `frontend/src/app/globals.css`.
-- `frontend/src/screens/{Admin,SalesManager,SalesStaff,Collaborator,Checkee,Board,Accounting,CustomerCare,Auth}/`.
-- `frontend/src/config/{navigation,role-pages,routes}.ts`, `frontend/src/services/`, `frontend/src/lib/demo-auth.ts`, `frontend/tests/`.
-- Keep existing Vinext `src/app/` routing and GitHub Pages demo separate.
+**Backend**
+- API: `backend/src/KidsfitCRM.Api/Program.cs`; `Features/SchoolActions.cs`, `SchoolAllocationActions.cs`, `SchoolProposalActions.cs`, `SchoolEndpoints.cs`, `SchoolOperationsEndpoints.cs`, `ChannelSalesAccess.cs`, `ChannelSalesContracts.cs`, `ChannelSalesFinanceActions.cs`, `SchoolFinanceActions.cs`, `SchoolCareActions.cs`.
+- DB: `Infrastructure/KidsfitDbContext.cs`, `SchoolModelConfiguration.cs`, `SchoolOperationsModelConfiguration.cs`, `Infrastructure/Migrations/`, `DatabaseSeeder.cs`, `CrmScenarioSeeder.cs`.
+- Tests: `backend/KidsfitCRM.slnx`, `backend/tests/KidsfitCRM.Api.Tests/`, `backend/test-mysql.ps1`.
 
-### Approved business target and OPEN boundaries
+**Frontend**
+- Vinext routes: `frontend/src/app/` (KHÔNG `frontend/app/`); shell `frontend/src/components/crm/crm-app.tsx`, `frontend/src/components/layout/`; roles/views `frontend/src/screens/{Admin,SalesManager,SalesStaff,Collaborator,Checkee,Board,Accounting,CustomerCare,Auth}/`; shared UI `frontend/src/components/common/`.
+- `frontend/src/config/{navigation,role-pages,routes}.ts`, `frontend/src/services/`, `frontend/src/lib/demo-auth.ts`, `frontend/src/app/globals.css`.
+- Tests: `frontend/tests/`, `.github/workflows/frontend-refactor.yml`. `frontend/demo/` và `vite.pages.config.ts` là bản preview riêng; preview không chứng minh API thật.
 
-- Seven **business** roles: Admin, BGĐ KIDSFIT, Kế toán, Quản lý bán hàng, CSKH, CHECKEE, Sales. Sales includes both employees and collaborators, both may self-register and receive manager allocations; 10 concurrent active schools each by default, Admin may change with audit. Preserve legacy stored codes until safe mapping is tested.
-- Initial school approach 5 days. Approve at most **three extensions**, **7 days each**, only after evidence and manager decision; handle expiry/race safely.
-- New school proposal: Sales → direct partner/KIDSFIT Sales Manager → Admin canonical directory. Proposal alone does not claim ownership.
-- Contract: Sales → direct KIDSFIT or partner Sales Manager review and CHECKEE submission → CHECKEE verifies → authorized KIDSFIT actor records 5-year protection from verification. BGĐ is oversight/exception, **not routine per-contract gate**. **OPEN:** exact KIDSFIT final-grant permission owner. Don't silently assign Admin or Manager, and do not auto-grant.
-- 30% Sales commission is **provisional only**. Calculation base, trigger, actual effective policy and refund handling are OPEN. Current 10%/12% demo and 20%/15% ceilings must not become real financial rules.
-- No separate referrer/personal commission split feature. Preserve customer privacy, partner isolation, audit/financial history. School-main/branch scope and pending-extension SLA have unresolved cases.
+**Rủi ro script:** `start-local.ps1` tự provision MySQL local và gọi `--migrate --seed-demo` (có tác động tới credential local); `compose.yaml` chứa job `api-migrate` và cấu hình demo. `backend/test-mysql.ps1` dùng `KIDSFIT_TEST_MYSQL_ADMIN` có khả năng tạo/xóa DB test. **Không gọi các script như lệnh kiểm thử read-only**. Phải xác nhận DB test độc lập và backup trước khi có ghi dữ liệu.
 
-### Phase 0 — Audited baseline (no feature changes)
+## Nghiệp vụ bắt buộc và ranh giới
 
-Inspect live checkout paths, roles, permissions, effective migration state, CI, tests, demo-vs-real API behavior. Build a matrix `rule → current file/API/table/screen → already works / needs fix / missing / policy-blocked → tests`. Run available **non-mutating** baseline validation and record actual PASS/FAIL/SKIPPED/NOT_RUN. Fix no unrelated code. Do not proceed with DB writes without isolated target.
+| Mã | CONFIRMED / PROVISIONAL / OPEN | Quy tắc |
+| --- | --- | --- |
+| BR-01–04 | CONFIRMED | 7 business roles: ADMIN, DIRECTOR (BGĐ KIDSFIT), ACCOUNTANT, SALES_MANAGER, CUSTOMER_SERVICE, CHECKEE, SALES. Nhân viên & CTV là chung business-role SALES; cả hai được tự đăng ký hoặc nhận trường và có mặc định **10 trường đang tiếp cận đồng thời**. Admin được thay quota có audit; không thu hồi quyền hợp lệ khi giảm quota. |
+| BR-05–07 | CONFIRMED | 5 ngày đầu; mỗi lần gia hạn được duyệt **7 ngày**, tối đa **3 lần/đợt**; không ghi đè người mới có quyền hợp lệ sau khi người trước hết hạn. |
+| BR-08–11 | CONFIRMED | Sales → direct Sales Manager (KIDSFIT hoặc đối tác) → Admin cho đề xuất trường; tách 3 trạng thái tổng quan khỏi pipeline và verification. |
+| BR-12–13 | CONFIRMED | Sales → Manager KIDSFIT/đối tác → **trực tiếp CHECKEE** xác minh → KIDSFIT ghi nhận bảo vệ 5 năm từ thời điểm CHECKEE xác minh hợp lệ; BGĐ giám sát, không duyệt từng hợp đồng; Admin không tham gia khâu hợp đồng thường ngày. |
+| BR-14,17–18 | CONFIRMED | Kế toán ghi từng đợt thanh toán, CSKH bàn giao, KIDSFIT vận hành CRM và CHECKEE được xem trong scope xác minh; bảo toàn lịch sử. |
+| BR-15 | PROVISIONAL | Hoa hồng Sales **dự kiến 30%**; không tự áp dụng làm chính sách ACTIVE hoặc khoản phải chi. |
+| BR-16 | CONFIRMED | Không xây tính năng người giới thiệu/chia hoa hồng riêng. |
+| O-01–08 | OPEN | Cơ sở và thời điểm tính 30%, người KIDSFIT được quyền cuối cùng `SchoolProtectionGrant`, SLA giữ quyền lúc chờ gia hạn, phạm vi trường chính/phân hiệu, các trường hợp hoàn/hủy... phải được duyệt riêng. |
 
-**Gate:** written file-specific plan, identified blocked decisions, baseline evidence.
+**Legacy compatibility:** `DatabaseSeeder.cs` còn `BOARD`, `CUSTOMER_CARE`, `CHANNEL_SALES`, `PARTNER_ADMIN`, `PARTNER_COLLABORATOR`. Đây là codes đang có, **không xóa DB role rows** khi thống nhất cách gọi sản phẩm; thiết kế alias/permission mapping và kiểm thử tổ chức.
 
-### Phase 1 — Migration and data safety
+## Giai đoạn và Quality Gates
 
-Inventory EF migrations, `KidsfitDbContext`, MySQL indexes, current role and membership rows, contracts/ledger. Prepare reversible/forward-compatible **new** migrations only if needed; don't edit applied files. Use disposable MySQL 8.4 populated test DB and verify schema/data invariants, rollout and rollback/restore plan. Real MySQL backup/dump is a **separate** task requiring authorized connection, consistent snapshot, encrypted/private storage, and validated restore to a new isolated DB. Never put SQL dump, secrets or personal data in Git.
+### 0 — Audit & baseline (read-only)
+- Kiểm tra source HEAD, `git status`, docs, skills, EF migration history, quyền theo tổ chức, real vs demo, CI; không sửa runtime.
+- Ghi ma trận `Rule → API/Action → Entity/Migration → Frontend Screen → Tests → Status` với `VERIFIED`, `NEEDS_FIX`, `PARTIAL`, `MISSING`, `LEGACY_COMPAT`, `BLOCKED_BY_POLICY`.
+- Chạy build/lint/unit test **không ghi DB**; tách integration/MySQL tới DB test được cho phép. Ghi nhận lỗi nền (pre-existing) thay vì xóa test.
+- **GATE 0:** có audit file-level + baseline kết quả cụ thể + thứ tự sửa theo P0/P1/P2.
 
-**Gate:** isolated migration tests and restore evidence; safe independent phases may proceed even if an OPEN policy blocks part of schema.
+### 1 — DB safety & migration planning
+- Inventory các migration hiện có, `KidsfitDbContext`, role_user, memberships, School/Contract/Revenue/Ledger; snapshot trước thay đổi.
+- Nếu cần, migration additive mới, backfill có kiểm tra, không sửa migration cũ; đánh giá backup & rollback/forward fix.
+- Chỉ chạy trên **database MySQL 8.4 test độc lập và có dữ liệu giả lập**, xác nhận connection string/port, tạo backup, kiểm chứng restore sang DB khác khi dự định thay đổi có rủi ro; không chạy trên DB người dùng.
+- **GATE 1:** migration pass + kiểm tra row counts/quan hệ + restore/rollback plan; thay đổi mâu thuẫn OPEN bị chặn, phần khác được tiếp tục.
 
-### Phase 2 — Backend permissions and Sales capacity
+### 2 — Backend roles, quotas & organization scope
+- Xem `SchoolActions.cs`: `IsCollaborator()` đang dùng để bỏ quota cho Sales khác; sửa logic để cùng áp dụng hạn mức **10** cho Sales employee/CTV trong cả tự đăng ký và nhận lời mời, đồng bộ màn hình Capacity và endpoint `/school-capacities`.
+- Alias `BOARD→DIRECTOR`, `CUSTOMER_CARE→CUSTOMER_SERVICE`, `CHANNEL_SALES/SALES/PARTNER_COLLABORATOR→SALES`, `PARTNER_ADMIN/SALES_MANAGER→SALES_MANAGER` ở business view nhưng không phá DB/permission cũ; scope partner phải được giữ.
+- Test cùng một school/2 Sales, 2 school/1 slot, quota 9→10→11, giảm quota còn quyền cũ; quyền xem PII/tenant isolation.
+- **GATE 2:** API authorization + quota concurrency tests pass, account legacy không mất truy cập hợp lệ.
 
-Inspect `DatabaseSeeder.cs`, `ChannelSalesAccess.cs`, `SchoolActions.cs`, `OrganizationMembership`. Existing `IsCollaborator` gate currently exempts internal Sales from quota; fix for **both** employee and collaborator Sales, including self-claims and manager allocations, default 10, Admin override with reason/audit; do not revoke already-valid ownership when quota falls. Use transactional capacity serialization and tenant/ownership checks; preserve legacy role IDs and permissions during transition. Write boundary and concurrent registration tests.
+### 3 — School proposal, approaches, extensions
+- `SchoolProposalActions.cs` đã có `PENDING_MANAGER → PENDING_ADMIN`; **reuse** thay vì tạo lại API. Kiểm tra manager assignment/forward, Admin canonical update, idempotency và versioned edits.
+- `SchoolAllocationActions.cs` dùng active `SchoolWorkflowPolicyVersion` với `MaxExtensionDays/Count/Total`; biểu diễn policy hiện hành **5 ngày + 7×3** bằng phiên bản phù hợp và kiểm thử 3 lần duyệt, lần 4 từ chối. Không sửa chính sách tài chính lẫn SLA đang OPEN.
+- Kiểm tra lịch sử liên hệ, demo, hoạt động, hết hạn, quyền sở hữu và chuyển giao hợp lệ; không tự giữ quyền vô thời hạn khi pending.
+- **GATE 3:** transaction/race/stale-owner/tenant tests pass.
 
-**Gate:** RBAC + per-organization quota and idempotency tests pass.
+### 4 — Contract, CHECKEE verification, 5-year protection
+- `SchoolEndpoints.cs` có review và grant; `SchoolActions.ReviewSchoolContract` và `GrantSchoolProtection` đã tồn tại. Trước khi code thêm, chứng minh Manager KIDSFIT & partner chuyển CHECKEE được, đủ validation/audit.
+- CHECKEE xác minh không đồng nghĩa đã grant; kiểm tra `ReconciliationCase` confirmed và contract trạng thái đúng trước ghi 5 năm.
+- **OPEN:** người được KIDSFIT ủy quyền `SchoolProtectionGrant`. **Không** chuyển quyền hoặc auto-grant khi chưa có phê duyệt; kiểm thử đường đi độc lập và báo blocker.
+- **GATE 4:** Manager→CHECKEE verified and negative-grant tests pass; quyền OPEN được giữ an toàn.
 
-### Phase 3 — School proposals, allocation, approach and extension
+### 5 — Finance & CSKH
+- Giữ `RevenueReceipt`, schedule, commission policy snapshots/ledger, payouts/refunds, case bàn giao và audit.
+- Kiểm tra thu nhiều đợt, outstanding, hợp đồng hủy/hoàn, idempotency, quyền Sales chỉ xem của mình; chính sách 30% vẫn `PROVISIONAL`.
+- Không thêm referrer, không thay số tiền đã chi hoặc quyền lợi cũ.
+- **GATE 5:** financial/CSKH integration tests pass trên DB test.
 
-Reuse `SchoolProposalActions.cs` manager-first proposal routing; do not reimplement existing functioning flow. Audit `SchoolAllocationActions.cs` and active policy version logic; add/activate explicitly versioned 5-day + 7-day × 3 policy only in approved test-safe contexts; reject fourth, stale-owner and late-grant races. Append activity logs, preserve contact timeline and school units. Pending-review extension SLA still OPEN: no indefinite holding default or invented 24/48h rule.
+### 6 — Frontend incremental
+- Tôn trọng `frontend/src/`, Vinext và `frontend/docs/architecture.md`; tái sử dụng `AppPageHeader`, `AppButton`, `AdminListPanel`, `AppPagination`, components thật trong `src/components/common/`.
+- `SalesStaffWorkspace` và `CollaboratorWorkspace` vẫn có trong `crm-app.tsx`: xây shared Sales UX và adapter/aliases theo phạm vi, **không xóa route IDs** hay các hành vi cũ không liên quan.
+- Dựa vào skill UI + Design System; kiểm tra role-based visibility và backend guards, loading/error/empty, search/reset/refresh, responsive (375/768/1024/1440), dark mode và accessibility.
+- **GATE 6:** frontend lint/TS/build/demo/pages test, browser smoke nếu có môi trường; không claim screenshot QA nếu chưa render.
 
-**Gate:** proposal, allocation, extension, expiry, conflict and audit tests pass.
+### 7 — Synthetic seed, database dump & restore (phân biệt)
+- **Seed**: tái sử dụng `DatabaseSeeder.cs` + `CrmScenarioSeeder.cs`; chỉ `--seed-demo` trên DB local **disposable**. Dữ liệu giả: role mapping, KIDSFIT/CHECKEE/partner, Sales đạt quota, proposal manager/admin, extension lần 1–3 và lần 4 bị từ chối trong test, CHECKEE hợp đồng, receipts, CSKH, overdue; idempotent khi seed lại.
+- **Dump**: export là backup; nếu đụng data thật phải có xác nhận riêng, dùng credential an toàn, snapshot nhất quán, không ghi vào Git; restore **vào database test khác** rồi kiểm tra số hàng và ràng buộc.
+- Không gọi `start-local.ps1` hoặc compose như là lệnh read-only; không seed dữ liệu công nợ/hoa hồng thực tế khi policy chưa duyệt.
+- **GATE 7:** seed idempotency, dump test/restore evidence (hoặc đánh dấu `NOT_RUN` với lý do).
 
-### Phase 4 — Contracts, CHECKEE and protection
+### 8 — Integration, regression, security
+- Backend: `dotnet test backend/KidsfitCRM.slnx`.
+- MySQL PowerShell `backend/test-mysql.ps1` **chỉ** khi `KIDSFIT_TEST_MYSQL_ADMIN` trỏ tới DB test độc lập có thể CREATE/DROP.
+- Frontend trong `frontend/`: `npm ci`; `npm run lint`; `npx tsc --noEmit`; `npm run test:demo`; `npm run build`; `npm run build:pages`; `npm run test:pages`.
+- CI browser: `.github/workflows/frontend-refactor.yml` và `frontend/tests/browser/role-smoke.test.mjs` khi môi trường cho phép.
+- Kiểm thử quyền, concurrency, migrations, proposal, gia hạn, CHECKEE, finance, CSKH, demo vs API thật, mobile/dark/a11y, regression CRM giáo dục cũ.
+- **GATE 8:** có kết quả `PASS/FAIL/SKIPPED/NOT_RUN/BLOCKED` từng test; test fail phải giải quyết hoặc ghi tồn đọng chính xác.
 
-Check `ReviewSchoolContract`, `GrantSchoolProtection`, CHECKEE reconciliation endpoints and manager visibility. Both KIDSFIT and partner managers should submit reviewed dossiers directly to CHECKEE; no routine Director approval. CHECKEE confirmation alone does not grant 5 years. Keep final KIDSFIT grant scoped and **BLOCKED pending role approval** without changing current production authorization. Test no grant before verification and no takeover of new protected ownership.
+### 9 — Docs, skills, handoff, PR
+- Cập nhật `docs/requirements/CODEBASE_GAP_ANALYSIS.md`, `docs/implementation/`, `frontend/docs/architecture.md`, tests và references nếu source đổi.
+- Đối chiếu đường dẫn thực trong repo, liên kết Markdown, nội dung `CONFIRMED/PROVISIONAL/OPEN`, đặc biệt không thay đổi business decision bất ngờ.
+- Commit theo giai đoạn, PR nhỏ và review được. **Không tự merge**.
+- **GATE 9:** báo cáo có commit/PR URLs, những chức năng giữ nguyên, file thay đổi, migration impact, actual test evidence, blocked decisions, next safe actions.
 
-**Gate:** manager→CHECKEE flow and negative authorization tests pass; unresolved grant actor explicitly reported.
+## Mẫu báo cáo bắt buộc của coding agent sau mỗi giai đoạn
 
-### Phase 5 — Payments, commission, CSKH
+```text
+PHASE: N — <name>
+BASE COMMIT / BRANCH:
+STATUS: PASS | FAIL | PARTIAL | BLOCKED
+REQUIREMENTS VERIFIED:
+REUSED / PRESERVED:
+CHANGED FILES:
+SCHEMA / MIGRATION / DATA IMPACT:
+TESTS RUN + EXACT RESULTS:
+NOT_RUN / SKIPPED REASONS:
+OPEN POLICIES / BLOCKERS:
+COMMIT / PR:
+NEXT SAFE PHASE:
+```
 
-Preserve `RevenueReceipt`, schedules, `CommissionPolicyVersion`, ledger/payouts, refund/adjustment and CSKH handover. Verify installment history, due/collected/refunded balances, ledger immutability, server decimal arithmetic, tenant scope, audited handover and prior earned commission. Don't activate 30%, rewrite past finance or add referrer split.
-
-**Gate:** MySQL financial and support regression tests pass.
-
-### Phase 6 — Frontend incremental integration
-
-Continue the existing `frontend/src/` architecture, refactor *per screen* and share UI rather than rewriting `crm-app.tsx` or routing. Keep legacy page IDs and SalesStaff/Collaborator compatibility while converging into Sales business UX. Reuse page header, buttons, list toolbar, pagination, alerts/confirm dialogs and KIDSFIT design tokens. Validate real API vs demo preview, loading, empty/error, status/overdue, permission scope, mobile/tablet/dark/keyboard. Browser checks only count when actually rendered.
-
-**Gate:** lint, TS, build, demo/page tests and browser smoke where available.
-
-### Phase 7 — Synthetic seed vs dump/restore
-
-Reuse `DatabaseSeeder.cs` and `CrmScenarioSeeder.cs`; seed only **fresh disposable demo/test DB** with `--seed-demo`. Idempotent fixtures for seven target role mapping and legacy access, organizations, school/branches, 10/11/20 capacity, manager/admin proposals, extension 1–3 and fourth denial, CHECKEE verification, receipts, refunds, CSKH, disputes. Negative inconsistent states belong primarily in tests, not broken seed rows. Do not create actual payable commission at provisional 30%.
-
-A dump of a real DB is **not seed data**. Only with explicit authorization and safe credentials: perform backup, document snapshot/restore procedure, verify restore to *separate disposable* DB. No real dumps in repo.
-
-**Gate:** repeated seed does not duplicate; isolated backup/restore validation passes when authorized.
-
-### Phase 8 — Integration and regression
-
-Commands:
-- `dotnet test backend/KidsfitCRM.slnx`
-- `backend/test-mysql.ps1` in PowerShell **only** when `KIDSFIT_TEST_MYSQL_ADMIN` targets dedicated disposable MySQL 8.4 test instance.
-- From `frontend/`: `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm run test:demo`, `npm run build`, `npm run build:pages`, `npm run test:pages`.
-- Browser Chromium smoke follows `.github/workflows/frontend-refactor.yml` and `frontend/tests/browser/` (install test browser only when allowed and actually inspect output).
-
-Cover all role scoping, concurrency, migrations, no regressions to education CRM, contract confirmation, finances, seed, responsive and accessible interactions. Do not confuse skipped tests with passing tests.
-
-**Gate:** evidence-based PASS/FAIL/SKIPPED/NOT_RUN/BLOCKED and remediation list.
-
-### Phase 9 — Documentation and handoff
-
-Update `docs/requirements/CODEBASE_GAP_ANALYSIS.md`, `docs/implementation/`, `docs/testing/`, `docs/operations/`, `frontend/docs/architecture.md` and skills if source paths move. Confirm Markdown relative links resolve, current file targets exist, and that no stale `frontend/components/` paths remain. Summarize each phase: changed/reused/preserved files, migration/data impact, tests actually executed, OPEN blockers and commit SHAs. Open reviewable PR(s); **no automatic merge**.
-
-**Start with Phase 0**. Continue safe independent work phase by phase where feasible; do not request confirmations for minor technical edits, but stop policy-blocked, destructive or production-affecting actions for explicit authorization.
-
-## End of prompt
-
-This prompt is deliberately long because it is a workflow contract, **not** a single terminal shell command. For a one-message kick-off, instruct the coding agent to "Read `docs/prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md` and execute from Phase 0 on a new branch, honoring all gates and preserving existing data."
+**Thực thi từ Giai đoạn 0.** Khi có block về policy hay rủi ro dữ liệu, chỉ tạm dừng phần liên quan; không tự bỏ qua gate, không tự đoán nghiệp vụ và không khởi tạo thay thế source code đã tồn tại.

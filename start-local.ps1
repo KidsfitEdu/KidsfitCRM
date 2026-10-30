@@ -81,8 +81,8 @@ $env:Jwt__Audience = 'KidsfitCRM.Web'
 $env:Jwt__Key = 'local-development-key-change-before-production-2026'
 $env:Cors__Origins__0 = 'http://localhost:3000'
 Push-Location $backendPath
-try { dotnet run --project src/KidsfitCRM.Api --no-launch-profile -- --migrate --seed-demo } finally { Pop-Location }
-if ($LASTEXITCODE -ne 0) { throw 'Database migration or seed failed.' }
+try { dotnet run --project src/KidsfitCRM.Api --no-launch-profile -- --migrate } finally { Pop-Location }
+if ($LASTEXITCODE -ne 0) { throw 'Database migration failed.' }
 
 if (-not (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue)) {
     $dotnetExecutable = (Get-Command dotnet -ErrorAction Stop).Source

@@ -1,0 +1,34 @@
+name: Frontend refactor validation
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-refactor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:demo
+      - run: npm run build
+      - run: npm run build:pages
+      - run: npm run test:pages

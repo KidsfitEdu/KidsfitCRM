@@ -1,0 +1,5 @@
+# Safe demo cleanup and migration
+
+The user authorizes deleting demo-only, unused or superseded code, but not unknown/real data or indiscriminately deleting modules. Categorize each feature: KEEP, FIX, MERGE, REMOVE, POLICY_BLOCKED. Inspect imports, endpoint registration, route IDs, organization permissions, EF entities/FKs, seeders and tests before deletion. Candidate areas: historic education-center features and separate SalesStaff/Collaborator workspaces; keep shared API, accounting and security abstractions needed by the KIDSFIT/CHECKEE school-sales CRM. Remove obsolete references/tests only alongside verified replacements.
+
+A disposable-demo schema may be rebased **only after** verifying environment, data ownership, backup/restore and every consumer is disposable. In other cases write additive EF migrations; never edit already applied history. Provide a removal manifest, schema impact, passing regression evidence and an explanation for each deletion. Policies OPEN in `docs/requirements/DECISION_LOG.md` are not permission to invent rules. No production migration or wipe.

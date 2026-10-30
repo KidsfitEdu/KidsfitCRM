@@ -1282,7 +1282,7 @@ function CrmWorkspace({
               </Button>
             </aside>
           )}
-          {currentView !== 'admin-schools' && <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
+          {!['admin-schools', 'admin-proposals', 'admin-team', 'admin-settings'].includes(currentView) && <AppPageHeader eyebrow={activeCopy.eyebrow} title={activeCopy.title} description={activeCopy.description}
             actions={<div className="flex flex-wrap gap-2">
               {currentView === 'finance' && (
                 <Button

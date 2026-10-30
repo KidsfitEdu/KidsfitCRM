@@ -1,0 +1,51 @@
+name: Phase 0 read-only baseline
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'docs/implementation/PHASE_0_BASELINE_AUDIT.md'
+      - '.github/workflows/phase-0-baseline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-no-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prevent implicit MySQL integration tests
+        run: |
+          if [ -n "${KIDSFIT_TEST_MYSQL_ADMIN:-}" ]; then
+            echo 'KIDSFIT_TEST_MYSQL_ADMIN must be absent from the read-only Phase-0 job.'
+            exit 1
+          fi
+      - name: Backend baseline tests (no database credentials, MySQL tests skipped)
+        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
+
+  frontend-no-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:demo
+      - run: npm run build
+      - run: npm run build:pages
+      - run: npm run test:pages

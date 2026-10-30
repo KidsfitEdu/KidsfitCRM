@@ -37,7 +37,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const createTeamMember=async()=>{
     const errs:Record<string,string>={};
     if(!teamForm.name.trim())errs.name='Cần nhập họ tên.';
-    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(teamForm.email))errs.email='Email không hợp lệ.';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teamForm.email))errs.email='Email không hợp lệ.';
     if(teamForm.password.length<12)errs.password='Mật khẩu cần ít nhất 12 ký tự.';
     if(!teamForm.organization_id)errs.organization_id='Vui lòng chọn tổ chức.';
     setFormErrors(errs);if(Object.keys(errs).length)return;

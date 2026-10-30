@@ -25,7 +25,7 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
   const createManual=async()=>{
     const errs:Record<string,string>={};
     for(const key of ['school_code','name','province','ward','reason'])if(!manual[key]?.trim())errs[key]='Trường này là bắt buộc.';
-    if(manual.email?.trim()&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(manual.email.trim()))errs.email='Email không đúng định dạng.';
+    if(manual.email?.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manual.email.trim()))errs.email='Email không đúng định dạng.';
     if(manual.reason?.trim()&&manual.reason.trim().length<3)errs.reason='Vui lòng nêu lý do ít nhất 3 ký tự.';
     setFormErrors(errs);if(Object.keys(errs).length)return;
     setBusy(true);setError('');

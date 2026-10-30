@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using MySql.Data.MySqlClient;
 
 namespace KidsfitCRM.Api.Tests;
@@ -43,6 +44,12 @@ public sealed class ChannelMySqlFixture : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddDbContext<KidsfitDbContext>(options => options.UseMySQL(ConnectionString));
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["Seed:DemoPassword"] = "EphemeralTestOnly-CRM-Password!",
+                ["Seed:DisposableDatabase"] = "true"
+            }).Build());
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<KidsfitDbContext>().Database.MigrateAsync();

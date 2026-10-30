@@ -1,10 +1,18 @@
+# One-shot execution update (2026-10-30)
+
+**IMPORTANT: this section overrides earlier blanket preservation wording in v2 for disposable demo cleanup only.** The executing agent must load `.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md`, its references and both existing domain/frontend skills, then **proceed through all phases in a single uninterrupted coding session**. Refresh existing `docs/implementation/PHASE_0_BASELINE_AUDIT.md`, rather than stopping after another read-only audit. Before altering code, classify KEEP/FIX/MERGE/REMOVE and prove dependencies. The user permits removing dead, duplicated or superseded demo-only code, including potentially out-of-scope education CRM, once imports/endpoints/DB FKs/tests prove removal safe. Do not interpret this as authorization to delete unknown real data or drop any shared DB.
+
+**Shared demo password requirement:** all synthetic backend user accounts shall accept the *same password provided to the executing agent through local environment configuration* `Seed__DemoPassword`. The actual user-chosen password is **not** recorded in this repository. Seed only on a disposable development/test database; independent per-user password hashing, idempotent re-seed, and tests for all demo accounts are mandatory. Do not reuse this password for MySQL root/app users or JWT key; frontend static preview login is separate. For database dump, use `mysqldump` only against an isolated demo/test source and validate restore in a **new** disposable DB; never commit a dump with hashes or personal data.
+
+**Completion model:** all safe phases run continuously, with stage checkpoints and one final PR; do not request approval for ordinary code refactors. Block only unresolved business policies, any unknown/real data deletion or production-destructive operations. Keep professional code quality, CI, migration verification and role-scoped tests.
+
 # Master Prompt v2 — Nâng cấp KidsfitCRM theo từng giai đoạn
 
 **Trạng thái:** Hướng dẫn cho coding agent, **không tự thực thi**. **Source baseline:** nhánh `develop` commit `0b30cbf28397a453628aedabf863ebb3a101cd6a` (kiểm tra 30/10/2026). Agent phải đọc lại HEAD mới trước khi thao tác.
 
 ## Lệnh khởi chạy ngắn (sao chép vào coding agent trong thư mục repository)
 
-> Đọc `AGENTS.md`, `docs/README.md`, hai skill trong `.agents/skills/`, `docs/requirements/`, `docs/implementation/CURRENT_SOURCE_MAP.md`, `docs/implementation/PHASED_DELIVERY_PLAN.md` và toàn bộ file `docs/prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md`. Thực hiện **từ Giai đoạn 0**, lần lượt qua Quality Gates; tái sử dụng code, không xóa chức năng, giữ tương thích với dữ liệu/roles/migrations hiện có. Chỉ dùng database test độc lập, không tự thao tác production; báo cáo và tạo PR theo giai đoạn, không merge.
+> Đọc `AGENTS.md`, `docs/README.md`, hai skill trong `.agents/skills/`, `docs/requirements/`, `docs/implementation/CURRENT_SOURCE_MAP.md`, `docs/implementation/PHASED_DELIVERY_PLAN.md` và toàn bộ file `docs/prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md`. Thực hiện **từ Giai đoạn 0**, lần lượt qua Quality Gates; tái sử dụng code, được dọn/xóa code demo đã chứng minh dư thừa sau dependency audit; không xóa dữ liệu thật, audit hoặc tài chính; seed tài khoản demo dùng biến môi trường Seed__DemoPassword, không ghi mật khẩu rõ vào Git. Chỉ dùng database test độc lập, không tự thao tác production; báo cáo và tạo PR theo giai đoạn, không merge.
 
 ## Vai trò và mục tiêu
 

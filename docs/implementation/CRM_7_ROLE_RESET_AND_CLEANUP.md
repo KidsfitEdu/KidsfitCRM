@@ -53,3 +53,19 @@ This checkout is `feat/crm-one-shot-safe-upgrade-20261030` at `26d6cf2`. The wor
 | Git push / local PR update | BLOCKED | GitHub CLI is absent and the configured network proxy refused the Git connection; GitHub connector confirms PR #25 remains open |
 
 No migration, database backup, restore, reset, or destructive code cleanup was performed in this continuation. The `InitialCRM` migration, seven-role runtime authorization/seed, education-module removal, MySQL-backed scenario suite, and push to PR #25 remain outstanding. Resume after the isolated local MySQL 8.4 service is reachable, the environment provides `Seed__DemoPassword`, platform dependencies are repaired, and GitHub access is available. Do not infer a successful backup/restore or database reset from the user's data-ownership confirmation alone.
+
+
+## Continuation after interrupted session — 2026-10-30
+
+The GitHub PR branch was updated (not merged). Implementation progressed beyond the initial audit:
+
+- Removed education-only backend entities, mappings, API routes, service registrations, old lead/billing actions, old DTOs, and their obsolete test. Preserved identity, organizations, schools, CHECKEE contracts, revenue/commission, care and audit.
+- GitHub Actions generated `20261030091859_InitialCRM.cs`, designer and model snapshot from the compiled current EF model; all earlier migration files were replaced. The temporary one-shot migration workflow was deleted after successful generation.
+- Replaced the legacy education seeder with CRM-only seed and canonical seven role rows; account codes (e.g. BOARD001, CARE001) are user fixture IDs, not role codes. Some membership/personnel-type compatibility values remain and require cleanup.
+- Consolidated Sales/CTV role navigation, replaced the 2,627-line legacy education frontend workspace with CRM-only routing, removed obsolete `crm-data.ts` fixture and four old URL views, and updated several tests.
+- Added local `backend/scripts/reset-demo-database.ps1` requiring explicit Development, disposal flag, demo password, exact database name and localhost connection. **Not executed; the actual user's local MySQL database is unchanged by GitHub work.** The user expressly waived backup for disposable demo data.
+- Previous GitHub CI at `62621b9d`: frontend validation and no-DB baseline passed, MySQL integration failed (63 passed / 4 failed / 1 skipped at an earlier commit). Later fixes for scoped management, finance tests and role grants are on branch; latest CI must be inspected and cannot be assumed passing.
+- The MySQL collation assertion reported a database column as `utf8mb4_0900_ai_ci` instead of `utf8mb4_bin` despite the initial migration source specifying binary collation for several idempotency columns. Investigate **actual DDL / exact failing table** before changing migration or dropping this invariant.
+- Pending before completion: resolve remaining CI failures and security review, verify seven-role end-to-end permissions, full synthetic CRM scenario seed coverage, replace residual legacy account/membership compatibility checks, update README to reflect final source, run one full integration pass and perform the authorized local demo reset. Do not merge PR #25.
+
+**Important:** The reset script is destructive and no backup is requested by the user, but it requires the actual MySQL connection details from their machine and executes nowhere automatically.

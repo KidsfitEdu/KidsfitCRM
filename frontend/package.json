@@ -11,7 +11,7 @@
     "build:pages": "vite build --config vite.pages.config.ts",
     "preview:pages": "vite preview --config vite.pages.config.ts",
     "start": "wrangler dev --config dist/server/wrangler.json",
-    "lint": "oxlint -A react/react-compiler app components/crm features lib demo vite.pages.config.ts",
+    "lint": "oxlint -A react/react-compiler app components/crm src features lib demo vite.pages.config.ts",
     "format": "oxfmt",
     "test:demo": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:pages": "node --test tests/pages/*.test.mjs"

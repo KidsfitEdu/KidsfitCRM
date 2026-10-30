@@ -164,12 +164,15 @@ public sealed partial class ChannelSalesActions
 
     private static bool IsSchoolSales(OrganizationMembership membership) => membership.MembershipType is "SALES" or "CHANNEL_SALES" or "COLLABORATOR" or "PARTNER_COLLABORATOR";
 
+    // Preserve the collaborator-specific guard used by the handover/reactivation workflows.
+    private static bool IsCollaborator(OrganizationMembership membership) => membership.MembershipType is "COLLABORATOR" or "PARTNER_COLLABORATOR";
+
     private async Task CheckSchoolCapacity(long ownerId, long organizationId, CancellationToken ct)
     {
         // This row serializes different-school claims by the same CTV, not just claims for one customer.
         var membership = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE user_id = {ownerId} AND organization_id = {organizationId} FOR UPDATE").SingleOrDefaultAsync(ct);
         if (membership is null || membership.Status != "ACTIVE") throw new KeyNotFoundException();
-        if (!IsCollaborator(membership)) return;
+        if (!IsSchoolSales(membership)) return;
         var now = DateTime.UtcNow;
         var count = await db.ApproachRegistrations.Where(r => r.OwnerUserId == ownerId && r.OwnerOrganizationId == organizationId && r.Status == "ACTIVE" && r.ProtectedUntil > now
             && db.DirectorySchools.Any(s => s.CustomerId == r.CustomerId)).Select(x => x.CustomerId).Distinct().CountAsync(ct);

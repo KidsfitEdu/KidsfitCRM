@@ -3,7 +3,7 @@
 ASP.NET Core Web API chạy trên .NET 10, EF Core 10 và MySQL 8.4.
 
 ```powershell
-dotnet run --project src/KidsfitCRM.Api -- --migrate --seed-demo
+dotnet run --project src/KidsfitCRM.Api -- --migrate
 dotnet run --project src/KidsfitCRM.Api
 ```
 
@@ -28,3 +28,17 @@ Bounded context `ChannelSales` nằm cạnh CRM giáo dục hiện có và cung 
 API bổ sung: `/api/channel-sales/finance`, `/reconciliation-cases`, `/management`, `/customers/{id}`, `/customers/{id}/support-activities`, `/payouts`, `/payouts/{id}/approve`, `/payouts/{id}/complete`, `/commission-policies`, `/commissions/{id}/adjustments`, `/team`, `/team/{id}/status`.
 
 `test-mysql.ps1` chạy kiểm thử tích hợp trên MySQL 8.4 với database tạm riêng. Test bao phủ migration/seeding lặp lại, tranh quyền cùng khách hàng, lock timeout/retry, hết hạn không phụ thuộc worker, chống gửi trùng, scope, thu trùng/thu vượt, rollback, đối soát, chi trả và bút toán điều chỉnh.
+
+## Safe synthetic demo accounts (opt-in)
+
+Backend demo account passwords are **not** stored in the repository. All nine compatibility demo identities (covering the seven business roles) use the one runtime-only secret `Seed__DemoPassword`; each user's password is independently hashed. Seeding rejects missing secrets, production environments and runs without `Seed__DisposableDatabase=true`. These checks are guardrails, **not** proof a database is disposable: the operator must independently verify database ownership, isolation and absence of real data first.
+
+For a verified disposable **Development** MySQL database only, set `Seed__DemoPassword` through an uncommitted environment secret, set `Seed__DisposableDatabase=true`, then run:
+
+```powershell
+dotnet run --project src/KidsfitCRM.Api -- --migrate --seed-demo
+```
+
+`--migrate` alone does not seed. `start-local.ps1` and the supplied production-mode `compose.yaml` no longer seed implicitly. Do **not** use the demo password for JWT or MySQL credentials. Static frontend Pages-preview login is an independent presentation fixture, not a backend account. Do not commit SQL dumps that contain password hashes or personal information.
+
+**Validation not yet performed on this branch:** compile, real MySQL 8.4 migration, repeat-seed, role login matrix, dump/restore, full frontend tests. See `docs/implementation/PHASE_0_BASELINE_AUDIT.md` for precise gate status.

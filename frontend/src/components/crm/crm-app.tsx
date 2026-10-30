@@ -48,14 +48,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DemoAccess } from '@/components/crm/demo-access';
-import { nav, viewCopy, type View } from '@/src/config/navigation';
-import { Sidebar } from '@/src/components/layout/Sidebar';
-import { viewToPath, pathToView } from '@/src/config/routes';
-import { AppShell } from '@/src/components/layout/AppShell';
-import { AppProviders } from '@/src/providers/AppProviders';
-import { Header } from '@/src/components/layout/Header';
-import { createApiClient } from '@/src/services/api.client';
-import { LoginPage } from '@/src/pages/Auth/Login/LoginPage';
+import { nav, viewCopy, type View } from '@/config/navigation';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { viewToPath, pathToView } from '@/config/routes';
+import { AppShell } from '@/components/layout/AppShell';
+import { AppProviders } from '@/providers/AppProviders';
+import { Header } from '@/components/layout/Header';
+import { createApiClient } from '@/services/api.client';
+import { LoginPage } from '@/pages/Auth/Login/LoginPage';
 import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import {
@@ -80,17 +80,17 @@ import {
   type Student,
 } from '@/lib/crm-data';
 
-const CollaboratorWorkspace = lazy(() => import('@/src/pages/Collaborator/CollaboratorWorkspace').then(module=>({default:module.CollaboratorWorkspace})));
-const CheckeeWorkspace = lazy(() => import('@/src/pages/Checkee/CheckeeWorkspace').then(module=>({default:module.CheckeeWorkspace})));
-const SalesStaffWorkspace = lazy(() => import('@/src/pages/SalesStaff/SalesStaffWorkspace').then(module=>({default:module.SalesStaffWorkspace})));
-const CustomerCareWorkspace = lazy(() => import('@/src/pages/CustomerCare/CustomerCareWorkspace').then(module=>({default:module.CustomerCareWorkspace})));
-const AccountingWorkspace = lazy(() => import('@/src/pages/Accounting/AccountingWorkspace').then(module=>({default:module.AccountingWorkspace})));
-const BoardWorkspace = lazy(() => import('@/src/pages/Board/BoardWorkspace').then(module=>({default:module.BoardWorkspace})));
+const CollaboratorWorkspace = lazy(() => import('@/pages/Collaborator/CollaboratorWorkspace').then(module=>({default:module.CollaboratorWorkspace})));
+const CheckeeWorkspace = lazy(() => import('@/pages/Checkee/CheckeeWorkspace').then(module=>({default:module.CheckeeWorkspace})));
+const SalesStaffWorkspace = lazy(() => import('@/pages/SalesStaff/SalesStaffWorkspace').then(module=>({default:module.SalesStaffWorkspace})));
+const CustomerCareWorkspace = lazy(() => import('@/pages/CustomerCare/CustomerCareWorkspace').then(module=>({default:module.CustomerCareWorkspace})));
+const AccountingWorkspace = lazy(() => import('@/pages/Accounting/AccountingWorkspace').then(module=>({default:module.AccountingWorkspace})));
+const BoardWorkspace = lazy(() => import('@/pages/Board/BoardWorkspace').then(module=>({default:module.BoardWorkspace})));
 const AdminWorkspace = lazy(() =>
-  import('@/src/pages/Admin/AdminWorkspace').then((module) => ({ default: module.AdminWorkspace })),
+  import('@/pages/Admin/AdminWorkspace').then((module) => ({ default: module.AdminWorkspace })),
 );
 const SalesManagerWorkspace = lazy(() =>
-  import('@/src/pages/SalesManager/SalesManagerWorkspace').then((module)=>({default:module.SalesManagerWorkspace})),
+  import('@/pages/SalesManager/SalesManagerWorkspace').then((module)=>({default:module.SalesManagerWorkspace})),
 );
 const ChannelOperations = lazy(() =>
   import('@/components/crm/channel-operations').then((module) => ({
@@ -1053,14 +1053,14 @@ function CrmWorkspace({
             <>
 
               {isManagerWorkspace && currentView.startsWith('manager-') && (
-                <Suspense fallback={<LoadingGrid/>}><SalesManagerWorkspace key={currentView} section={currentView as import('@/src/pages/SalesManager/SalesManagerWorkspace').ManagerSection} apiBase={apiBase} token={token} abilities={abilities} onChanged={refreshChannelSales}/></Suspense>
+                <Suspense fallback={<LoadingGrid/>}><SalesManagerWorkspace key={currentView} section={currentView as import('@/pages/SalesManager/SalesManagerWorkspace').ManagerSection} apiBase={apiBase} token={token} abilities={abilities} onChanged={refreshChannelSales}/></Suspense>
               )}
-              {currentView.startsWith('role-board-') && (<Suspense fallback={<LoadingGrid />}><BoardWorkspace section={currentView.slice('role-board-'.length) as import('@/src/pages/Board/BoardWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
-              {currentView.startsWith('role-accounting-') && (<Suspense fallback={<LoadingGrid />}><AccountingWorkspace section={currentView.slice('role-accounting-'.length) as import('@/src/pages/Accounting/AccountingWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
-              {currentView.startsWith('role-customer-care-') && (<Suspense fallback={<LoadingGrid />}><CustomerCareWorkspace section={currentView.slice('role-customer-care-'.length) as import('@/src/pages/CustomerCare/CustomerCareWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
-              {currentView.startsWith('role-sales-staff-') && (<Suspense fallback={<LoadingGrid />}><SalesStaffWorkspace section={currentView.slice('role-sales-staff-'.length) as import('@/src/pages/SalesStaff/SalesStaffWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
-              {currentView.startsWith('role-checkee-') && (<Suspense fallback={<LoadingGrid />}><CheckeeWorkspace section={currentView.slice('role-checkee-'.length) as import('@/src/pages/Checkee/CheckeeWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
-              {currentView.startsWith('role-collaborator-') && (<Suspense fallback={<LoadingGrid />}><CollaboratorWorkspace section={currentView.slice('role-collaborator-'.length) as import('@/src/pages/Collaborator/CollaboratorWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-board-') && (<Suspense fallback={<LoadingGrid />}><BoardWorkspace section={currentView.slice('role-board-'.length) as import('@/pages/Board/BoardWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-accounting-') && (<Suspense fallback={<LoadingGrid />}><AccountingWorkspace section={currentView.slice('role-accounting-'.length) as import('@/pages/Accounting/AccountingWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-customer-care-') && (<Suspense fallback={<LoadingGrid />}><CustomerCareWorkspace section={currentView.slice('role-customer-care-'.length) as import('@/pages/CustomerCare/CustomerCareWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-sales-staff-') && (<Suspense fallback={<LoadingGrid />}><SalesStaffWorkspace section={currentView.slice('role-sales-staff-'.length) as import('@/pages/SalesStaff/SalesStaffWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-checkee-') && (<Suspense fallback={<LoadingGrid />}><CheckeeWorkspace section={currentView.slice('role-checkee-'.length) as import('@/pages/Checkee/CheckeeWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
+              {currentView.startsWith('role-collaborator-') && (<Suspense fallback={<LoadingGrid />}><CollaboratorWorkspace section={currentView.slice('role-collaborator-'.length) as import('@/pages/Collaborator/CollaboratorWorkspace').RoleSection} apiBase={apiBase} token={token} abilities={abilities} workspace={demoAccount?presentDemoWorkspace(channelSales,demoAccount):channelSales} onChanged={refreshChannelSales} search={search} setSearch={setSearch} onRegister={registerApproach} onAddActivity={addCustomerActivity} onReportContract={reportChannelContract} onRecordRevenue={recordChannelRevenue}/></Suspense>)}
               {currentView === 'channel-sales' && (
                 <Suspense fallback={<LoadingGrid />}>
                   <ChannelOperations
@@ -1095,7 +1095,7 @@ function CrmWorkspace({
                 <Suspense fallback={<LoadingGrid />}>
                   <AdminWorkspace
                     key={currentView}
-                    section={currentView as import('@/src/pages/Admin/AdminWorkspace').AdminSection}
+                    section={currentView as import('@/pages/Admin/AdminWorkspace').AdminSection}
                     apiBase={apiBase}
                     token={token}
                     abilities={abilities}

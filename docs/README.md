@@ -1,3 +1,7 @@
+## One-run demo implementation
+
+For a single coding-agent execution that includes justified removal of obsolete demo code and unified synthetic credentials, use the [one-shot implementation skill](../.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md) and [Master CRM Prompt](prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md). The separate [credential/seed reference](../.agents/skills/kidsfit-crm-one-shot-implementation/references/demo-data-and-credentials.md) requires a local **environment secret** for the chosen demo password. Do not publish the credential in docs/source or mistake database dumps for synthetic seed files.
+
 # KidsfitCRM — Document index
 
 > **Current business baseline (2026-10-30):** [requirements/CRM_FUNCTIONAL_SPECIFICATION.md](requirements/CRM_FUNCTIONAL_SPECIFICATION.md).

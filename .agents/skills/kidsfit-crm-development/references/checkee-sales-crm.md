@@ -1,4 +1,7 @@
-# CHECKEE sales CRM product reference
+# CHECKEE sales CRM product reference — historical baseline, superseded where indicated
+
+> **CURRENT RULES:** `docs/requirements/CRM_FUNCTIONAL_SPECIFICATION.md`, `ROLES_AND_PERMISSIONS.md`, `BUSINESS_RULES.md`, `BUSINESS_WORKFLOWS.md`, and `DECISION_LOG.md` supersede historical choices below. Existing implementation is separately documented in `CODEBASE_GAP_ANALYSIS.md`. Historical signed-date protection, nine-role references and split-commission proposals are **not current new-school product rules**. Seven-role Sales includes employees and CTV with default ten active schools; extensions are 7d×3; managers submit directly CHECKEE; the final KIDSFIT grant role remains OPEN; 30% is provisional; no referrer feature.
+
 
 Read this reference for every request involving CHECKEE, KIDSFIT sales deployment, customer registration, customer ownership/protection, partners/CTV, contracts, revenue, commissions, payouts, or CHECKEE reconciliation.
 

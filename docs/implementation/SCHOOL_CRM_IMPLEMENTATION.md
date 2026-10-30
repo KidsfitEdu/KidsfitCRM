@@ -1,3 +1,5 @@
+> **Historical implementation record.** Current accepted school-sales rules: [requirements](../requirements/CRM_FUNCTIONAL_SPECIFICATION.md), [decision log](../requirements/DECISION_LOG.md). Previously implemented behavior, demo rates and DRAFT policy suggestions below do not supersede these rules.
+
 # Triển khai CRM trường học từ hai tài liệu
 
 ## Cập nhật từ Notes — 27/10/2026

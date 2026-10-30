@@ -1,6 +1,8 @@
+> **Historical implementation record.** Current accepted school-sales rules: [requirements](../requirements/CRM_FUNCTIONAL_SPECIFICATION.md), [decision log](../requirements/DECISION_LOG.md). Previously implemented behavior, demo rates and DRAFT policy suggestions below do not supersede these rules.
+
 # Kế hoạch triển khai CRM bán hàng CHECKEE
 
-Tài liệu sản phẩm chuẩn nằm tại [CHECKEE sales CRM product reference](../.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md). Kế hoạch này tổ chức thứ tự triển khai; không thay thế các quyết định sản phẩm còn mở.
+Tài liệu sản phẩm chuẩn nằm tại [CHECKEE sales CRM product reference](../../.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md). Kế hoạch này tổ chức thứ tự triển khai; không thay thế các quyết định sản phẩm còn mở.
 
 Yêu cầu trường học từ PDF/Excel bổ sung được quản lý tại
 [kế hoạch CRM trường học](SCHOOL_CRM_IMPLEMENTATION.md). Quy trình xác minh trường

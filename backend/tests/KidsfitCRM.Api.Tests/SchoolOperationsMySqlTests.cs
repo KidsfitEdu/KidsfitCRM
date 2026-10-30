@@ -475,7 +475,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(60_000m, entries[1].Amount); Assert.Equal(s.Seller.UserId, entries[1].BeneficiaryUserId);
     }
 
-    [MySqlFact] public async Task DeferralNeverReservesSchoolAndNonCollaboratorsKeepIndependentCapacityPolicy()
+    [MySqlFact] public async Task DeferralNeverReservesSchoolAndEmployeeSalesAlsoHonorsCapacity()
     {
         var s = await Arrange(); await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var id = await a.DeferSchool(new(Key(), s.SchoolId, s.OrgId, "Tư vấn từ xa, rà soát lại", DateTime.UtcNow.AddDays(7)), s.Manager.UserId, Http(), Ct);
@@ -484,8 +484,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.CompleteSchoolDeferral(id, "Đã có nhân sự nhận trường", s.Manager.UserId, Http(), Ct);
         Assert.Equal("COMPLETED", (await db.SchoolDeferrals.FindAsync(id))!.Status);
         var employee = await AddMember(s.OrgId, "CHANNEL_SALES", "SALES", s.Manager.UserId);
-        await db.OrganizationMemberships.Where(x => x.Id == employee.MembershipId).ExecuteUpdateAsync(s => s.SetProperty(x => x.SchoolApproachLimit, 0));
-        await a.RegisterCustomerApproach(Claim(s.OtherCustomerId), employee.UserId, Http(), Ct);
-        Assert.True(await db.CustomerProtections.AnyAsync(x => x.CustomerId == s.OtherCustomerId && x.OwnerUserId == employee.UserId && x.Status == "ACTIVE"));
+        await db.OrganizationMemberships.Where(x => x.Id == employee.MembershipId).ExecuteUpdateAsync(q => q.SetProperty(x => x.SchoolApproachLimit, 0));
+        await Assert.ThrowsAsync<ApiConflictException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), employee.UserId, Http(), Ct));
+        Assert.False(await db.CustomerProtections.AnyAsync(x => x.CustomerId == s.OtherCustomerId && x.OwnerUserId == employee.UserId && x.Status == "ACTIVE"));
     }
 }

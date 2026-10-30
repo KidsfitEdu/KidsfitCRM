@@ -1,7 +1,7 @@
 # Giai đoạn 0 — Audit & baseline (read-only)
 
 **Repository:** `KidsfitEdu/KidsfitCRM` · **base:** `develop` @ `f7c4528e1f18e23234c0bf56e9c5170b08764c34` (2026-10-30).
-**Branch:** `audit/phase-0-crm-baseline-20261030`. **Status:** PARTIAL pending real build/test evidence. This is a source-level audit; requirements describe targets, not shipped behavior.
+**Branch:** `audit/phase-0-crm-baseline-20261030`. **Status:** PASS for Phase-0 read-only baseline; MySQL integration SKIPPED/BLOCKED for later isolated DB gate. This is a source-level audit; requirements describe targets, not shipped behavior.
 
 ## Safety and provenance
 
@@ -43,8 +43,8 @@ Eight ordered migrations present, including:
 | GitHub HEAD and recursive source inventory | PASS | Verified `develop` HEAD `f7c4528...` and non-truncated tree (309 files) |
 | Source audit of actions, migrations, roles, test fixture | PASS (static) | Read actual files and relevant source references |
 | `git status --short` | NOT_RUN | GitHub remote connector is not a local checkout; no worktree attached |
-| `dotnet test backend/KidsfitCRM.slnx` without DB | NOT_RUN locally | .NET SDK not available in the audit environment; CI may supply actual result |
-| Frontend `npm ci`, lint, tsc, test and builds | NOT_RUN locally | No local repo checkout/dependency installation; CI may supply actual result |
+| `dotnet test backend/KidsfitCRM.slnx` without DB | **PASS CI: 31 passed / 46 skipped / 0 failed** | GitHub Actions run #41020175097; MySQL tests skipped as designed (no `KIDSFIT_TEST_MYSQL_ADMIN`) |
+| Frontend `npm ci`, lint, TypeScript, demo tests, Vinext build, Vite Pages build, Pages tests | **PASS CI** | All seven steps succeeded in frontend-no-db job, run #41020175097; no API/database integration asserted |
 | MySQL 8.4 DB integration and `backend/test-mysql.ps1` | BLOCKED | `KIDSFIT_TEST_MYSQL_ADMIN` absent and explicitly requires CREATE/DROP on dedicated disposable test DB |
 | `start-local.ps1`, `compose.yaml`, `--migrate`, `--seed-demo`, dump | SKIPPED intentionally | Side effects and/or unsafe unless verified independent environment; not needed for Phase 0 |
 | Browser visual QA with authenticated API | NOT_RUN | No staging URL or isolated test database; demo UI is not authenticated API evidence |
@@ -66,4 +66,8 @@ Eight ordered migrations present, including:
 
 ### Phase gate
 
-**GATE 0: PARTIAL** until real baseline build/test output is captured and linked. This report is reviewable and read-only, but no next phase involving DB writes/migrations may start without independent test DB verification and safety approval. Do not merge automatically.
+**GATE 0: PASS for read-only source audit and baseline.** Source mapping, risk priority, backend unit tests and frontend CI evidence captured. MySQL integration remains **SKIPPED/BLOCKED**, not PASS; **Gate 1 is NOT STARTED** until an explicitly isolated MySQL 8.4 test endpoint and safety/backup plan are verified. No runtime source, migrations, seed, finance or production records were edited. See [run #41020175097](https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/41020175097). Do not merge automatically.
+
+## Recorded CI evidence — 2026-10-30
+
+GitHub Actions [Phase 0 read-only baseline #41020175097](https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/41020175097): `backend-no-db=success`, `frontend-no-db=success` on commit `73675b74a489d62477fbfb8d8ec343a2a906b3aa` (before this documentation-only evidence update). Backend runner: `dotnet test backend/KidsfitCRM.slnx --configuration Release` → **31 passed / 46 skipped / 0 failed**. The skipped cases are MySQL-gated integration tests or other explicitly optional tests; do **not** describe them as passing. Frontend runner: `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm run test:demo`, `npm run build`, `npm run build:pages`, `npm run test:pages` all succeeded. This is CI on `ubuntu-latest`, not local Windows or full business E2E. Explicit integration and restore evidence remains NOT_RUN.

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LucideIcon, LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CircleDollarSign, CalendarDays, Phone, Circle } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CircleDollarSign, CalendarDays, Phone, Circle } from 'lucide-react';
 
 // Stable view IDs and sidebar labels. Do not confuse display profiles with RBAC roles.
 export type View =

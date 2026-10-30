@@ -11,6 +11,7 @@ import {
   type SyntheticEvent,
 } from 'react';
 import {
+  ArrowUpRight,
   Bell,
   BookOpenCheck,
   CalendarDays,
@@ -33,7 +34,6 @@ import {
   UsersRound,
   WalletCards,
   X,
-  type LucideIcon,
 } from 'lucide-react';
 import {
   Area,

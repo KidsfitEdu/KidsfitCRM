@@ -72,3 +72,49 @@ jobs:
           name: crm-browser-smoke
           path: frontend/tests/browser/screenshots/
           if-no-files-found: ignore
+
+  windows-route-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 14
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Verify src/app routes in vinext dev on Windows
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'vinext-dev-windows.out.log'
+          $err = Join-Path $env:RUNNER_TEMP 'vinext-dev-windows.err.log'
+          $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/d /c npm run dev -- --host localhost --port 3137' -WorkingDirectory (Get-Location).Path -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          try {
+            foreach ($route in @('/', '/crm/admin-schools')) {
+              $ready = $false
+              for ($i = 0; $i -lt 75; $i++) {
+                try {
+                  $response = Invoke-WebRequest -Uri ("http://localhost:3137" + $route) -UseBasicParsing -TimeoutSec 5
+                  if ($response.StatusCode -eq 200 -and $response.Content.Length -gt 100) {
+                    $ready = $true
+                    break
+                  }
+                } catch {
+                  Start-Sleep -Seconds 2
+                }
+              }
+              if (-not $ready) {
+                Get-Content $out -ErrorAction SilentlyContinue
+                Get-Content $err -ErrorAction SilentlyContinue
+                throw "Vinext Windows dev did not serve a usable response for $route"
+              }
+            }
+          } finally {
+            Get-Content $out -ErrorAction SilentlyContinue
+            Get-Content $err -ErrorAction SilentlyContinue
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }

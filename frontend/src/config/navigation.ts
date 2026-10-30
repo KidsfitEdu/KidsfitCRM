@@ -5,10 +5,6 @@ import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck,
 export type View =
   | 'dashboard'
   | 'channel-sales'
-  | 'leads'
-  | 'students'
-  | 'classes'
-  | 'finance'
   | 'admin-schools'
   | 'admin-proposals'
   | 'admin-team'
@@ -164,25 +160,6 @@ export const viewCopy: Record<
   'manager-progress': { eyebrow:'Quản lý bán hàng',title:'Theo dõi tiến độ',description:'Theo dõi tiến độ tiếp cận và hiệu quả phân bổ.' },
   'manager-extensions': { eyebrow:'Quản lý bán hàng',title:'Duyệt gia hạn',description:'Xem tiến độ và bằng chứng, duyệt hoặc từ chối gia hạn.' },
   'manager-team': { eyebrow:'Quản lý bán hàng',title:'Đội ngũ & báo cáo',description:'Theo dõi kết quả phân bổ và nhân sự được quản lý.' },
-  leads: {
-    eyebrow: 'Sales pipeline',
-    title: 'Lead & tư vấn',
-    description: 'Theo dõi từng cơ hội từ lần chạm đầu tiên đến khi nhập học.',
-  },
-  students: {
-    eyebrow: 'Student 360°',
-    title: 'Hồ sơ học viên',
-    description: 'Thông tin học viên, phụ huynh và lớp đang theo học.',
-  },
-  classes: {
-    eyebrow: 'Academic ops',
-    title: 'Lớp học',
-    description: 'Sĩ số, lịch học và trạng thái lớp tại trung tâm.',
-  },
-  finance: {
-    eyebrow: 'Finance desk',
-    title: 'Học phí & công nợ',
-    description: 'Theo dõi hóa đơn và khoản phải thu rõ ràng, chính xác.',
-  },
+
 };
 

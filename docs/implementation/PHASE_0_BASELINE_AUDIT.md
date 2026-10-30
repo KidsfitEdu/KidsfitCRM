@@ -71,3 +71,39 @@ Eight ordered migrations present, including:
 ## Recorded CI evidence — 2026-10-30
 
 GitHub Actions [Phase 0 read-only baseline #41020175097](https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/41020175097): `backend-no-db=success`, `frontend-no-db=success` on commit `73675b74a489d62477fbfb8d8ec343a2a906b3aa` (before this documentation-only evidence update). Backend runner: `dotnet test backend/KidsfitCRM.slnx --configuration Release` → **31 passed / 46 skipped / 0 failed**. The skipped cases are MySQL-gated integration tests or other explicitly optional tests; do **not** describe them as passing. Frontend runner: `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm run test:demo`, `npm run build`, `npm run build:pages`, `npm run test:pages` all succeeded. This is CI on `ubuntu-latest`, not local Windows or full business E2E. Explicit integration and restore evidence remains NOT_RUN.
+
+
+## One-shot implementation attempt — 2026-10-30 (separate feature branch)
+
+**Base:** `develop` at `c306249985b9832539e59313d071deb155f0d095`. **Branch:** `feat/crm-one-shot-safe-upgrade-20261030`. This update supersedes the earlier read-only Phase-0 status **for this branch only**; the historical CI numbers above are not tests of these new commits.
+
+### KEEP / FIX / MERGE / REMOVE manifest
+
+| Category | Source/decision | Dependency and safety evidence |
+| --- | --- | --- |
+| KEEP | All eight existing EF migrations, model snapshot, education entities, payment/commission/audit records | Existing endpoints, relationship graph and tests consume them; no disposable database was verified for destructive migration |
+| FIX | `SchoolActions.cs`: school membership quota enforcement | Employee `SALES` previously bypassed `CheckSchoolCapacity`; existing `SALES` and CTV memberships now use a shared 10-slot/default configurable limit |
+| FIX | `SchoolEndpoints.cs`: capacity listing | Admin capacity UI calls this endpoint; it now enumerates employee Sales as well as collaborators |
+| FIX | `DatabaseSeeder.cs`, local startup, Docker compose | Remove legacy hardcoded backend demo passwords and opt-out implicit seeding; require runtime `Seed:DemoPassword` and `Seed:DisposableDatabase=true`, reject production environment, normalize only specifically identified synthetic accounts |
+| FIX | Real-API Login UI | No prefilled legacy backend password; static `frontend/demo` is a different preview-only authentication mode |
+| MERGE (deferred) | `SalesStaff` and `Collaborator` screens | Both retain imports/routes and existing API consumers; consolidate only when a replacement UI and smoke coverage exist |
+| REMOVE (deferred) | Historical education-center modules | Current `DbContext`, routes and tests still depend on them; none proven dead or safe to delete |
+
+### Phase checkpoints (actual results only)
+
+| Phase | Status | Evidence / blocker |
+| --- | --- | --- |
+| 0 audit | PARTIAL | Remote `develop` HEAD, source/skills/requirements audited; no local `git status` or fresh baseline test |
+| 1 migration | BLOCKED | No dedicated MySQL 8.4 or .NET CLI available in this execution environment. Eight migrations **preserved**; no schema change attempted |
+| 2 roles/quota | PARTIAL | Targeted backend quota fix and new MySQL-gated employee regression test **committed**, not executed |
+| 3 proposals/extensions | NOT_RUN | Existing implementation preserved; no new integration evidence |
+| 4 CHECKEE grant | POLICY_BLOCKED | Final KIDSFIT grant actor OPEN; no new automated authority |
+| 5 finance/CSKH | PARTIAL | Existing modules preserved, unapproved 30% not activated; no fresh test |
+| 6 frontend | PARTIAL | Removed backend-password autofill, preserved static preview; lint/build/browser smoke **NOT_RUN** |
+| 7 seed/dump | PARTIAL / NOT_RUN | Secret-driven backend seed guard implemented; idempotency requires isolated MySQL verification. Actual dump/restore **NOT_RUN** |
+| 8 regression | NOT_RUN | `dotnet`, MySQL and dependency-backed frontend verification unavailable locally; CI must be checked on PR |
+| 9 handoff | PARTIAL | Branch commits and review PR proposed; completion of full master prompt **not certified** |
+
+**Actual tests executed on this branch:** no .NET, frontend, MySQL, dump/restore or browser tests. **Previous baseline only:** run #41020175097 reported backend 31 PASS/46 SKIP and successful frontend steps on an older commit. Do not attribute those results to this branch.
+
+**OPEN policy fences:** final KIDSFIT 5-year grant actor; extension-pending SLA; main/branch coverage; commission base, activation, payout and refund authority. No real/unknown records or migration history were removed. `Seed__DemoPassword` is intentionally absent from source and test uses only an ephemeral fixture value.

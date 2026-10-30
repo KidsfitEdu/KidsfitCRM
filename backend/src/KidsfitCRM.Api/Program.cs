@@ -50,8 +50,6 @@ if (Encoding.UTF8.GetByteCount(jwtKey) < 32) throw new InvalidOperationException
 builder.Services.AddDbContext<KidsfitDbContext>(options => options.UseMySQL(connectionString));
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<JwtTokenService>();
-builder.Services.AddScoped<LeadActions>();
-builder.Services.AddScoped<BillingActions>();
 builder.Services.AddScoped<ChannelSalesActions>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -151,18 +149,6 @@ await app.RunAsync();
 
 public static class Permissions
 {
-    public const string DashboardView = "crm.dashboard.view";
-    public const string LeadView = "crm.lead.view";
-    public const string LeadCreate = "crm.lead.create";
-    public const string LeadUpdate = "crm.lead.update";
-    public const string LeadAssign = "crm.lead.assign";
-    public const string StudentView = "student.view";
-    public const string StudentUpdate = "student.update";
-    public const string CourseView = "course.view";
-    public const string CourseManage = "course.manage";
-    public const string PaymentView = "payment.view";
-    public const string PaymentCreate = "payment.create";
-    public const string ReportView = "crm.report.view";
     public const string ChannelSalesView = "channel_sales.customer.view";
     public const string ChannelSalesRegister = "channel_sales.approach.register";
     public const string ChannelSalesActivity = "channel_sales.activity.create";
@@ -199,7 +185,7 @@ public static class Permissions
     public static readonly string[] SchoolOperations = [SchoolProposalSubmit, SchoolProposalReview, SchoolAllocationManage, SchoolExtensionReview,
         SchoolDisputeResolve, SchoolEscalationResolve, SchoolHandoverManage, SchoolCareAssign, SchoolSupportManage, SchoolWorkflowPolicyManage,
         ChannelSalesContractCancel, ChannelSalesRevenueRefund];
-    public static readonly string[] All = [.. SchoolOperations, SchoolDirectoryManage, SchoolCapacityManage, SchoolContractReview, SchoolProtectionGrant, DashboardView, LeadView, LeadCreate, LeadUpdate, LeadAssign, StudentView, StudentUpdate, CourseView, CourseManage, PaymentView, PaymentCreate, ReportView, ChannelSalesView, ChannelSalesRegister, ChannelSalesActivity, ChannelSalesReportContract, ChannelSalesRecordRevenue, ChannelSalesCommissionView, ChannelSalesReconcile, ChannelSalesManage, ChannelSalesOrganizationScope, ChannelSalesAllScope, ChannelSalesPayoutCreate, ChannelSalesPayoutApprove, ChannelSalesPayoutComplete, ChannelSalesPolicyManage, ChannelSalesTeamManage, ChannelSalesIdentityManage, ChannelSalesCommissionAdjust];
+    public static readonly string[] All = [.. SchoolOperations, SchoolDirectoryManage, SchoolCapacityManage, SchoolContractReview, SchoolProtectionGrant, ChannelSalesView, ChannelSalesRegister, ChannelSalesActivity, ChannelSalesReportContract, ChannelSalesRecordRevenue, ChannelSalesCommissionView, ChannelSalesReconcile, ChannelSalesManage, ChannelSalesOrganizationScope, ChannelSalesAllScope, ChannelSalesPayoutCreate, ChannelSalesPayoutApprove, ChannelSalesPayoutComplete, ChannelSalesPolicyManage, ChannelSalesTeamManage, ChannelSalesIdentityManage, ChannelSalesCommissionAdjust];
 }
 
 public partial class Program;

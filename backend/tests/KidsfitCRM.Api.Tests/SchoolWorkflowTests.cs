@@ -89,7 +89,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var nonce = Key();
         var user = new User { Code = nonce[..20], Email = nonce + "@example.test", Name = "CTV kiểm thử", Status = "ACTIVE", Password = "unused", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.Users.Add(user); await db.SaveChangesAsync();
-        var role = await db.Roles.Where(x => x.Code == "PARTNER_COLLABORATOR").Select(x => x.Id).SingleAsync();
+        var role = await db.Roles.Where(x => x.Code == "SALES").Select(x => x.Id).SingleAsync();
         var org = await db.Organizations.Where(x => x.Code == "PARTNER_AN_PHAT").Select(x => x.Id).SingleAsync();
         db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role });
         var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = org, MembershipType = "COLLABORATOR", IsPrimary = true, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
@@ -144,6 +144,23 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         Assert.Equal("ACTIVE", (await check.ApproachRegistrations.FindAsync(winner.Id!.Value))!.Status);
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.RegisterCustomerApproach(Claim(customers[1 - winner.Index], Key()), ctv.UserId, Http(), Ct));
         Assert.Equal(2, await check.SchoolCapacityChanges.CountAsync(x => x.MembershipId == ctv.MembershipId));
+    }
+
+    [MySqlFact] public async Task EmployeeSalesHasTheSameSchoolCapacityAsCtv()
+    {
+        var customers = await Import();
+        var admin = await User("admin@kidsfit.vn");
+        var sales = await User("sales@kidsfit.vn");
+        await using var db = fixture.Open();
+        var membership = await db.OrganizationMemberships.SingleAsync(m => m.UserId == sales && m.MembershipType == "SALES");
+        var actions = new ChannelSalesActions(db);
+        await actions.ChangeSchoolCapacity(membership.Id, new(1, "Kiểm thử hạn mức Sales nhân viên"), admin, Http(), Ct);
+        var first = await actions.RegisterCustomerApproach(Claim(customers[0], Key()), sales, Http(), Ct);
+        Assert.True(first > 0);
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.RegisterCustomerApproach(Claim(customers[1], Key()), sales, Http(), Ct));
+        Assert.Equal(1, await db.ApproachRegistrations.CountAsync(a => a.OwnerUserId == sales && a.Status == "ACTIVE" && a.CustomerId == customers[0]));
+        await actions.ChangeSchoolCapacity(membership.Id, new(0, "Giảm không thu hồi"), admin, Http(), Ct);
+        Assert.Equal("ACTIVE", (await db.ApproachRegistrations.FindAsync(first))!.Status);
     }
 
     [MySqlFact] public async Task OnlyAdminCanChangeCapacityAndReasonIsMandatory()

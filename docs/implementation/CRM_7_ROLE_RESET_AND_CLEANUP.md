@@ -1,0 +1,71 @@
+# CRM 7-role reset & cleanup — tracked implementation gate (2026-10-30)
+
+**Scope approved:** owner confirmed current local MySQL contains **demo data only** and is disposable. Refactor source to the seven business roles defined in `docs/requirements/DECISION_LOG.md`, retire unrelated enrollment/tuition code and create a clean CRM-only initial schema. Keep PR #25 open; do not merge.
+
+**What is verified:** repository source, migrations and GitHub CI. **What is not verified:** a reachable MySQL local database, a restorable local dump, a fully rebuilt EF schema or a successful seven-role login matrix. This execution environment has .NET 10 but no reachable local MySQL service; MySQL client/server and a running Docker daemon are unavailable. No database DROP/ALTER/DELETE has been executed.
+
+## Mapping / deletion manifest
+
+| Existing implementation | Target role / disposition | Pre-removal dependency |
+| --- | --- | --- |
+| `ADMIN`, `ACCOUNTANT`, `CHECKEE`, `SALES_MANAGER`, `SALES` | KEEP | Canonical role keys |
+| `BOARD` | `DIRECTOR` | Move `role_user`, `permission_role`, membership / frontend role checks, seed and test fixtures |
+| `CUSTOMER_CARE` | `CUSTOMER_SERVICE` | Handover permissions, support cases, membership and screen |
+| `CHANNEL_SALES`, `PARTNER_COLLABORATOR` | `SALES` | Preserve organization/personnel type, 10-slot capacity and scoped ownership |
+| `PARTNER_ADMIN` | `SALES_MANAGER` | Preserve delegated manager authority within partner organization; never grant global scope |
+| `courses`, `classes`, `class_schedules`, `trial_sessions`, `enrollments` | REMOVE after replacement | `DbContext`, `LeadActions`, `ApiEndpoints`, test fixtures and seeder |
+| `parents`, `students`, `parent_student`, `leads` plus associated status, source, notes and conversions | REMOVE after replacement | `LeadActions`, parent/student relationships, UI and tests |
+| `invoices`, `invoice_items`, `payments` | REMOVE **legacy tuition only** | Must keep **CHECKEE finance** `revenue_receipts`, `revenue_refunds`, `commission_ledger_entries`, `payouts`, `payout_items` |
+| `tasks`, `notifications` | REVIEW | Existing common workflow consumers; not safe to classify without replacement |
+| `users`, permission tables, organizations, school directory, customer, contract, protections, audit, CHECKEE finance/CSKH | KEEP | Business-critical foundation and relationships |
+
+**Important:** The screenshot of `users.code` shows user IDs, not SQL `roles.code`. Nine demo accounts can represent seven roles because Sales personnel, CTV and partner managers are separate users/organizations.
+
+## Migration reset sequence (for disposable local demo only)
+
+1. Make the CRM-only EF model and routes compile; create complete role grants, organization membership scope and a seven-role seed that reads `Seed__DemoPassword`.
+2. Build and test the revised model on an **isolated empty MySQL 8.4** instance. Generate a replacement EF `InitialCRM` migration from the final model. Check all relationships, indexes and migration snapshot.
+3. Back up the current demo database. `backend/scripts/reset-demo-database.ps1` only produces a backup; it **never drops the database**.
+4. Restore that backup into a separate local database; verify integrity. Only then use a **local-only, explicit destructive reset** for the exact verified demo database name.
+5. Run the new migration and seed twice (no duplicates); verify seven canonical roles, nine or more users as needed, permissions, 10 school slots, 5+7×3 extensions, CHECKEE contract lifecycle, tenant isolation, finance and CSKH.
+6. Run `dotnet test backend/KidsfitCRM.slnx`, MySQL 8.4 integration, `npm run lint`, `npx tsc --noEmit`, `npm run test:demo`, Vinext/Pages builds, browser smoke and dump/restore. Update this manifest with actual results.
+
+**Not performed yet:** replacement migration generation, migration-folder deletion, real DB reset, role remapping or full backend/frontend cleanup. A previous CI run passed 76 MySQL integration tests but failed a legacy Sales-capacity assumption; the test was updated in commit `5ec935a1` and awaits CI. Do not claim the whole refactor is complete until each gate passes.
+
+**Business decisions still OPEN:** post-CHECKEE long-term protection grant actor, pending-extension review SLA, main/branch legal scope, and provisional 30% commission trigger/base. Do not activate them by deleting legacy schemas.
+
+
+## Local continuation checkpoint — 2026-10-30
+
+This checkout is `feat/crm-one-shot-safe-upgrade-20261030` at `26d6cf2`. The working tree was clean before this checkpoint. Local checks run during this continuation:
+
+| Check | Result | Evidence / limitation |
+| --- | --- | --- |
+| Frontend lint | PASS | `npm run lint` |
+| Frontend TypeScript | PASS | `npx tsc --noEmit` |
+| Frontend demo tests | PASS | `npm run test:demo`: 21 passed |
+| Frontend Vinext production build | PASS | `npm run build`; all five build stages completed |
+| Frontend Pages tests | PARTIAL | 8 passed / 2 failed because `dist-pages` was absent; Pages build could not produce it |
+| Frontend Pages build | BLOCKED | Installed Windows `node_modules` is missing Tailwind Oxide and LightningCSS native binaries; Vite also hit sandbox `spawn EPERM`. A subsequent `npm ci` was blocked while unlinking a locked LightningCSS binary. |
+| Backend unit suite | PASS with skips | `dotnet test KidsfitCRM.slnx --no-build --no-restore`: 31 passed / 46 skipped / 0 failed |
+| MySQL integration / dump / restore / reset | NOT_RUN | `localhost:3307` did not accept connections; `mysql`/`mysqldump` are absent; Docker daemon is unavailable |
+| Demo seed credential | BLOCKED | `Seed__DemoPassword` is not set in the execution environment; no secret value was read or logged |
+| Git push / local PR update | BLOCKED | GitHub CLI is absent and the configured network proxy refused the Git connection; GitHub connector confirms PR #25 remains open |
+
+No migration, database backup, restore, reset, or destructive code cleanup was performed in this continuation. The `InitialCRM` migration, seven-role runtime authorization/seed, education-module removal, MySQL-backed scenario suite, and push to PR #25 remain outstanding. Resume after the isolated local MySQL 8.4 service is reachable, the environment provides `Seed__DemoPassword`, platform dependencies are repaired, and GitHub access is available. Do not infer a successful backup/restore or database reset from the user's data-ownership confirmation alone.
+
+
+## Continuation after interrupted session — 2026-10-30
+
+The GitHub PR branch was updated (not merged). Implementation progressed beyond the initial audit:
+
+- Removed education-only backend entities, mappings, API routes, service registrations, old lead/billing actions, old DTOs, and their obsolete test. Preserved identity, organizations, schools, CHECKEE contracts, revenue/commission, care and audit.
+- GitHub Actions generated `20261030091859_InitialCRM.cs`, designer and model snapshot from the compiled current EF model; all earlier migration files were replaced. The temporary one-shot migration workflow was deleted after successful generation.
+- Replaced the legacy education seeder with CRM-only seed and canonical seven role rows; account codes (e.g. BOARD001, CARE001) are user fixture IDs, not role codes. Some membership/personnel-type compatibility values remain and require cleanup.
+- Consolidated Sales/CTV role navigation, replaced the 2,627-line legacy education frontend workspace with CRM-only routing, removed obsolete `crm-data.ts` fixture and four old URL views, and updated several tests.
+- Added local `backend/scripts/reset-demo-database.ps1` requiring explicit Development, disposal flag, demo password, exact database name and localhost connection. **Not executed; the actual user's local MySQL database is unchanged by GitHub work.** The user expressly waived backup for disposable demo data.
+- Previous GitHub CI at `62621b9d`: frontend validation and no-DB baseline passed, MySQL integration failed (63 passed / 4 failed / 1 skipped at an earlier commit). Later fixes for scoped management, finance tests and role grants are on branch; latest CI must be inspected and cannot be assumed passing.
+- The MySQL collation assertion reported a database column as `utf8mb4_0900_ai_ci` instead of `utf8mb4_bin` despite the initial migration source specifying binary collation for several idempotency columns. Investigate **actual DDL / exact failing table** before changing migration or dropping this invariant.
+- Pending before completion: resolve remaining CI failures and security review, verify seven-role end-to-end permissions, full synthetic CRM scenario seed coverage, replace residual legacy account/membership compatibility checks, update README to reflect final source, run one full integration pass and perform the authorized local demo reset. Do not merge PR #25.
+
+**Important:** The reset script is destructive and no backup is requested by the user, but it requires the actual MySQL connection details from their machine and executes nowhere automatically.

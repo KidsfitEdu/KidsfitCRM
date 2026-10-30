@@ -36,9 +36,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         db.CommissionPolicyVersions.Add(new CommissionPolicyVersion { OrganizationId = org.Id, Code = "TC-" + Key(), Name = "Chính sách kiểm thử",
             RatePercent = 10, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(-1), CreatedByUserId = await User("admin@kidsfit.vn") });
         await db.SaveChangesAsync();
-        var manager = await AddMember(org.Id, "PARTNER_ADMIN", "PARTNER_ADMIN");
-        var seller = await AddMember(org.Id, "PARTNER_COLLABORATOR", "COLLABORATOR", manager.UserId);
-        var peer = await AddMember(org.Id, "PARTNER_COLLABORATOR", "COLLABORATOR", manager.UserId);
+        var manager = await AddMember(org.Id, "SALES_MANAGER", "SALES_MANAGER");
+        var seller = await AddMember(org.Id, "SALES", "COLLABORATOR", manager.UserId);
+        var peer = await AddMember(org.Id, "SALES", "COLLABORATOR", manager.UserId);
         var prefix = "OP" + Key()[..12].ToUpperInvariant(); var workbook = SchoolTestWorkbook.Create(prefix);
         await new ChannelSalesActions(db).ImportSchools(SchoolWorkbookReader.Read(workbook), Key(), await User("admin@kidsfit.vn"), Http(), Ct);
         var schools = await db.DirectorySchools.Where(x => x.SchoolCode.StartsWith(prefix)).OrderBy(x => x.SchoolCode).ToArrayAsync();
@@ -270,8 +270,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     [MySqlFact] public async Task CustomerCareHandoverPreservesActivityAndDoesNotTransferSalesOwnership()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s);
-        var first = await AddMember(s.OrgId, "CUSTOMER_CARE", "CUSTOMER_CARE");
-        var second = await AddMember(s.OrgId, "CUSTOMER_CARE", "CUSTOMER_CARE");
+        var first = await AddMember(s.OrgId, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        var second = await AddMember(s.OrgId, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         await a.AssignContractCare(contractId, new(Key(), first.UserId, s.OrgId, "Bàn giao hợp đồng đã xác minh"), s.Manager.UserId, Http(), Ct);
         var ticket = await a.CreateCustomerSupportCase(new(Key(), contractId, "Hướng dẫn vận hành", "Khách cần hướng dẫn sử dụng"), first.UserId, Http(), Ct);
@@ -406,7 +406,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var ticket = await a.CreateCustomerSupportCase(new(Key(), contract, "Đào tạo triển khai", "Hẹn hướng dẫn vận hành"), caretaker, Http(), Ct);
         var owned = Json(await SchoolEndpoints.Detail(s.SchoolId, Http(caretaker), db, Ct));
         Assert.NotEqual(JsonValueKind.Null, owned.GetProperty("units")[0].GetProperty("contact_name").ValueKind);
-        var next = await AddMember(careOrg, "CUSTOMER_CARE", "CUSTOMER_CARE");
+        var next = await AddMember(careOrg, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
         await a.AssignContractCare(contract, new(Key(), next.UserId, careOrg, "Bàn giao lịch đào tạo"), admin, Http(), Ct);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => SchoolEndpoints.Detail(s.SchoolId, Http(caretaker), db, Ct));
         Assert.Equal(next.UserId, await db.CustomerSupportCases.Where(x => x.Id == ticket).Select(x => x.AssignedUserId).SingleAsync());
@@ -437,7 +437,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     {
         var s = await Arrange(); var admin = await User("admin@kidsfit.vn");
         var collaboratorContract = await ActiveContract(s);
-        var employee = await AddMember(s.OrgId, "CHANNEL_SALES", "CHANNEL_SALES", s.Manager.UserId);
+        var employee = await AddMember(s.OrgId, "SALES", "SALES", s.Manager.UserId);
         var employeeContract = await ActiveContract(s with { Seller = employee, SchoolId = s.OtherSchoolId, CustomerId = s.OtherCustomerId });
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var specific = new CommissionPolicyVersion { OrganizationId = s.OrgId, Code = "TCTV-" + Key(), Name = "CTV kiểm thử", PersonnelType = "COLLABORATOR",
@@ -452,9 +452,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(specific.Id, collaboratorEntry.PolicyVersionId); Assert.Equal(120_000m, collaboratorEntry.Amount);
         Assert.Equal(100_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == employeeContract).Select(x => x.Amount).SingleAsync());
         var future = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1);
-        var nextPolicy = await a.CreateCommissionPolicy(new(s.OrgId, "NEXT-" + Key(), "Phiên bản CTV tiếp theo", 11m, future, null, "PARTNER_COLLABORATOR"), s.Manager.UserId, Http(), Ct);
+        var nextPolicy = await a.CreateCommissionPolicy(new(s.OrgId, "NEXT-" + Key(), "Phiên bản CTV tiếp theo", 11m, future, null, "SALES"), admin, Http(), Ct);
         Assert.Equal("COLLABORATOR", (await db.CommissionPolicyVersions.FindAsync(nextPolicy))!.PersonnelType);
-        await Assert.ThrowsAsync<ApiValidationException>(() => a.CreateCommissionPolicy(new(s.OrgId, "BAD-" + Key(), "Nhóm không hợp lệ", 10m, future, null, "UNKNOWN"), s.Manager.UserId, Http(), Ct));
+        await Assert.ThrowsAsync<ApiValidationException>(() => a.CreateCommissionPolicy(new(s.OrgId, "BAD-" + Key(), "Nhóm không hợp lệ", 10m, future, null, "UNKNOWN"), admin, Http(), Ct));
     }
 
     [MySqlFact] public async Task LegacyContractSnapshotsInactiveOwnersGroupOnNextReceiptWithoutRewritingOldLedger()
@@ -475,7 +475,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(60_000m, entries[1].Amount); Assert.Equal(s.Seller.UserId, entries[1].BeneficiaryUserId);
     }
 
-    [MySqlFact] public async Task DeferralNeverReservesSchoolAndNonCollaboratorsKeepIndependentCapacityPolicy()
+    [MySqlFact] public async Task DeferralNeverReservesSchoolAndEmployeeSalesAlsoHonorsCapacity()
     {
         var s = await Arrange(); await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var id = await a.DeferSchool(new(Key(), s.SchoolId, s.OrgId, "Tư vấn từ xa, rà soát lại", DateTime.UtcNow.AddDays(7)), s.Manager.UserId, Http(), Ct);
@@ -483,9 +483,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Peer.UserId, Http(), Ct);
         await a.CompleteSchoolDeferral(id, "Đã có nhân sự nhận trường", s.Manager.UserId, Http(), Ct);
         Assert.Equal("COMPLETED", (await db.SchoolDeferrals.FindAsync(id))!.Status);
-        var employee = await AddMember(s.OrgId, "CHANNEL_SALES", "SALES", s.Manager.UserId);
-        await db.OrganizationMemberships.Where(x => x.Id == employee.MembershipId).ExecuteUpdateAsync(s => s.SetProperty(x => x.SchoolApproachLimit, 0));
-        await a.RegisterCustomerApproach(Claim(s.OtherCustomerId), employee.UserId, Http(), Ct);
-        Assert.True(await db.CustomerProtections.AnyAsync(x => x.CustomerId == s.OtherCustomerId && x.OwnerUserId == employee.UserId && x.Status == "ACTIVE"));
+        var employee = await AddMember(s.OrgId, "SALES", "SALES", s.Manager.UserId);
+        await db.OrganizationMemberships.Where(x => x.Id == employee.MembershipId).ExecuteUpdateAsync(q => q.SetProperty(x => x.SchoolApproachLimit, 0));
+        await Assert.ThrowsAsync<ApiConflictException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), employee.UserId, Http(), Ct));
+        Assert.False(await db.CustomerProtections.AnyAsync(x => x.CustomerId == s.OtherCustomerId && x.OwnerUserId == employee.UserId && x.Status == "ACTIVE"));
     }
 }

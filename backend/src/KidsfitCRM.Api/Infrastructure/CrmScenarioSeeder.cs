@@ -38,6 +38,31 @@ internal static class CrmScenarioSeeder
                 CreatedAt=now.AddDays(-2),UpdatedAt=now,
             });
         }
+        // Additional independent proposal states. Stable codes keep repeated seeding idempotent.
+        var supplementaryProposals = new[]
+        {
+            (Code: "SEED-SCH-APPROVED", Name: "Trường Mầm non Sen Hồng (demo)", Status: "APPROVED", Org: kidsfit.Id, Owner: sales.Id, Manager: manager.Id),
+            (Code: "SEED-SCH-REJECT-MANAGER", Name: "Trường Mầm non Vườn Xanh (demo)", Status: "REJECTED", Org: partner.Id, Owner: ctv.Id, Manager: partnerManager.Id),
+            (Code: "SEED-SCH-WAIT-MANAGER", Name: "Trường Mầm non Bồ Công Anh (demo)", Status: "PENDING_MANAGER", Org: kidsfit.Id, Owner: sales.Id, Manager: manager.Id),
+        };
+        foreach (var item in supplementaryProposals)
+        {
+            if (await db.SchoolProposals.AnyAsync(x => x.SchoolCode == item.Code)) continue;
+            db.SchoolProposals.Add(new SchoolProposal
+            {
+                OrganizationId = item.Org, SubmittedByUserId = item.Owner, ManagerUserId = item.Manager,
+                SchoolCode = item.Code, Name = item.Name,
+                Province = "Khu vực minh họa", Ward = "Phường giả lập",
+                Reason = "Tình huống thử nghiệm, không chứa dữ liệu trường hoặc liên hệ thật.",
+                Status = item.Status, ReviewDueAt = now.AddDays(item.Status == "PENDING_MANAGER" ? 1 : -2),
+                ManagerReviewedAt = item.Status == "PENDING_MANAGER" ? null : now.AddDays(-1),
+                ReviewedByUserId = item.Status == "PENDING_MANAGER" ? null : item.Manager,
+                DecisionReason = item.Status == "REJECTED" ? "Bằng chứng chưa đầy đủ (mẫu)" : null,
+                IdempotencyKey = "scenario-proposal-" + item.Code,
+                RequestFingerprint = "synthetic-" + item.Code,
+                CreatedAt = now.AddDays(-3), UpdatedAt = now
+            });
+        }
         var approaching = await db.ChannelCustomers.SingleOrDefaultAsync(x => x.Code=="CUS-DEMO-APPROACH");
         if (approaching is not null)
         {
@@ -74,6 +99,25 @@ internal static class CrmScenarioSeeder
                     RequestFingerprint="synthetic-support-open",CreatedAt=now,UpdatedAt=now,
                 });
             }
+        }
+        // Show a resolved case beside the open case, without changing financial or contract history.
+        if (contracted is not null)
+        {
+            var contract = await db.SalesContracts.SingleOrDefaultAsync(x => x.CustomerId == contracted.Id);
+            var care = await db.Users.SingleAsync(x => x.Code == "CARE001");
+            if (contract is not null && !await db.CustomerSupportCases.AnyAsync(x => x.IdempotencyKey == "scenario-support-resolved"))
+                db.CustomerSupportCases.Add(new CustomerSupportCase
+                {
+                    ContractId = contract.Id, CustomerId = contracted.Id, OrganizationId = kidsfit.Id,
+                    AssignedUserId = care.Id, CreatedByUserId = care.Id,
+                    Subject = "Hướng dẫn sử dụng CHECKEE đã hoàn tất (demo)",
+                    Description = "Tình huống giả lập CSKH đã giải quyết, không có dữ liệu cá nhân.",
+                    Status = "RESOLVED", Outcome = "Đã hướng dẫn thành công (demo)",
+                    ResolvedAt = now.AddHours(-2),
+                    IdempotencyKey = "scenario-support-resolved",
+                    RequestFingerprint = "synthetic-support-resolved",
+                    CreatedAt = now.AddDays(-1), UpdatedAt = now
+                });
         }
         await db.SaveChangesAsync();
     }

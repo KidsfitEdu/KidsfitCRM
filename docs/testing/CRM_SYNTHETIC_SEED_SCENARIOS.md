@@ -32,3 +32,25 @@ This seed is an initial deterministic set, **not exhaustive test coverage**. Add
 
 ## Verification
 Run `dotnet test` and the project's `backend/test-mysql.ps1` against a disposable MySQL 8.4 test database after confirming connection settings. This branch has not yet been run through local build/database integration checks.
+
+## PR #25 — existing-database incremental mode (2026-10-30)
+
+The product owner selected **keep the current MySQL database and add missing scenarios** instead of creating a separate v2 database. The incomplete `Seed:Profile=CRM_V2` prototype was removed from this PR. Continue using the existing explicit `--migrate --seed-demo` path only after verifying the database is a disposable **demo** instance; the opt-in `Seed__DisposableDatabase=true` flag is a guard, **not** evidence of actual database ownership.
+
+New source fixtures in `CrmScenarioSeeder.cs` include approved, rejected, and manager-pending school proposals and a resolved support case. Each uses a stable idempotency key or school code and skips insertion if it already exists. Existing original demo fixtures remain for compatibility.
+
+### Existing data inventory before deletion
+
+- **Education CRM**: leads, guardians, students, classes, enrollments, invoices, payments and related rows. Even when unrelated to the new seven-role CRM, there is no validated provenance for the actual database rows. **Do not delete** without verifying demo-only ownership, backups, all foreign keys and affected API consumers.
+- **Historical CHECKEE fixtures**: `CUS-DEMO-AVAILABLE`, `CUS-DEMO-APPROACH`, `CUS-DEMO-CONTRACT`, `CHK-2026-0001`, and sample finance entries. These are source-created synthetic identifiers, but an actual database can also contain subsequent user changes and relations. **Do not automatically remove** their customer, registration, contract, reconciliation, receipt or ledger rows.
+- **Frontend static preview**: `frontend/src/lib/{crm-data,school-demo,demo-auth}.ts` remains independent of backend data. In connected API mode use `NEXT_PUBLIC_API_URL=http://localhost:8000/api` and do **not** enable `NEXT_PUBLIC_DEMO_MODE=true`; static presentation screens may still reference legacy fixtures.
+- **Credentials**: `Seed__DemoPassword` must be provided privately. Never copy the value into fixture source, logs, SQL scripts, or the browser bundle.
+
+### What remains to be completed
+
+1. Take a verified backup of the **current** database, inspect data provenance and complete dependency graph; generate an exact primary-key deletion candidate manifest for review. No destructive SQL was run.
+2. Extend scenario coverage for school directory, accepted/rejected allocations, 10/11/20 capacity, 5+7×3 extensions, stale-owner rejection, manager→CHECKEE contract states, receipts, refunds, payouts, handover and scoped read models. Invalid permission and concurrency cases must be asserted in tests rather than planted as inconsistent rows.
+3. Migrate frontend API-connected role dashboards away from legacy fixture defaults without modifying the public static preview unintentionally.
+4. Execute .NET compilation, isolated MySQL integration, repeat seed, frontend lint/typecheck/build, browser tests and restore verification; record exact results. **These checks have not run in this connector-only environment**.
+
+**Safety result:** No SQL UPDATE/DELETE/DROP was executed, no live MySQL connection established, and neither legacy finance/audit records nor education CRM rows were deleted. PR #25 remains Draft and unmerged.

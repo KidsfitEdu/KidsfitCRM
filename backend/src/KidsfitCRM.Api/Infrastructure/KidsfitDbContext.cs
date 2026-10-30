@@ -11,27 +11,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<PermissionRole> PermissionRoles => Set<PermissionRole>();
-    public DbSet<LeadSource> LeadSources => Set<LeadSource>();
-    public DbSet<LeadStatus> LeadStatuses => Set<LeadStatus>();
-    public DbSet<Course> Courses => Set<Course>();
-    public DbSet<ClassRoom> Classes => Set<ClassRoom>();
-    public DbSet<ClassSchedule> ClassSchedules => Set<ClassSchedule>();
-    public DbSet<Parent> Parents => Set<Parent>();
-    public DbSet<Student> Students => Set<Student>();
-    public DbSet<ParentStudent> ParentStudents => Set<ParentStudent>();
-    public DbSet<Lead> Leads => Set<Lead>();
-    public DbSet<LeadAssignment> LeadAssignments => Set<LeadAssignment>();
-    public DbSet<LeadNote> LeadNotes => Set<LeadNote>();
-    public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
-    public DbSet<TrialSession> TrialSessions => Set<TrialSession>();
-    public DbSet<Enrollment> Enrollments => Set<Enrollment>();
-    public DbSet<Invoice> Invoices => Set<Invoice>();
-    public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
-    public DbSet<Payment> Payments => Set<Payment>();
-    public DbSet<WorkTask> Tasks => Set<WorkTask>();
-    public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<LeadConversion> LeadConversions => Set<LeadConversion>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
     public DbSet<ChannelCustomer> ChannelCustomers => Set<ChannelCustomer>();
@@ -58,20 +38,10 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
 
         modelBuilder.Entity<UserRole>().ToTable("role_user").HasKey(x => new { x.RoleId, x.UserId });
         modelBuilder.Entity<PermissionRole>().ToTable("permission_role").HasKey(x => new { x.PermissionId, x.RoleId });
-        modelBuilder.Entity<ParentStudent>().ToTable("parent_student");
-        modelBuilder.Entity<ClassRoom>().ToTable("classes");
-        modelBuilder.Entity<WorkTask>().ToTable("tasks");
 
         UniqueCode<User>(modelBuilder, 24);
         UniqueCode<Role>(modelBuilder, 32);
         UniqueCode<Permission>(modelBuilder, 80);
-        UniqueCode<LeadSource>(modelBuilder, 32);
-        UniqueCode<LeadStatus>(modelBuilder, 32);
-        UniqueCode<Course>(modelBuilder, 40);
-        UniqueCode<ClassRoom>(modelBuilder, 40);
-        UniqueCode<Parent>(modelBuilder, 24);
-        UniqueCode<Student>(modelBuilder, 24);
-        UniqueCode<Lead>(modelBuilder, 24);
 
         modelBuilder.Entity<User>().HasIndex(x => x.Email).IsUnique();
         modelBuilder.Entity<User>().Property(x => x.Email).HasMaxLength(190);
@@ -82,80 +52,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<Role>().Property(x => x.Name).HasMaxLength(120);
         modelBuilder.Entity<Permission>().Property(x => x.Name).HasMaxLength(160);
         modelBuilder.Entity<Permission>().Property(x => x.Group).HasMaxLength(80);
-        modelBuilder.Entity<LeadSource>().Property(x => x.Name).HasMaxLength(120);
-        modelBuilder.Entity<LeadSource>().Property(x => x.Color).HasMaxLength(16);
-        modelBuilder.Entity<LeadStatus>().Property(x => x.Name).HasMaxLength(120);
-        modelBuilder.Entity<LeadStatus>().Property(x => x.Color).HasMaxLength(16);
-        modelBuilder.Entity<Course>().Property(x => x.Name).HasMaxLength(190);
-        modelBuilder.Entity<Course>().Property(x => x.Status).HasMaxLength(24);
-        modelBuilder.Entity<ClassRoom>().Property(x => x.Name).HasMaxLength(190);
-        modelBuilder.Entity<ClassRoom>().Property(x => x.Status).HasMaxLength(24);
-        modelBuilder.Entity<Enrollment>().Property(x => x.Status).HasMaxLength(24);
-        modelBuilder.Entity<Invoice>().Property(x => x.InvoiceCode).HasMaxLength(40);
-        modelBuilder.Entity<Invoice>().Property(x => x.Status).HasMaxLength(24);
-        modelBuilder.Entity<Payment>().Property(x => x.ReferenceCode).HasMaxLength(48);
-        modelBuilder.Entity<Payment>().Property(x => x.PaymentMethod).HasMaxLength(32);
-        modelBuilder.Entity<Payment>().Property(x => x.Status).HasMaxLength(24);
-        modelBuilder.Entity<Lead>().Property(x => x.FullName).HasMaxLength(190);
-        modelBuilder.Entity<Lead>().Property(x => x.Phone).HasMaxLength(40);
-        modelBuilder.Entity<Lead>().Property(x => x.PhoneNormalized).HasMaxLength(24);
-        modelBuilder.Entity<Parent>().Property(x => x.FullName).HasMaxLength(190);
-        modelBuilder.Entity<Parent>().Property(x => x.Phone).HasMaxLength(40);
-        modelBuilder.Entity<Parent>().Property(x => x.PhoneNormalized).HasMaxLength(24);
-        modelBuilder.Entity<Student>().Property(x => x.FullName).HasMaxLength(190);
-        modelBuilder.Entity<ParentStudent>().Property(x => x.Relationship).HasMaxLength(24);
-        modelBuilder.Entity<TrialSession>().Property(x => x.AttendanceStatus).HasMaxLength(24);
-        modelBuilder.Entity<TrialSession>().Property(x => x.Result).HasMaxLength(40);
-        modelBuilder.Entity<WorkTask>().Property(x => x.RelatedType).HasMaxLength(40);
-        modelBuilder.Entity<WorkTask>().Property(x => x.Status).HasMaxLength(24);
-        modelBuilder.Entity<WorkTask>().Property(x => x.Priority).HasMaxLength(16);
-        modelBuilder.Entity<Student>().Property(x => x.DateOfBirth)
-            .HasConversion(
-                value => value.HasValue ? value.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null,
-                value => value.HasValue ? DateOnly.FromDateTime(value.Value) : (DateOnly?)null)
-            .HasColumnType("date");
-        modelBuilder.Entity<ClassRoom>().Property(x => x.StartDate)
-            .HasConversion(value => value.ToDateTime(TimeOnly.MinValue), value => DateOnly.FromDateTime(value))
-            .HasColumnType("date");
-        modelBuilder.Entity<ClassRoom>().Property(x => x.EndDate)
-            .HasConversion(
-                value => value.HasValue ? value.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null,
-                value => value.HasValue ? DateOnly.FromDateTime(value.Value) : (DateOnly?)null)
-            .HasColumnType("date");
-        modelBuilder.Entity<Enrollment>().Property(x => x.RegistrationDate)
-            .HasConversion(value => value.ToDateTime(TimeOnly.MinValue), value => DateOnly.FromDateTime(value))
-            .HasColumnType("date");
-        modelBuilder.Entity<Lead>().HasIndex(x => x.PhoneNormalized);
-        modelBuilder.Entity<Lead>().HasIndex(x => new { x.StatusId, x.AssignedUserId, x.NextFollowUpAt });
-        modelBuilder.Entity<Parent>().HasIndex(x => x.PhoneNormalized);
-        modelBuilder.Entity<ClassRoom>().HasIndex(x => new { x.CourseId, x.Status });
-        modelBuilder.Entity<Enrollment>().HasIndex(x => new { x.ClassId, x.Status });
-        modelBuilder.Entity<Invoice>().HasIndex(x => x.InvoiceCode).IsUnique();
-        modelBuilder.Entity<Invoice>().HasIndex(x => new { x.Status, x.DueAt });
-        modelBuilder.Entity<Payment>().HasIndex(x => x.ReferenceCode).IsUnique();
-        modelBuilder.Entity<Payment>().HasIndex(x => x.IdempotencyKey).IsUnique();
-        modelBuilder.Entity<Payment>().Property(x => x.IdempotencyKey).HasMaxLength(120).UseCollation("utf8mb4_bin");
-        modelBuilder.Entity<LeadConversion>().HasIndex(x => x.LeadId).IsUnique();
-        modelBuilder.Entity<LeadConversion>().HasIndex(x => x.IdempotencyKey).IsUnique();
-        modelBuilder.Entity<LeadConversion>().Property(x => x.IdempotencyKey).HasMaxLength(120).UseCollation("utf8mb4_bin");
-        modelBuilder.Entity<ParentStudent>().HasIndex(x => new { x.ParentId, x.StudentId }).IsUnique();
-
-        Money<Course>(modelBuilder, x => x.TuitionFee);
-        Money<Enrollment>(modelBuilder, x => x.OriginalFee);
-        Money<Enrollment>(modelBuilder, x => x.DiscountAmount);
-        Money<Enrollment>(modelBuilder, x => x.FinalFee);
-        Money<Invoice>(modelBuilder, x => x.TotalAmount);
-        Money<Invoice>(modelBuilder, x => x.DiscountAmount);
-        Money<Invoice>(modelBuilder, x => x.FinalAmount);
-        Money<Invoice>(modelBuilder, x => x.PaidAmount);
-        Money<Invoice>(modelBuilder, x => x.RemainingAmount);
-        Money<InvoiceItem>(modelBuilder, x => x.UnitPrice);
-        Money<InvoiceItem>(modelBuilder, x => x.Amount);
-        Money<Payment>(modelBuilder, x => x.Amount);
-        modelBuilder.Entity<InvoiceItem>().Property(x => x.Quantity).HasPrecision(12, 2);
-
-        modelBuilder.Entity<LeadActivity>().Property(x => x.Metadata).HasColumnType("json");
-        modelBuilder.Entity<Notification>().Property(x => x.Data).HasColumnType("json");
         modelBuilder.Entity<AuditLog>().Property(x => x.OldValues).HasColumnType("json");
         modelBuilder.Entity<AuditLog>().Property(x => x.NewValues).HasColumnType("json");
 
@@ -323,21 +219,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
 
         Restrict<UserRole, User>(x => x.UserId); Restrict<UserRole, Role>(x => x.RoleId);
         Restrict<PermissionRole, Permission>(x => x.PermissionId); Restrict<PermissionRole, Role>(x => x.RoleId);
-        Restrict<ClassRoom, Course>(x => x.CourseId); Restrict<ClassRoom, User>(x => x.TeacherId);
-        Restrict<ClassSchedule, ClassRoom>(x => x.ClassId); Restrict<ClassSchedule, User>(x => x.TeacherId);
-        Restrict<ParentStudent, Parent>(x => x.ParentId); Restrict<ParentStudent, Student>(x => x.StudentId);
-        Restrict<Lead, LeadSource>(x => x.SourceId); Restrict<Lead, LeadStatus>(x => x.StatusId);
-        Restrict<Lead, Course>(x => x.InterestedCourseId); Restrict<Lead, User>(x => x.AssignedUserId); Restrict<Lead, Parent>(x => x.ConvertedParentId);
-        Restrict<LeadAssignment, Lead>(x => x.LeadId); Restrict<LeadAssignment, User>(x => x.AssignedTo); Restrict<LeadAssignment, User>(x => x.AssignedBy);
-        Restrict<LeadNote, Lead>(x => x.LeadId); Restrict<LeadNote, User>(x => x.UserId);
-        Restrict<LeadActivity, Lead>(x => x.LeadId); Restrict<LeadActivity, User>(x => x.UserId);
-        Restrict<TrialSession, Lead>(x => x.LeadId); Restrict<TrialSession, Student>(x => x.StudentId); Restrict<TrialSession, Course>(x => x.CourseId); Restrict<TrialSession, ClassRoom>(x => x.ClassId); Restrict<TrialSession, User>(x => x.StaffId);
-        Restrict<Enrollment, Student>(x => x.StudentId); Restrict<Enrollment, ClassRoom>(x => x.ClassId); Restrict<Enrollment, User>(x => x.RegisteredBy);
-        Restrict<Invoice, Parent>(x => x.ParentId); Restrict<Invoice, Student>(x => x.StudentId); Restrict<Invoice, Enrollment>(x => x.EnrollmentId);
-        Restrict<InvoiceItem, Invoice>(x => x.InvoiceId);
-        Restrict<Payment, Invoice>(x => x.InvoiceId); Restrict<Payment, Parent>(x => x.ParentId); Restrict<Payment, Student>(x => x.StudentId); Restrict<Payment, User>(x => x.CreatedBy);
-        Restrict<WorkTask, User>(x => x.AssignedTo); Restrict<Notification, User>(x => x.UserId); Restrict<AuditLog, User>(x => x.UserId);
-        Restrict<LeadConversion, Lead>(x => x.LeadId); Restrict<LeadConversion, Parent>(x => x.ParentId); Restrict<LeadConversion, Student>(x => x.StudentId); Restrict<LeadConversion, Enrollment>(x => x.EnrollmentId); Restrict<LeadConversion, Invoice>(x => x.InvoiceId); Restrict<LeadConversion, User>(x => x.ConvertedBy);
         Restrict<OrganizationMembership, Organization>(x => x.OrganizationId); Restrict<OrganizationMembership, User>(x => x.UserId); Restrict<OrganizationMembership, User>(x => x.ManagerUserId);
         Restrict<ChannelCustomer, User>(x => x.CreatedByUserId); Restrict<ChannelCustomer, Organization>(x => x.OrganizationId);
         Restrict<CustomerIdentifier, ChannelCustomer>(x => x.CustomerId);

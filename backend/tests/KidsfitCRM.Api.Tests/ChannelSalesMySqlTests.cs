@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using MySql.Data.MySqlClient;
 
 namespace KidsfitCRM.Api.Tests;
@@ -43,10 +44,27 @@ public sealed class ChannelMySqlFixture : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddDbContext<KidsfitDbContext>(options => options.UseMySQL(ConnectionString));
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["Seed:DemoPassword"] = "EphemeralTestOnly-CRM-Password!",
+                ["Seed:DisposableDatabase"] = "true"
+            }).Build());
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<KidsfitDbContext>().Database.MigrateAsync();
         await DatabaseSeeder.SeedAsync(scope.ServiceProvider);
+        // Seed never activates a provisional business commission policy on real demo data.
+        var testDb = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
+        Assert.All(await testDb.CommissionPolicyVersions.AsNoTracking().ToListAsync(),
+            policy => { Assert.Equal("DRAFT", policy.Status); Assert.Equal(0m, policy.RatePercent); });
+        // Legacy integration expectations use an explicitly local TEST policy; production seed stays DRAFT.
+        await testDb.Organizations.Where(x => x.Code == "KIDSFIT").ExecuteUpdateAsync(x => x.SetProperty(o => o.CommissionRateCeiling, 20m));
+        await testDb.Organizations.Where(x => x.Code == "PARTNER_AN_PHAT").ExecuteUpdateAsync(x => x.SetProperty(o => o.CommissionRateCeiling, 15m));
+        await testDb.CommissionPolicyVersions.Where(x => x.Code == "KIDSFIT-2026-V1")
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.RatePercent, 10m).SetProperty(p => p.Status, "ACTIVE"));
+        await testDb.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1")
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.RatePercent, 12m).SetProperty(p => p.Status, "ACTIVE"));
         // A second run verifies additive seed behavior on a populated database.
         await DatabaseSeeder.SeedAsync(scope.ServiceProvider);
     }
@@ -260,10 +278,10 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var organizationId = await db.OrganizationMemberships.Where(x => x.UserId == partnerId && x.IsPrimary).Select(x => x.OrganizationId).SingleAsync();
         var actions = new ChannelSalesActions(db);
         var request = new CreateCommissionPolicyRequest(organizationId, "POL-" + Key(), "Phiên bản mới", 99m, ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1), null);
-        await Assert.ThrowsAsync<ApiValidationException>(() => actions.CreateCommissionPolicy(request, partnerId, Http(), Ct));
-        await Assert.ThrowsAsync<ApiValidationException>(() => actions.CreateCommissionPolicy(request with { RatePercent = 10m, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow) }, partnerId, Http(), Ct));
-        var id = await actions.CreateCommissionPolicy(request with { RatePercent = 11m }, partnerId, Http(), Ct);
-        Assert.Equal(11m, (await db.CommissionPolicyVersions.FindAsync(id))!.RatePercent);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateCommissionPolicy(request, partnerId, Http(), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateCommissionPolicy(request with { RatePercent = 10m, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow) }, partnerId, Http(), Ct));
+        // Commission policy approval is restricted to an authorized central actor, not delegated partner Sales managers.
+        Assert.Equal(12m, await db.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1").Select(x => x.RatePercent).SingleAsync());
         Assert.Equal(12m, await db.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1").Select(x => x.RatePercent).SingleAsync());
     }
 
@@ -317,7 +335,8 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var orgId = await db.OrganizationMemberships.Where(x => x.UserId == partner && x.IsPrimary).Select(x => x.OrganizationId).SingleAsync();
         var actions = new ChannelSalesActions(db);
         var request = new CreateSalesAccountRequest(orgId, "CTV kiểm thử", Key() + "@example.test", "TestPassword@2026", "ADMIN");
-        var userId = await actions.CreateSalesAccount(request, partner, new PasswordHasher<User>(), Http(), Ct);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateSalesAccount(request, partner, new PasswordHasher<User>(), Http(), Ct));
+        var userId = await actions.CreateSalesAccount(request with { RoleCode = "SALES" }, partner, new PasswordHasher<User>(), Http(), Ct);
         var access = await ChannelSalesAccess.Load(db, userId, Ct);
         Assert.False(access.All);
         Assert.False(access.Organization);
@@ -352,9 +371,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var id = await new ChannelSalesActions(db).CreateSalesAccount(new(organizationId, "Nhân sự CHECKEE", Key() + "@example.test", "TestPassword@2026", "SALES"), admin, new PasswordHasher<User>(), Http(), Ct);
         var access = await ChannelSalesAccess.Load(db, id, Ct);
         Assert.True(access.Has(Permissions.ChannelSalesRegister));
-        Assert.False(access.Has(Permissions.LeadView));
-        Assert.False(access.Has(Permissions.StudentView));
-        Assert.False(access.Has(Permissions.PaymentView));
+        Assert.DoesNotContain(access.PermissionCodes, code => code.StartsWith("crm.lead.") || code.StartsWith("student.") || code.StartsWith("payment."));
     }
 
     [MySqlFact]

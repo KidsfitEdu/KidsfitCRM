@@ -44,10 +44,10 @@ async function login(profileLabel, viewport={width:1400,height:900}) {
   return {context,page,navigation,errors};
 }
 
-test('all eight role groups can log in and open their menu', async () => {
+test('seven CRM roles across eight demo accounts can log in and open their menu', async () => {
   const roles = [
     ['Quản trị viên',7],['Quản lý bán hàng',6],
-    ['Nhân viên bán hàng',6],['CTV đối tác',7],
+    ['Nhân viên bán hàng',9],['CTV đối tác',9],
     ['Ban giám đốc',5],['Kế toán',5],
     ['Chăm sóc khách hàng',5],['CHECKEE',5],
   ];
@@ -76,7 +76,7 @@ test('Admin can navigate seven screens without browser exceptions', async () => 
 test('Collaborator mobile navigation and logout work', async () => {
   const {context,page,errors} = await login('CTV đối tác',{width:390,height:844});
   const nav = page.getByRole('navigation',{name:'Điều hướng di động'});
-  assert.equal(await nav.locator('button').count(),7);
+  assert.equal(await nav.locator('button').count(),9);
   await nav.locator('button').nth(1).click();
   assert.deepEqual(errors,[]);
   await page.screenshot({path:resolve(artifacts,'collaborator-mobile.png')});

@@ -30,6 +30,8 @@ public sealed class JwtTokenService(IConfiguration configuration)
     }
 }
 
+public sealed record LoginRequest(string? Email, string? Password);
+
 public static class AuthFeatures
 {
     public static async Task<IResult> Login(LoginRequest request, KidsfitDbContext db, IPasswordHasher<User> hasher, JwtTokenService tokens)

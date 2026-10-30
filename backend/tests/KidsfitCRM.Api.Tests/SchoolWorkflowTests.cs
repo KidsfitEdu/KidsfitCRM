@@ -89,7 +89,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var nonce = Key();
         var user = new User { Code = nonce[..20], Email = nonce + "@example.test", Name = "CTV kiểm thử", Status = "ACTIVE", Password = "unused", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.Users.Add(user); await db.SaveChangesAsync();
-        var role = await db.Roles.Where(x => x.Code == "PARTNER_COLLABORATOR").Select(x => x.Id).SingleAsync();
+        var role = await db.Roles.Where(x => x.Code == "SALES").Select(x => x.Id).SingleAsync();
         var org = await db.Organizations.Where(x => x.Code == "PARTNER_AN_PHAT").Select(x => x.Id).SingleAsync();
         db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role });
         var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = org, MembershipType = "COLLABORATOR", IsPrimary = true, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };

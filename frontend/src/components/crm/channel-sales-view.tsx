@@ -40,8 +40,10 @@ import type {
 } from '@/lib/channel-sales';
 
 type StatusFilter = 'ALL' | ChannelCustomer['visible_status'];
+export type SalesCustomerMode = 'all' | 'mine' | 'activities';
 
 type Props = {
+  mode?: SalesCustomerMode;
   onOpenCustomer?: (id: number) => void;
   workspace: ChannelSalesWorkspace;
   search: string;
@@ -115,6 +117,7 @@ const idempotencyKey = (prefix: string) =>
   `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
 
 export function ChannelSalesView({
+  mode = 'all',
   onOpenCustomer,
   workspace,
   search,
@@ -139,9 +142,14 @@ export function ChannelSalesView({
   const [receiptCustomer, setReceiptCustomer] =
     useState<ChannelCustomer | null>(null);
 
+  const scopedCustomers = useMemo(() => workspace.data.filter(customer =>
+    mode === 'all' || (mode === 'activities'
+      ? customer.visible_status === 'APPROACHING' && customer.can_manage_approach
+      : customer.can_manage_approach || (customer.visible_status === 'CONTRACTED' && customer.contract_id !== null))
+  ), [mode, workspace.data]);
   const customers = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
-    return workspace.data.filter(
+    return scopedCustomers.filter(
       (customer) =>
         (filter === 'ALL' || customer.visible_status === filter) &&
         (!term ||
@@ -153,37 +161,34 @@ export function ChannelSalesView({
             customer.contact_name,
           ].some((value) => value?.toLocaleLowerCase('vi').includes(term))),
     );
-  }, [filter, search, workspace.data]);
+  }, [filter, search, scopedCustomers]);
 
   const tabs: { id: StatusFilter; label: string; count: number }[] = [
     {
       id: 'ALL',
       label: 'Tất cả',
-      count:
-        workspace.metrics.available +
-        workspace.metrics.approaching +
-        workspace.metrics.contracted,
+      count: scopedCustomers.length,
     },
     {
       id: 'AVAILABLE',
       label: 'Chưa đăng ký',
-      count: workspace.metrics.available,
+      count: scopedCustomers.filter(customer => customer.visible_status === 'AVAILABLE').length,
     },
     {
       id: 'APPROACHING',
       label: 'Đang tiếp cận',
-      count: workspace.metrics.approaching,
+      count: scopedCustomers.filter(customer => customer.visible_status === 'APPROACHING').length,
     },
     {
       id: 'CONTRACTED',
       label: 'Đã ký',
-      count: workspace.metrics.contracted,
+      count: scopedCustomers.filter(customer => customer.visible_status === 'CONTRACTED').length,
     },
   ];
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] bg-[#0e2a1a] px-6 py-7 text-white shadow-[0_26px_70px_rgba(17,29,49,.2)] sm:px-8">
+      {mode === 'all' && <section className="relative overflow-hidden rounded-[28px] bg-[#0e2a1a] px-6 py-7 text-white shadow-[0_26px_70px_rgba(17,29,49,.2)] sm:px-8">
         <div className="absolute -right-20 -top-36 size-80 rounded-full bg-[#4caf50]/20 blur-3xl" />
         <div className="absolute -bottom-44 left-1/3 size-80 rounded-full bg-[#20b895]/20 blur-3xl" />
         <div className="relative grid gap-7 xl:grid-cols-[1.25fr_.75fr] xl:items-end">
@@ -238,9 +243,9 @@ export function ChannelSalesView({
             />
           </div>
         </div>
-      </section>
+      </section>}
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      {mode === 'all' && <section className="grid gap-3 sm:grid-cols-3">
         <StatusSummary
           icon={<Sparkles />}
           label="Chưa đăng ký"
@@ -262,13 +267,13 @@ export function ChannelSalesView({
           caption="Được bảo vệ 5 năm"
           tone="emerald"
         />
-      </section>
+      </section>}
 
       <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-border/80">
         <CardContent className="p-0">
           <div className="flex flex-col gap-4 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1">
-              {tabs.map((tab) => (
+              {tabs.filter(tab => mode === 'all' || (mode === 'mine' && tab.id !== 'AVAILABLE')).filter(() => mode !== 'activities').map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setFilter(tab.id)}
@@ -308,7 +313,7 @@ export function ChannelSalesView({
                   onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined
                 }
                 canSeeRevenue={workspace.capabilities?.view_revenue !== false}
-                canRegister={canRegister}
+                canRegister={mode === 'all' && canRegister}
                 canAddActivity={canAddActivity}
                 canReportContract={canReportContract}
                 canRecordRevenue={canRecordRevenue}
@@ -324,9 +329,9 @@ export function ChannelSalesView({
                   <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
                     <Search className="size-5" />
                   </div>
-                  <p className="mt-4 font-semibold">Chưa tìm thấy khách hàng</p>
+                  <p className="mt-4 font-semibold">{mode === 'activities' ? 'Chưa có trường cần tư vấn' : mode === 'mine' ? 'Chưa có trường trong danh sách của bạn' : 'Chưa tìm thấy khách hàng'}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Thử từ khóa khác hoặc tạo lượt tiếp cận mới.
+                    {mode === 'all' ? 'Thử từ khóa khác hoặc tạo lượt tiếp cận mới.' : 'Hãy kiểm tra bộ lọc hoặc danh sách trường được phân công.'}
                   </p>
                 </div>
               </div>

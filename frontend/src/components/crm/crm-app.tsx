@@ -171,7 +171,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     <AppShell>
       <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
-        <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark}/>
+        <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && <p className="rounded-xl border border-amber-300 p-3 text-sm">Bản xem trước tĩnh, chỉ đọc. Hãy kết nối Backend để thay đổi dữ liệu thực.</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

@@ -903,7 +903,7 @@ export function SchoolOperations({
                           )
                         }
                       >
-                        Từ chối
+                        {embeddedSalesTable ? <XCircle className="size-4" aria-hidden="true"/> : 'Từ chối'}
                       </Button>
                     </>
                   )}

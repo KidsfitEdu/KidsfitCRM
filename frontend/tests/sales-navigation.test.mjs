@@ -67,3 +67,22 @@ test('Shared Admin/Manager paths remain unchanged and embedded compact mode is o
   assert.match(school, /compactHeader = false/);
   assert.match(school, /compactHeader && active === 'proposals'/);
 });
+
+test('Sales-only table enhancements retain common role layouts', () => {
+  const focus = read('src/components/roles/SalesFocusPage.tsx');
+  const operations = read('src/components/crm/channel-operations.tsx');
+  const directory = read('src/components/crm/school-directory.tsx');
+  const proposals = read('src/components/crm/school-operations.tsx');
+  const table = read('src/components/roles/SalesProposalTable.tsx');
+  assert.match(focus, /md:w-1\/2/);
+  assert.match(focus, /embeddedSalesTable=\{section === 'proposals'\}/);
+  assert.match(focus, /embedded=\{section === 'customers' \|\| section === 'activities'\}/);
+  assert.match(operations, /!compactOperations && visiblePanel !== 'customers'/);
+  assert.match(operations, /registrationIconOnly=\{compactOperations\}/);
+  assert.match(directory, /UserRoundPlus/);
+  assert.match(directory, /aria-label=\{registrationIconOnly \?/);
+  assert.match(proposals, /embeddedSalesTable && active === 'proposals'/);
+  assert.match(table, /<table/);
+  assert.match(table, /aria-label="Đặt lại bộ lọc"/);
+  assert.match(table, /Thêm mới/);
+});

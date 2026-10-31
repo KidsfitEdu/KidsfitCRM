@@ -208,12 +208,20 @@ export function SchoolDirectory({
     queryFn: () => api<Detail>(`/schools/${selected}`),
     enabled: selected !== null,
   });
+  const syncAfterSave = async () => {
+    try {
+      await client.invalidateQueries({ queryKey: channelQueryKeys.all });
+      await onChanged();
+    } catch (error) {
+      if (!adminMode) throw error;
+      appNotice.warning('Đã lưu dữ liệu, nhưng chưa tải lại được danh sách.', error instanceof Error ? error.message : 'Vui lòng mở lại trang để xem dữ liệu mới.');
+    }
+  };
   const mutation = useMutation({
     mutationFn: ({ path, body, method }: Command) =>
       api(path, { method: method ?? 'POST', body: JSON.stringify(body) }),
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: channelQueryKeys.all });
-      await onChanged();
+      await syncAfterSave();
       if (adminMode) appNotice.success('Đã lưu thay đổi trường học và lịch sử xử lý.');
       else setNotice('Đã lưu thay đổi và lịch sử xử lý.');
     },
@@ -243,8 +251,7 @@ export function SchoolDirectory({
         if (adminMode) appNotice.info('Đã kiểm tra file Excel.', 'Vui lòng xem trước dữ liệu và cảnh báo trước khi xác nhận nhập.');
         return;
       }
-      await client.invalidateQueries({ queryKey: channelQueryKeys.all });
-      await onChanged();
+      await syncAfterSave();
       setImportOpen(false);
       setFile(null);
       setPreview(null);

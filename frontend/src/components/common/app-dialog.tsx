@@ -11,19 +11,20 @@ type AppDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: ReactNode;
   eyebrow?: string;
   children: ReactNode;
   footer?: ReactNode;
   busy?: boolean;
   contentClassName?: string;
   bodyClassName?: string;
+  footerAlign?: 'start' | 'center' | 'end';
 };
 
 /** KIDSFIT CRM dialog shell: one consistent brand header, scrollable content and fixed footer. */
 export function AppDialog({
   open, onOpenChange, title, description, eyebrow = 'KIDSFIT CRM',
-  children, footer, busy = false, contentClassName, bodyClassName,
+  children, footer, busy = false, contentClassName, bodyClassName, footerAlign = 'end',
 }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={next => { if (!busy) onOpenChange(next); }}>
@@ -54,7 +55,7 @@ export function AppDialog({
           {children}
         </div>
         {footer && (
-          <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-border bg-muted/30 px-5 py-4 sm:justify-end sm:px-6">
+          <div className={cn("flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-muted/30 px-5 py-4 sm:px-6", footerAlign === "center" ? "justify-center" : footerAlign === "start" ? "justify-start" : "justify-end")}>
             {footer}
           </div>
         )}

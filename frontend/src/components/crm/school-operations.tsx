@@ -1,5 +1,5 @@
 'use client';
-import { useDeferredValue, useEffect, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useDeferredValue, useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ClipboardList,
@@ -278,7 +278,7 @@ export function SchoolOperations({
       submitLabel: approve ? 'Xác nhận duyệt' : 'Xác nhận từ chối',
       danger: !approve,
     });
-  const openProposal = () =>
+  const openProposal = useCallback(() =>
     setAction({
       title: 'Đề xuất trường mới',
       path: '/school-proposals',
@@ -297,7 +297,7 @@ export function SchoolOperations({
         deadline,
         reason,
       ],
-    });
+    }), []);
   useEffect(() => {
     if (!proposalActionRef) return;
     proposalActionRef.current = { open: openProposal };

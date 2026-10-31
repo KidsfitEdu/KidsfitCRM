@@ -14,6 +14,7 @@ public static class ApiEndpoints
         secured.MapGet("/me", AuthFeatures.Me);
         secured.MapPost("/logout", AuthFeatures.Logout);
         secured.MapChannelSalesApi();
+        secured.MapSchoolProposalAlerts();
         return app;
     }
 }

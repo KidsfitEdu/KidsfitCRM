@@ -1,5 +1,5 @@
 'use client';
-import { useDeferredValue, useState, type ReactNode } from 'react';
+import { useDeferredValue, useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ClipboardList,
@@ -12,9 +12,13 @@ import {
   Scale,
   BarChart3,
   Settings2,
+  Search,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SalesProposalTable } from '@/components/roles/SalesProposalTable';
+import { AppButton } from '@/components/common/app-button';
+import { AppNativeSelect } from '@/components/common/app-native-select';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -55,6 +59,7 @@ type Props = {
   hideTabs?: boolean;
   compactHeader?: boolean;
   embeddedSalesTable?: boolean;
+  proposalActionRef?: RefObject<{open: () => void} | null>;
 };
 const reason: SchoolActionField = {
   name: 'reason',
@@ -81,9 +86,11 @@ export function SchoolOperations({
   hideTabs = false,
   compactHeader = false,
   embeddedSalesTable = false,
+  proposalActionRef,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
   const [search, setSearch] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
   const [page, setPage] = useState(1);
   const searchTerm = useDeferredValue(search.trim());
   const [pendingOnly, setPendingOnly] = useState(true);
@@ -291,6 +298,11 @@ export function SchoolOperations({
         reason,
       ],
     });
+  useEffect(() => {
+    if (!proposalActionRef) return;
+    proposalActionRef.current = { open: openProposal };
+    return () => { proposalActionRef.current = null; };
+  }, [proposalActionRef, openProposal]);
   const openPolicy = () =>
     setAction({
       title: 'Tạo phiên bản chính sách',
@@ -514,15 +526,38 @@ export function SchoolOperations({
           </p>
         </div>
       )}
+      {embeddedSalesTable && (active === 'invitations' || active === 'extensions') && (
+        <form className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-white px-4 py-4 dark:bg-card sm:px-5"
+          onSubmit={event => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
+          <div className="relative min-w-[190px] flex-1">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+            <Input aria-label="Tìm hồ sơ" placeholder={active === 'invitations' ? 'Tên trường, nhân sự phân bổ...' : 'Tên trường, người yêu cầu...'}
+              className="h-11 w-full rounded-xl pl-10" value={searchDraft} onChange={e => setSearchDraft(e.target.value)}/>
+          </div>
+          <AppNativeSelect aria-label="Lọc trạng thái hồ sơ" value={pendingOnly ? 'PENDING' : 'ALL'} containerClassName="w-full sm:w-48"
+            onChange={e => {setPendingOnly(e.target.value === 'PENDING');setPage(1);}}>
+            <option value="PENDING">Cần xử lý</option>
+            <option value="ALL">Tất cả trạng thái</option>
+          </AppNativeSelect>
+          <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+          <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
+            aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc"
+            onClick={() => {setSearchDraft('');setSearch('');setPendingOnly(true);setPage(1);}}>
+            <RotateCcw className="size-4" aria-hidden="true"/>
+          </AppButton>
+        </form>
+      )}
       {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
         loading={workspace.isFetching} preview={preview}
-        canCreate={can('channel_sales.school.proposal.submit') && !all}
+        canCreate={false}
         onPageChange={setPage} onSearch={term => {setSearch(term);setPage(1);}}
         onCreate={openProposal} onOpen={setSelectedProposal}
         onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}/>
       }
-      {!(embeddedSalesTable && active === 'proposals') && <div className="grid gap-4 lg:grid-cols-2">
+      {!(embeddedSalesTable && active === 'proposals') && <div className={embeddedSalesTable
+        ? 'divide-y divide-border/70 bg-white dark:bg-card'
+        : 'grid gap-4 lg:grid-cols-2'}>
         {active === 'proposals' &&
           data.proposals
             .filter(
@@ -647,6 +682,7 @@ export function SchoolOperations({
               )
               .map((x) => (
                 <WorkflowCard
+                  compact={embeddedSalesTable}
                   key={x.id}
                   title={x.school_name}
                   subtitle={x.assigned_by + ' → ' + x.assignee_name}
@@ -725,6 +761,7 @@ export function SchoolOperations({
               )
               .map((x) => (
                 <WorkflowCard
+                  compact={embeddedSalesTable}
                   key={'defer-' + x.id}
                   title={x.school_name}
                   subtitle="Rà soát trường chưa có người nhận"
@@ -764,6 +801,7 @@ export function SchoolOperations({
             )
             .map((x) => (
               <WorkflowCard
+                compact={embeddedSalesTable}
                 key={x.id}
                 title={x.school_name}
                 subtitle={x.requested_by}
@@ -1377,7 +1415,7 @@ export function SchoolOperations({
           </>
         )}
       </div>}
-      {!embeddedSalesTable && active !== 'report' && visibleCounts[active] === 0 && (
+      {(active === 'invitations' || active === 'extensions' ? visibleCounts[active] === 0 : !embeddedSalesTable && active !== 'report' && visibleCounts[active] === 0) && (
         <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
           <ClipboardList className="mx-auto mb-3 size-8 text-muted-foreground" />
           <p className="font-medium">
@@ -1402,7 +1440,7 @@ export function SchoolOperations({
           )}
         </div>
       )}
-      {!embeddedSalesTable && !preview &&
+      {!(embeddedSalesTable && active === 'proposals') && !preview &&
         data.pagination &&
         active !== 'report' &&
         active !== 'policies' && (
@@ -1606,6 +1644,7 @@ function WorkflowCard({
   status,
   due,
   overdue,
+  compact = false,
   children,
 }: {
   title: string;
@@ -1613,10 +1652,13 @@ function WorkflowCard({
   status?: string;
   due?: string;
   overdue?: boolean;
+  compact?: boolean;
   children: ReactNode;
 }) {
   return (
-    <article className="flex flex-col gap-3 rounded-2xl border bg-card p-5 shadow-sm">
+    <article className={compact
+      ? 'flex flex-col gap-3 bg-white px-5 py-5 transition-colors hover:bg-muted/20 dark:bg-card'
+      : 'flex flex-col gap-3 rounded-2xl border bg-card p-5 shadow-sm'}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold leading-snug">{title}</h3>

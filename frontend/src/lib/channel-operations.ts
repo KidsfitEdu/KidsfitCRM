@@ -146,9 +146,12 @@ export const channelQueryKeys = {
 };
 
 export class ChannelRequestError extends Error {
-  constructor(message: string, public readonly status: number) {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
     super(message);
     this.name = 'ChannelRequestError';
+    this.status = status;
   }
 }
 

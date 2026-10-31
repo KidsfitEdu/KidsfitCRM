@@ -99,10 +99,10 @@ export function SalesFocusPage({section, ...props}: Props) {
       <AppStatCard icon={School} label="Hồ sơ hợp đồng" value={contractsCount}/>
       <AppStatCard icon={CalendarClock} label="Sắp hết hạn (48 giờ)" value={expiringCount}/>
     </div>}
-    {contained ? <div className="space-y-0">
+    {contained ? <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-white shadow-sm dark:bg-card">
       {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
-        className="relative flex w-full justify-start bg-transparent">
-        <div className="relative flex w-full items-center gap-0 rounded-t-[24px] bg-white px-1.5 pb-1 pt-2 dark:bg-card lg:w-[30%]">
+        className="flex w-full items-end border-b border-border/70 bg-white px-4 dark:bg-card sm:px-5">
+        <div className="flex w-full items-end gap-3 sm:gap-5 lg:w-[30%]">
           {(section === 'customers'
             ? [{id:'main',label:'Trường đang phụ trách',icon:UsersRound},
                {id:'invitations',label:'Chờ nhận phân bổ',icon:School}]
@@ -111,18 +111,16 @@ export function SalesFocusPage({section, ...props}: Props) {
           ).map(item => <button key={item.id} type="button" title={item.label}
             onClick={() => setSubview(item.id as typeof subview)}
             aria-current={subview === item.id ? 'page' : undefined}
-            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-t-xl px-1.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary xl:text-[13px] ${subview === item.id ? 'font-bold text-[#1b5e20] dark:text-[#a5d6a7]' : 'text-slate-500 hover:text-[#1b5e20] dark:text-slate-400'}`}>
+            className={`flex min-h-12 min-w-0 flex-1 items-center justify-center gap-1.5 border-b-[3px] bg-transparent px-1 pt-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary sm:text-sm lg:text-[12px] xl:text-[13px] ${subview === item.id
+              ? 'border-[#1b5e20] font-semibold text-[#1b5e20] dark:border-[#a5d6a7] dark:text-[#a5d6a7]'
+              : 'border-transparent font-medium text-muted-foreground hover:border-[#1b5e20]/35 hover:text-[#1b5e20] dark:hover:text-[#a5d6a7]'}`}>
             <item.icon className="size-3.5 shrink-0" aria-hidden="true"/>
-            <span className="min-w-0 truncate">{item.label}</span>
+            <span className="min-w-0 leading-snug">{item.label}</span>
           </button>)}
         </div>
       </nav>}
-      <section className={hasTaskTabs
-        ? 'crm-brand-surface overflow-hidden rounded-b-2xl rounded-tr-2xl border-x border-b border-border/80 bg-white shadow-sm dark:bg-card'
-        : 'crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card'}>
-        {table}
-      </section>
-    </div> : section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
+      {table}
+    </section> : section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
       <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
         {apiBase ? 'Tài khoản chưa được cấp quyền xem thu nhập cá nhân.' : 'Chế độ xem thử chưa kết nối dữ liệu doanh thu và hoa hồng cá nhân.'}
       </div>

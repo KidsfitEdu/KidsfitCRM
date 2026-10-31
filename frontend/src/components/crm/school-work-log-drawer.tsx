@@ -59,7 +59,7 @@ export function SchoolWorkLogDrawer({
           {Object.entries(typeNames).map(([value,label])=><option key={value} value={value}>{label}</option>)}
         </AppNativeSelect>
       </div>
-      {logs.isPending && <p role="status" className="text-sm text-muted-foreground">Đang tải ghi chú…</p>}
+      {logs.isPending && <output className="text-sm text-muted-foreground">Đang tải ghi chú…</output>}
       {logs.error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{logs.error instanceof Error ? logs.error.message : 'Không tải được lịch sử.'}</p>}
       {logs.data?.data.length === 0 && <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Chưa có lần làm việc nào phù hợp.</p>}
       <ol className="space-y-3">

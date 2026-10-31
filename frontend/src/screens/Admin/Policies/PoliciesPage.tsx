@@ -7,6 +7,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AdminListPanel,AdminListToolbar,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { fetchAdminPolicies } from '@/services/policy.service';
 import { workflowLabels,type SchoolOperationsWorkspace } from '@/lib/school-operations';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
@@ -14,16 +15,16 @@ export function PoliciesPage({apiBase,token}:AdminPageProps) {
   const [operations,setOperations]=useState<SchoolOperationsWorkspace|null>(null);
   const [policyDraft,setPolicyDraft]=useState('');const [policySearch,setPolicySearch]=useState('');
   const [policyStatus,setPolicyStatus]=useState('ALL');const [policyPage,setPolicyPage]=useState(1);
-  const [policyPageSize,setPolicyPageSize]=useState(20);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
+  const [policyPageSize,setPolicyPageSize]=useState(20);const [busy,setBusy]=useState(false);
   const preview=!apiBase;
   const reload=useCallback(async()=>{
-    if(preview||!token)return;setBusy(true);setError('');
+    if(preview||!token)return;setBusy(true);
     try{setOperations(await fetchAdminPolicies(apiBase,token));}
-    catch(e){setError(e instanceof Error?e.message:'Không tải được dữ liệu.');}finally{setBusy(false);}
+    catch(e){appNotice.error('Không tải được chính sách vận hành.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
   },[apiBase,token,preview]);
   useEffect(()=>{void reload();},[reload]);
   const filteredPolicies=(operations?.policies??[]).filter(p=>(policyStatus==='ALL'||p.status===policyStatus)&&(policySearch===''||`Phiên bản ${p.version} ${workflowLabels[p.status]??p.status}`.toLocaleLowerCase('vi').includes(policySearch.toLocaleLowerCase('vi'))));
-  return <AdminPageStatus apiBase={apiBase} error={error}>
+  return <AdminPageStatus apiBase={apiBase}>
     <div className="space-y-5">
       <AppPageHeader eyebrow="QUẢN TRỊ / CHÍNH SÁCH VẬN HÀNH" title="Quản lý chính sách vận hành"
         description="Theo dõi phiên bản chính sách và thời hạn xử lý đang được ghi nhận."/>

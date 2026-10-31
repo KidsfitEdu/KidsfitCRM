@@ -1,12 +1,13 @@
 'use client';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { workflowFormValue } from '@/lib/school-operations';
+import { AppCombobox } from '@/components/common/app-combobox';
 
 export type SchoolActionField = {
   name: string;
@@ -39,9 +40,15 @@ export function SchoolActionForm({
   action,
   save,
   inline = false,
+  externalSubmit = false,
+  formId,
+  onBusyChange,
 }: {
   action: SchoolAction;
   inline?: boolean;
+  externalSubmit?: boolean;
+  formId?: string;
+  onBusyChange?: (busy: boolean) => void;
   save: (command: {
     path: string;
     method?: string;
@@ -67,20 +74,22 @@ export function SchoolActionForm({
       action.fields.map((field) => [field.name, field.value ?? '']),
     ),
   });
+  useEffect(() => { onBusyChange?.(form.formState.isSubmitting); }, [form.formState.isSubmitting, onBusyChange]);
   return (
     <>
-      {inline ? (
+      {externalSubmit ? null : inline ? (
         <>
           <h3 className="font-semibold">{action.title}</h3>
-          <p className="text-sm text-muted-foreground">{action.description}</p>
+          {action.description && <p className="text-sm text-muted-foreground">{action.description}</p>}
         </>
       ) : (
         <>
           <DialogTitle>{action.title}</DialogTitle>
-          <DialogDescription>{action.description}</DialogDescription>
+          {action.description && <DialogDescription>{action.description}</DialogDescription>}
         </>
       )}
       <form
+        id={formId}
         className="space-y-4"
         onSubmit={form.handleSubmit(async (values) => {
           setError('');
@@ -129,24 +138,26 @@ export function SchoolActionForm({
                 )}
               </span>
               {field.options ? (
-                <select
-                  {...form.register(field.name)}
-                  aria-invalid={!!form.formState.errors[field.name]}
-                  className="h-10 w-full rounded-xl border bg-background px-3 text-sm"
-                >
-                  <option value="">Chọn…</option>
-                  {field.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  name={field.name}
+                  control={form.control}
+                  render={({ field: control }) => (
+                    <AppCombobox
+                      options={field.options ?? []}
+                      value={control.value ?? ''}
+                      onChange={control.onChange}
+                      ariaLabel={field.label}
+                      invalid={!!form.formState.errors[field.name]}
+                      placeholder={'Tìm và chọn ' + field.label.toLocaleLowerCase('vi') + '…'}
+                    />
+                  )}
+                />
               ) : field.type === 'textarea' ? (
                 <textarea
                   {...form.register(field.name)}
                   rows={3}
                   maxLength={4000}
-                  className="w-full rounded-xl border bg-background p-3 text-sm"
+                  className="min-h-24 w-full rounded-xl border bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-[#1b5e20]"
                 />
               ) : (
                 <Input
@@ -156,6 +167,7 @@ export function SchoolActionForm({
                   }
                   step={field.type === 'number' ? 1 : undefined}
                   autoComplete="off"
+                  className="h-11 rounded-xl"
                 />
               )}
               {field.type === 'datetime-local' && (
@@ -184,16 +196,16 @@ export function SchoolActionForm({
             {error}
           </p>
         )}
-        <Button
+        {!externalSubmit && <Button
           type="submit"
           disabled={form.formState.isSubmitting}
           variant={action.danger ? 'destructive' : 'default'}
-          className="w-full"
+          className="h-11 w-full bg-[#1b5e20] text-white hover:bg-[#124c17]"
         >
           {form.formState.isSubmitting
             ? 'Đang lưu…'
             : (action.submitLabel ?? 'Xác nhận lưu')}
-        </Button>
+        </Button>}
       </form>
     </>
   );

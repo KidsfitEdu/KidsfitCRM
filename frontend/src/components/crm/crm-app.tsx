@@ -161,7 +161,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     };
     window.addEventListener('popstate',onPop);
     return ()=>window.removeEventListener('popstate',onPop);
-  },[visibleNav]);
+  },[visibleNav,isSales]);
   const navigate = (next: View) => {
     if (!visibleNav.some(item=>item.id===next)) return;
     setView(next);

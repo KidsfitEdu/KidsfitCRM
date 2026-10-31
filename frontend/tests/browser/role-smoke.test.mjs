@@ -86,7 +86,7 @@ test('Collaborator mobile navigation and logout work', async () => {
   await context.close();
 });
 
-test('Sales desktop uses 30% white folder tabs and a table for proposals', async () => {
+test('Sales desktop uses 30% flat underline tabs and a table for proposals', async () => {
   const {context,page,navigation,errors} = await login('Nhân viên bán hàng');
   await navigation.getByRole('button',{name:'Trường của tôi',exact:true}).click();
   const tabs = page.getByRole('navigation',{name:'Nhóm công việc Sales'});
@@ -96,8 +96,16 @@ test('Sales desktop uses 30% white folder tabs and a table for proposals', async
     inner: element.firstElementChild.getBoundingClientRect().width,
   }));
   assert.ok(sizes.inner / sizes.outer > 0.27 && sizes.inner / sizes.outer < 0.33,
-    'Sales folder tab strip should occupy about 30% of the content width');
-  assert.equal(await tabs.locator(':scope > div').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 255)');
+    'Sales underline tab group should occupy about 30% of the content width');
+  const style = await tabs.evaluate(element => {
+    const tab = element.querySelector('button[aria-current="page"]');
+    return {navBackground:getComputedStyle(element).backgroundColor,
+      activeUnderline:getComputedStyle(tab).borderBottomColor,
+      activeWidth:getComputedStyle(tab).borderBottomWidth};
+  });
+  assert.equal(style.navBackground, 'rgb(255, 255, 255)');
+  assert.equal(style.activeUnderline, 'rgb(27, 94, 32)');
+  assert.equal(style.activeWidth, '3px');
   await tabs.getByRole('button',{name:'Chờ nhận phân bổ'}).click();
   await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
   await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).waitFor();

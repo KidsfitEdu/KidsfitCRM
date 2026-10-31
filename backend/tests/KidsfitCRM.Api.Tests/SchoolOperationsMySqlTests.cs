@@ -325,6 +325,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     [MySqlFact] public async Task ConcurrentRefundsCannotExceedReceiptAndCancellationNeverDeletesLedgerOrReactivatesContract()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s); var admin = await User("admin@kidsfit.vn");
+        // Admin finance totals are organization-wide. Compare the delta, not an absolute value.
+        await using var beforeDb = fixture.Open();
+        var beforeFinance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), beforeDb, null, Ct));
+        var netBefore = beforeFinance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal();
         long receipt;
         await using (var db = fixture.Open()) receipt = await new ChannelSalesActions(db).RecordRevenueReceipt(contractId, new(Key(), null, 1_000_000, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
         async Task<long?> Refund()
@@ -339,7 +343,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(100_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync());
         // Aggregate organizational receipts are available to the authorized finance Admin, not a Sales-only view.
         var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), check, null, Ct));
-        Assert.Equal(250_000, finance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal());
+        Assert.Equal(250_000, finance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal() - netBefore);
+        Assert.Equal(250_000m, (await check.RevenueReceipts.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount))
+            - (await check.RevenueRefunds.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount)));
         var cancellation = new CancelSalesContractRequest(Key(), "Chấm dứt theo quyết định", "TEST-CANCELLATION");
         var id = await a.CancelSalesContract(contractId, cancellation, admin, Http(), Ct);
         Assert.Equal(id, await a.CancelSalesContract(contractId, cancellation, admin, Http(), Ct));

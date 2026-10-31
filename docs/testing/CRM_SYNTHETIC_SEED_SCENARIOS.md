@@ -27,6 +27,28 @@ The existing `DatabaseSeeder` provisions ADMIN, SALES, SALES_MANAGER, BOARD, ACC
 
 The additional fixtures are idempotent by stable scenario IDs/codes and intentionally contain no genuine contact details.
 
+### Demo-only Admin workflow-policy versions
+
+The explicit `--seed-demo` path adds three **DRAFT** KIDSFIT school-workflow policy records
+when their stable `decision_reference` is absent; existing records are not changed.
+
+| Decision reference | Manager review (illustrative) | Admin review | Invitation | Extension | Status |
+| --- | ---: | ---: | ---: | --- | --- |
+| `DEMO-KIDSFIT-WORKFLOW-24H` | 24 hours | 72 hours | 24 hours | 7 days × up to 3, 21-day total extension | `DRAFT` |
+| `DEMO-KIDSFIT-WORKFLOW-48H` | 48 hours | 72 hours | 24 hours | 7 days × up to 3, 21-day total extension | `DRAFT` |
+| `DEMO-KIDSFIT-WORKFLOW-72H` | 72 hours | 72 hours | 24 hours | 7 days × up to 3, 21-day total extension | `DRAFT` |
+
+These examples populate **Admin → Quản lý chính sách vận hành** only when the
+frontend is connected to the demo backend. They are synthetic data, not authorized
+manager-stage/invitation SLAs, and never activate a workflow policy. The normal
+72-hour Admin proposal fallback remains unchanged without an active policy.
+Versions are assigned after the organization's current maximum; re-running seed
+does not overwrite, renumber, or duplicate a matching decision reference.
+The static frontend preview remains separate and is not populated by MySQL seeding.
+Test via `DemoWorkflowPoliciesAreDraftOnlyIdempotentAndDoNotSetActiveSla` on
+an isolated MySQL 8.4 test database.
+
+
 ## Coverage still required
 This seed is an initial deterministic set, **not exhaustive test coverage**. Additional fixtures and integration tests remain required for duplicate school imports, 10/11/20 capacity transitions, conflicting approaches, invitation accept/decline/expire, policy DRAFT/ACTIVE, extension approval/rejection, contract verification and cancellations, partial/full payment, refunds, commission payout/adjustment, suspended memberships, handovers, tenant isolation and unauthorized API calls. Some negative paths must be exercised by tests rather than persisted inconsistent rows. Do not mark such cases complete without verification.
 

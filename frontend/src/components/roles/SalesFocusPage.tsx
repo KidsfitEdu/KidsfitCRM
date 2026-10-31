@@ -99,7 +99,9 @@ export function SalesFocusPage({section, ...props}: Props) {
       <AppStatCard icon={School} label="Hồ sơ hợp đồng" value={contractsCount}/>
       <AppStatCard icon={CalendarClock} label="Sắp hết hạn (48 giờ)" value={expiringCount}/>
     </div>}
-    {contained ? <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-white shadow-sm dark:bg-card">
+    {contained ? <section className={section === 'customers'
+      ? 'min-w-0 bg-white dark:bg-card'
+      : 'crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-white shadow-sm dark:bg-card'}>
       {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
         className="flex w-full items-end border-b border-border/70 bg-white px-4 dark:bg-card sm:px-5">
         <div className="flex w-full items-end gap-3 sm:gap-5 lg:w-[30%]">

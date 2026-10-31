@@ -330,4 +330,34 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var filtered = Json(await SchoolEndpoints.List(AsUser(ctv.UserId), db, "not-a-real-school-" + Key(), 1, Ct));
         Assert.Equal(0, filtered.GetProperty("total").GetInt32());
     }
+    [MySqlFact] public async Task WorkNotesSaveServerTimestampAndEnforceSchoolScope()
+    {
+        var customerId = (await Import(1))[0];
+        var owner = await Ctv();
+        var unrelated = await Ctv();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registrationId = await actions.RegisterCustomerApproach(Claim(customerId, Key()), owner.UserId, Http(), Ct);
+        var before = DateTime.UtcNow.AddSeconds(-10);
+        var note = "**28/10** demo cho *Phó hiệu trưởng*; gọi lại ngày 10/11.";
+        await actions.AddActivity(registrationId, new AddCustomerActivityRequest("DEMO", note, null), owner.UserId, Http(), Ct);
+        var stored = await db.CustomerActivities.Where(a => a.CustomerId == customerId && a.Content == note).SingleAsync();
+        Assert.Equal(owner.UserId, stored.UserId);
+        Assert.InRange(stored.CreatedAt, before, DateTime.UtcNow.AddSeconds(10));
+
+        HttpContext AsUser(long id) => new DefaultHttpContext {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id.ToString())], "test"))
+        };
+        JsonElement Json(IResult result) => JsonSerializer.SerializeToElement(((IValueHttpResult)result).Value, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+        var visible = Json(await CustomerWorkLogEndpoints.List(customerId, AsUser(owner.UserId), db, Ct));
+        Assert.True(visible.GetProperty("total").GetInt32() >= 1);
+        var row = visible.GetProperty("data").EnumerateArray().First(e => e.GetProperty("content").GetString() == note);
+        Assert.Equal("DEMO", row.GetProperty("activity_type").GetString());
+        Assert.Equal("CTV kiểm thử", row.GetProperty("user_name").GetString());
+        Assert.NotEqual(JsonValueKind.Null, row.GetProperty("created_at").ValueKind);
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            CustomerWorkLogEndpoints.List(customerId, AsUser(unrelated.UserId), db, Ct));
+    }
+
 }

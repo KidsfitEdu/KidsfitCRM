@@ -9,6 +9,7 @@ export type RolePageProps = {
   abilities: string[];
   workspace: ChannelSalesWorkspace;
   onChanged: () => Promise<void>;
+  salesWorkflow?: 'invitations' | 'extensions';
   search: string;
   setSearch: (value: string) => void;
   onRegister: ComponentProps<typeof ChannelSalesView>['onRegister'];

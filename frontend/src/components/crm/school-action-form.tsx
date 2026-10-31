@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { workflowFormValue } from '@/lib/school-operations';
 import { AppCombobox } from '@/components/common/app-combobox';
+import { AppDateTimePicker } from '@/components/common/app-date-time-picker';
 
 export type SchoolActionField = {
   name: string;
@@ -120,14 +121,14 @@ export function SchoolActionForm({
       >
         <div className="grid gap-4 sm:grid-cols-2">
           {action.fields.map((field) => (
-            <label
+            <div
               key={field.name}
               className={
                 'space-y-1.5 text-sm' +
                 (field.type === 'textarea' ? ' sm:col-span-2' : '')
               }
             >
-              <span className="font-medium">
+              <label htmlFor={field.name} className="mb-1.5 block font-medium">
                 {field.label}
                 {field.optional ? (
                   <span className="ml-1 font-normal text-muted-foreground">
@@ -136,7 +137,7 @@ export function SchoolActionForm({
                 ) : (
                   ' *'
                 )}
-              </span>
+              </label>
               {field.options ? (
                 <Controller
                   name={field.name}
@@ -144,6 +145,7 @@ export function SchoolActionForm({
                   render={({ field: control }) => (
                     <AppCombobox
                       options={field.options ?? []}
+                      id={field.name}
                       value={control.value ?? ''}
                       onChange={control.onChange}
                       ariaLabel={field.label}
@@ -152,9 +154,22 @@ export function SchoolActionForm({
                     />
                   )}
                 />
+              ) : field.type === 'datetime-local' ? (
+                <Controller name={field.name} control={form.control}
+                  render={({ field: control }) => (
+                    <AppDateTimePicker
+                      id={field.name}
+                      label={field.label}
+                      value={control.value ?? ''}
+                      onChange={control.onChange}
+                      invalid={!!form.formState.errors[field.name]}
+                    />
+                  )}
+                />
               ) : field.type === 'textarea' ? (
                 <textarea
                   {...form.register(field.name)}
+                  id={field.name}
                   rows={3}
                   maxLength={4000}
                   className="min-h-24 w-full rounded-xl border bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-[#1b5e20]"
@@ -162,6 +177,7 @@ export function SchoolActionForm({
               ) : (
                 <Input
                   {...form.register(field.name)}
+                  id={field.name}
                   type={
                     field.type === 'boolean' ? 'text' : (field.type ?? 'text')
                   }
@@ -185,7 +201,7 @@ export function SchoolActionForm({
                   {form.formState.errors[field.name]?.message}
                 </span>
               )}
-            </label>
+            </div>
           ))}
         </div>
         {error && (

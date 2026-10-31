@@ -1,19 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Eye, History, Plus, RotateCcw, X, Ban, ListChecks } from 'lucide-react';
+import { Check, Eye, History, Plus, X, Ban, ListChecks } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { SchoolActionForm, type SchoolAction, type SchoolActionField } from '@/components/crm/school-action-form';
-import { channelRequest, channelQueryKeys, currentBusinessPeriod } from '@/lib/channel-operations';
-import { workflowLabels, workflowDate, vietnamDateTimeInput, type SchoolOperationsWorkspace, type SchoolOperationsReport } from '@/lib/school-operations';
-import { schoolOperationsPreview, schoolOperationsReportPreview } from '@/lib/school-operations-preview';
+import { channelRequest, channelQueryKeys, ChannelRequestError } from '@/lib/channel-operations';
+import { loadAllocationSchools } from '@/lib/manager-allocation';
+import { appNotice } from '@/components/common/app-toast-provider';
+import { workflowLabels, workflowDate, vietnamDateTimeInput, type SchoolOperationsWorkspace } from '@/lib/school-operations';
+import { schoolOperationsPreview } from '@/lib/school-operations-preview';
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace } from '@/lib/channel-sales';
 import type { ManagerPageProps } from '@/types/manager-pages';
 
@@ -51,12 +53,13 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [filter, setFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [period, setPeriod] = useState(currentBusinessPeriod);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [history, setHistory] = useState<{ kind: string; id: number; name: string } | null>(null);
   const [action, setAction] = useState<SchoolAction | null>(null);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [confirmProposal, setConfirmProposal] = useState<{ id: number; name: string } | null>(null);
+  const [confirmingProposal, setConfirmingProposal] = useState(false);
+  const [confirmationError, setConfirmationError] = useState('');
+  const lastQueryFailure = useRef<unknown>(null);
   const client = useQueryClient();
   const api = <T,>(path: string, options?: RequestInit) => channelRequest<T>(apiBase, token, path, options);
   // Server paginates each collection by 100; the UI paginates the same window in steps of 10/20/50.
@@ -76,14 +79,10 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     queryFn: () => preview ? Promise.resolve(demoChannelSalesWorkspace) : api<ChannelSalesWorkspace>('/workspace'),
     enabled: section === 'progress' && (preview || !!token),
   });
-  const report = useQuery({
-    queryKey: [...channelQueryKeys.all, 'manager-progress-report', period],
-    queryFn: () => preview ? Promise.resolve(schoolOperationsReportPreview()) : api<SchoolOperationsReport>('/school-operations/report?period=' + encodeURIComponent(period)),
-    enabled: section === 'progress' && (preview || !!token),
-  });
   const availableSchools = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-available-schools'],
-    queryFn: () => api<SchoolList>('/schools?page=1&pageSize=100&status=AVAILABLE'),
+    queryFn: () => loadAllocationSchools<School>((page, pageSize) =>
+      api<SchoolList>('/schools?page=' + page + '&pageSize=' + pageSize + '&status=AVAILABLE')),
     enabled: section === 'allocations' && !preview && !!token,
   });
   const capacities = useQuery({
@@ -105,12 +104,45 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     await client.invalidateQueries({ queryKey: channelQueryKeys.all });
     await onChanged();
   };
+  const describeApiError = (cause: unknown): string => {
+    if (cause instanceof ChannelRequestError) {
+      if (cause.status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+      if (cause.status === 403) return 'Tài khoản chưa có quyền truy cập dữ liệu trường hoặc phân bổ.';
+      if (cause.status === 400) return 'Yêu cầu dữ liệu không hợp lệ: ' + cause.message;
+      if (cause.status >= 500) return 'Máy chủ gặp lỗi khi xử lý yêu cầu. Vui lòng thử lại.';
+      return cause.message;
+    }
+    if (cause instanceof TypeError) return 'Không kết nối được Backend. Kiểm tra máy chủ và đường dẫn API.';
+    return cause instanceof Error ? cause.message : 'Không thể tải dữ liệu. Vui lòng thử lại.';
+  };
+  const queryFailure = section === 'progress' ? customers.error : operations.error ?? (section === 'allocations' ? availableSchools.error : null);
+  useEffect(() => {
+    if (!queryFailure) {
+      lastQueryFailure.current = null;
+      return;
+    }
+    if (lastQueryFailure.current === queryFailure) return;
+    lastQueryFailure.current = queryFailure;
+    appNotice.error('Không thể tải dữ liệu CRM', describeApiError(queryFailure));
+  }, [queryFailure]);
+  useEffect(() => {
+    if (section === 'allocations' && capacities.error) {
+      appNotice.warning('Không tải được thông tin hạn mức',
+        'Bạn vẫn có thể gửi lời mời; Backend sẽ kiểm tra hạn mức khi xử lý.');
+    }
+  }, [capacities.error, section]);
   const save = async (command: { path: string; method?: string; body: Record<string, unknown> }) => {
     if (preview) throw new Error('Chế độ demo chỉ đọc; cần kết nối Backend để thao tác.');
     await api(command.path, { method: command.method ?? 'POST', body: JSON.stringify(command.body) });
     setAction(null);
-    setNotice('Đã lưu quyết định và cập nhật hàng chờ xử lý.');
-    try { await refresh(); } catch { setNotice('Đã lưu, nhưng chưa thể tải lại dữ liệu. Vui lòng chọn Làm mới.'); }
+    appNotice.success(command.path === '/school-invitations'
+      ? 'Đã gửi lời mời phân bổ trường'
+      : 'Đã lưu quyết định', command.path === '/school-invitations'
+        ? 'Sales/CTV sẽ nhận được lời mời để phản hồi.'
+        : 'Danh sách công việc đã được cập nhật.');
+    try { await refresh(); } catch {
+      appNotice.warning('Đã lưu thành công', 'Không thể tải lại dữ liệu ngay. Vui lòng mở lại trang.');
+    }
   };
   const decide = (kind: 'proposal' | 'extension', id: number, approve: boolean, fields: SchoolActionField[] = []) => {
     const title = kind === 'proposal'
@@ -129,9 +161,26 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     });
   };
   const invite = () => {
+    if (preview) { appNotice.info('Bản xem trước chỉ đọc', 'Đăng nhập Backend để phân bổ trường.'); return; }
+    if (!can('channel_sales.school.allocation.manage')) {
+      appNotice.error('Không có quyền phân bổ', 'Tài khoản chưa được cấp quyền phân bổ trường.');
+      return;
+    }
+    if (operations.isPending || availableSchools.isPending) {
+      appNotice.info('Đang tải dữ liệu', 'Vui lòng thử lại khi danh sách trường và Sales/CTV tải xong.');
+      return;
+    }
+    if (operations.error || availableSchools.error) {
+      appNotice.error('Không thể tải danh sách phân bổ', describeApiError(operations.error ?? availableSchools.error));
+      return;
+    }
     const members = operations.data?.team.filter(t => t.can_receive_school && t.status === 'ACTIVE') ?? [];
     const schools = availableSchools.data?.data.filter(s => s.visible_status === 'AVAILABLE') ?? [];
-    if (!members.length || !schools.length) { setError('Chưa có trường chưa đăng ký hoặc Sales/CTV đủ điều kiện nhận phân bổ trong danh sách hiện tại.'); return; }
+    if (!members.length || !schools.length) {
+      appNotice.warning('Chưa đủ điều kiện phân bổ',
+        !schools.length ? 'Không có trường chưa đăng ký phù hợp.' : 'Không có Sales/CTV đủ điều kiện nhận trường.');
+      return;
+    }
     setAction({
       title: 'Mời Sales/CTV nhận trường',
       description: 'Sau khi gửi lời mời, Sales/CTV cần xác nhận. Quyền tiếp cận chỉ bắt đầu khi nhận thành công và còn hạn mức.',
@@ -165,8 +214,8 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   );
   const progressPage = progressRows.slice((page - 1) * pageSize, page * pageSize);
   const total = section === 'progress' ? progressRows.length : serverTotal;
-  const busy = section === 'progress' ? customers.isPending || report.isPending : operations.isPending;
-  const failed = section === 'progress' ? customers.error ?? report.error : operations.error;
+  const busy = section === 'progress' ? customers.isPending : operations.isPending;
+  const failed = section === 'progress' ? customers.error : operations.error;
   const config = headings[section];
   const reset = () => { setDraft(''); setSearch(''); setFilter('ALL'); setPage(1); };
 
@@ -175,32 +224,14 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       title={config.title} description={config.description}
       actions={<div className="flex flex-wrap gap-2">
         {section === 'allocations' && <AppButton tone="green" premium leadingIcon={<Plus className="size-4"/>}
-          disabled={preview || !can('channel_sales.school.allocation.manage') || availableSchools.isPending || operations.isPending}
           onClick={invite}>Phân bổ trường</AppButton>}
-        <AppButton tone="outline" leadingIcon={<RotateCcw className="size-4"/>} onClick={() => void refresh()}>Làm mới</AppButton>
       </div>}/>
     {preview && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Dữ liệu minh họa chỉ đọc. Đăng nhập hệ thống kết nối API để phê duyệt và phân bổ.</p>}
-    {notice && <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" >{notice}</output>}
-    {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-    {failed && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{failed.message}</p>}
-    {section === 'progress' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {([
-        ['Trường chưa đăng ký', report.data?.available_schools],
-        ['Tiếp cận hết hạn', report.data?.expired_approaches],
-        ['Hợp đồng hoạt động', report.data?.active_contracts],
-        ['Hồ sơ quá hạn', report.data ? report.data.overdue_proposals + report.data.overdue_extensions : undefined],
-      ] as [string, number | undefined][]).map(([label, value]) =>
-        <div key={label} className="rounded-2xl border border-border/80 bg-card p-5">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-3 text-3xl font-bold tabular-nums">{value ?? '—'}</p>
-        </div>)}
-    </div>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={() => { setSearch(draft.trim()); setPage(1); }}
         onReset={reset} searchLabel={'Tìm kiếm ' + config.title.toLocaleLowerCase('vi')} placeholder={config.placeholder}
         filters={<div className="flex flex-wrap gap-2">
-          {section === 'progress' && <Input aria-label="Kỳ báo cáo" type="month" className="h-11 w-[165px]" value={period} onChange={e => setPeriod(e.target.value)}/>}
           <AppNativeSelect aria-label="Lọc trạng thái" containerClassName="w-[192px]" value={filter}
             onChange={e => {setFilter(e.target.value);setPage(1);}}>
             <option value="ALL">Tất cả trạng thái</option>
@@ -237,7 +268,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
                 <td className={adminTableCellClass}><div className="flex items-center justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem đề xuất ' + p.name} onClick={() => setSelection({kind:'proposal',item:p})}/>
                   {p.can_manager_review && can('channel_sales.school.proposal.review') && <>
-                    <AdminIconAction icon={Check} label={'Chuyển Admin: ' + p.name} tone="green" onClick={() => decide('proposal',p.id,true,[{name:'review_due_at',label:'Hạn xử lý Admin',type:'datetime-local',optional:true}])}/>
+                    <AdminIconAction icon={Check} label={'Chuyển Admin: ' + p.name} tone="green" onClick={() => { setConfirmationError(''); setConfirmProposal({ id: p.id, name: p.name }); }}/>
                     <AdminIconAction icon={X} label={'Từ chối ' + p.name} tone="red" onClick={() => decide('proposal',p.id,false)}/>
                   </>}
                   {!preview && <AdminIconAction icon={History} tone="neutral" label={'Lịch sử đề xuất ' + p.name} onClick={() => setHistory({kind:'proposal',id:p.id,name:p.name})}/>}
@@ -288,6 +319,13 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
             </tr>)}
           </tbody>
         </table>
+        {!busy && failed && <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-foreground">Không thể tải danh sách.</p>
+          <Button type="button" variant="outline" onClick={() => {
+            if (section === 'progress') void customers.refetch();
+            else void operations.refetch();
+          }}>Thử lại</Button>
+        </div>}
         {!busy && !failed && (section === 'progress' ? progressPage.length === 0 : windowRows.length === 0) &&
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">Không có hồ sơ phù hợp. Thử tìm kiếm hoặc chọn trạng thái khác.</div>}
         {busy && <div className="px-6 py-10 text-center text-sm text-muted-foreground">Đang tải dữ liệu…</div>}
@@ -297,16 +335,31 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       <AppPagination page={page} pageSize={pageSize} total={total} disabled={busy} showSummary={false}
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
-    {section === 'progress' && report.data && <AdminListPanel>
-      <h3 className="px-5 py-4 text-base font-semibold">Hiệu quả phân bổ theo đội ngũ · {period}</h3>
-      <div className="overflow-x-auto"><table className={adminTableClass}>
-        <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Quản lý</th><th className="px-5 py-4">Nhân sự</th><th className="px-5 py-4 text-center">Đã mời</th><th className="px-5 py-4 text-center">Đã nhận</th><th className="px-5 py-4 text-center">Từ chối</th><th className="px-5 py-4 text-center">Đã hủy</th></tr></thead>
-        <tbody>{report.data.allocation_performance.map((r, i) => <tr key={r.assigned_by_user_id+'-'+r.assignee_user_id+'-'+i} className="border-t even:bg-muted/20">
-          <td className={adminTableCellClass}>{r.manager_name}</td><td className={adminTableCellClass}>{r.assignee_name}</td><td className="px-5 py-4 text-center">{r.invited}</td><td className="px-5 py-4 text-center">{r.accepted}</td><td className="px-5 py-4 text-center">{r.declined}</td><td className="px-5 py-4 text-center">{r.cancelled}</td>
-        </tr>)}</tbody>
-      </table></div>
-      {!report.data.allocation_performance.length && <p className="px-5 py-6 text-sm text-muted-foreground">Chưa có dữ liệu phân bổ trong kỳ.</p>}
-    </AdminListPanel>}
+    <Dialog open={confirmProposal!==null} onOpenChange={open => { if (!open && !confirmingProposal) setConfirmProposal(null); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="gap-3">
+          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">Xác nhận chuyển đề xuất</DialogTitle>
+          <DialogDescription className="text-[15px] leading-7 text-foreground/90 sm:text-base">
+            Bạn có xác nhận chuyển đề xuất trường <strong className="text-foreground">{confirmProposal?.name}</strong> lên Admin để xem xét và phê duyệt không?
+          </DialogDescription>
+        </DialogHeader>
+        {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
+        <div className="flex flex-col-reverse items-stretch justify-center gap-3 pt-2 sm:flex-row sm:items-center">
+          <Button type="button" variant="outline" disabled={confirmingProposal} className="h-11 w-full font-semibold sm:w-40" onClick={() => setConfirmProposal(null)}>Hủy</Button>
+          <Button type="button" disabled={confirmingProposal} className="h-11 w-full bg-[#1b5e20] font-semibold text-white hover:bg-[#124c17] sm:w-40" onClick={async () => {
+            if (!confirmProposal || confirmingProposal) return;
+            setConfirmingProposal(true);
+            setConfirmationError('');
+            try {
+              await save({ path: '/school-proposals/' + confirmProposal.id + '/manager-review', body: { approve: true, reason: null, review_due_at: null } });
+              setConfirmProposal(null);
+            } catch (cause) {
+              setConfirmationError(cause instanceof Error ? cause.message : 'Không thể chuyển đề xuất.');
+            } finally { setConfirmingProposal(false); }
+          }}>{confirmingProposal ? 'Đang chuyển…' : 'Xác nhận chuyển'}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     <Dialog open={action!==null} onOpenChange={v=>{if(!v)setAction(null);}}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         {action && <SchoolActionForm key={action.path+'-'+action.title} action={action} save={save}/>}

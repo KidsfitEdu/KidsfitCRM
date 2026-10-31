@@ -51,6 +51,7 @@ builder.Services.AddDbContext<KidsfitDbContext>(options => options.UseMySQL(conn
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<ChannelSalesActions>();
+builder.Services.AddHostedService<SchoolProposalAlertWorker>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;

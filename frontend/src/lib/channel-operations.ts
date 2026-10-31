@@ -145,6 +145,13 @@ export const channelQueryKeys = {
   detail: (id: number | null) => ['channel-sales', 'detail', id] as const,
 };
 
+export class ChannelRequestError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'ChannelRequestError';
+  }
+}
+
 export async function channelRequest<T>(
   base: string,
   token: string,
@@ -167,8 +174,9 @@ export async function channelRequest<T>(
     const firstError = payload.errors
       ? Object.values(payload.errors).flat()[0]
       : null;
-    throw new Error(
+    throw new ChannelRequestError(
       String(firstError ?? payload.message ?? 'Không thể hoàn tất yêu cầu.'),
+      response.status,
     );
   }
   return payload as T;

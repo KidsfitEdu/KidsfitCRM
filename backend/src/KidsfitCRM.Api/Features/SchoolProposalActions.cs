@@ -96,7 +96,11 @@ public sealed partial class ChannelSalesActions
     public Task<long> ReviewSchoolProposal(long id, ReviewSchoolProposalRequest request, bool finalReview, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await ChannelSalesAccess.Load(db, actorId, ct);
-        var reason = Validation.Required(request.Reason, "reason", "Cần ghi rõ kết quả kiểm tra và lý do.", 4000);
+        // Forwarding is a confirmation, not a form: the server supplies an auditable reason.
+        // Rejections and final Admin decisions still require an explicit explanation.
+        var reason = !finalReview && request.Approve && string.IsNullOrWhiteSpace(request.Reason)
+            ? "Quản lý xác nhận chuyển đề xuất lên Admin để xem xét."
+            : Validation.Required(request.Reason, "reason", "Cần ghi rõ kết quả kiểm tra và lý do.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         long? centralOrg = null;
         if (finalReview)
@@ -152,10 +156,18 @@ public sealed partial class ChannelSalesActions
         if (!finalReview && request.Approve)
         {
             var policy = await ActiveSchoolPolicy(proposal.OrganizationId, ct);
-            proposal.ReviewDueAt = SchoolDeadline(now, policy?.AdminReviewHours, request.ReviewDueAt);
+            // Admin SLA is authoritative and cannot be overridden by a client-supplied deadline.
+            // Without an active organization policy, use the configured 72-hour default.
+            proposal.ReviewDueAt = now.AddHours(policy?.AdminReviewHours ?? 72);
             proposal.ManagerReviewedAt = now;
         }
         proposal.Status = target; proposal.ReviewedByUserId = actorId; proposal.DecisionReason = reason; proposal.UpdatedAt = now;
+        if (finalReview && proposal.Status != "PENDING_ADMIN")
+        {
+            await db.SchoolProposalAlerts.Where(x => x.SchoolProposalId == proposal.Id && x.Status == "OPEN")
+                .ExecuteUpdateAsync(updates => updates.SetProperty(x => x.Status, "RESOLVED")
+                    .SetProperty(x => x.ResolvedAt, now), ct);
+        }
         Audit.Add(db, actorId, finalReview ? "ADMIN_REVIEW_SCHOOL_PROPOSAL" : "MANAGER_REVIEW_SCHOOL_PROPOSAL", nameof(SchoolProposal), id,
             new { status = previous }, new { proposal.Status, proposal.ReviewDueAt, proposal.DirectorySchoolId, request.DuplicateReviewed, reason }, http);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);

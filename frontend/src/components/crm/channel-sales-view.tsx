@@ -167,22 +167,22 @@ export function ChannelSalesView({
     {
       id: 'ALL',
       label: 'Tất cả',
-      count: scopedCustomers.length,
+      count: mode === 'all' ? workspace.metrics.available + workspace.metrics.approaching + workspace.metrics.contracted : scopedCustomers.length,
     },
     {
       id: 'AVAILABLE',
       label: 'Chưa đăng ký',
-      count: scopedCustomers.filter(customer => customer.visible_status === 'AVAILABLE').length,
+      count: mode === 'all' ? workspace.metrics.available : scopedCustomers.filter(customer => customer.visible_status === 'AVAILABLE').length,
     },
     {
       id: 'APPROACHING',
       label: 'Đang tiếp cận',
-      count: scopedCustomers.filter(customer => customer.visible_status === 'APPROACHING').length,
+      count: mode === 'all' ? workspace.metrics.approaching : scopedCustomers.filter(customer => customer.visible_status === 'APPROACHING').length,
     },
     {
       id: 'CONTRACTED',
       label: 'Đã ký',
-      count: scopedCustomers.filter(customer => customer.visible_status === 'CONTRACTED').length,
+      count: mode === 'all' ? workspace.metrics.contracted : scopedCustomers.filter(customer => customer.visible_status === 'CONTRACTED').length,
     },
   ];
 

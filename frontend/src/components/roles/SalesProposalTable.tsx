@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type SyntheticEvent } from 'react';
-import { Eye, History, Plus, RotateCcw, Search } from 'lucide-react';
+import { Eye, History, RotateCcw, Search } from 'lucide-react';
 import { AppButton } from '@/components/common/app-button';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -17,17 +17,15 @@ type Props = {
   total: number;
   pageSize: number;
   loading: boolean;
-  canCreate: boolean;
   preview: boolean;
   onPageChange: (page: number) => void;
-  onCreate: () => void;
   onOpen: (proposal: Proposal) => void;
   onHistory: (proposal: Proposal) => void;
   onSearch: (term: string) => void;
 };
 
-export function SalesProposalTable({proposals, page, total, pageSize, loading, canCreate, preview, onPageChange,
-  onCreate, onOpen, onHistory, onSearch}: Props) {
+export function SalesProposalTable({proposals, page, total, pageSize, loading, preview, onPageChange,
+  onOpen, onHistory, onSearch}: Props) {
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('ALL');
   const [applied, setApplied] = useState('');
@@ -61,9 +59,6 @@ export function SalesProposalTable({proposals, page, total, pageSize, loading, c
         aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={reset}>
         <RotateCcw className="size-4" aria-hidden="true"/>
       </AppButton>
-      {canCreate && !preview && <AppButton type="button" tone="green" onClick={onCreate}>
-        <Plus className="mr-1 size-4"/> Thêm mới
-      </AppButton>}
     </form>
     <div className="overflow-x-auto">
       <table className="w-full min-w-[820px] text-left text-sm">

@@ -74,8 +74,10 @@ export function SalesFocusPage({section, ...props}: Props) {
       <AppStatCard icon={School} label="Hồ sơ hợp đồng" value={contractsCount}/>
       <AppStatCard icon={CalendarClock} label="Sắp hết hạn (48 giờ)" value={expiringCount}/>
     </div>}
+    {(section === 'customers' || section === 'activities' || section === 'proposals') && <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
     {(section === 'customers' || section === 'activities') && <nav aria-label="Nhóm công việc Sales"
-      className="flex max-w-full gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2">
+      className="flex w-full gap-2 overflow-x-auto border-b border-border bg-card p-3">
+      <div className="flex w-full gap-2 md:w-1/2">
       {(section === 'customers'
         ? [{id:'main',label:'Trường đang phụ trách',icon:UsersRound},
           {id:'invitations',label:'Chờ nhận phân bổ',icon:School}]
@@ -86,6 +88,7 @@ export function SalesFocusPage({section, ...props}: Props) {
         className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${subview === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
         <item.icon className="size-4" aria-hidden="true"/>{item.label}
       </button>)}
+      </div>
     </nav>}
     {section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
       <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
@@ -94,8 +97,8 @@ export function SalesFocusPage({section, ...props}: Props) {
     ) : <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
       apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
       initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
-      compactOperations initialOperationsTab={tab}
-      customerView={onOpenCustomer => <ChannelSalesView mode={mode} workspace={workspace}
+      compactOperations embeddedSalesTable={section === 'proposals'} initialOperationsTab={tab}
+      customerView={onOpenCustomer => <ChannelSalesView mode={mode} embedded={section === 'customers' || section === 'activities'} workspace={workspace}
         search={search} setSearch={setSearch} onOpenCustomer={onOpenCustomer}
         canRegister={can('channel_sales.approach.register')}
         canAddActivity={can('channel_sales.activity.create')}
@@ -103,6 +106,7 @@ export function SalesFocusPage({section, ...props}: Props) {
         canRecordRevenue={can('channel_sales.revenue.record')}
         onRegister={props.onRegister} onAddActivity={props.onAddActivity}
         onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>} />}
+    {(section === 'customers' || section === 'activities' || section === 'proposals') && </section>}
     {!apiBase && section === 'income' && <p className="text-sm text-muted-foreground">
       Bản xem trước chỉ đọc; dữ liệu thu nhập thực tế cần kết nối API và quyền xem hoa hồng.
     </p>}

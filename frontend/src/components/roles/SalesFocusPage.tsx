@@ -66,6 +66,20 @@ export function SalesFocusPage({section, ...props}: Props) {
     new Date(c.protected_until).getTime() > Date.now() &&
     new Date(c.protected_until).getTime() <= Date.now() + 48 * 3600000).length;
 
+  const table = <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
+    apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
+    initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
+    compactOperations embeddedSalesTable={section === 'proposals'} initialOperationsTab={tab}
+    customerView={onOpenCustomer => <ChannelSalesView mode={mode}
+      embedded={section === 'customers' || section === 'activities'} workspace={workspace}
+      search={search} setSearch={setSearch} onOpenCustomer={onOpenCustomer}
+      canRegister={can('channel_sales.approach.register')}
+      canAddActivity={can('channel_sales.activity.create')}
+      canReportContract={can('channel_sales.contract.report')}
+      canRecordRevenue={can('channel_sales.revenue.record')}
+      onRegister={props.onRegister} onAddActivity={props.onAddActivity}
+      onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>} />;
+  const contained = section === 'customers' || section === 'activities' || section === 'proposals';
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BÁN HÀNG / KIDSFIT CRM" title={copy[section].title}
       description={copy[section].description}/>
@@ -74,39 +88,28 @@ export function SalesFocusPage({section, ...props}: Props) {
       <AppStatCard icon={School} label="Hồ sơ hợp đồng" value={contractsCount}/>
       <AppStatCard icon={CalendarClock} label="Sắp hết hạn (48 giờ)" value={expiringCount}/>
     </div>}
-    {(section === 'customers' || section === 'activities' || section === 'proposals') && <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
-    {(section === 'customers' || section === 'activities') && <nav aria-label="Nhóm công việc Sales"
-      className="flex w-full gap-2 overflow-x-auto border-b border-border bg-card p-3">
-      <div className="flex w-full gap-2 md:w-1/2">
-      {(section === 'customers'
-        ? [{id:'main',label:'Trường đang phụ trách',icon:UsersRound},
-          {id:'invitations',label:'Chờ nhận phân bổ',icon:School}]
-        : [{id:'main',label:'Hoạt động tư vấn',icon:Handshake},
-          {id:'extensions',label:'Gia hạn tiếp cận',icon:CalendarClock}]
-      ).map(item => <button key={item.id} type="button" onClick={() => setSubview(item.id as typeof subview)}
-        aria-current={subview === item.id ? 'page' : undefined}
-        className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${subview === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-        <item.icon className="size-4" aria-hidden="true"/>{item.label}
-      </button>)}
-      </div>
-    </nav>}
-    {section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
+    {contained ? <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
+      {(section === 'customers' || section === 'activities') && <nav aria-label="Nhóm công việc Sales"
+        className="flex w-full overflow-x-auto border-b border-border bg-card p-3">
+        <div className="flex w-full gap-2 md:w-1/2">
+          {(section === 'customers'
+            ? [{id:'main',label:'Trường đang phụ trách',icon:UsersRound},
+               {id:'invitations',label:'Chờ nhận phân bổ',icon:School}]
+            : [{id:'main',label:'Hoạt động tư vấn',icon:Handshake},
+               {id:'extensions',label:'Gia hạn tiếp cận',icon:CalendarClock}]
+          ).map(item => <button key={item.id} type="button" onClick={()=>setSubview(item.id as typeof subview)}
+            aria-current={subview === item.id ? 'page' : undefined}
+            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${subview === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+            <item.icon className="size-4 shrink-0" aria-hidden="true"/><span>{item.label}</span>
+          </button>)}
+        </div>
+      </nav>}
+      {table}
+    </section> : section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
       <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
         {apiBase ? 'Tài khoản chưa được cấp quyền xem thu nhập cá nhân.' : 'Chế độ xem thử chưa kết nối dữ liệu doanh thu và hoa hồng cá nhân.'}
       </div>
-    ) : <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
-      apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
-      initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
-      compactOperations embeddedSalesTable={section === 'proposals'} initialOperationsTab={tab}
-      customerView={onOpenCustomer => <ChannelSalesView mode={mode} embedded={section === 'customers' || section === 'activities'} workspace={workspace}
-        search={search} setSearch={setSearch} onOpenCustomer={onOpenCustomer}
-        canRegister={can('channel_sales.approach.register')}
-        canAddActivity={can('channel_sales.activity.create')}
-        canReportContract={can('channel_sales.contract.report')}
-        canRecordRevenue={can('channel_sales.revenue.record')}
-        onRegister={props.onRegister} onAddActivity={props.onAddActivity}
-        onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>} />}
-    {(section === 'customers' || section === 'activities' || section === 'proposals') && </section>}
+    ) : table}
     {!apiBase && section === 'income' && <p className="text-sm text-muted-foreground">
       Bản xem trước chỉ đọc; dữ liệu thu nhập thực tế cần kết nối API và quyền xem hoa hồng.
     </p>}

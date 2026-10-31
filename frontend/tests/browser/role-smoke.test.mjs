@@ -86,7 +86,7 @@ test('Collaborator mobile navigation and logout work', async () => {
   await context.close();
 });
 
-test('Sales desktop uses half-width left tabs and a table for proposals', async () => {
+test('Sales desktop uses 30% white folder tabs and a table for proposals', async () => {
   const {context,page,navigation,errors} = await login('Nhân viên bán hàng');
   await navigation.getByRole('button',{name:'Trường của tôi',exact:true}).click();
   const tabs = page.getByRole('navigation',{name:'Nhóm công việc Sales'});
@@ -95,12 +95,16 @@ test('Sales desktop uses half-width left tabs and a table for proposals', async 
     outer: element.getBoundingClientRect().width,
     inner: element.firstElementChild.getBoundingClientRect().width,
   }));
-  assert.ok(sizes.inner / sizes.outer > 0.45 && sizes.inner / sizes.outer < 0.55,
-    'Sales tabs should occupy about half the available table width');
+  assert.ok(sizes.inner / sizes.outer > 0.27 && sizes.inner / sizes.outer < 0.33,
+    'Sales folder tab strip should occupy about 30% of the content width');
+  assert.equal(await tabs.locator(':scope > div').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 255)');
   await tabs.getByRole('button',{name:'Chờ nhận phân bổ'}).click();
+  assert.ok(await page.getByRole('textbox',{name:'Tìm hồ sơ'}).isVisible());
+  assert.ok(await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).isVisible());
   await navigation.getByRole('button',{name:'Tiếp cận & tư vấn',exact:true}).click();
   await page.getByRole('navigation',{name:'Nhóm công việc Sales'})
     .getByRole('button',{name:'Gia hạn tiếp cận'}).click();
+  assert.ok(await page.getByRole('textbox',{name:'Tìm hồ sơ'}).isVisible());
   await navigation.getByRole('button',{name:'Đề xuất trường',exact:true}).click();
   await page.getByRole('table').waitFor();
   assert.ok(await page.getByRole('columnheader',{name:'Người đề xuất'}).isVisible());

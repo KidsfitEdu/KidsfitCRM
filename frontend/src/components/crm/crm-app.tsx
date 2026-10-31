@@ -10,6 +10,7 @@ import { LoginPage } from '@/screens/Auth/Login/LoginPage';
 import { DemoAccess } from '@/components/crm/demo-access';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { nav, type View } from '@/config/navigation';
+import { canonicalSalesView, legacySalesWorkflowTab, salesMenuIds } from '@/config/sales-navigation';
 import { viewToPath, pathToView } from '@/config/routes';
 import { createApiClient } from '@/services/api.client';
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
@@ -33,7 +34,8 @@ export function CrmApp({ initialView }: { initialView?: View } = {}) {
 }
 
 function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?: View; demoAccount?: DemoAccount; onDemoLogout?: () => void }) {
-  const [view, setView] = useState<View>(initialView ?? 'dashboard');
+  const [view, setView] = useState<View>(canonicalSalesView(initialView ?? 'dashboard'));
+  const [salesWorkflow, setSalesWorkflow] = useState<'invitations' | 'extensions' | undefined>(() => legacySalesWorkflowTab(initialView ?? 'dashboard'));
   const [token, setToken] = useState('');
   const [ready, setReady] = useState(!apiBase);
   const [loading, setLoading] = useState(false);
@@ -143,15 +145,19 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     : isAccountant ? item.id.startsWith('role-accounting-')
     : isCare ? item.id.startsWith('role-customer-care-')
     : isCheckee ? item.id.startsWith('role-checkee-')
-    : isSales ? (item.id.startsWith('role-sales-staff-') && !['role-sales-staff-schools','role-sales-staff-proposals'].includes(item.id)) ||
-      (item.id.startsWith('role-collaborator-') && !['role-collaborator-dashboard','role-collaborator-income'].includes(item.id))
+    : isSales ? salesMenuIds.includes(item.id)
     : item.id === 'channel-sales' && has('channel_sales.customer.view')
   );
   const currentView = visibleNav.some(item => item.id === view) ? view : visibleNav[0]?.id ?? 'channel-sales';
   useEffect(()=>{
     const onPop=()=>{
-      const next=pathToView(window.location.pathname);
-      if (next && visibleNav.some(item=>item.id===next)) setView(next);
+      const requested=pathToView(window.location.pathname);
+      if (!requested) return;
+      const next = isSales ? canonicalSalesView(requested) : requested;
+      if (visibleNav.some(item=>item.id===next)) {
+        setSalesWorkflow(isSales ? legacySalesWorkflowTab(requested) : undefined);
+        setView(next);
+      }
     };
     window.addEventListener('popstate',onPop);
     return ()=>window.removeEventListener('popstate',onPop);
@@ -159,10 +165,11 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   const navigate = (next: View) => {
     if (!visibleNav.some(item=>item.id===next)) return;
     setView(next);
+    setSalesWorkflow(undefined);
     if (apiBase) window.history.pushState(null,'',viewToPath(next));
   };
 
-  const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue };
+  const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue, salesWorkflow };
   const todayLabel = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
   if (!ready) return <main className="grid min-h-screen place-items-center">Đang khởi tạo CRM…</main>;
   if (apiBase && !token) return <LoginPage loading={loading} onLogin={login} />;

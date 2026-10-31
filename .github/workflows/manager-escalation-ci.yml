@@ -1,0 +1,84 @@
+name: Manager proposal escalation checks
+on:
+  push:
+    branches: [fix/manager-progress]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: manager-escalation-migration
+  cancel-in-progress: false
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ephemeral-ci-only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pephemeral-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=kidsfit_crm_test;User ID=root;Password=ephemeral-ci-only;"
+      KIDSFIT_TEST_MYSQL_ADMIN: "Server=127.0.0.1;Port=3306;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
+      Jwt__Key: "ci-only-ephemeral-signing-key-000000000000000000000"
+      Jwt__Issuer: "KidsfitCRM.Api"
+      Jwt__Audience: "KidsfitCRM.Web"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore .NET
+        run: dotnet restore backend/KidsfitCRM.slnx
+      - name: Generate additive EF migration if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! find backend/src/KidsfitCRM.Api/Infrastructure/Migrations -maxdepth 1 -name '*_ProposalOverdueAlerts.cs' | grep -q .; then
+            dotnet tool install --global dotnet-ef --version '10.0.12'
+            dotnet ef migrations add ProposalOverdueAlerts \
+              --context KidsfitDbContext \
+              --project backend/src/KidsfitCRM.Api/KidsfitCRM.Api.csproj \
+              --startup-project backend/src/KidsfitCRM.Api/KidsfitCRM.Api.csproj \
+              --output-dir Infrastructure/Migrations
+          fi
+          dotnet build backend/KidsfitCRM.slnx --no-restore
+          test "$(find backend/src/KidsfitCRM.Api/Infrastructure/Migrations -maxdepth 1 -name '*_ProposalOverdueAlerts.cs' | wc -l)" = 1
+      - name: Commit migration into PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A backend/src/KidsfitCRM.Api/Infrastructure/Migrations
+          if ! git diff --cached --quiet; then
+            git commit -m "feat(db): add migration for persistent proposal overdue alerts"
+            git push origin HEAD:fix/manager-progress
+          fi
+      - name: MySQL 8.4 and .NET regression tests
+        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:demo
+      - run: npm run build

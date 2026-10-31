@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarDays, Clock3 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react';
+import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -58,10 +59,29 @@ export function AppDateTimePicker({
 
     <PopoverContent align="end" side="top" sideOffset={8}
       className="z-[80] w-[min(312px,calc(100vw-24px))] max-h-[min(84dvh,500px)] overflow-y-auto rounded-2xl border border-border bg-popover p-3 shadow-[0_18px_56px_rgba(14,42,26,.24)]">
-      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-1 pb-3">
         <span className="text-sm font-semibold text-foreground">Chọn ngày và giờ</span>
-        <span className="text-[11px] text-muted-foreground">UTC+7</span>
+        <span className="shrink-0 text-[11px] text-muted-foreground">UTC+7</span>
       </div>
+
+      {/* DayPicker's absolutely positioned nav overlapped the heading. Give month
+          navigation its own row and visually hide the internal caption/nav. */}
+      <div className="mt-2 grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-2" aria-label="Điều hướng tháng">
+        <button type="button" aria-label="Tháng trước"
+          className="inline-flex size-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1b5e20]"
+          onClick={() => setDisplayMonth(month => new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+          <ChevronLeft className="size-4" aria-hidden="true" />
+        </button>
+        <span aria-live="polite" className="min-w-0 text-center text-sm font-semibold capitalize text-foreground">
+          {format(displayMonth, 'LLLL yyyy', { locale: vi })}
+        </span>
+        <button type="button" aria-label="Tháng sau"
+          className="inline-flex size-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1b5e20]"
+          onClick={() => setDisplayMonth(month => new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </button>
+      </div>
+
       <Calendar
         mode="single"
         selected={draftDate}
@@ -71,16 +91,15 @@ export function AppDateTimePicker({
           setDraftDate(date);
           if (date) setDisplayMonth(new Date(date.getFullYear(), date.getMonth(), 1));
         }}
+        hideNavigation
         locale={vi}
         weekStartsOn={1}
         showOutsideDays={false}
-        className="mx-auto w-fit max-w-full p-0 [--cell-size:2rem] [&_[data-selected-single=true]]:!rounded-full [&_[data-selected-single=true]]:!bg-[#1b5e20] [&_[data-selected-single=true]]:!text-white"
+        className="mx-auto mt-1 w-fit max-w-full p-0 [--cell-size:2rem] [&_[data-selected-single=true]]:!rounded-full [&_[data-selected-single=true]]:!bg-[#1b5e20] [&_[data-selected-single=true]]:!text-white"
         classNames={{
           month: 'flex w-full flex-col gap-2',
           months: 'flex flex-col gap-0',
-          month_caption: 'flex h-8 w-full items-center justify-center px-8',
-          caption_label: 'text-sm font-medium',
-          nav: 'absolute inset-x-0 top-0 flex w-full items-center justify-between',
+          month_caption: 'sr-only',
           week: 'mt-1 flex w-full',
           day_button: 'rounded-full',
           day: 'group/day relative aspect-square h-full w-full rounded-full p-0 text-center',
@@ -88,21 +107,21 @@ export function AppDateTimePicker({
         }}
       />
 
-      <div className="mt-2 flex items-center justify-between gap-3 border-t border-border pt-3">
-        <label htmlFor={fieldId + '-hour'} className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium">
+      <div className="mt-2 space-y-2 border-t border-border pt-3">
+        <div className="flex items-center justify-center gap-2 text-sm font-semibold text-foreground">
           <Clock3 aria-hidden="true" className="size-4 text-muted-foreground" />
-          Thời gian
-        </label>
-        <div className="flex items-center gap-1.5">
+          <span>Thời gian</span>
+        </div>
+        <div className="flex w-full items-center justify-center gap-2">
           <AppNativeSelect id={fieldId + '-hour'} aria-label="Giờ (24 giờ)"
-            containerClassName="w-[66px] h-9" className="pl-2 pr-6"
+            containerClassName="h-10 w-24 shrink-0" className="pl-3 pr-9 text-center tabular-nums"
             value={padDateTime(draftHour)} onChange={event => setDraftHour(Number(event.target.value))}>
             {Array.from({ length: 24 }, (_, hour) =>
               <option value={padDateTime(hour)} key={hour}>{padDateTime(hour)}</option>)}
           </AppNativeSelect>
-          <span className="font-semibold text-muted-foreground">:</span>
+          <span className="text-base font-semibold text-muted-foreground" aria-hidden="true">:</span>
           <AppNativeSelect id={fieldId + '-minute'} aria-label="Phút"
-            containerClassName="w-[66px] h-9" className="pl-2 pr-6"
+            containerClassName="h-10 w-24 shrink-0" className="pl-3 pr-9 text-center tabular-nums"
             value={padDateTime(draftMinute)} onChange={event => setDraftMinute(Number(event.target.value))}>
             {Array.from({ length: 60 }, (_, minute) =>
               <option value={padDateTime(minute)} key={minute}>{padDateTime(minute)}</option>)}

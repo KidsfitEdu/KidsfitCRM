@@ -14,10 +14,14 @@ import {
   Settings2,
   Search,
   RotateCcw,
+  CheckCircle2,
+  XCircle,
+  Ban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SalesProposalTable } from '@/components/roles/SalesProposalTable';
 import { AppButton } from '@/components/common/app-button';
+import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -94,6 +98,7 @@ export function SchoolOperations({
   const [page, setPage] = useState(1);
   const searchTerm = useDeferredValue(search.trim());
   const [pendingOnly, setPendingOnly] = useState(true);
+  const [proposalStatus, setProposalStatus] = useState('ALL');
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [action, setAction] = useState<SchoolAction | null>(null);
   const [selectedProposal, setSelectedProposal] = useState<SchoolOperationsWorkspace['proposals'][number] | null>(null);
@@ -121,7 +126,7 @@ export function SchoolOperations({
   const api = <T,>(path: string, options?: RequestInit) =>
     channelRequest<T>(apiBase, token, path, options);
   const workspace = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm],
+    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus],
     queryFn: () =>
       preview
         ? Promise.resolve(schoolOperationsPreview(abilities))
@@ -129,7 +134,8 @@ export function SchoolOperations({
             '/school-operations?page=' +
               page +
               '&search=' +
-              encodeURIComponent(searchTerm),
+              encodeURIComponent(searchTerm) +
+              (proposalStatus === 'ALL' ? '' : '&status=' + encodeURIComponent(proposalStatus)),
           ),
     enabled: preview || !!token,
     refetchInterval: preview ? false : 30000,
@@ -254,11 +260,14 @@ export function SchoolOperations({
   const historyButton = (kind: string, id: number, name: string) =>
     !preview && (
       <Button
-        variant="ghost"
-        size="sm"
+        variant={embeddedSalesTable ? 'outline' : 'ghost'}
+        size={embeddedSalesTable ? 'icon' : 'sm'}
+        className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
+        title={embeddedSalesTable ? `Lịch sử ${name}` : undefined}
+        aria-label={embeddedSalesTable ? `Lịch sử ${name}` : undefined}
         onClick={() => setHistory({ kind, id, name })}
       >
-        <History className="size-3.5" /> Lịch sử
+        <History className="size-3.5" />{!embeddedSalesTable && 'Lịch sử'}
       </Button>
     );
   const decide = (
@@ -551,6 +560,7 @@ export function SchoolOperations({
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
         loading={workspace.isFetching} preview={preview}
         onPageChange={setPage} onSearch={term => {setSearch(term);setPage(1);}}
+        onStatusChange={value=>{setProposalStatus(value);setPage(1);}}
         onOpen={setSelectedProposal}
         onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}/>
       }
@@ -1446,32 +1456,21 @@ export function SchoolOperations({
         data.pagination &&
         active !== 'report' &&
         active !== 'policies' && (
-          <footer className={embeddedSalesTable
-            ? 'flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-white p-3 dark:bg-card'
-            : 'flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3'}>
-            <p className="text-xs text-muted-foreground">
-              Trang {page} · Tối đa {pageSize} hồ sơ mỗi nhóm. Hồ sơ chờ xử lý
-              được ưu tiên trước.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1 || workspace.isFetching}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Trang trước
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page * pageSize >= total || workspace.isFetching}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Trang sau
-              </Button>
-            </div>
-          </footer>
+          embeddedSalesTable
+            ? <AppPagination page={page} pageSize={pageSize} total={total}
+                itemLabel="hồ sơ" showSummary={false} fixedPageSize disabled={workspace.isFetching}
+                onPageChange={setPage}/>
+            : <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
+                <p className="text-xs text-muted-foreground">
+                  Trang {page} · Tối đa {pageSize} hồ sơ mỗi nhóm. Hồ sơ chờ xử lý được ưu tiên trước.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1 || workspace.isFetching}
+                    onClick={() => setPage(p => p - 1)}>Trang trước</Button>
+                  <Button variant="outline" size="sm" disabled={page * pageSize >= total || workspace.isFetching}
+                    onClick={() => setPage(p => p + 1)}>Trang sau</Button>
+                </div>
+              </footer>
         )}
       {workspace.isFetching && !workspace.isPending && (
         <output className="text-xs text-muted-foreground">

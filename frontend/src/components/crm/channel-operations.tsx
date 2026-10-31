@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, type RefObject } from 'react';
 import {
   QueryClient,
   QueryClientProvider,
@@ -61,6 +61,7 @@ type Props = {
   hideOperationsTabs?: boolean;
   compactOperations?: boolean;
   embeddedSalesTable?: boolean;
+  proposalActionRef?: RefObject<{open: () => void} | null>;
   initialOperationsTab?: string;
 };
 export type Panel =
@@ -98,6 +99,7 @@ function OperationsContent({
   hideOperationsTabs = false,
   compactOperations = false,
   embeddedSalesTable = false,
+  proposalActionRef,
   initialOperationsTab,
 }: Props) {
   const [panel, setPanel] = useState<Panel>(initialPanel);
@@ -247,6 +249,7 @@ function OperationsContent({
           hideTabs={hideOperationsTabs}
           compactHeader={compactOperations}
           embeddedSalesTable={embeddedSalesTable}
+          proposalActionRef={proposalActionRef}
           apiBase={apiBase}
           token={token}
           abilities={abilities}

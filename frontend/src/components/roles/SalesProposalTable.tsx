@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, type SyntheticEvent } from 'react';
 import { Eye, History, Plus, RotateCcw, Search } from 'lucide-react';
 import { AppButton } from '@/components/common/app-button';
 import { AppNativeSelect } from '@/components/common/app-native-select';
@@ -35,7 +35,7 @@ export function SalesProposalTable({proposals, page, total, pageSize, loading, c
   const items = proposals.filter(x =>
     (status === 'ALL' || x.status === status) &&
     (!applied || normalize([x.name,x.school_code,x.submitted_by,x.province,x.ward].join(' ')).includes(normalize(applied))));
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     setApplied(term.trim());
     onSearch(term.trim());
@@ -97,6 +97,6 @@ export function SalesProposalTable({proposals, page, total, pageSize, loading, c
     </div>
     {!items.length && <p className="p-10 text-center text-sm text-muted-foreground">Không có đề xuất trường phù hợp. Hãy thử bộ lọc khác.</p>}
     {!preview && <AppPagination page={page} pageSize={pageSize} total={total} disabled={loading}
-      onPageChange={onPageChange} onPageSizeChange={()=>{}}/>}
+      onPageChange={onPageChange}/>}
   </div>;
 }

@@ -1,12 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Settings2, RefreshCw } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppButton } from '@/components/common/app-button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { fetchCapacities, updateCapacity } from '@/services/capacity.service';
@@ -30,14 +29,13 @@ export function CapacitiesPage({apiBase,token,abilities}:Props) {
   const limit=Number(limitInput);
   const [reason,setReason]=useState('');
   const [loading,setLoading]=useState(false);
-  const [error,setError]=useState('');
-  const [confirmOpen,setConfirmOpen]=useState(false);
+    const [confirmOpen,setConfirmOpen]=useState(false);
   const canManage=abilities.includes('channel_sales.school.capacity.manage')||abilities.includes('*');
   const reload=useCallback(async()=>{
     if(!apiBase)return;
-    setLoading(true);setError('');
+    setLoading(true);
     try {const result=await fetchCapacities(apiBase,token);setRows(result.data);}
-    catch(e){setError(e instanceof Error?e.message:'Không tải được hạn mức.');}
+    catch(e){appNotice.error('Không tải được danh sách hạn mức.',e instanceof Error?e.message:'Vui lòng thử lại.');}
     finally{setLoading(false);}
   },[apiBase,token]);
   useEffect(()=>{void reload();},[reload]);
@@ -54,19 +52,17 @@ export function CapacitiesPage({apiBase,token,abilities}:Props) {
   const save=async()=>{
     if(!selected||!canManage)return;
     if(!validate()){setConfirmOpen(false);return;}
-    setLoading(true);setError('');
+    setLoading(true);
     try{
       await updateCapacity(apiBase,token,selected.id,limit,reason.trim());
       setSelected(null);setConfirmOpen(false);setReason('');appNotice.success('Cập nhật hạn mức thành công','Đã lưu lịch sử thay đổi.');await reload();
-    }catch(e){const message=e instanceof Error?e.message:'Không cập nhật được hạn mức.';setError(message);setConfirmOpen(false);}
+    }catch(e){appNotice.error('Không cập nhật được hạn mức.',e instanceof Error?e.message:'Vui lòng thử lại.');setConfirmOpen(false);}
     finally{setLoading(false);}
   };
   return <div className="space-y-4">
     <AppPageHeader eyebrow="QUẢN TRỊ / HẠN MỨC TIẾP CẬN" title="Quản lý hạn mức tiếp cận"
       description="Theo dõi hạn mức trường đang tiếp cận của Nhân viên/CTV. Giảm hạn mức không thu hồi quyền hợp lệ hiện có."
-      actions={<AppButton tone="blue" premium leadingIcon={<RefreshCw className="size-4"/>}
-        disabled={loading||!apiBase} onClick={()=>void reload()}>Làm mới</AppButton>}/>
-    {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      />
     <AdminListPanel>
       <AdminListToolbar search={searchDraft} onSearchChange={setSearchDraft}
         onSearch={()=>{setSearch(searchDraft.trim());setPage(1);}}
@@ -88,7 +84,7 @@ export function CapacitiesPage({apiBase,token,abilities}:Props) {
             <td className="px-5 py-4 text-center tabular-nums">{x.active}</td>
             <td className="px-5 py-4 text-center tabular-nums">{x.school_approach_limit}</td>
             <td className="px-5 py-4 text-center">{canManage&&<AdminIconAction icon={Settings2} tone="blue"
-              label={`Điều chỉnh hạn mức ${x.name}`} onClick={()=>{setSelected(x);setLimitInput(String(x.school_approach_limit));setReason('');setFieldErrors({});setError('');}}/>}</td>
+              label={`Điều chỉnh hạn mức ${x.name}`} onClick={()=>{setSelected(x);setLimitInput(String(x.school_approach_limit));setReason('');setFieldErrors({});}}/>}</td>
           </tr>)}</tbody>
         </table>
         {!loading&&filtered.length===0&&<p className="p-8 text-center text-sm text-muted-foreground">{apiBase?'Không có nhân sự phù hợp.':'Chưa kết nối API.'}</p>}

@@ -40,7 +40,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
   const updateProposal=async(id:number,approve:boolean,duplicateReviewed:boolean)=>{
     if(!reason.trim()){setReasonError('Cần nhập căn cứ quyết định.');return;}
     setReasonError('');setBusy(true);
-    try{await reviewAdminProposal(apiBase,token,id,approve,reason,duplicateReviewed);setSelected(null);setReason('');appNotice.success(approve?'Đã phê duyệt đề xuất trường.':'Đã từ chối đề xuất trường.');await reload();await onChanged();}
+    try{await reviewAdminProposal(apiBase,token,id,approve,reason,duplicateReviewed);setSelected(null);setReason('');appNotice.success(approve?'Đã phê duyệt đề xuất trường.':'Đã từ chối đề xuất trường.');await reload();try{await onChanged();}catch(e){appNotice.warning('Đã lưu, nhưng chưa cập nhật được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}}
     catch(e){appNotice.error('Không lưu được quyết định đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
   };
   const openEdit=(p:SchoolOperationsWorkspace['proposals'][number])=>{
@@ -50,7 +50,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
     if(!reason.trim()){setReasonError('Cần ghi lý do sửa đề xuất.');return;}
     setReasonError('');setBusy(true);
     try{await editAdminProposal(apiBase,token,p.id,{expected_version:p.version,school_code:editFields.school_code,name:editFields.name,province:editFields.province,ward:editFields.ward,address:editFields.address,contact_name:editFields.contact_name,contact_position:editFields.contact_position,contact_phone:editFields.contact_phone,email:editFields.email,reason});
-      setEditing(null);setReason('');appNotice.success('Đã cập nhật đề xuất và lưu lịch sử.');await reload();await onChanged();
+      setEditing(null);setReason('');appNotice.success('Đã cập nhật đề xuất và lưu lịch sử.');await reload();try{await onChanged();}catch(e){appNotice.warning('Đã lưu, nhưng chưa cập nhật được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}
     }catch(e){appNotice.error('Không lưu được thay đổi đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
   };
   const showRevisions=async(id:number)=>{

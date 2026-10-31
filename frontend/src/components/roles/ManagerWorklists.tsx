@@ -286,17 +286,16 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     </AdminListPanel>
     <Dialog open={confirmProposal!==null} onOpenChange={open => { if (!open && !confirmingProposal) setConfirmProposal(null); }}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Xác nhận chuyển đề xuất</DialogTitle>
-          <DialogDescription>
+        <DialogHeader className="gap-3">
+          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">Xác nhận chuyển đề xuất</DialogTitle>
+          <DialogDescription className="text-[15px] leading-7 text-foreground/90 sm:text-base">
             Bạn có xác nhận chuyển đề xuất trường <strong className="text-foreground">{confirmProposal?.name}</strong> lên Admin để xem xét và phê duyệt không?
           </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">Hạn xử lý được hệ thống tự tính theo chính sách vận hành. Đề xuất không tự được duyệt khi quá hạn.</p>
         {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={confirmingProposal} onClick={() => setConfirmProposal(null)}>Hủy</Button>
-          <Button type="button" disabled={confirmingProposal} className="bg-[#1b5e20] text-white hover:bg-[#124c17]" onClick={async () => {
+        <div className="flex flex-col-reverse items-stretch justify-center gap-3 pt-2 sm:flex-row sm:items-center">
+          <Button type="button" variant="outline" disabled={confirmingProposal} className="h-11 w-full font-semibold sm:w-40" onClick={() => setConfirmProposal(null)}>Hủy</Button>
+          <Button type="button" disabled={confirmingProposal} className="h-11 w-full bg-[#1b5e20] font-semibold text-white hover:bg-[#124c17] sm:w-40" onClick={async () => {
             if (!confirmProposal || confirmingProposal) return;
             setConfirmingProposal(true);
             setConfirmationError('');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ComponentProps } from 'react';
-import { BookOpenCheck, CalendarClock, Handshake, School, UsersRound } from 'lucide-react';
+import { CalendarClock, Handshake, School, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { ChannelOperations } from '@/components/crm/channel-operations';

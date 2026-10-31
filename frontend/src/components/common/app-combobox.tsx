@@ -1,7 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Combobox as BaseCombobox } from '@base-ui/react/combobox';
 import {
   Combobox, ComboboxInput, ComboboxContent, ComboboxList,
   ComboboxItem, ComboboxEmpty,
@@ -26,12 +24,10 @@ export function AppCombobox({
   options, value, onChange, placeholder = 'Tìm và chọn…',
   disabled = false, invalid = false, name, id, ariaLabel,
 }: Props) {
-  const items = useMemo(() => BaseCombobox.createItems(options, {
-    getValue: option => option.value,
-    getLabel: option => option.label,
-  }), [options]);
+  const items = options.map(option => option.value);
+  const labelFor = (item: string) => options.find(option => option.value === item)?.label ?? item;
 
-  return <Combobox items={items} value={value || null}
+  return <Combobox items={items} itemToStringLabel={labelFor} value={value || null}
     onValueChange={next => onChange(next ?? '')} disabled={disabled}>
     <ComboboxInput
       id={id}

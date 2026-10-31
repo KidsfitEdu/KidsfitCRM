@@ -32,7 +32,7 @@
 | O-03 | Who at KIDSFIT performs **long-term protection grant** after CHECKEE verification, now that Admin is excluded from daily contract operations | Keep permission gated; do not automatically grant on CHECKEE confirmation or silently delegate it |
 | O-04 | Commission 30% approval, **value of contract vs actual received**, thresholds, effective date, pay cycle, tax, refunds/clawback | Keep demo rates marked synthetic; block real payout policy activation without authorized version |
 | O-05 | Parent school vs branches: scope of registration, quota and 5-year right in ambiguous contracts | Preserve current main-school mapping as documented technical behavior; flag business-policy uncertainty |
-| O-06 | Proposal priority, invitation response, manager/Admin SLA, holidays and overdue escalations | No fabricated 24h/48h/7-day SLA |
+| O-06 | Invitation/manager-stage SLA, working days, holidays and other escalation windows | Admin stage of school proposals uses the active workflow policy's `AdminReviewHours`, falling back to 72 elapsed hours when none is active. On overdue, persist one recipient-scoped in-CRM alert for each central Admin and Director. Other timelines remain OPEN. |
 | O-07 | Cancellation/refund authority, revocation date, exception handling for prior paid commission | Record reversal/adjustment separately; do not silently destroy original ledger |
 | O-08 | Any new cross-partner visibility and delegation to manager/CSKH | Default deny beyond existing authorized scope |
 

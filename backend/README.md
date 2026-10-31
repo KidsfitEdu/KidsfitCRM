@@ -155,6 +155,17 @@ Tất cả đường dẫn dưới đây nằm dưới prefix `/api`, ngoại tr
 
 Endpoint và DTO thực tế nằm trong `Features/ApiEndpoints.cs`, `ChannelSalesEndpoints.cs`, `SchoolEndpoints.cs` và `SchoolOperationsEndpoints.cs`. **Tên gọi endpoint không chứng minh mọi workflow được nghiệm thu**; cần test phân quyền, trạng thái và dữ liệu.
 
+### Cảnh báo đề xuất trường quá hạn (Admin và BGĐ)
+
+Khi Quản lý bán hàng xác nhận chuyển đề xuất sang `PENDING_ADMIN`, Backend tự tính `review_due_at` từ `SchoolWorkflowPolicyVersion.AdminReviewHours` đang hiệu lực; nếu chưa có chính sách, dùng **72 giờ lịch**. Frontend không cho tự đặt hạn xử lý ở bước chuyển và không tự động duyệt.
+
+Ứng dụng API (khi chạy bình thường, không phải `--migrate`) có `SchoolProposalAlertWorker` kiểm tra hồ sơ `PENDING_ADMIN` quá hạn lúc khởi động và mỗi phút. Bảng `school_proposal_alerts` lưu một thông báo theo từng Admin/BGĐ KIDSFIT còn hoạt động và từng thời hạn; khóa unique chống lặp khi nhiều instance chạy. Khi Admin xử lý hồ sơ, thông báo chuyển `RESOLVED`. Không cần Redis, email, cron bên ngoài.
+
+- `GET /api/notifications`: danh sách tối đa 50 cảnh báo đang mở và số chưa đọc của tài khoản hiện tại.
+- `POST /api/notifications/{id}/read`: đánh dấu đã đọc, chỉ cho người nhận.
+- Migration `ProposalOverdueAlerts` là **additive**, phải chạy `--migrate` trước khi chạy phiên bản API mới. Không xóa hoặc chỉnh migration `InitialCRM` đã áp dụng.
+- Công việc quá hạn được tạo khi Backend đang hoạt động; không đảm bảo thông báo tức thời khi dịch vụ ngừng chạy. Không gửi email hoặc Zalo.
+
 ## 8. Kiểm thử
 
 ```powershell

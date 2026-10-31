@@ -7,6 +7,7 @@ public sealed partial class KidsfitDbContext
 {
     public DbSet<SchoolWorkflowPolicyVersion> SchoolWorkflowPolicies => Set<SchoolWorkflowPolicyVersion>();
     public DbSet<SchoolProposal> SchoolProposals => Set<SchoolProposal>();
+    public DbSet<SchoolProposalAlert> SchoolProposalAlerts => Set<SchoolProposalAlert>();
     public DbSet<SchoolProposalRevision> SchoolProposalRevisions => Set<SchoolProposalRevision>();
     public DbSet<SchoolInvitation> SchoolInvitations => Set<SchoolInvitation>();
     public DbSet<SchoolExtensionRequest> SchoolExtensionRequests => Set<SchoolExtensionRequest>();
@@ -48,6 +49,16 @@ public sealed partial class KidsfitDbContext
                 });
             }
         }
+        // Each recipient is notified once per proposal deadline and alert kind.
+        // This unique key protects against duplicate delivery from concurrent app instances.
+        b.Entity<SchoolProposalAlert>().Property(x => x.Kind).HasMaxLength(32);
+        b.Entity<SchoolProposalAlert>().Property(x => x.Status).HasMaxLength(24);
+        b.Entity<SchoolProposalAlert>().Property(x => x.DeduplicationKey).HasMaxLength(120).UseCollation("utf8mb4_bin");
+        b.Entity<SchoolProposalAlert>().HasIndex(x => x.DeduplicationKey).IsUnique();
+        b.Entity<SchoolProposalAlert>().HasIndex(x => new { x.RecipientUserId, x.Status, x.CreatedAt });
+        b.Entity<SchoolProposalAlert>().HasIndex(x => new { x.SchoolProposalId, x.Status });
+        Restrict<SchoolProposalAlert, SchoolProposal>(b, x => x.SchoolProposalId);
+        Restrict<SchoolProposalAlert, User>(b, x => x.RecipientUserId);
         b.Entity<SchoolProposal>().Property(x => x.Version).IsConcurrencyToken();
         b.Entity<SchoolProposalRevision>().HasIndex(x => new { x.SchoolProposalId, x.Version }).IsUnique();
         Restrict<SchoolProposalRevision, SchoolProposal>(b, x => x.SchoolProposalId);

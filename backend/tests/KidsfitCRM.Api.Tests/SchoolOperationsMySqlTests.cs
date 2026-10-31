@@ -3,6 +3,7 @@ using System.Text.Json;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Features;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MySql.Data.MySqlClient;
@@ -63,6 +64,37 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task ForwardProposalUsesAutomatic72HourDeadlineAndCreatesSingleScopedEscalation()
+    {
+        var scenario = await Arrange();
+        var adminId = await User("admin@kidsfit.vn");
+        var directorId = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var action = new ChannelSalesActions(db);
+        var proposalId = await action.SubmitSchoolProposal(Proposal(), scenario.Seller.UserId, Http(), Ct);
+
+        var forwardedAt = DateTime.UtcNow;
+        await action.ReviewSchoolProposal(proposalId, new(true, null, null), false, scenario.Manager.UserId, Http(), Ct);
+        var proposal = await db.SchoolProposals.AsNoTracking().SingleAsync(x => x.Id == proposalId);
+        Assert.Equal("PENDING_ADMIN", proposal.Status);
+        Assert.InRange(proposal.ReviewDueAt, forwardedAt.AddHours(72).AddSeconds(-5), forwardedAt.AddHours(72).AddSeconds(5));
+
+        // Simulate overdue without sleeping; repeat sweep must be exactly-once per recipient.
+        await db.SchoolProposals.Where(x => x.Id == proposalId)
+            .ExecuteUpdateAsync(set => set.SetProperty(x => x.ReviewDueAt, DateTime.UtcNow.AddMinutes(-2)), Ct);
+        await SchoolProposalAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        await SchoolProposalAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+
+        var notices = await db.SchoolProposalAlerts.AsNoTracking().Where(x => x.SchoolProposalId == proposalId).ToArrayAsync(Ct);
+        Assert.Equal(2, notices.Length);
+        Assert.Contains(notices, x => x.RecipientUserId == adminId && x.Kind == "ADMIN_OVERDUE" && x.Status == "OPEN");
+        Assert.Contains(notices, x => x.RecipientUserId == directorId && x.Kind == "DIRECTOR_ESCALATION" && x.Status == "OPEN");
+
+        await action.ReviewSchoolProposal(proposalId, new(false, "Thiếu hồ sơ trường học", null), true, adminId, Http(), Ct);
+        Assert.Empty(await db.SchoolProposalAlerts.AsNoTracking()
+            .Where(x => x.SchoolProposalId == proposalId && x.Status == "OPEN").ToArrayAsync(Ct));
+    }
+
     [MySqlFact] public async Task ActualDatabaseUsesBinaryKeysAndWholeDongNotOnlyModelAnnotations()
     {
         await using var connection = new MySqlConnection(fixture.ConnectionString); await connection.OpenAsync();
@@ -70,7 +102,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         {
             await using var command = new MySqlCommand("SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @table AND COLUMN_NAME = 'idempotency_key'", connection);
             command.Parameters.AddWithValue("@table", table);
-            Assert.Equal("utf8mb4_bin", Convert.ToString(await command.ExecuteScalarAsync()));
+            var actualCollation = Convert.ToString(await command.ExecuteScalarAsync());
+            Assert.True(string.Equals("utf8mb4_bin", actualCollation, StringComparison.OrdinalIgnoreCase), $"MySQL column {table}.idempotency_key: expected utf8mb4_bin, found {actualCollation}");
         }
         await using var money = new MySqlCommand("SELECT NUMERIC_SCALE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'revenue_refunds' AND COLUMN_NAME = 'amount'", connection);
         Assert.Equal(0, Convert.ToInt32(await money.ExecuteScalarAsync()));
@@ -292,6 +325,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     [MySqlFact] public async Task ConcurrentRefundsCannotExceedReceiptAndCancellationNeverDeletesLedgerOrReactivatesContract()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s); var admin = await User("admin@kidsfit.vn");
+        // Admin finance totals are organization-wide. Compare the delta, not an absolute value.
+        await using var beforeDb = fixture.Open();
+        var beforeFinance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), beforeDb, null, Ct));
+        var netBefore = beforeFinance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal();
         long receipt;
         await using (var db = fixture.Open()) receipt = await new ChannelSalesActions(db).RecordRevenueReceipt(contractId, new(Key(), null, 1_000_000, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
         async Task<long?> Refund()
@@ -304,8 +341,11 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var check = fixture.Open(); var a = new ChannelSalesActions(check);
         Assert.Equal(1_000_000, await check.RevenueReceipts.Where(x => x.Id == receipt).Select(x => x.Amount).SingleAsync());
         Assert.Equal(100_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync());
-        var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(s.Seller.UserId), check, null, Ct));
-        Assert.Equal(250_000, finance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal());
+        // Aggregate organizational receipts are available to the authorized finance Admin, not a Sales-only view.
+        var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), check, null, Ct));
+        Assert.Equal(250_000, finance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal() - netBefore);
+        Assert.Equal(250_000m, (await check.RevenueReceipts.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount))
+            - (await check.RevenueRefunds.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount)));
         var cancellation = new CancelSalesContractRequest(Key(), "Chấm dứt theo quyết định", "TEST-CANCELLATION");
         var id = await a.CancelSalesContract(contractId, cancellation, admin, Http(), Ct);
         Assert.Equal(id, await a.CancelSalesContract(contractId, cancellation, admin, Http(), Ct));
@@ -453,7 +493,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(100_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == employeeContract).Select(x => x.Amount).SingleAsync());
         var future = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1);
         var nextPolicy = await a.CreateCommissionPolicy(new(s.OrgId, "NEXT-" + Key(), "Phiên bản CTV tiếp theo", 11m, future, null, "SALES"), admin, Http(), Ct);
-        Assert.Equal("COLLABORATOR", (await db.CommissionPolicyVersions.FindAsync(nextPolicy))!.PersonnelType);
+        Assert.Equal("SALES", (await db.CommissionPolicyVersions.FindAsync(nextPolicy))!.PersonnelType);
         await Assert.ThrowsAsync<ApiValidationException>(() => a.CreateCommissionPolicy(new(s.OrgId, "BAD-" + Key(), "Nhóm không hợp lệ", 10m, future, null, "UNKNOWN"), admin, Http(), Ct));
     }
 

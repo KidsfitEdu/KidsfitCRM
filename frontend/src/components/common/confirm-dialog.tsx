@@ -24,7 +24,7 @@ export function ConfirmDialog({
   return <AppDialog open={open} onOpenChange={onOpenChange} title={title} footerAlign="center"
     busy={busy} contentClassName="sm:max-w-md"
     footer={<>
-      <AppButton type="button" tone="outline" disabled={busy} className="h-11 w-full sm:w-40"
+      <AppButton type="button" tone="neutral" disabled={busy} className="h-11 w-full sm:w-40"
         onClick={() => onOpenChange(false)}>Hủy</AppButton>
       <AppButton type="button" tone={destructive ? 'danger' : 'green'} busy={busy}
         className="h-11 w-full sm:w-40" onClick={onConfirm}>

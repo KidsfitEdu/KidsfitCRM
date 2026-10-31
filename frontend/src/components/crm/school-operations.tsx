@@ -708,7 +708,10 @@ export function SchoolOperations({
                     {x.can_respond && !preview && (
                       <>
                         <Button
-                          size="sm"
+                          size={embeddedSalesTable ? 'icon' : 'sm'}
+                          title={embeddedSalesTable ? `Nhận trường ${x.school_name}` : undefined}
+                          aria-label={embeddedSalesTable ? `Nhận trường ${x.school_name}` : undefined}
+                          className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
                           onClick={() =>
                             setAction({
                               title: 'Nhận trường',
@@ -720,11 +723,14 @@ export function SchoolOperations({
                             })
                           }
                         >
-                          Nhận trường
+                          {embeddedSalesTable ? <CheckCircle2 className="size-4" aria-hidden="true"/> : 'Nhận trường'}
                         </Button>
                         <Button
-                          size="sm"
+                          size={embeddedSalesTable ? 'icon' : 'sm'}
                           variant="outline"
+                          title={embeddedSalesTable ? `Từ chối phân bổ ${x.school_name}` : undefined}
+                          aria-label={embeddedSalesTable ? `Từ chối phân bổ ${x.school_name}` : undefined}
+                          className={embeddedSalesTable ? 'size-9 rounded-lg text-rose-700' : undefined}
                           onClick={() =>
                             setAction({
                               title: 'Từ chối phân bổ',
@@ -736,14 +742,17 @@ export function SchoolOperations({
                             })
                           }
                         >
-                          Từ chối
+                          {embeddedSalesTable ? <XCircle className="size-4" aria-hidden="true"/> : 'Từ chối'}
                         </Button>
                       </>
                     )}
                     {x.can_cancel && !preview && (
                       <Button
-                        size="sm"
+                        size={embeddedSalesTable ? 'icon' : 'sm'}
                         variant="outline"
+                        title={embeddedSalesTable ? `Hủy lời mời ${x.school_name}` : undefined}
+                        aria-label={embeddedSalesTable ? `Hủy lời mời ${x.school_name}` : undefined}
+                        className={embeddedSalesTable ? 'size-9 rounded-lg text-rose-700' : undefined}
                         onClick={() =>
                           setAction({
                             title: 'Hủy lời mời',
@@ -755,7 +764,7 @@ export function SchoolOperations({
                           })
                         }
                       >
-                        Hủy lời mời
+                        {embeddedSalesTable ? <Ban className="size-4" aria-hidden="true"/> : 'Hủy lời mời'}
                       </Button>
                     )}
                     {historyButton('invitation', x.id, x.school_name)}
@@ -783,8 +792,11 @@ export function SchoolOperations({
                   </p>
                   {x.can_complete && !preview && (
                     <Button
-                      size="sm"
+                      size={embeddedSalesTable ? 'icon' : 'sm'}
                       variant="outline"
+                      title={embeddedSalesTable ? `Hoàn tất rà soát ${x.school_name}` : undefined}
+                      aria-label={embeddedSalesTable ? `Hoàn tất rà soát ${x.school_name}` : undefined}
+                      className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
                       onClick={() =>
                         setAction({
                           title: 'Ghi kết quả rà soát',
@@ -794,7 +806,7 @@ export function SchoolOperations({
                         })
                       }
                     >
-                      Hoàn tất rà soát
+                      {embeddedSalesTable ? <CheckCircle2 className="size-4" aria-hidden="true"/> : 'Hoàn tất rà soát'}
                     </Button>
                   )}
                 </WorkflowCard>
@@ -847,7 +859,10 @@ export function SchoolOperations({
                     <>
                       {!x.is_expired && (
                         <Button
-                          size="sm"
+                          size={embeddedSalesTable ? 'icon' : 'sm'}
+                          title={embeddedSalesTable ? `Duyệt gia hạn ${x.school_name}` : undefined}
+                          aria-label={embeddedSalesTable ? `Duyệt gia hạn ${x.school_name}` : undefined}
+                          className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
                           onClick={() =>
                             decide(
                               'Duyệt gia hạn',
@@ -871,12 +886,15 @@ export function SchoolOperations({
                             )
                           }
                         >
-                          Duyệt gia hạn
+                          {embeddedSalesTable ? <CheckCircle2 className="size-4" aria-hidden="true"/> : 'Duyệt gia hạn'}
                         </Button>
                       )}
                       <Button
-                        size="sm"
+                        size={embeddedSalesTable ? 'icon' : 'sm'}
                         variant="outline"
+                        title={embeddedSalesTable ? `Từ chối gia hạn ${x.school_name}` : undefined}
+                        aria-label={embeddedSalesTable ? `Từ chối gia hạn ${x.school_name}` : undefined}
+                        className={embeddedSalesTable ? 'size-9 rounded-lg text-rose-700' : undefined}
                         onClick={() =>
                           decide(
                             'Từ chối gia hạn',

@@ -294,7 +294,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       </div>
       {section !== 'progress' && filter !== 'ALL' && section !== 'proposals' &&
         <p className="px-5 py-2 text-xs text-muted-foreground">Bộ lọc trạng thái áp dụng trong nhóm 100 hồ sơ đã tải; số trang vẫn phản ánh toàn bộ hồ sơ thuộc quyền xem.</p>}
-      <AppPagination page={page} pageSize={pageSize} total={total} disabled={busy}
+      <AppPagination page={page} pageSize={pageSize} total={total} disabled={busy} showSummary={false}
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
     {section === 'progress' && report.data && <AdminListPanel>

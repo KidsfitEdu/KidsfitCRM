@@ -74,8 +74,10 @@ test('Sales-only table enhancements retain common role layouts', () => {
   const directory = read('src/components/crm/school-directory.tsx');
   const proposals = read('src/components/crm/school-operations.tsx');
   const table = read('src/components/roles/SalesProposalTable.tsx');
-  assert.match(focus, /md:w-1\/2/);
-  assert.match(focus, /embeddedSalesTable=\{section === 'proposals'\}/);
+  assert.match(focus, /lg:w-\[30%\]/);
+  assert.match(focus, /rounded-t-\[24px\] bg-white/);
+  assert.match(focus, /actions=\{canCreateProposal \?/);
+  assert.match(focus, /embeddedSalesTable=\{section === 'proposals' \|\| isInvitations \|\| isExtensions\}/);
   assert.match(focus, /embedded=\{section === 'customers' \|\| section === 'activities'\}/);
   assert.match(operations, /!compactOperations && visiblePanel !== 'customers'/);
   assert.match(operations, /registrationIconOnly=\{compactOperations\}/);
@@ -84,5 +86,8 @@ test('Sales-only table enhancements retain common role layouts', () => {
   assert.match(proposals, /embeddedSalesTable && active === 'proposals'/);
   assert.match(table, /<table/);
   assert.match(table, /aria-label="Đặt lại bộ lọc"/);
-  assert.match(table, /Thêm mới/);
+  assert.doesNotMatch(table, /Thêm mới/);
+  assert.match(focus, />Thêm mới<\/AppButton>/);
+  assert.match(proposals, /proposalActionRef\.current = \{ open: openProposal \}/);
+  assert.match(proposals, /embeddedSalesTable && \(active === 'invitations' \|\| active === 'extensions'\)/);
 });

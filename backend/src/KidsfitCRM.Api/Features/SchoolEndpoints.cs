@@ -142,8 +142,7 @@ public static class SchoolEndpoints
         var activities = pii ? await db.CustomerActivities.AsNoTracking()
             .Where(x => x.CustomerId == school.CustomerId && (access.All ||
                 (x.ApproachRegistrationId.HasValue && db.ApproachRegistrations.Any(r =>
-                    r.Id == x.ApproachRegistrationId && access.OrganizationIds.Contains(r.OwnerOrganizationId) &&
-                    (access.Organization || r.OwnerUserId == access.UserId)))))
+                    r.Id == x.ApproachRegistrationId && access.OrganizationIds.Contains(r.OwnerOrganizationId)))))
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Take(50)
             .Select(x => new { x.ActivityType, x.Content, x.OccurredAt, x.ContactName, x.ContactPosition, x.Feedback, x.Commitment, x.NextFollowUpAt, x.CreatedAt }).ToArrayAsync(ct) : [];
         var available = !await db.CustomerProtections.AnyAsync(x => x.CustomerId == school.CustomerId && x.Status == "ACTIVE" && x.EffectiveUntil > now, ct);

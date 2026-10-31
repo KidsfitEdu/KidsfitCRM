@@ -99,12 +99,12 @@ test('Sales desktop uses 30% white folder tabs and a table for proposals', async
     'Sales folder tab strip should occupy about 30% of the content width');
   assert.equal(await tabs.locator(':scope > div').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 255)');
   await tabs.getByRole('button',{name:'Chờ nhận phân bổ'}).click();
-  assert.ok(await page.getByRole('textbox',{name:'Tìm hồ sơ'}).isVisible());
-  assert.ok(await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).isVisible());
+  await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
+  await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).waitFor();
   await navigation.getByRole('button',{name:'Tiếp cận & tư vấn',exact:true}).click();
   await page.getByRole('navigation',{name:'Nhóm công việc Sales'})
     .getByRole('button',{name:'Gia hạn tiếp cận'}).click();
-  assert.ok(await page.getByRole('textbox',{name:'Tìm hồ sơ'}).isVisible());
+  await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
   await navigation.getByRole('button',{name:'Đề xuất trường',exact:true}).click();
   await page.getByRole('table').waitFor();
   assert.ok(await page.getByRole('columnheader',{name:'Người đề xuất'}).isVisible());

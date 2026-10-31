@@ -14,6 +14,7 @@ import {
   Plus,
   ReceiptText,
   Search,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -23,6 +24,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { AppButton } from '@/components/common/app-button';
+import { AppNativeSelect } from '@/components/common/app-native-select';
 import {
   Dialog as UiDialog,
   DialogContent,
@@ -44,6 +47,7 @@ export type SalesCustomerMode = 'all' | 'mine' | 'activities';
 
 type Props = {
   mode?: SalesCustomerMode;
+  embedded?: boolean;
   onOpenCustomer?: (id: number) => void;
   workspace: ChannelSalesWorkspace;
   search: string;
@@ -118,6 +122,7 @@ const idempotencyKey = (prefix: string) =>
 
 export function ChannelSalesView({
   mode = 'all',
+  embedded = false,
   onOpenCustomer,
   workspace,
   search,
@@ -132,6 +137,7 @@ export function ChannelSalesView({
   onRecordRevenue,
 }: Props) {
   const [filter, setFilter] = useState<StatusFilter>('ALL');
+  const [draftSearch, setDraftSearch] = useState(search);
   const [registerCustomer, setRegisterCustomer] = useState<
     ChannelCustomer | null | undefined
   >(undefined);
@@ -187,7 +193,7 @@ export function ChannelSalesView({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={embedded ? 'space-y-0' : 'space-y-6'}>
       {mode === 'all' && <section className="relative overflow-hidden rounded-[28px] bg-[#0e2a1a] px-6 py-7 text-white shadow-[0_26px_70px_rgba(17,29,49,.2)] sm:px-8">
         <div className="absolute -right-20 -top-36 size-80 rounded-full bg-[#4caf50]/20 blur-3xl" />
         <div className="absolute -bottom-44 left-1/3 size-80 rounded-full bg-[#20b895]/20 blur-3xl" />
@@ -269,9 +275,27 @@ export function ChannelSalesView({
         />
       </section>}
 
-      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-border/80">
+      <Card className={embedded ? 'overflow-hidden rounded-none border-0 shadow-none' : 'overflow-hidden border-0 shadow-sm ring-1 ring-border/80'}>
         <CardContent className="p-0">
-          <div className="flex flex-col gap-4 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          {embedded ? <form onSubmit={event=>{event.preventDefault();setSearch(draftSearch.trim());}}
+            className="flex flex-wrap items-center gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
+            <div className="relative min-w-[190px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+              <Input aria-label="Tìm trường đang phụ trách" placeholder="Tên trường, mã trường, điện thoại..."
+                className="h-11 w-full rounded-xl pl-10" value={draftSearch} onChange={event=>setDraftSearch(event.target.value)}/>
+            </div>
+            {mode === 'mine' && <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full sm:w-48"
+              value={filter} onChange={event=>setFilter(event.target.value as StatusFilter)}>
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="APPROACHING">Đang tiếp cận</option>
+              <option value="CONTRACTED">Đã ký hợp đồng</option>
+            </AppNativeSelect>}
+            <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+            <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
+              aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');}}>
+              <RotateCcw className="size-4" aria-hidden="true"/>
+            </AppButton>
+          </form> : <div className="flex flex-col gap-4 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1">
               {tabs.filter(tab => mode === 'all' || (mode === 'mine' && tab.id !== 'AVAILABLE')).filter(() => mode !== 'activities').map((tab) => (
                 <button
@@ -295,7 +319,7 @@ export function ChannelSalesView({
                 placeholder="Tên, MST, điện thoại…"
               />
             </div>
-          </div>
+          </div>}
 
           <div className="hidden grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid">
             <span>Khách hàng</span>

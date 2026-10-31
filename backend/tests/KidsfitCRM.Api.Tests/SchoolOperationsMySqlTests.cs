@@ -336,7 +336,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var check = fixture.Open(); var a = new ChannelSalesActions(check);
         Assert.Equal(1_000_000, await check.RevenueReceipts.Where(x => x.Id == receipt).Select(x => x.Amount).SingleAsync());
         Assert.Equal(100_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync());
-        var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(s.Seller.UserId), check, null, Ct));
+        // Aggregate organizational receipts are available to the authorized finance Admin, not a Sales-only view.
+        var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), check, null, Ct));
         Assert.Equal(250_000, finance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal());
         var cancellation = new CancelSalesContractRequest(Key(), "Chấm dứt theo quyết định", "TEST-CANCELLATION");
         var id = await a.CancelSalesContract(contractId, cancellation, admin, Http(), Ct);
@@ -485,7 +486,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(100_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == employeeContract).Select(x => x.Amount).SingleAsync());
         var future = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1);
         var nextPolicy = await a.CreateCommissionPolicy(new(s.OrgId, "NEXT-" + Key(), "Phiên bản CTV tiếp theo", 11m, future, null, "SALES"), admin, Http(), Ct);
-        Assert.Equal("COLLABORATOR", (await db.CommissionPolicyVersions.FindAsync(nextPolicy))!.PersonnelType);
+        Assert.Equal("SALES", (await db.CommissionPolicyVersions.FindAsync(nextPolicy))!.PersonnelType);
         await Assert.ThrowsAsync<ApiValidationException>(() => a.CreateCommissionPolicy(new(s.OrgId, "BAD-" + Key(), "Nhóm không hợp lệ", 10m, future, null, "UNKNOWN"), admin, Http(), Ct));
     }
 

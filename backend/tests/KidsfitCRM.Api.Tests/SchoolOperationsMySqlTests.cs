@@ -102,7 +102,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         {
             await using var command = new MySqlCommand("SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @table AND COLUMN_NAME = 'idempotency_key'", connection);
             command.Parameters.AddWithValue("@table", table);
-            Assert.Equal("utf8mb4_bin", Convert.ToString(await command.ExecuteScalarAsync()));
+            var actualCollation = Convert.ToString(await command.ExecuteScalarAsync());
+            Assert.True(string.Equals("utf8mb4_bin", actualCollation, StringComparison.OrdinalIgnoreCase), $"MySQL column {table}.idempotency_key: expected utf8mb4_bin, found {actualCollation}");
         }
         await using var money = new MySqlCommand("SELECT NUMERIC_SCALE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'revenue_refunds' AND COLUMN_NAME = 'amount'", connection);
         Assert.Equal(0, Convert.ToInt32(await money.ExecuteScalarAsync()));

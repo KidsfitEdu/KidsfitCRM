@@ -31,8 +31,7 @@ public static class CustomerWorkLogEndpoints
             // Never leak notes created under another partner's school approach.
             query = query.Where(a => a.ApproachRegistrationId.HasValue &&
                 db.ApproachRegistrations.Any(r =>
-                    r.Id == a.ApproachRegistrationId && activeOrgIds.Contains(r.OwnerOrganizationId) &&
-                    (access.Organization || r.OwnerUserId == access.UserId)));
+                    r.Id == a.ApproachRegistrationId && activeOrgIds.Contains(r.OwnerOrganizationId)));
         }
 
         var normalizedType = type?.Trim().ToUpperInvariant();

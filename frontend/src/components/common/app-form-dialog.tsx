@@ -24,7 +24,7 @@ export function AppFormDialog({
   return <AppDialog open={open} onOpenChange={onOpenChange}
     title={title} description={description} busy={busy}
     footer={<>
-      <AppButton type="button" tone="outline" disabled={busy} className="h-11 min-w-32" onClick={() => onOpenChange(false)}>
+      <AppButton type="button" tone="neutral" disabled={busy} className="h-11 min-w-32" onClick={() => onOpenChange(false)}>
         Hủy
       </AppButton>
       <AppButton type="submit" form={formId} tone={destructive ? 'danger' : 'green'} busy={busy}

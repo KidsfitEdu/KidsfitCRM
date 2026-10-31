@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppButton } from '@/components/common/app-button';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -213,7 +214,11 @@ export function SchoolDirectory({
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: channelQueryKeys.all });
       await onChanged();
-      setNotice('Đã lưu thay đổi và lịch sử xử lý.');
+      if (adminMode) appNotice.success('Đã lưu thay đổi trường học và lịch sử xử lý.');
+      else setNotice('Đã lưu thay đổi và lịch sử xử lý.');
+    },
+    onError: (error) => {
+      if (adminMode) appNotice.error('Không lưu được thay đổi trường học.', error instanceof Error ? error.message : 'Vui lòng thử lại.');
     },
   });
   const upload = useMutation({
@@ -235,6 +240,7 @@ export function SchoolDirectory({
     onSuccess: async (result, commit) => {
       if (!commit) {
         setPreview(result);
+        if (adminMode) appNotice.info('Đã kiểm tra file Excel.', 'Vui lòng xem trước dữ liệu và cảnh báo trước khi xác nhận nhập.');
         return;
       }
       await client.invalidateQueries({ queryKey: channelQueryKeys.all });
@@ -242,13 +248,19 @@ export function SchoolDirectory({
       setImportOpen(false);
       setFile(null);
       setPreview(null);
-      setNotice(
-        `Đã nhập ${result.data?.schools_created ?? 0} trường mới và ${result.data?.units_created ?? 0} đơn vị mới. Dữ liệu cũ được giữ nguyên.`,
-      );
+      const message = `Đã nhập ${result.data?.schools_created ?? 0} trường mới và ${result.data?.units_created ?? 0} đơn vị mới. Dữ liệu cũ được giữ nguyên.`;
+      if (adminMode) appNotice.success('Import Excel thành công.', message);
+      else setNotice(message);
+    },
+    onError: (error) => {
+      if (adminMode) appNotice.error('Không thể xử lý file Excel.', error instanceof Error ? error.message : 'Vui lòng kiểm tra file và thử lại.');
     },
   });
   const run = (command: Command) => mutation.mutateAsync(command);
   const openImport = () => {setImportOpen(true);upload.reset();};
+  useEffect(() => {
+    if (adminMode && schools.error) appNotice.error('Không tải được danh sách trường học.', schools.error.message);
+  }, [adminMode, schools.error]);
   const visibleSchools = schools.data?.data ?? [];
   return (
     <div className="space-y-5">
@@ -262,12 +274,12 @@ export function SchoolDirectory({
             description="Quản lý trường chính, phân hiệu và quyền bảo vệ khách hàng"
             actions={renderImportAction?.(openImport)}/>
         : renderImportAction?.(openImport)}
-      {notice && (
+      {!adminMode && notice && (
         <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           {notice}
         </output>
       )}
-      {(schools.error || mutation.error || capacities.error) && (
+      {!adminMode && (schools.error || mutation.error || capacities.error) && (
         <ErrorText>
           {schools.error?.message ??
             mutation.error?.message ??
@@ -468,7 +480,7 @@ export function SchoolDirectory({
               upload.reset();
             }}
           />
-          {upload.error && <ErrorText>{upload.error.message}</ErrorText>}
+          {!adminMode && upload.error && <ErrorText>{upload.error.message}</ErrorText>}
           <Button
             variant="outline"
             disabled={!file || upload.isPending}

@@ -13,6 +13,11 @@ type WorkLog = {
   activity_type: string;
   content: string;
   created_at: string;
+  occurred_at?: string | null;
+  contact_name?: string | null;
+  contact_position?: string | null;
+  feedback?: string | null;
+  commitment?: string | null;
   user_name: string;
 };
 type Response = { data: WorkLog[]; total: number; page: number; page_size: number };
@@ -69,7 +74,13 @@ export function SchoolWorkLogDrawer({
             <time dateTime={log.created_at} className="text-xs tabular-nums text-muted-foreground">{vietnamDateTime(log.created_at)}</time>
           </div>
           <p className="mt-1 mb-2 text-xs text-muted-foreground">Ghi nhận bởi: {log.user_name}</p>
+          {log.occurred_at && <p className="mb-2 text-xs text-muted-foreground">Làm việc lúc: {vietnamDateTime(log.occurred_at)}</p>}
+          {(log.contact_name || log.contact_position) && <p className="mb-2 text-xs text-muted-foreground">
+            Trao đổi với: {[log.contact_name,log.contact_position].filter(Boolean).join(' · ')}
+          </p>}
           <AppWorkNoteContent content={log.content} compact/>
+          {log.feedback && <p className="mt-2 text-sm"><strong>Phản hồi:</strong> {log.feedback}</p>}
+          {log.commitment && <p className="mt-2 text-sm"><strong>Cam kết:</strong> {log.commitment}</p>}
         </li>)}
       </ol>
       {logs.data && logs.data.total > PAGE_SIZE && <div className="flex items-center justify-between border-t border-border pt-3">

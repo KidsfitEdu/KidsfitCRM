@@ -446,6 +446,11 @@ export function SchoolOperations({
           </Button>
         )}
       </header>}
+      {compactHeader && active === 'proposals' && can('channel_sales.school.proposal.submit') && !all && (
+        <div className="flex justify-end">
+          <Button onClick={openProposal}><Plus className="size-4"/> Đề xuất trường</Button>
+        </div>
+      )}
       {preview && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           Các tình huống dưới đây dùng dữ liệu minh họa, chỉ đọc. Để ghi nhận hồ

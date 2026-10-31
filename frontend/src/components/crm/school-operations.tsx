@@ -14,6 +14,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SalesProposalTable } from '@/components/roles/SalesProposalTable';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -53,6 +54,7 @@ type Props = {
   initialTab?: string;
   hideTabs?: boolean;
   compactHeader?: boolean;
+  embeddedSalesTable?: boolean;
 };
 const reason: SchoolActionField = {
   name: 'reason',
@@ -78,6 +80,7 @@ export function SchoolOperations({
   initialTab = 'proposals',
   hideTabs = false,
   compactHeader = false,
+  embeddedSalesTable = false,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
   const [search, setSearch] = useState('');
@@ -86,6 +89,7 @@ export function SchoolOperations({
   const [pendingOnly, setPendingOnly] = useState(true);
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [action, setAction] = useState<SchoolAction | null>(null);
+  const [selectedProposal, setSelectedProposal] = useState<SchoolOperationsWorkspace['proposals'][number] | null>(null);
   const [history, setHistory] = useState<{
     kind: string;
     id: number;
@@ -224,7 +228,7 @@ export function SchoolOperations({
     ]);
     if (refresh.some((r) => r.status === 'rejected'))
       setNotice(
-        'Đã lưu. Chưa tải lại được toàn bộ dữ liệu; anh có thể bấm Làm mới.',
+        'Đã lưu. Danh sách sẽ tự cập nhật khi kết nối ổn định.',
       );
   };
   const data = workspace.data;
@@ -426,7 +430,7 @@ export function SchoolOperations({
   const total = data.pagination?.totals[active] ?? 0;
   const pageSize = data.pagination?.page_size ?? 100;
   return (
-    <div className="space-y-5">
+    <div className={embeddedSalesTable ? 'space-y-0' : 'space-y-5'}>
       {!compactHeader && <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#1b5e20] dark:text-[#a5d6a7]">
@@ -446,7 +450,7 @@ export function SchoolOperations({
           </Button>
         )}
       </header>}
-      {compactHeader && active === 'proposals' && can('channel_sales.school.proposal.submit') && !all && (
+      {!embeddedSalesTable && compactHeader && active === 'proposals' && can('channel_sales.school.proposal.submit') && !all && (
         <div className="flex justify-end">
           <Button onClick={openProposal}><Plus className="size-4"/> Đề xuất trường</Button>
         </div>
@@ -487,7 +491,7 @@ export function SchoolOperations({
           </button>
         ))}
       </nav>}
-      {active !== 'report' && active !== 'policies' && (
+      {!embeddedSalesTable && active !== 'report' && active !== 'policies' && (
         <div className="flex flex-wrap gap-3">
           <Input
             aria-label="Tìm hồ sơ vận hành"
@@ -510,7 +514,15 @@ export function SchoolOperations({
           </p>
         </div>
       )}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
+        proposals={data.proposals} page={page} total={total} pageSize={pageSize}
+        loading={workspace.isFetching} preview={preview}
+        canCreate={can('channel_sales.school.proposal.submit') && !all}
+        onPageChange={setPage} onSearch={term => {setSearch(term);setPage(1);}}
+        onCreate={openProposal} onOpen={setSelectedProposal}
+        onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}/>
+      }
+      {!(embeddedSalesTable && active === 'proposals') && <div className="grid gap-4 lg:grid-cols-2">
         {active === 'proposals' &&
           data.proposals
             .filter(
@@ -1364,8 +1376,8 @@ export function SchoolOperations({
             ))}
           </>
         )}
-      </div>
-      {active !== 'report' && visibleCounts[active] === 0 && (
+      </div>}
+      {!embeddedSalesTable && active !== 'report' && visibleCounts[active] === 0 && (
         <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
           <ClipboardList className="mx-auto mb-3 size-8 text-muted-foreground" />
           <p className="font-medium">
@@ -1390,7 +1402,7 @@ export function SchoolOperations({
           )}
         </div>
       )}
-      {!preview &&
+      {!embeddedSalesTable && !preview &&
         data.pagination &&
         active !== 'report' &&
         active !== 'policies' && (
@@ -1513,6 +1525,21 @@ export function SchoolOperations({
           )}
         </section>
       )}
+      <Dialog open={selectedProposal !== null} onOpenChange={open => !open && setSelectedProposal(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogTitle>Chi tiết đề xuất trường</DialogTitle>
+          <DialogDescription>{selectedProposal?.name}</DialogDescription>
+          {selectedProposal && <div className="space-y-3 text-sm">
+            <p><strong>Người đề xuất:</strong> {selectedProposal.submitted_by}</p>
+            <p><strong>Quản lý:</strong> {selectedProposal.manager_name}</p>
+            <p><strong>Trạng thái:</strong> {workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p>
+            <p><strong>Địa điểm:</strong> {selectedProposal.province} · {selectedProposal.ward}</p>
+            <p><strong>Hạn xử lý:</strong> {workflowDate(selectedProposal.review_due_at)}</p>
+            <p><strong>Nội dung:</strong> {selectedProposal.reason}</p>
+            {selectedProposal.decision_reason && <p><strong>Phản hồi:</strong> {selectedProposal.decision_reason}</p>}
+          </div>}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={action !== null}
         onOpenChange={(open) => !open && setAction(null)}

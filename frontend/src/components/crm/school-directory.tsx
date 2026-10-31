@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppButton } from '@/components/common/app-button';
+import { AppWorkNoteEditor } from '@/components/common/app-work-note';
+import { SchoolWorkLogDrawer } from '@/components/crm/school-work-log-drawer';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -602,6 +604,7 @@ function SchoolDetail({
 }) {
   const [action, setAction] = useState<SchoolAction | null>(null);
   const [historyUnit, setHistoryUnit] = useState<number | null>(null);
+  const [showWorkLog, setShowWorkLog] = useState(false);
   const [showRights, setShowRights] = useState(false);
   const options = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-operations'],
@@ -1076,38 +1079,25 @@ function SchoolDetail({
           }
         />
       )}
-      {!!data.activities.length && (
-        <section>
-          <h3 className="mb-3 font-semibold">Lịch sử làm việc</h3>
-          <div className="max-h-60 space-y-3 overflow-auto">
-            {data.activities.map((a, i) => (
-              <div
-                key={`${a.created_at}-${i}`}
-                className="border-l-2 border-violet-200 pl-3"
-              >
-                <p className="whitespace-pre-wrap text-sm">{a.content}</p>
-                {a.contact_name && (
-                  <p className="mt-1 text-xs">
-                    Trao đổi với {a.contact_name}
-                    {a.contact_position ? ' · ' + a.contact_position : ''}
-                  </p>
-                )}
-                {a.feedback && (
-                  <p className="mt-1 text-xs">Phản hồi: {a.feedback}</p>
-                )}
-                {a.commitment && (
-                  <p className="mt-1 text-xs">Cam kết: {a.commitment}</p>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {workflowDate(a.occurred_at ?? a.created_at)}
-                  {a.next_follow_up_at &&
-                    ` · Hẹn tiếp ${channelDate(a.next_follow_up_at)}`}
-                </p>
-              </div>
-            ))}
+      {!adminMode && (
+        <section className="rounded-xl border border-border bg-muted/20 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold">Nhật ký làm việc với trường</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Đọc các lần liên hệ theo thời gian, mới nhất trước. Người quản lý và người được phân quyền có thể theo dõi.</p>
+            </div>
+            <AppButton tone="neutral" type="button" onClick={()=>setShowWorkLog(true)}>Xem lịch sử</AppButton>
           </div>
         </section>
       )}
+      <SchoolWorkLogDrawer
+        open={showWorkLog}
+        onOpenChange={setShowWorkLog}
+        customerId={data.customer_id}
+        schoolName={data.display_name}
+        apiBase={apiBase}
+        token={token}
+      />
     </div>
   );
 }
@@ -1232,101 +1222,56 @@ function CapacityForm({
   );
 }
 const activitySchema = z.object({
-  activity_type: z.string(),
-  content: z.string().trim().min(3, 'Nhập báo cáo làm việc.').max(4000),
-  next_follow_up_at: z.string(),
-  occurred_at: z.string(),
-  contact_name: z.string().max(500),
-  contact_position: z.string().max(120),
-  feedback: z.string().max(2000),
-  commitment: z.string().max(2000),
+  activity_type: z.enum(['CALL', 'MEETING', 'ZALO', 'DEMO']),
+  content: z.string().trim().min(3, 'Vui lòng nhập nội dung trao đổi.').max(4000, 'Tối đa 4000 ký tự.'),
 });
+
 function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
-  const form = useForm({
+  const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
-    defaultValues: {
-      activity_type: 'CALL',
-      content: '',
-      next_follow_up_at: '',
-      occurred_at: vietnamDateTimeInput(new Date().toISOString()),
-      contact_name: '',
-      contact_position: '',
-      feedback: '',
-      commitment: '',
-    },
+    defaultValues: { activity_type: 'CALL', content: '' },
   });
-  return (
-    <form
-      className="space-y-3 rounded-xl border p-4"
-      onSubmit={form.handleSubmit(async (values) => {
-        try {
-          await save({
-            ...values,
-            occurred_at: workflowFormValue(
-              'datetime-local',
-              values.occurred_at,
-              true,
-            ),
-            next_follow_up_at: values.next_follow_up_at
-              ? new Date(`${values.next_follow_up_at}:00+07:00`).toISOString()
-              : null,
-          });
-          form.reset();
-        } catch {
-          /* Server error is displayed by the parent. */
-        }
-      })}
-    >
-      <h3 className="font-semibold">Báo cáo lần làm việc</h3>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Thời điểm trao đổi (giờ Việt Nam)">
-          <Input type="datetime-local" {...form.register('occurred_at')} />
-        </Field>
-        <Field label="Người trao đổi">
-          <Input {...form.register('contact_name')} />
-        </Field>
-        <Field label="Chức vụ">
-          <Input {...form.register('contact_position')} />
-        </Field>
-      </div>
-      <Field label="Kênh liên hệ">
-        <select
-          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-          {...form.register('activity_type')}
-        >
-          <option value="CALL">Cuộc gọi</option>
-          <option value="ZALO">Zalo tổ chức</option>
-          <option value="MEETING">Gặp trường</option>
-          <option value="DEMO">Trình diễn</option>
-          <option value="NOTE">Ghi chú</option>
-        </select>
-      </Field>
-      <Field label="Người trao đổi, tư vấn, phản hồi, vướng mắc và bước tiếp theo">
-        <textarea
-          className="min-h-24 w-full rounded-md border bg-background p-3 text-sm"
-          {...form.register('content')}
-        />
-      </Field>
-      <Field label="Lịch hẹn tiếp theo (giờ Việt Nam)">
-        <Input type="datetime-local" {...form.register('next_follow_up_at')} />
-      </Field>
-      <Field label="Phản hồi của nhà trường">
-        <Input {...form.register('feedback')} />
-      </Field>
-      <Field label="Cam kết cần theo dõi / bàn giao">
-        <Input {...form.register('commitment')} />
-      </Field>
-      <FormErrors errors={form.formState.errors} />
-      <Button
-        type="submit"
-        variant="outline"
+  return <form
+    className="space-y-4 rounded-xl border border-border bg-card p-4"
+    onSubmit={form.handleSubmit(async values => {
+      try {
+        // UserId and CreatedAt are taken from the authenticated request / server UTC time.
+        // No editable date or automatically inferred follow-up date is sent.
+        await save({ activity_type: values.activity_type, content: values.content.trim() });
+        form.reset();
+      } catch {
+        // The parent mutation exposes the API failure to the user.
+      }
+    })}
+  >
+    <div>
+      <h3 className="text-base font-semibold">Ghi nhận làm việc</h3>
+      <p className="mt-1 text-xs text-muted-foreground">Ghi chú ngắn sau khi liên hệ với trường. Hệ thống tự lưu người ghi nhận và thời điểm lưu.</p>
+    </div>
+    <Field label="Kênh liên hệ">
+      <AppNativeSelect containerClassName="w-full" {...form.register('activity_type')}>
+        <option value="CALL">Gọi điện</option>
+        <option value="MEETING">Gặp trực tiếp</option>
+        <option value="ZALO">Zalo tổ chức</option>
+        <option value="DEMO">Demo</option>
+      </AppNativeSelect>
+    </Field>
+    <Field label="Nội dung trao đổi *">
+      <AppWorkNoteEditor
+        value={form.watch('content')}
+        onChange={value=>form.setValue('content',value,{shouldValidate:true,shouldDirty:true})}
+        invalid={!!form.formState.errors.content}
         disabled={form.formState.isSubmitting}
-      >
-        Lưu báo cáo
-      </Button>
-    </form>
-  );
+      />
+    </Field>
+    <p className="text-xs text-muted-foreground">Có thể ghi người trao đổi, phản hồi, vướng mắc và ngày gọi lại ngay trong nội dung. Chọn phần chữ rồi bấm B/I/U hoặc dùng danh sách.</p>
+    <FormErrors errors={form.formState.errors}/>
+    <div className="flex justify-end">
+      <AppButton type="submit" tone="green" busy={form.formState.isSubmitting} disabled={form.formState.isSubmitting}>Lưu ghi chú</AppButton>
+    </div>
+  </form>;
 }
+
 const contractSchema = z.object({
   contract_code: z.string().trim().min(1, 'Nhập mã hợp đồng.'),
   signed_on: z.string().min(1, 'Chọn ngày ký.'),

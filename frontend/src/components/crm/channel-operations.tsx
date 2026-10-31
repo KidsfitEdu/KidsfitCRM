@@ -59,6 +59,7 @@ type Props = {
   allowedPanels?: Panel[];
   hideTabs?: boolean;
   hideOperationsTabs?: boolean;
+  compactOperations?: boolean;
   initialOperationsTab?: string;
 };
 export type Panel =
@@ -94,6 +95,7 @@ function OperationsContent({
   allowedPanels,
   hideTabs = false,
   hideOperationsTabs = false,
+  compactOperations = false,
   initialOperationsTab,
 }: Props) {
   const [panel, setPanel] = useState<Panel>(initialPanel);
@@ -240,6 +242,7 @@ function OperationsContent({
         <SchoolOperations
           initialTab={initialOperationsTab}
           hideTabs={hideOperationsTabs}
+          compactHeader={compactOperations}
           apiBase={apiBase}
           token={token}
           abilities={abilities}

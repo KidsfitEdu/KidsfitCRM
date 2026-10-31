@@ -48,7 +48,8 @@ public static class CustomerWorkLogEndpoints
             join user in db.Users.AsNoTracking() on activity.UserId equals user.Id
             orderby activity.CreatedAt descending, activity.Id descending
             select new { activity.Id, activity.ActivityType, activity.Content,
-                activity.CreatedAt, user_name = user.Name })
+                activity.CreatedAt, activity.OccurredAt, activity.ContactName, activity.ContactPosition,
+                activity.Feedback, activity.Commitment, user_name = user.Name })
             .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
         return Results.Ok(new { data, total, page, page_size = pageSize });
     }

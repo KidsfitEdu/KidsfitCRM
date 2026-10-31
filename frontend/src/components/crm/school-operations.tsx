@@ -1470,13 +1470,13 @@ export function SchoolOperations({
           )}
         </div>
       )}
-      {!(embeddedSalesTable && active === 'proposals') && !preview &&
-        data.pagination &&
+      {!(embeddedSalesTable && active === 'proposals') &&
+        (preview ? embeddedSalesTable : !!data.pagination) &&
         active !== 'report' &&
         active !== 'policies' && (
           embeddedSalesTable
-            ? <AppPagination page={page} pageSize={pageSize} total={total}
-                itemLabel="hồ sơ" showSummary={false} fixedPageSize disabled={workspace.isFetching}
+            ? <AppPagination page={preview ? 1 : page} pageSize={pageSize} total={preview ? visibleCounts[active] : total}
+                itemLabel="hồ sơ" showSummary={false} fixedPageSize disabled={preview || workspace.isFetching}
                 onPageChange={setPage}/>
             : <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
                 <p className="text-xs text-muted-foreground">

@@ -94,3 +94,27 @@ test('Sales underline tabs and proposal table retain shared role layouts', () =>
   assert.match(proposals, /proposalActionRef\.current = \{ open: openProposal \}/);
   assert.match(proposals, /embeddedSalesTable && \(active === 'invitations' \|\| active === 'extensions'\)/);
 });
+
+test('Sales actions and footer pagination remain accessible and scoped', () => {
+  const focus = read('src/components/roles/SalesFocusPage.tsx');
+  const sales = read('src/components/crm/channel-sales-view.tsx');
+  const dashboard = read('src/components/roles/SalesDashboard.tsx');
+  const operations = read('src/components/crm/school-operations.tsx');
+  const proposals = read('src/components/roles/SalesProposalTable.tsx');
+  const finance = read('src/components/crm/channel-operations.tsx');
+  const pager = read('src/components/common/app-pagination.tsx');
+  assert.ok(focus.includes("section === 'customers'"));
+  assert.ok(focus.includes("min-w-0 bg-white dark:bg-card"));
+  assert.ok(sales.includes('pageSizeOptions={[10,20,50,100]}'));
+  assert.ok(sales.includes('total={customers.length}'));
+  assert.ok(sales.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
+  assert.ok(sales.includes('aria-label={`Báo hợp đồng ${customer.display_name}`}'));
+  assert.ok(dashboard.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
+  assert.ok(operations.includes('Nhận trường ${x.school_name}'));
+  assert.ok(operations.includes('Từ chối gia hạn ${x.school_name}'));
+  assert.ok(operations.includes('<AppPagination page={preview ? 1 : page}'));
+  assert.ok(proposals.includes('fixedPageSize'));
+  assert.ok(finance.includes('total={data.ledger.length}'));
+  assert.ok(finance.includes('total={data.payouts.length}'));
+  assert.ok(pager.includes('fixedPageSize'));
+});

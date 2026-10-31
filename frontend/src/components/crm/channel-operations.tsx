@@ -60,6 +60,7 @@ type Props = {
   hideTabs?: boolean;
   hideOperationsTabs?: boolean;
   compactOperations?: boolean;
+  embeddedSalesTable?: boolean;
   initialOperationsTab?: string;
 };
 export type Panel =
@@ -96,6 +97,7 @@ function OperationsContent({
   hideTabs = false,
   hideOperationsTabs = false,
   compactOperations = false,
+  embeddedSalesTable = false,
   initialOperationsTab,
 }: Props) {
   const [panel, setPanel] = useState<Panel>(initialPanel);
@@ -189,7 +191,7 @@ function OperationsContent({
   ];
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {(!hideTabs || (!compactOperations && visiblePanel !== 'customers')) && <div className="flex flex-wrap items-center justify-between gap-3">
         {!hideTabs && <nav
           aria-label="Chức năng CHECKEE"
           className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-sm"
@@ -211,7 +213,7 @@ function OperationsContent({
               </button>
             ))}
         </nav>}
-        {visiblePanel !== 'customers' && (
+        {!compactOperations && visiblePanel !== 'customers' && (
           <Button
             variant="outline"
             size="sm"
@@ -220,7 +222,7 @@ function OperationsContent({
             <RefreshCw className="size-4" /> Làm mới
           </Button>
         )}
-      </div>
+      </div>}
       {notice && (
         <output className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
           <Check className="size-4" />
@@ -236,6 +238,7 @@ function OperationsContent({
           token={token}
           abilities={abilities}
           onChanged={onChanged}
+          registrationIconOnly={compactOperations}
         />
       )}
       {visiblePanel === 'operations' && (
@@ -243,6 +246,7 @@ function OperationsContent({
           initialTab={initialOperationsTab}
           hideTabs={hideOperationsTabs}
           compactHeader={compactOperations}
+          embeddedSalesTable={embeddedSalesTable}
           apiBase={apiBase}
           token={token}
           abilities={abilities}

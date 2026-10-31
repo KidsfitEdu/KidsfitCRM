@@ -39,11 +39,8 @@ import {
   schoolOperationsPreview,
   schoolOperationsReportPreview,
 } from '@/lib/school-operations-preview';
-import {
-  SchoolActionForm,
-  type SchoolAction,
-  type SchoolActionField,
-} from './school-action-form';
+import { type SchoolAction, type SchoolActionField } from './school-action-form';
+import { SchoolActionDialog } from './school-action-dialog';
 
 type Props = {
   apiBase: string;
@@ -1506,20 +1503,7 @@ export function SchoolOperations({
           )}
         </section>
       )}
-      <Dialog
-        open={action !== null}
-        onOpenChange={(open) => !open && setAction(null)}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl">
-          {action && (
-            <SchoolActionForm
-              key={action.path + action.title}
-              action={action}
-              save={save}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
       <Dialog
         open={history !== null}
         onOpenChange={(open) => !open && setHistory(null)}

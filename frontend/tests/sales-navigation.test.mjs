@@ -68,14 +68,17 @@ test('Shared Admin/Manager paths remain unchanged and embedded compact mode is o
   assert.match(school, /compactHeader && active === 'proposals'/);
 });
 
-test('Sales-only table enhancements retain common role layouts', () => {
+test('Sales underline tabs and proposal table retain shared role layouts', () => {
   const focus = read('src/components/roles/SalesFocusPage.tsx');
   const operations = read('src/components/crm/channel-operations.tsx');
   const directory = read('src/components/crm/school-directory.tsx');
   const proposals = read('src/components/crm/school-operations.tsx');
   const table = read('src/components/roles/SalesProposalTable.tsx');
   assert.match(focus, /lg:w-\[30%\]/);
-  assert.match(focus, /rounded-t-\[24px\] bg-white/);
+  assert.match(focus, /border-b-\[3px\] bg-transparent/);
+  assert.match(focus, /border-\[#1b5e20\]/);
+  assert.match(focus, /rounded-2xl border border-border\/80 bg-white shadow-sm/);
+  assert.doesNotMatch(focus, /rounded-t-\[24px\]/);
   assert.match(focus, /actions=\{canCreateProposal \?/);
   assert.match(focus, /embeddedSalesTable=\{section === 'proposals' \|\| isInvitations \|\| isExtensions\}/);
   assert.match(focus, /embedded=\{section === 'customers' \|\| section === 'activities'\}/);

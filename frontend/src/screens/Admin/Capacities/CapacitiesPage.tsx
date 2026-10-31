@@ -29,7 +29,7 @@ export function CapacitiesPage({apiBase,token,abilities}:Props) {
   const limit=Number(limitInput);
   const [reason,setReason]=useState('');
   const [loading,setLoading]=useState(false);
-    const [confirmOpen,setConfirmOpen]=useState(false);
+  const [confirmOpen,setConfirmOpen]=useState(false);
   const canManage=abilities.includes('channel_sales.school.capacity.manage')||abilities.includes('*');
   const reload=useCallback(async()=>{
     if(!apiBase)return;
@@ -61,8 +61,7 @@ export function CapacitiesPage({apiBase,token,abilities}:Props) {
   };
   return <div className="space-y-4">
     <AppPageHeader eyebrow="QUẢN TRỊ / HẠN MỨC TIẾP CẬN" title="Quản lý hạn mức tiếp cận"
-      description="Theo dõi hạn mức trường đang tiếp cận của Nhân viên/CTV. Giảm hạn mức không thu hồi quyền hợp lệ hiện có."
-      />
+      description="Theo dõi hạn mức trường đang tiếp cận của Nhân viên/CTV. Giảm hạn mức không thu hồi quyền hợp lệ hiện có."/>
     <AdminListPanel>
       <AdminListToolbar search={searchDraft} onSearchChange={setSearchDraft}
         onSearch={()=>{setSearch(searchDraft.trim());setPage(1);}}

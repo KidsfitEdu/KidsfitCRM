@@ -98,7 +98,7 @@ public sealed partial class ChannelSalesActions
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var member = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {membershipId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId) throw new KeyNotFoundException();
-        if (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsCollaborator(member)) throw new KeyNotFoundException();
+        if (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsSchoolSales(member)) throw new KeyNotFoundException();
         var replay = await db.SchoolHandovers.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.CompletedByUserId, actorId, replay.RequestFingerprint, hash);
         if (request.SuspendAccount && (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage))) throw new KeyNotFoundException();
@@ -186,7 +186,7 @@ public sealed partial class ChannelSalesActions
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var member = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId
-            || (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsCollaborator(member))) throw new KeyNotFoundException();
+            || (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsSchoolSales(member))) throw new KeyNotFoundException();
         if (request.ReactivateAccount && (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage))) throw new KeyNotFoundException();
         var user = await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {member.UserId} FOR UPDATE").SingleAsync(ct);
         if (user.Status == "SUSPENDED" && !request.ReactivateAccount) throw new ApiConflictException("Tài khoản đã bị khóa toàn bộ. Admin cần khôi phục tài khoản tại Vận hành → Bàn giao.");

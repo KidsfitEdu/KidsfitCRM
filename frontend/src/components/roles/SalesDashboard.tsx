@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CalendarClock, ClipboardList, FileCheck2, Handshake, School, UsersRound } from 'lucide-react';
+import { AlertCircle, CalendarClock, ClipboardList, FileCheck2, Handshake, School, SquarePen, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { channelRequest } from '@/lib/channel-operations';
@@ -55,7 +55,10 @@ export function SalesDashboard({apiBase, token, abilities, workspace, onSalesNav
               <p className="mt-1 text-xs text-muted-foreground">Hẹn: {formatDate(customer.next_follow_up_at!)}</p>
             </div>
             <button type="button" onClick={()=>go('role-sales-staff-activities')}
-              className="min-h-10 rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary">Cập nhật tư vấn</button>
+              className="grid size-10 place-items-center rounded-lg border border-border text-[#1b5e20] hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
+              title={`Cập nhật tư vấn ${customer.display_name}`} aria-label={`Cập nhật tư vấn ${customer.display_name}`}>
+              <SquarePen className="size-4" aria-hidden="true"/>
+            </button>
           </li>)}
         </ul> : <p className="rounded-xl bg-muted/40 p-5 text-sm text-muted-foreground">
           Chưa có lịch tư vấn được ghi nhận trong danh sách trường đang phụ trách.

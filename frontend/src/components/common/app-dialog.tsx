@@ -31,7 +31,7 @@ export function AppDialog({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          'flex max-h-[min(90dvh,800px)] w-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden rounded-[20px] border-border/60 bg-card p-0 shadow-[0_28px_95px_rgba(14,42,26,.24)] sm:max-w-2xl',
+          'flex max-h-[min(90dvh,800px)] w-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden rounded-[20px] border-border/60 bg-card p-0 sm:p-0 shadow-[0_28px_95px_rgba(14,42,26,.24)] sm:max-w-2xl',
           contentClassName,
         )}
       >

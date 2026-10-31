@@ -63,6 +63,37 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task ForwardProposalUsesAutomatic72HourDeadlineAndCreatesSingleScopedEscalation()
+    {
+        var scenario = await Arrange();
+        var adminId = await User("admin@kidsfit.vn");
+        var directorId = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var action = new ChannelSalesActions(db);
+        var proposalId = await action.SubmitSchoolProposal(Proposal(), scenario.Seller.UserId, Http(), Ct);
+
+        var forwardedAt = DateTime.UtcNow;
+        await action.ReviewSchoolProposal(proposalId, new(true, null, null), false, scenario.Manager.UserId, Http(), Ct);
+        var proposal = await db.SchoolProposals.AsNoTracking().SingleAsync(x => x.Id == proposalId);
+        Assert.Equal("PENDING_ADMIN", proposal.Status);
+        Assert.InRange(proposal.ReviewDueAt, forwardedAt.AddHours(72).AddSeconds(-5), forwardedAt.AddHours(72).AddSeconds(5));
+
+        // Simulate overdue without sleeping; repeat sweep must be exactly-once per recipient.
+        await db.SchoolProposals.Where(x => x.Id == proposalId)
+            .ExecuteUpdateAsync(set => set.SetProperty(x => x.ReviewDueAt, DateTime.UtcNow.AddMinutes(-2)), Ct);
+        await SchoolProposalAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        await SchoolProposalAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+
+        var notices = await db.SchoolProposalAlerts.AsNoTracking().Where(x => x.SchoolProposalId == proposalId).ToArrayAsync(Ct);
+        Assert.Equal(2, notices.Length);
+        Assert.Contains(notices, x => x.RecipientUserId == adminId && x.Kind == "ADMIN_OVERDUE" && x.Status == "OPEN");
+        Assert.Contains(notices, x => x.RecipientUserId == directorId && x.Kind == "DIRECTOR_ESCALATION" && x.Status == "OPEN");
+
+        await action.ReviewSchoolProposal(proposalId, new(false, "Thiếu hồ sơ trường học", null), true, adminId, Http(), Ct);
+        Assert.Empty(await db.SchoolProposalAlerts.AsNoTracking()
+            .Where(x => x.SchoolProposalId == proposalId && x.Status == "OPEN").ToArrayAsync(Ct));
+    }
+
     [MySqlFact] public async Task ActualDatabaseUsesBinaryKeysAndWholeDongNotOnlyModelAnnotations()
     {
         await using var connection = new MySqlConnection(fixture.ConnectionString); await connection.OpenAsync();

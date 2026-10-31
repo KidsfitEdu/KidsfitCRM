@@ -49,7 +49,9 @@ export function AppDialog({
               <X aria-hidden="true" className="size-5" />
             </button>
           </div>
-          {description && <DialogDescription className="pt-1 text-sm leading-6 text-white/90">{description}</DialogDescription>}
+          {description
+            ? <DialogDescription className="pt-1 text-sm leading-6 text-white/90">{description}</DialogDescription>
+            : <DialogDescription className="sr-only">{title}</DialogDescription>}
         </DialogHeader>
         <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6', bodyClassName)}>
           {children}

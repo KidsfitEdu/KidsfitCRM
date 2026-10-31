@@ -10,7 +10,9 @@ import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { SchoolActionForm, type SchoolAction, type SchoolActionField } from '@/components/crm/school-action-form';
+import { type SchoolAction, type SchoolActionField } from '@/components/crm/school-action-form';
+import { SchoolActionDialog } from '@/components/crm/school-action-dialog';
+import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { channelRequest, channelQueryKeys, ChannelRequestError } from '@/lib/channel-operations';
 import { loadAllocationSchools } from '@/lib/manager-allocation';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -183,7 +185,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     }
     setAction({
       title: 'Mời Sales/CTV nhận trường',
-      description: 'Sau khi gửi lời mời, Sales/CTV cần xác nhận. Quyền tiếp cận chỉ bắt đầu khi nhận thành công và còn hạn mức.',
+      description: '',
       path: '/school-invitations',
       fields: [
         { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number', options: schools.map(s => ({ value: String(s.id), label: s.display_name + ' · ' + s.school_code })) },
@@ -335,36 +337,25 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       <AppPagination page={page} pageSize={pageSize} total={total} disabled={busy} showSummary={false}
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
-    <Dialog open={confirmProposal!==null} onOpenChange={open => { if (!open && !confirmingProposal) setConfirmProposal(null); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="gap-3">
-          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">Xác nhận chuyển đề xuất</DialogTitle>
-          <DialogDescription className="text-[15px] leading-7 text-foreground/90 sm:text-base">
-            Bạn có xác nhận chuyển đề xuất trường <strong className="text-foreground">{confirmProposal?.name}</strong> lên Admin để xem xét và phê duyệt không?
-          </DialogDescription>
-        </DialogHeader>
-        {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
-        <div className="flex flex-col-reverse items-stretch justify-center gap-3 pt-2 sm:flex-row sm:items-center">
-          <Button type="button" variant="outline" disabled={confirmingProposal} className="h-11 w-full font-semibold sm:w-40" onClick={() => setConfirmProposal(null)}>Hủy</Button>
-          <Button type="button" disabled={confirmingProposal} className="h-11 w-full bg-[#1b5e20] font-semibold text-white hover:bg-[#124c17] sm:w-40" onClick={async () => {
-            if (!confirmProposal || confirmingProposal) return;
-            setConfirmingProposal(true);
-            setConfirmationError('');
-            try {
-              await save({ path: '/school-proposals/' + confirmProposal.id + '/manager-review', body: { approve: true, reason: null, review_due_at: null } });
-              setConfirmProposal(null);
-            } catch (cause) {
-              setConfirmationError(cause instanceof Error ? cause.message : 'Không thể chuyển đề xuất.');
-            } finally { setConfirmingProposal(false); }
-          }}>{confirmingProposal ? 'Đang chuyển…' : 'Xác nhận chuyển'}</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-    <Dialog open={action!==null} onOpenChange={v=>{if(!v)setAction(null);}}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        {action && <SchoolActionForm key={action.path+'-'+action.title} action={action} save={save}/>}
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open={confirmProposal!==null}
+      onOpenChange={open => { if (!open && !confirmingProposal) setConfirmProposal(null); }}
+      title="Xác nhận chuyển đề xuất"
+      description={<>Bạn có xác nhận chuyển đề xuất trường <strong className="font-semibold text-foreground">{confirmProposal?.name}</strong> lên Admin để xem xét và phê duyệt không?</>}
+      confirmLabel="Xác nhận chuyển" busy={confirmingProposal}
+      onConfirm={async () => {
+        if (!confirmProposal || confirmingProposal) return;
+        setConfirmingProposal(true);
+        setConfirmationError('');
+        try {
+          await save({ path: '/school-proposals/' + confirmProposal.id + '/manager-review', body: { approve: true, reason: null, review_due_at: null } });
+          setConfirmProposal(null);
+        } catch (cause) {
+          setConfirmationError(cause instanceof Error ? cause.message : 'Không thể chuyển đề xuất.');
+        } finally { setConfirmingProposal(false); }
+      }}>
+      {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
+    </ConfirmDialog>
+    <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
     <Dialog open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader><DialogTitle>Chi tiết hồ sơ</DialogTitle><DialogDescription>Thông tin trong phạm vi quản lý được Backend cho phép truy cập.</DialogDescription></DialogHeader>

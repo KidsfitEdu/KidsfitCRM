@@ -2,7 +2,6 @@
 
 import { useMemo, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
-  ArrowRight,
   BadgeCheck,
   Building2,
   CalendarClock,
@@ -13,6 +12,7 @@ import {
   Phone,
   Plus,
   ReceiptText,
+  SquarePen,
   Search,
   RotateCcw,
   ShieldCheck,
@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { AppButton } from '@/components/common/app-button';
+import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import {
   Dialog as UiDialog,
@@ -138,6 +139,8 @@ export function ChannelSalesView({
 }: Props) {
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [draftSearch, setDraftSearch] = useState(search);
+  const [listPage, setListPage] = useState(1);
+  const [listPageSize, setListPageSize] = useState(20);
   const [registerCustomer, setRegisterCustomer] = useState<
     ChannelCustomer | null | undefined
   >(undefined);
@@ -168,6 +171,10 @@ export function ChannelSalesView({
           ].some((value) => value?.toLocaleLowerCase('vi').includes(term))),
     );
   }, [filter, search, scopedCustomers]);
+
+  const totalPages = Math.max(1, Math.ceil(customers.length / listPageSize));
+  const currentPage = Math.min(listPage, totalPages);
+  const pageCustomers = customers.slice((currentPage - 1) * listPageSize, currentPage * listPageSize);
 
   const tabs: { id: StatusFilter; label: string; count: number }[] = [
     {
@@ -277,7 +284,7 @@ export function ChannelSalesView({
 
       <Card className={embedded ? 'overflow-hidden rounded-none border-0 shadow-none' : 'overflow-hidden border-0 shadow-sm ring-1 ring-border/80'}>
         <CardContent className="p-0">
-          {embedded ? <form onSubmit={event=>{event.preventDefault();setSearch(draftSearch.trim());}}
+          {embedded ? <form onSubmit={event=>{event.preventDefault();setSearch(draftSearch.trim());setListPage(1);}}
             className="flex flex-wrap items-center gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
             <div className="relative min-w-[190px] flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
@@ -285,14 +292,14 @@ export function ChannelSalesView({
                 className="h-11 w-full rounded-xl pl-10" value={draftSearch} onChange={event=>setDraftSearch(event.target.value)}/>
             </div>
             {mode === 'mine' && <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full sm:w-48"
-              value={filter} onChange={event=>setFilter(event.target.value as StatusFilter)}>
+              value={filter} onChange={event=>{setFilter(event.target.value as StatusFilter);setListPage(1);}}>
               <option value="ALL">Tất cả trạng thái</option>
               <option value="APPROACHING">Đang tiếp cận</option>
               <option value="CONTRACTED">Đã ký hợp đồng</option>
             </AppNativeSelect>}
             <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
             <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
-              aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');}}>
+              aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');setListPage(1);}}>
               <RotateCcw className="size-4" aria-hidden="true"/>
             </AppButton>
           </form> : <div className="flex flex-col gap-4 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
@@ -300,7 +307,7 @@ export function ChannelSalesView({
               {tabs.filter(tab => mode === 'all' || (mode === 'mine' && tab.id !== 'AVAILABLE')).filter(() => mode !== 'activities').map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setFilter(tab.id)}
+                  onClick={() => {setFilter(tab.id);setListPage(1);}}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-all ${filter === tab.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {tab.label}
@@ -314,7 +321,7 @@ export function ChannelSalesView({
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {setSearch(event.target.value);setListPage(1);}}
                 className="h-10 rounded-xl bg-background pl-9"
                 placeholder="Tên, MST, điện thoại…"
               />
@@ -329,7 +336,7 @@ export function ChannelSalesView({
             <span className="text-right">Thao tác</span>
           </div>
           <div className="divide-y divide-border/70">
-            {customers.map((customer) => (
+            {pageCustomers.map((customer) => (
               <CustomerRow
                 key={customer.id}
                 customer={customer}
@@ -361,6 +368,9 @@ export function ChannelSalesView({
               </div>
             )}
           </div>
+          {mode !== 'all' && <AppPagination page={currentPage} pageSize={listPageSize} total={customers.length}
+            disabled={false} showSummary={false} onPageChange={setListPage} pageSizeOptions={[10,20,50,100]}
+            onPageSizeChange={size=>{setListPageSize(size);setListPage(1);}}/>}
         </CardContent>
       </Card>
 
@@ -510,29 +520,22 @@ function CustomerRow({
       </div>
       <div className="flex flex-wrap justify-end gap-2 xl:min-w-44">
         {customer.visible_status === 'AVAILABLE' && canRegister && (
-          <Button onClick={onRegister} size="sm" className="rounded-xl">
-            Đăng ký <ArrowRight />
+          <Button onClick={onRegister} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800" title="Đăng ký tiếp cận" aria-label={`Đăng ký tiếp cận ${customer.display_name}`}>
+            <Plus className="size-4" aria-hidden="true"/>
           </Button>
         )}
         {customer.visible_status === 'APPROACHING' && (
           <>
             {canAddActivity && customer.can_manage_approach && (
-              <Button
-                onClick={onActivity}
-                size="sm"
-                variant="outline"
-                className="rounded-xl"
-              >
-                Cập nhật
+              <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
+                title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}>
+                <SquarePen className="size-4" aria-hidden="true"/>
               </Button>
             )}
             {canReportContract && customer.can_manage_approach && (
-              <Button
-                onClick={onContract}
-                size="sm"
-                className="rounded-xl bg-[#1b5e20] hover:bg-[#124c17]"
-              >
-                Báo hợp đồng
+              <Button onClick={onContract} size="icon" className="size-9 rounded-lg bg-[#1b5e20] hover:bg-[#124c17]"
+                title="Báo hợp đồng" aria-label={`Báo hợp đồng ${customer.display_name}`}>
+                <FileCheck2 className="size-4" aria-hidden="true"/>
               </Button>
             )}
           </>
@@ -547,13 +550,9 @@ function CustomerRow({
             {canRecordRevenue &&
               customer.can_record_revenue &&
               customer.collected_revenue < customer.contract_value && (
-                <Button
-                  onClick={onReceipt}
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl"
-                >
-                  <ReceiptText /> Ghi nhận thu
+                <Button onClick={onReceipt} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
+                  title="Ghi nhận thu" aria-label={`Ghi nhận thu ${customer.display_name}`}>
+                  <ReceiptText className="size-4" aria-hidden="true"/>
                 </Button>
               )}
           </>

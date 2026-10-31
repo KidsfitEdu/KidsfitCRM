@@ -64,6 +64,48 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task DemoWorkflowPoliciesAreDraftOnlyIdempotentAndDoNotSetActiveSla()
+    {
+        await using var db = fixture.Open();
+        var kidsfit = await db.Organizations.SingleAsync(x => x.Code == "KIDSFIT");
+        var expected = new[]
+        {
+            (Reference: "DEMO-KIDSFIT-WORKFLOW-24H", ManagerHours: 24),
+            (Reference: "DEMO-KIDSFIT-WORKFLOW-48H", ManagerHours: 48),
+            (Reference: "DEMO-KIDSFIT-WORKFLOW-72H", ManagerHours: 72),
+        };
+        var references = expected.Select(x => x.Reference).ToArray();
+        var initial = await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.OrganizationId == kidsfit.Id && references.Contains(x.DecisionReference))
+            .OrderBy(x => x.ManagerReviewHours).ToArrayAsync(Ct);
+        Assert.Equal(3, initial.Length);
+        Assert.Equal(3, initial.Select(x => x.Version).Distinct().Count());
+        Assert.All(initial, policy =>
+        {
+            Assert.Equal("DRAFT", policy.Status);
+            Assert.Equal(72, policy.AdminReviewHours);
+            Assert.Equal(24, policy.InvitationHours);
+            Assert.Equal(7, policy.MaxExtensionDays);
+            Assert.Equal(3, policy.MaxExtensionCount);
+            Assert.Equal(21, policy.MaxTotalExtensionDays);
+        });
+        for (var i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i].Reference, initial[i].DecisionReference);
+            Assert.Equal(expected[i].ManagerHours, initial[i].ManagerReviewHours);
+        }
+
+        await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+        db.ChangeTracker.Clear();
+        var repeated = await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.OrganizationId == kidsfit.Id && references.Contains(x.DecisionReference))
+            .OrderBy(x => x.ManagerReviewHours).ToArrayAsync(Ct);
+        Assert.Equal(initial.Select(x => x.Id), repeated.Select(x => x.Id));
+        Assert.Equal(initial.Select(x => x.Version), repeated.Select(x => x.Version));
+        Assert.All(repeated, policy => Assert.Equal("DRAFT", policy.Status));
+        Assert.False(await db.SchoolWorkflowPolicies.AnyAsync(x => x.OrganizationId == kidsfit.Id && x.Status == "ACTIVE", Ct));
+    }
+
     [MySqlFact] public async Task ForwardProposalUsesAutomatic72HourDeadlineAndCreatesSingleScopedEscalation()
     {
         var scenario = await Arrange();

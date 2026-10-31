@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { AppFormDialog } from '@/components/common/app-form-dialog';
 import { SchoolActionForm, type SchoolAction } from '@/components/crm/school-action-form';
 
@@ -14,6 +14,9 @@ export function SchoolActionDialog({
 }) {
   const formId = useId();
   const [busy, setBusy] = useState(false);
+  // A successful save closes the dialog while the form is still settling.
+  // Clear pending state so the next action never inherits a disabled footer.
+  useEffect(() => { if (!action) setBusy(false); }, [action]);
   return <AppFormDialog
     open={action !== null}
     onOpenChange={open => { if (!open && !busy) onClose(); }}

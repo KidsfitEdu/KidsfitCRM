@@ -550,9 +550,8 @@ export function SchoolOperations({
       {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
         loading={workspace.isFetching} preview={preview}
-        canCreate={false}
         onPageChange={setPage} onSearch={term => {setSearch(term);setPage(1);}}
-        onCreate={openProposal} onOpen={setSelectedProposal}
+        onOpen={setSelectedProposal}
         onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}/>
       }
       {!(embeddedSalesTable && active === 'proposals') && <div className={embeddedSalesTable
@@ -1414,8 +1413,11 @@ export function SchoolOperations({
             ))}
           </>
         )}
+      {embeddedSalesTable && (active === 'invitations' || active === 'extensions') && visibleCounts[active] === 0 && (
+        <div className="p-10 text-center text-sm text-muted-foreground">Chưa có hồ sơ phù hợp. Thử thay đổi từ khóa hoặc trạng thái.</div>
+      )}
       </div>}
-      {(active === 'invitations' || active === 'extensions' ? visibleCounts[active] === 0 : !embeddedSalesTable && active !== 'report' && visibleCounts[active] === 0) && (
+      {!embeddedSalesTable && active !== 'report' && visibleCounts[active] === 0 && (
         <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
           <ClipboardList className="mx-auto mb-3 size-8 text-muted-foreground" />
           <p className="font-medium">
@@ -1444,7 +1446,9 @@ export function SchoolOperations({
         data.pagination &&
         active !== 'report' &&
         active !== 'policies' && (
-          <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
+          <footer className={embeddedSalesTable
+            ? 'flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-white p-3 dark:bg-card'
+            : 'flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3'}>
             <p className="text-xs text-muted-foreground">
               Trang {page} · Tối đa {pageSize} hồ sơ mỗi nhóm. Hồ sơ chờ xử lý
               được ưu tiên trước.

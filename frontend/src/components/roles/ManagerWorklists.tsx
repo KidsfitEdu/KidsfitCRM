@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Eye, History, Plus, X, Ban, ListChecks } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -11,7 +11,9 @@ import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, ad
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { SchoolActionForm, type SchoolAction, type SchoolActionField } from '@/components/crm/school-action-form';
-import { channelRequest, channelQueryKeys } from '@/lib/channel-operations';
+import { channelRequest, channelQueryKeys, ChannelRequestError } from '@/lib/channel-operations';
+import { loadAllocationSchools } from '@/lib/manager-allocation';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { workflowLabels, workflowDate, vietnamDateTimeInput, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 import { schoolOperationsPreview } from '@/lib/school-operations-preview';
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace } from '@/lib/channel-sales';
@@ -57,8 +59,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [confirmProposal, setConfirmProposal] = useState<{ id: number; name: string } | null>(null);
   const [confirmingProposal, setConfirmingProposal] = useState(false);
   const [confirmationError, setConfirmationError] = useState('');
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const lastQueryFailure = useRef<unknown>(null);
   const client = useQueryClient();
   const api = <T,>(path: string, options?: RequestInit) => channelRequest<T>(apiBase, token, path, options);
   // Server paginates each collection by 100; the UI paginates the same window in steps of 10/20/50.
@@ -80,7 +81,8 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   });
   const availableSchools = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-available-schools'],
-    queryFn: () => api<SchoolList>('/schools?page=1&pageSize=100&status=AVAILABLE'),
+    queryFn: () => loadAllocationSchools<School>((page, pageSize) =>
+      api<SchoolList>('/schools?page=' + page + '&pageSize=' + pageSize + '&status=AVAILABLE')),
     enabled: section === 'allocations' && !preview && !!token,
   });
   const capacities = useQuery({
@@ -102,12 +104,45 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     await client.invalidateQueries({ queryKey: channelQueryKeys.all });
     await onChanged();
   };
+  const describeApiError = (cause: unknown): string => {
+    if (cause instanceof ChannelRequestError) {
+      if (cause.status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+      if (cause.status === 403) return 'Tài khoản chưa có quyền truy cập dữ liệu trường hoặc phân bổ.';
+      if (cause.status === 400) return 'Yêu cầu dữ liệu không hợp lệ: ' + cause.message;
+      if (cause.status >= 500) return 'Máy chủ gặp lỗi khi xử lý yêu cầu. Vui lòng thử lại.';
+      return cause.message;
+    }
+    if (cause instanceof TypeError) return 'Không kết nối được Backend. Kiểm tra máy chủ và đường dẫn API.';
+    return cause instanceof Error ? cause.message : 'Không thể tải dữ liệu. Vui lòng thử lại.';
+  };
+  const queryFailure = section === 'progress' ? customers.error : operations.error ?? (section === 'allocations' ? availableSchools.error : null);
+  useEffect(() => {
+    if (!queryFailure) {
+      lastQueryFailure.current = null;
+      return;
+    }
+    if (lastQueryFailure.current === queryFailure) return;
+    lastQueryFailure.current = queryFailure;
+    appNotice.error('Không thể tải dữ liệu CRM', describeApiError(queryFailure));
+  }, [queryFailure]);
+  useEffect(() => {
+    if (section === 'allocations' && capacities.error) {
+      appNotice.warning('Không tải được thông tin hạn mức',
+        'Bạn vẫn có thể gửi lời mời; Backend sẽ kiểm tra hạn mức khi xử lý.');
+    }
+  }, [capacities.error, section]);
   const save = async (command: { path: string; method?: string; body: Record<string, unknown> }) => {
     if (preview) throw new Error('Chế độ demo chỉ đọc; cần kết nối Backend để thao tác.');
     await api(command.path, { method: command.method ?? 'POST', body: JSON.stringify(command.body) });
     setAction(null);
-    setNotice('Đã lưu quyết định và cập nhật hàng chờ xử lý.');
-    try { await refresh(); } catch { setNotice('Đã lưu, nhưng chưa thể tải lại dữ liệu. Vui lòng mở lại trang.'); }
+    appNotice.success(command.path === '/school-invitations'
+      ? 'Đã gửi lời mời phân bổ trường'
+      : 'Đã lưu quyết định', command.path === '/school-invitations'
+        ? 'Sales/CTV sẽ nhận được lời mời để phản hồi.'
+        : 'Danh sách công việc đã được cập nhật.');
+    try { await refresh(); } catch {
+      appNotice.warning('Đã lưu thành công', 'Không thể tải lại dữ liệu ngay. Vui lòng mở lại trang.');
+    }
   };
   const decide = (kind: 'proposal' | 'extension', id: number, approve: boolean, fields: SchoolActionField[] = []) => {
     const title = kind === 'proposal'
@@ -126,14 +161,26 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     });
   };
   const invite = () => {
-    setError('');
-    if (preview) { setError('Bản xem trước chỉ đọc. Hãy đăng nhập Backend để phân bổ trường.'); return; }
-    if (!can('channel_sales.school.allocation.manage')) { setError('Tài khoản chưa có quyền phân bổ trường.'); return; }
-    if (operations.isPending || availableSchools.isPending || capacities.isPending) { setError('Đang tải trường và nhân sự. Vui lòng thử lại sau khi tải xong.'); return; }
-    if (operations.error || availableSchools.error || capacities.error) { setError('Không thể tải danh sách phân bổ. Kiểm tra kết nối rồi thử lại.'); return; }
+    if (preview) { appNotice.info('Bản xem trước chỉ đọc', 'Đăng nhập Backend để phân bổ trường.'); return; }
+    if (!can('channel_sales.school.allocation.manage')) {
+      appNotice.error('Không có quyền phân bổ', 'Tài khoản chưa được cấp quyền phân bổ trường.');
+      return;
+    }
+    if (operations.isPending || availableSchools.isPending) {
+      appNotice.info('Đang tải dữ liệu', 'Vui lòng thử lại khi danh sách trường và Sales/CTV tải xong.');
+      return;
+    }
+    if (operations.error || availableSchools.error) {
+      appNotice.error('Không thể tải danh sách phân bổ', describeApiError(operations.error ?? availableSchools.error));
+      return;
+    }
     const members = operations.data?.team.filter(t => t.can_receive_school && t.status === 'ACTIVE') ?? [];
     const schools = availableSchools.data?.data.filter(s => s.visible_status === 'AVAILABLE') ?? [];
-    if (!members.length || !schools.length) { setError('Chưa có trường chưa đăng ký hoặc Sales/CTV đủ điều kiện nhận phân bổ trong danh sách hiện tại.'); return; }
+    if (!members.length || !schools.length) {
+      appNotice.warning('Chưa đủ điều kiện phân bổ',
+        !schools.length ? 'Không có trường chưa đăng ký phù hợp.' : 'Không có Sales/CTV đủ điều kiện nhận trường.');
+      return;
+    }
     setAction({
       title: 'Mời Sales/CTV nhận trường',
       description: 'Sau khi gửi lời mời, Sales/CTV cần xác nhận. Quyền tiếp cận chỉ bắt đầu khi nhận thành công và còn hạn mức.',
@@ -180,9 +227,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
           onClick={invite}>Phân bổ trường</AppButton>}
       </div>}/>
     {preview && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Dữ liệu minh họa chỉ đọc. Đăng nhập hệ thống kết nối API để phê duyệt và phân bổ.</p>}
-    {notice && <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" >{notice}</output>}
-    {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-    {failed && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{failed.message}</p>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={() => { setSearch(draft.trim()); setPage(1); }}
@@ -275,6 +319,13 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
             </tr>)}
           </tbody>
         </table>
+        {!busy && failed && <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-foreground">Không thể tải danh sách.</p>
+          <Button type="button" variant="outline" onClick={() => {
+            if (section === 'progress') void customers.refetch();
+            else void operations.refetch();
+          }}>Thử lại</Button>
+        </div>}
         {!busy && !failed && (section === 'progress' ? progressPage.length === 0 : windowRows.length === 0) &&
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">Không có hồ sơ phù hợp. Thử tìm kiếm hoặc chọn trạng thái khác.</div>}
         {busy && <div className="px-6 py-10 text-center text-sm text-muted-foreground">Đang tải dữ liệu…</div>}

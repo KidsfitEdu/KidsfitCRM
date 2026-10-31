@@ -4,6 +4,7 @@ import {
   Combobox, ComboboxInput, ComboboxContent, ComboboxList,
   ComboboxItem, ComboboxEmpty,
 } from '@/components/ui/combobox';
+import { matchesComboboxQuery } from '@/lib/combobox-search';
 
 export type AppComboboxOption = { value: string; label: string };
 
@@ -27,8 +28,13 @@ export function AppCombobox({
   const items = options.map(option => option.value);
   const labelFor = (item: string) => options.find(option => option.value === item)?.label ?? item;
 
-  return <Combobox items={items} itemToStringLabel={labelFor} value={value || null}
-    onValueChange={next => onChange(next ?? '')} disabled={disabled}>
+  return <Combobox
+    items={items}
+    itemToStringLabel={labelFor}
+    filter={(item: string, query: string) => matchesComboboxQuery(labelFor(item), query)}
+    value={value || null}
+    onValueChange={next => onChange(next ?? '')}
+    disabled={disabled}>
     <ComboboxInput
       id={id}
       name={name}
@@ -41,10 +47,10 @@ export function AppCombobox({
     <ComboboxContent className="z-[70] rounded-xl border border-border bg-popover shadow-xl">
       <ComboboxEmpty>Không tìm thấy lựa chọn phù hợp.</ComboboxEmpty>
       <ComboboxList className="max-h-64 overflow-y-auto p-1.5">
-        {options.map(option =>
-          <ComboboxItem key={option.value} value={option.value}
+        {(item: string) => (
+          <ComboboxItem key={item} value={item}
             className="min-h-10 rounded-lg px-3 py-2 text-sm">
-            {option.label}
+            {labelFor(item)}
           </ComboboxItem>
         )}
       </ComboboxList>

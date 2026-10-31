@@ -138,7 +138,13 @@ public static class SchoolEndpoints
         var pii = access.All || (current is not null && access.CanManage(current.OwnerUserId, current.OwnerOrganizationId)) || (contracts.Length > 0 && access.Has(Permissions.ChannelSalesActivity));
         var canWork = current is not null && access.CanManage(current.OwnerUserId, current.OwnerOrganizationId);
         var units = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == id).OrderBy(x => x.SourceRow).ToArrayAsync(ct);
-        var activities = pii ? await db.CustomerActivities.AsNoTracking().Where(x => x.CustomerId == school.CustomerId).OrderByDescending(x => x.CreatedAt).Take(50)
+        // Protect past partner notes when a school changes ownership across organizations.
+        var activities = pii ? await db.CustomerActivities.AsNoTracking()
+            .Where(x => x.CustomerId == school.CustomerId && (access.All ||
+                (x.ApproachRegistrationId.HasValue && db.ApproachRegistrations.Any(r =>
+                    r.Id == x.ApproachRegistrationId && access.OrganizationIds.Contains(r.OwnerOrganizationId) &&
+                    (access.Organization || r.OwnerUserId == access.UserId)))))
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Take(50)
             .Select(x => new { x.ActivityType, x.Content, x.OccurredAt, x.ContactName, x.ContactPosition, x.Feedback, x.Commitment, x.NextFollowUpAt, x.CreatedAt }).ToArrayAsync(ct) : [];
         var available = !await db.CustomerProtections.AnyAsync(x => x.CustomerId == school.CustomerId && x.Status == "ACTIVE" && x.EffectiveUntil > now, ct);
         var canEdit = access.All && access.Has(Permissions.SchoolDirectoryManage) && await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && access.OrganizationIds.Contains(x.Id), ct);

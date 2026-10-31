@@ -28,7 +28,7 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
     if(manual.reason?.trim()&&manual.reason.trim().length<3)errs.reason='Vui lòng nêu lý do ít nhất 3 ký tự.';
     setFormErrors(errs);if(Object.keys(errs).length)return;
     setBusy(true);
-    try {await createManualSchool(apiBase,token,manual);setManual({unit_type:'MAIN'});setManualOpen(false);appNotice.success('Đã thêm trường thành công.');await queryClient.invalidateQueries();await onChanged();}
+    try {await createManualSchool(apiBase,token,manual);setManual({unit_type:'MAIN'});setManualOpen(false);appNotice.success('Đã thêm trường thành công.');try{await queryClient.invalidateQueries();await onChanged();}catch(e){appNotice.warning('Đã thêm trường, nhưng chưa tải lại được danh sách.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}}
     catch(e){appNotice.error('Không thêm được trường học.',e instanceof Error?e.message:'Vui lòng kiểm tra thông tin và thử lại.');}
     finally{setBusy(false);}
   };

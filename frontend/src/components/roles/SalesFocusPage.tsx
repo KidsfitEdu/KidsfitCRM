@@ -87,7 +87,11 @@ export function SalesFocusPage({section, ...props}: Props) {
         <item.icon className="size-4" aria-hidden="true"/>{item.label}
       </button>)}
     </nav>}
-    <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
+    {section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
+      <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+        {apiBase ? 'Tài khoản chưa được cấp quyền xem thu nhập cá nhân.' : 'Chế độ xem thử chưa kết nối dữ liệu doanh thu và hoa hồng cá nhân.'}
+      </div>
+    ) : <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
       apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
       initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
       compactOperations initialOperationsTab={tab}
@@ -98,7 +102,7 @@ export function SalesFocusPage({section, ...props}: Props) {
         canReportContract={can('channel_sales.contract.report')}
         canRecordRevenue={can('channel_sales.revenue.record')}
         onRegister={props.onRegister} onAddActivity={props.onAddActivity}
-        onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>} />
+        onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>} />}
     {!apiBase && section === 'income' && <p className="text-sm text-muted-foreground">
       Bản xem trước chỉ đọc; dữ liệu thu nhập thực tế cần kết nối API và quyền xem hoa hồng.
     </p>}

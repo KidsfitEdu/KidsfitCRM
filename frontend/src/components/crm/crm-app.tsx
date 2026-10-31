@@ -169,7 +169,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     if (apiBase) window.history.pushState(null,'',viewToPath(next));
   };
 
-  const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue, salesWorkflow };
+  const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue, salesWorkflow, onSalesNavigate: navigate };
   const todayLabel = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
   if (!ready) return <main className="grid min-h-screen place-items-center">Đang khởi tạo CRM…</main>;
   if (apiBase && !token) return <LoginPage loading={loading} onLogin={login} />;

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Eye, History, Plus, RotateCcw, X, Ban, ListChecks } from 'lucide-react';
+import { Check, Eye, History, Plus, X, Ban, ListChecks } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { SchoolActionForm, type SchoolAction, type SchoolActionField } from '@/components/crm/school-action-form';
 import { channelRequest, channelQueryKeys } from '@/lib/channel-operations';
 import { workflowLabels, workflowDate, vietnamDateTimeInput, type SchoolOperationsWorkspace } from '@/lib/school-operations';
@@ -53,6 +54,9 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [selection, setSelection] = useState<Selection | null>(null);
   const [history, setHistory] = useState<{ kind: string; id: number; name: string } | null>(null);
   const [action, setAction] = useState<SchoolAction | null>(null);
+  const [confirmProposal, setConfirmProposal] = useState<{ id: number; name: string } | null>(null);
+  const [confirmingProposal, setConfirmingProposal] = useState(false);
+  const [confirmationError, setConfirmationError] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const client = useQueryClient();
@@ -103,7 +107,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     await api(command.path, { method: command.method ?? 'POST', body: JSON.stringify(command.body) });
     setAction(null);
     setNotice('Đã lưu quyết định và cập nhật hàng chờ xử lý.');
-    try { await refresh(); } catch { setNotice('Đã lưu, nhưng chưa thể tải lại dữ liệu. Vui lòng chọn Làm mới.'); }
+    try { await refresh(); } catch { setNotice('Đã lưu, nhưng chưa thể tải lại dữ liệu. Vui lòng mở lại trang.'); }
   };
   const decide = (kind: 'proposal' | 'extension', id: number, approve: boolean, fields: SchoolActionField[] = []) => {
     const title = kind === 'proposal'
@@ -122,6 +126,11 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     });
   };
   const invite = () => {
+    setError('');
+    if (preview) { setError('Bản xem trước chỉ đọc. Hãy đăng nhập Backend để phân bổ trường.'); return; }
+    if (!can('channel_sales.school.allocation.manage')) { setError('Tài khoản chưa có quyền phân bổ trường.'); return; }
+    if (operations.isPending || availableSchools.isPending || capacities.isPending) { setError('Đang tải trường và nhân sự. Vui lòng thử lại sau khi tải xong.'); return; }
+    if (operations.error || availableSchools.error || capacities.error) { setError('Không thể tải danh sách phân bổ. Kiểm tra kết nối rồi thử lại.'); return; }
     const members = operations.data?.team.filter(t => t.can_receive_school && t.status === 'ACTIVE') ?? [];
     const schools = availableSchools.data?.data.filter(s => s.visible_status === 'AVAILABLE') ?? [];
     if (!members.length || !schools.length) { setError('Chưa có trường chưa đăng ký hoặc Sales/CTV đủ điều kiện nhận phân bổ trong danh sách hiện tại.'); return; }
@@ -168,9 +177,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       title={config.title} description={config.description}
       actions={<div className="flex flex-wrap gap-2">
         {section === 'allocations' && <AppButton tone="green" premium leadingIcon={<Plus className="size-4"/>}
-          disabled={preview || !can('channel_sales.school.allocation.manage') || availableSchools.isPending || operations.isPending}
           onClick={invite}>Phân bổ trường</AppButton>}
-        <AppButton tone="outline" leadingIcon={<RotateCcw className="size-4"/>} onClick={() => void refresh()}>Làm mới</AppButton>
       </div>}/>
     {preview && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Dữ liệu minh họa chỉ đọc. Đăng nhập hệ thống kết nối API để phê duyệt và phân bổ.</p>}
     {notice && <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" >{notice}</output>}
@@ -217,7 +224,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
                 <td className={adminTableCellClass}><div className="flex items-center justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem đề xuất ' + p.name} onClick={() => setSelection({kind:'proposal',item:p})}/>
                   {p.can_manager_review && can('channel_sales.school.proposal.review') && <>
-                    <AdminIconAction icon={Check} label={'Chuyển Admin: ' + p.name} tone="green" onClick={() => decide('proposal',p.id,true,[{name:'review_due_at',label:'Hạn xử lý Admin',type:'datetime-local',optional:true}])}/>
+                    <AdminIconAction icon={Check} label={'Chuyển Admin: ' + p.name} tone="green" onClick={() => { setConfirmationError(''); setConfirmProposal({ id: p.id, name: p.name }); }}/>
                     <AdminIconAction icon={X} label={'Từ chối ' + p.name} tone="red" onClick={() => decide('proposal',p.id,false)}/>
                   </>}
                   {!preview && <AdminIconAction icon={History} tone="neutral" label={'Lịch sử đề xuất ' + p.name} onClick={() => setHistory({kind:'proposal',id:p.id,name:p.name})}/>}
@@ -277,6 +284,32 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       <AppPagination page={page} pageSize={pageSize} total={total} disabled={busy} showSummary={false}
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
+    <Dialog open={confirmProposal!==null} onOpenChange={open => { if (!open && !confirmingProposal) setConfirmProposal(null); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Xác nhận chuyển đề xuất</DialogTitle>
+          <DialogDescription>
+            Bạn có xác nhận chuyển đề xuất trường <strong className="text-foreground">{confirmProposal?.name}</strong> lên Admin để xem xét và phê duyệt không?
+          </DialogDescription>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">Hạn xử lý được hệ thống tự tính theo chính sách vận hành. Đề xuất không tự được duyệt khi quá hạn.</p>
+        {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" disabled={confirmingProposal} onClick={() => setConfirmProposal(null)}>Hủy</Button>
+          <Button type="button" disabled={confirmingProposal} className="bg-[#1b5e20] text-white hover:bg-[#124c17]" onClick={async () => {
+            if (!confirmProposal || confirmingProposal) return;
+            setConfirmingProposal(true);
+            setConfirmationError('');
+            try {
+              await save({ path: '/school-proposals/' + confirmProposal.id + '/manager-review', body: { approve: true, reason: null, review_due_at: null } });
+              setConfirmProposal(null);
+            } catch (cause) {
+              setConfirmationError(cause instanceof Error ? cause.message : 'Không thể chuyển đề xuất.');
+            } finally { setConfirmingProposal(false); }
+          }}>{confirmingProposal ? 'Đang chuyển…' : 'Xác nhận chuyển'}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     <Dialog open={action!==null} onOpenChange={v=>{if(!v)setAction(null);}}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         {action && <SchoolActionForm key={action.path+'-'+action.title} action={action} save={save}/>}

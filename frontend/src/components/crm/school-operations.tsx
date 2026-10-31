@@ -16,12 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { AppDrawer } from '@/components/common/app-drawer';
 import {
   channelRequest,
   channelQueryKeys,
@@ -1504,13 +1499,12 @@ export function SchoolOperations({
         </section>
       )}
       <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
-      <Dialog
+      <AppDrawer
         open={history !== null}
         onOpenChange={(open) => !open && setHistory(null)}
+        title="Lịch sử xử lý"
+        description={history?.name}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-          <DialogTitle>Lịch sử xử lý</DialogTitle>
-          <DialogDescription>{history?.name}</DialogDescription>
           {historyQuery.isPending && <p>Đang tải lịch sử…</p>}
           {historyQuery.error && (
             <p role="alert" className="text-red-600">
@@ -1544,8 +1538,7 @@ export function SchoolOperations({
               </div>
             );
           })}
-        </DialogContent>
-      </Dialog>
+      </AppDrawer>
     </div>
   );
 }

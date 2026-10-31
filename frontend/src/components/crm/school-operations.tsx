@@ -1,5 +1,5 @@
 'use client';
-import { useDeferredValue, useState, type ReactNode } from 'react';
+import { useCallback, useDeferredValue, useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ClipboardList,
@@ -12,8 +12,17 @@ import {
   Scale,
   BarChart3,
   Settings2,
+  Search,
+  RotateCcw,
+  CheckCircle2,
+  XCircle,
+  Ban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SalesProposalTable } from '@/components/roles/SalesProposalTable';
+import { AppButton } from '@/components/common/app-button';
+import { AppPagination } from '@/components/common/app-pagination';
+import { AppNativeSelect } from '@/components/common/app-native-select';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -52,6 +61,9 @@ type Props = {
   onChanged: () => Promise<void>;
   initialTab?: string;
   hideTabs?: boolean;
+  compactHeader?: boolean;
+  embeddedSalesTable?: boolean;
+  proposalActionRef?: RefObject<{open: () => void} | null>;
 };
 const reason: SchoolActionField = {
   name: 'reason',
@@ -76,14 +88,20 @@ export function SchoolOperations({
   onChanged,
   initialTab = 'proposals',
   hideTabs = false,
+  compactHeader = false,
+  embeddedSalesTable = false,
+  proposalActionRef,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
   const [search, setSearch] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
   const [page, setPage] = useState(1);
   const searchTerm = useDeferredValue(search.trim());
   const [pendingOnly, setPendingOnly] = useState(true);
+  const [proposalStatus, setProposalStatus] = useState('ALL');
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [action, setAction] = useState<SchoolAction | null>(null);
+  const [selectedProposal, setSelectedProposal] = useState<SchoolOperationsWorkspace['proposals'][number] | null>(null);
   const [history, setHistory] = useState<{
     kind: string;
     id: number;
@@ -108,7 +126,7 @@ export function SchoolOperations({
   const api = <T,>(path: string, options?: RequestInit) =>
     channelRequest<T>(apiBase, token, path, options);
   const workspace = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm],
+    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus],
     queryFn: () =>
       preview
         ? Promise.resolve(schoolOperationsPreview(abilities))
@@ -116,7 +134,8 @@ export function SchoolOperations({
             '/school-operations?page=' +
               page +
               '&search=' +
-              encodeURIComponent(searchTerm),
+              encodeURIComponent(searchTerm) +
+              (proposalStatus === 'ALL' ? '' : '&status=' + encodeURIComponent(proposalStatus)),
           ),
     enabled: preview || !!token,
     refetchInterval: preview ? false : 30000,
@@ -222,7 +241,7 @@ export function SchoolOperations({
     ]);
     if (refresh.some((r) => r.status === 'rejected'))
       setNotice(
-        'Đã lưu. Chưa tải lại được toàn bộ dữ liệu; anh có thể bấm Làm mới.',
+        'Đã lưu. Danh sách sẽ tự cập nhật khi kết nối ổn định.',
       );
   };
   const data = workspace.data;
@@ -241,11 +260,14 @@ export function SchoolOperations({
   const historyButton = (kind: string, id: number, name: string) =>
     !preview && (
       <Button
-        variant="ghost"
-        size="sm"
+        variant={embeddedSalesTable ? 'outline' : 'ghost'}
+        size={embeddedSalesTable ? 'icon' : 'sm'}
+        className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
+        title={embeddedSalesTable ? `Lịch sử ${name}` : undefined}
+        aria-label={embeddedSalesTable ? `Lịch sử ${name}` : undefined}
         onClick={() => setHistory({ kind, id, name })}
       >
-        <History className="size-3.5" /> Lịch sử
+        <History className="size-3.5" />{!embeddedSalesTable && 'Lịch sử'}
       </Button>
     );
   const decide = (
@@ -265,7 +287,7 @@ export function SchoolOperations({
       submitLabel: approve ? 'Xác nhận duyệt' : 'Xác nhận từ chối',
       danger: !approve,
     });
-  const openProposal = () =>
+  const openProposal = useCallback(() =>
     setAction({
       title: 'Đề xuất trường mới',
       path: '/school-proposals',
@@ -284,7 +306,12 @@ export function SchoolOperations({
         deadline,
         reason,
       ],
-    });
+    }), []);
+  useEffect(() => {
+    if (!proposalActionRef) return;
+    proposalActionRef.current = { open: openProposal };
+    return () => { proposalActionRef.current = null; };
+  }, [proposalActionRef, openProposal]);
   const openPolicy = () =>
     setAction({
       title: 'Tạo phiên bản chính sách',
@@ -424,8 +451,8 @@ export function SchoolOperations({
   const total = data.pagination?.totals[active] ?? 0;
   const pageSize = data.pagination?.page_size ?? 100;
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
+    <div className={embeddedSalesTable ? 'space-y-0' : 'space-y-5'}>
+      {!compactHeader && <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#1b5e20] dark:text-[#a5d6a7]">
             CHECKEE · Vận hành
@@ -443,7 +470,12 @@ export function SchoolOperations({
             <Plus className="size-4" /> Đề xuất trường
           </Button>
         )}
-      </header>
+      </header>}
+      {!embeddedSalesTable && compactHeader && active === 'proposals' && can('channel_sales.school.proposal.submit') && !all && (
+        <div className="flex justify-end">
+          <Button onClick={openProposal}><Plus className="size-4"/> Đề xuất trường</Button>
+        </div>
+      )}
       {preview && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           Các tình huống dưới đây dùng dữ liệu minh họa, chỉ đọc. Để ghi nhận hồ
@@ -480,7 +512,7 @@ export function SchoolOperations({
           </button>
         ))}
       </nav>}
-      {active !== 'report' && active !== 'policies' && (
+      {!embeddedSalesTable && active !== 'report' && active !== 'policies' && (
         <div className="flex flex-wrap gap-3">
           <Input
             aria-label="Tìm hồ sơ vận hành"
@@ -503,7 +535,38 @@ export function SchoolOperations({
           </p>
         </div>
       )}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {embeddedSalesTable && (active === 'invitations' || active === 'extensions') && (
+        <form className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-white px-4 py-4 dark:bg-card sm:px-5"
+          onSubmit={event => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
+          <div className="relative min-w-[190px] flex-1">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+            <Input aria-label="Tìm hồ sơ" placeholder={active === 'invitations' ? 'Tên trường, nhân sự phân bổ...' : 'Tên trường, người yêu cầu...'}
+              className="h-11 w-full rounded-xl pl-10" value={searchDraft} onChange={e => setSearchDraft(e.target.value)}/>
+          </div>
+          <AppNativeSelect aria-label="Lọc trạng thái hồ sơ" value={pendingOnly ? 'PENDING' : 'ALL'} containerClassName="w-full sm:w-48"
+            onChange={e => {setPendingOnly(e.target.value === 'PENDING');setPage(1);}}>
+            <option value="PENDING">Cần xử lý</option>
+            <option value="ALL">Tất cả trạng thái</option>
+          </AppNativeSelect>
+          <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+          <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
+            aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc"
+            onClick={() => {setSearchDraft('');setSearch('');setPendingOnly(true);setPage(1);}}>
+            <RotateCcw className="size-4" aria-hidden="true"/>
+          </AppButton>
+        </form>
+      )}
+      {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
+        proposals={data.proposals} page={page} total={total} pageSize={pageSize}
+        loading={workspace.isFetching} preview={preview}
+        onPageChange={setPage} onSearch={term => {setSearch(term);setPage(1);}}
+        onStatusChange={value=>{setProposalStatus(value);setPage(1);}}
+        onOpen={setSelectedProposal}
+        onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}/>
+      }
+      {!(embeddedSalesTable && active === 'proposals') && <div className={embeddedSalesTable
+        ? 'divide-y divide-border/70 bg-white dark:bg-card'
+        : 'grid gap-4 lg:grid-cols-2'}>
         {active === 'proposals' &&
           data.proposals
             .filter(
@@ -628,6 +691,7 @@ export function SchoolOperations({
               )
               .map((x) => (
                 <WorkflowCard
+                  compact={embeddedSalesTable}
                   key={x.id}
                   title={x.school_name}
                   subtitle={x.assigned_by + ' → ' + x.assignee_name}
@@ -644,7 +708,10 @@ export function SchoolOperations({
                     {x.can_respond && !preview && (
                       <>
                         <Button
-                          size="sm"
+                          size={embeddedSalesTable ? 'icon' : 'sm'}
+                          title={embeddedSalesTable ? `Nhận trường ${x.school_name}` : undefined}
+                          aria-label={embeddedSalesTable ? `Nhận trường ${x.school_name}` : undefined}
+                          className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
                           onClick={() =>
                             setAction({
                               title: 'Nhận trường',
@@ -656,11 +723,14 @@ export function SchoolOperations({
                             })
                           }
                         >
-                          Nhận trường
+                          {embeddedSalesTable ? <CheckCircle2 className="size-4" aria-hidden="true"/> : 'Nhận trường'}
                         </Button>
                         <Button
-                          size="sm"
+                          size={embeddedSalesTable ? 'icon' : 'sm'}
                           variant="outline"
+                          title={embeddedSalesTable ? `Từ chối phân bổ ${x.school_name}` : undefined}
+                          aria-label={embeddedSalesTable ? `Từ chối phân bổ ${x.school_name}` : undefined}
+                          className={embeddedSalesTable ? 'size-9 rounded-lg text-rose-700' : undefined}
                           onClick={() =>
                             setAction({
                               title: 'Từ chối phân bổ',
@@ -672,14 +742,17 @@ export function SchoolOperations({
                             })
                           }
                         >
-                          Từ chối
+                          {embeddedSalesTable ? <XCircle className="size-4" aria-hidden="true"/> : 'Từ chối'}
                         </Button>
                       </>
                     )}
                     {x.can_cancel && !preview && (
                       <Button
-                        size="sm"
+                        size={embeddedSalesTable ? 'icon' : 'sm'}
                         variant="outline"
+                        title={embeddedSalesTable ? `Hủy lời mời ${x.school_name}` : undefined}
+                        aria-label={embeddedSalesTable ? `Hủy lời mời ${x.school_name}` : undefined}
+                        className={embeddedSalesTable ? 'size-9 rounded-lg text-rose-700' : undefined}
                         onClick={() =>
                           setAction({
                             title: 'Hủy lời mời',
@@ -691,7 +764,7 @@ export function SchoolOperations({
                           })
                         }
                       >
-                        Hủy lời mời
+                        {embeddedSalesTable ? <Ban className="size-4" aria-hidden="true"/> : 'Hủy lời mời'}
                       </Button>
                     )}
                     {historyButton('invitation', x.id, x.school_name)}
@@ -706,6 +779,7 @@ export function SchoolOperations({
               )
               .map((x) => (
                 <WorkflowCard
+                  compact={embeddedSalesTable}
                   key={'defer-' + x.id}
                   title={x.school_name}
                   subtitle="Rà soát trường chưa có người nhận"
@@ -718,8 +792,11 @@ export function SchoolOperations({
                   </p>
                   {x.can_complete && !preview && (
                     <Button
-                      size="sm"
+                      size={embeddedSalesTable ? 'icon' : 'sm'}
                       variant="outline"
+                      title={embeddedSalesTable ? `Hoàn tất rà soát ${x.school_name}` : undefined}
+                      aria-label={embeddedSalesTable ? `Hoàn tất rà soát ${x.school_name}` : undefined}
+                      className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
                       onClick={() =>
                         setAction({
                           title: 'Ghi kết quả rà soát',
@@ -729,7 +806,7 @@ export function SchoolOperations({
                         })
                       }
                     >
-                      Hoàn tất rà soát
+                      {embeddedSalesTable ? <CheckCircle2 className="size-4" aria-hidden="true"/> : 'Hoàn tất rà soát'}
                     </Button>
                   )}
                 </WorkflowCard>
@@ -745,6 +822,7 @@ export function SchoolOperations({
             )
             .map((x) => (
               <WorkflowCard
+                compact={embeddedSalesTable}
                 key={x.id}
                 title={x.school_name}
                 subtitle={x.requested_by}
@@ -781,7 +859,10 @@ export function SchoolOperations({
                     <>
                       {!x.is_expired && (
                         <Button
-                          size="sm"
+                          size={embeddedSalesTable ? 'icon' : 'sm'}
+                          title={embeddedSalesTable ? `Duyệt gia hạn ${x.school_name}` : undefined}
+                          aria-label={embeddedSalesTable ? `Duyệt gia hạn ${x.school_name}` : undefined}
+                          className={embeddedSalesTable ? 'size-9 rounded-lg' : undefined}
                           onClick={() =>
                             decide(
                               'Duyệt gia hạn',
@@ -805,12 +886,15 @@ export function SchoolOperations({
                             )
                           }
                         >
-                          Duyệt gia hạn
+                          {embeddedSalesTable ? <CheckCircle2 className="size-4" aria-hidden="true"/> : 'Duyệt gia hạn'}
                         </Button>
                       )}
                       <Button
-                        size="sm"
+                        size={embeddedSalesTable ? 'icon' : 'sm'}
                         variant="outline"
+                        title={embeddedSalesTable ? `Từ chối gia hạn ${x.school_name}` : undefined}
+                        aria-label={embeddedSalesTable ? `Từ chối gia hạn ${x.school_name}` : undefined}
+                        className={embeddedSalesTable ? 'size-9 rounded-lg text-rose-700' : undefined}
                         onClick={() =>
                           decide(
                             'Từ chối gia hạn',
@@ -819,7 +903,7 @@ export function SchoolOperations({
                           )
                         }
                       >
-                        Từ chối
+                        {embeddedSalesTable ? <XCircle className="size-4" aria-hidden="true"/> : 'Từ chối'}
                       </Button>
                     </>
                   )}
@@ -1357,8 +1441,11 @@ export function SchoolOperations({
             ))}
           </>
         )}
-      </div>
-      {active !== 'report' && visibleCounts[active] === 0 && (
+      {embeddedSalesTable && (active === 'invitations' || active === 'extensions') && visibleCounts[active] === 0 && (
+        <div className="p-10 text-center text-sm text-muted-foreground">Chưa có hồ sơ phù hợp. Thử thay đổi từ khóa hoặc trạng thái.</div>
+      )}
+      </div>}
+      {!embeddedSalesTable && active !== 'report' && visibleCounts[active] === 0 && (
         <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
           <ClipboardList className="mx-auto mb-3 size-8 text-muted-foreground" />
           <p className="font-medium">
@@ -1383,34 +1470,25 @@ export function SchoolOperations({
           )}
         </div>
       )}
-      {!preview &&
-        data.pagination &&
+      {!(embeddedSalesTable && active === 'proposals') &&
+        (preview ? embeddedSalesTable : !!data.pagination) &&
         active !== 'report' &&
         active !== 'policies' && (
-          <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
-            <p className="text-xs text-muted-foreground">
-              Trang {page} · Tối đa {pageSize} hồ sơ mỗi nhóm. Hồ sơ chờ xử lý
-              được ưu tiên trước.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1 || workspace.isFetching}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Trang trước
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page * pageSize >= total || workspace.isFetching}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Trang sau
-              </Button>
-            </div>
-          </footer>
+          embeddedSalesTable
+            ? <AppPagination page={preview ? 1 : page} pageSize={pageSize} total={preview ? visibleCounts[active] : total}
+                itemLabel="hồ sơ" showSummary={false} fixedPageSize disabled={preview || workspace.isFetching}
+                onPageChange={setPage}/>
+            : <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
+                <p className="text-xs text-muted-foreground">
+                  Trang {page} · Tối đa {pageSize} hồ sơ mỗi nhóm. Hồ sơ chờ xử lý được ưu tiên trước.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1 || workspace.isFetching}
+                    onClick={() => setPage(p => p - 1)}>Trang trước</Button>
+                  <Button variant="outline" size="sm" disabled={page * pageSize >= total || workspace.isFetching}
+                    onClick={() => setPage(p => p + 1)}>Trang sau</Button>
+                </div>
+              </footer>
         )}
       {workspace.isFetching && !workspace.isPending && (
         <output className="text-xs text-muted-foreground">
@@ -1506,6 +1584,21 @@ export function SchoolOperations({
           )}
         </section>
       )}
+      <Dialog open={selectedProposal !== null} onOpenChange={open => !open && setSelectedProposal(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogTitle>Chi tiết đề xuất trường</DialogTitle>
+          <DialogDescription>{selectedProposal?.name}</DialogDescription>
+          {selectedProposal && <div className="space-y-3 text-sm">
+            <p><strong>Người đề xuất:</strong> {selectedProposal.submitted_by}</p>
+            <p><strong>Quản lý:</strong> {selectedProposal.manager_name}</p>
+            <p><strong>Trạng thái:</strong> {workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p>
+            <p><strong>Địa điểm:</strong> {selectedProposal.province} · {selectedProposal.ward}</p>
+            <p><strong>Hạn xử lý:</strong> {workflowDate(selectedProposal.review_due_at)}</p>
+            <p><strong>Nội dung:</strong> {selectedProposal.reason}</p>
+            {selectedProposal.decision_reason && <p><strong>Phản hồi:</strong> {selectedProposal.decision_reason}</p>}
+          </div>}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={action !== null}
         onOpenChange={(open) => !open && setAction(null)}
@@ -1572,6 +1665,7 @@ function WorkflowCard({
   status,
   due,
   overdue,
+  compact = false,
   children,
 }: {
   title: string;
@@ -1579,10 +1673,13 @@ function WorkflowCard({
   status?: string;
   due?: string;
   overdue?: boolean;
+  compact?: boolean;
   children: ReactNode;
 }) {
   return (
-    <article className="flex flex-col gap-3 rounded-2xl border bg-card p-5 shadow-sm">
+    <article className={compact
+      ? 'flex flex-col gap-3 bg-white px-5 py-5 transition-colors hover:bg-muted/20 dark:bg-card'
+      : 'flex flex-col gap-3 rounded-2xl border bg-card p-5 shadow-sm'}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold leading-snug">{title}</h3>

@@ -2,7 +2,6 @@
 
 import { useMemo, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
-  ArrowRight,
   BadgeCheck,
   Building2,
   CalendarClock,
@@ -13,7 +12,9 @@ import {
   Phone,
   Plus,
   ReceiptText,
+  SquarePen,
   Search,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -23,6 +24,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { AppButton } from '@/components/common/app-button';
+import { AppPagination } from '@/components/common/app-pagination';
+import { AppNativeSelect } from '@/components/common/app-native-select';
 import {
   Dialog as UiDialog,
   DialogContent,
@@ -40,8 +44,11 @@ import type {
 } from '@/lib/channel-sales';
 
 type StatusFilter = 'ALL' | ChannelCustomer['visible_status'];
+export type SalesCustomerMode = 'all' | 'mine' | 'activities';
 
 type Props = {
+  mode?: SalesCustomerMode;
+  embedded?: boolean;
   onOpenCustomer?: (id: number) => void;
   workspace: ChannelSalesWorkspace;
   search: string;
@@ -115,6 +122,8 @@ const idempotencyKey = (prefix: string) =>
   `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
 
 export function ChannelSalesView({
+  mode = 'all',
+  embedded = false,
   onOpenCustomer,
   workspace,
   search,
@@ -129,6 +138,9 @@ export function ChannelSalesView({
   onRecordRevenue,
 }: Props) {
   const [filter, setFilter] = useState<StatusFilter>('ALL');
+  const [draftSearch, setDraftSearch] = useState(search);
+  const [listPage, setListPage] = useState(1);
+  const [listPageSize, setListPageSize] = useState(20);
   const [registerCustomer, setRegisterCustomer] = useState<
     ChannelCustomer | null | undefined
   >(undefined);
@@ -139,9 +151,14 @@ export function ChannelSalesView({
   const [receiptCustomer, setReceiptCustomer] =
     useState<ChannelCustomer | null>(null);
 
+  const scopedCustomers = useMemo(() => workspace.data.filter(customer =>
+    mode === 'all' || (mode === 'activities'
+      ? customer.visible_status === 'APPROACHING' && customer.can_manage_approach
+      : customer.can_manage_approach || (customer.visible_status === 'CONTRACTED' && customer.contract_id !== null))
+  ), [mode, workspace.data]);
   const customers = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
-    return workspace.data.filter(
+    return scopedCustomers.filter(
       (customer) =>
         (filter === 'ALL' || customer.visible_status === filter) &&
         (!term ||
@@ -153,37 +170,38 @@ export function ChannelSalesView({
             customer.contact_name,
           ].some((value) => value?.toLocaleLowerCase('vi').includes(term))),
     );
-  }, [filter, search, workspace.data]);
+  }, [filter, search, scopedCustomers]);
+
+  const totalPages = Math.max(1, Math.ceil(customers.length / listPageSize));
+  const currentPage = Math.min(listPage, totalPages);
+  const pageCustomers = customers.slice((currentPage - 1) * listPageSize, currentPage * listPageSize);
 
   const tabs: { id: StatusFilter; label: string; count: number }[] = [
     {
       id: 'ALL',
       label: 'Tất cả',
-      count:
-        workspace.metrics.available +
-        workspace.metrics.approaching +
-        workspace.metrics.contracted,
+      count: mode === 'all' ? workspace.metrics.available + workspace.metrics.approaching + workspace.metrics.contracted : scopedCustomers.length,
     },
     {
       id: 'AVAILABLE',
       label: 'Chưa đăng ký',
-      count: workspace.metrics.available,
+      count: mode === 'all' ? workspace.metrics.available : scopedCustomers.filter(customer => customer.visible_status === 'AVAILABLE').length,
     },
     {
       id: 'APPROACHING',
       label: 'Đang tiếp cận',
-      count: workspace.metrics.approaching,
+      count: mode === 'all' ? workspace.metrics.approaching : scopedCustomers.filter(customer => customer.visible_status === 'APPROACHING').length,
     },
     {
       id: 'CONTRACTED',
       label: 'Đã ký',
-      count: workspace.metrics.contracted,
+      count: mode === 'all' ? workspace.metrics.contracted : scopedCustomers.filter(customer => customer.visible_status === 'CONTRACTED').length,
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] bg-[#0e2a1a] px-6 py-7 text-white shadow-[0_26px_70px_rgba(17,29,49,.2)] sm:px-8">
+    <div className={embedded ? 'space-y-0' : 'space-y-6'}>
+      {mode === 'all' && <section className="relative overflow-hidden rounded-[28px] bg-[#0e2a1a] px-6 py-7 text-white shadow-[0_26px_70px_rgba(17,29,49,.2)] sm:px-8">
         <div className="absolute -right-20 -top-36 size-80 rounded-full bg-[#4caf50]/20 blur-3xl" />
         <div className="absolute -bottom-44 left-1/3 size-80 rounded-full bg-[#20b895]/20 blur-3xl" />
         <div className="relative grid gap-7 xl:grid-cols-[1.25fr_.75fr] xl:items-end">
@@ -238,9 +256,9 @@ export function ChannelSalesView({
             />
           </div>
         </div>
-      </section>
+      </section>}
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      {mode === 'all' && <section className="grid gap-3 sm:grid-cols-3">
         <StatusSummary
           icon={<Sparkles />}
           label="Chưa đăng ký"
@@ -262,16 +280,34 @@ export function ChannelSalesView({
           caption="Được bảo vệ 5 năm"
           tone="emerald"
         />
-      </section>
+      </section>}
 
-      <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-border/80">
+      <Card className={embedded ? 'overflow-hidden rounded-none border-0 shadow-none' : 'overflow-hidden border-0 shadow-sm ring-1 ring-border/80'}>
         <CardContent className="p-0">
-          <div className="flex flex-col gap-4 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          {embedded ? <form onSubmit={event=>{event.preventDefault();setSearch(draftSearch.trim());setListPage(1);}}
+            className="flex flex-wrap items-center gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
+            <div className="relative min-w-[190px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+              <Input aria-label="Tìm trường đang phụ trách" placeholder="Tên trường, mã trường, điện thoại..."
+                className="h-11 w-full rounded-xl pl-10" value={draftSearch} onChange={event=>setDraftSearch(event.target.value)}/>
+            </div>
+            {mode === 'mine' && <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full sm:w-48"
+              value={filter} onChange={event=>{setFilter(event.target.value as StatusFilter);setListPage(1);}}>
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="APPROACHING">Đang tiếp cận</option>
+              <option value="CONTRACTED">Đã ký hợp đồng</option>
+            </AppNativeSelect>}
+            <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+            <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
+              aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');setListPage(1);}}>
+              <RotateCcw className="size-4" aria-hidden="true"/>
+            </AppButton>
+          </form> : <div className="flex flex-col gap-4 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1">
-              {tabs.map((tab) => (
+              {tabs.filter(tab => mode === 'all' || (mode === 'mine' && tab.id !== 'AVAILABLE')).filter(() => mode !== 'activities').map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setFilter(tab.id)}
+                  onClick={() => {setFilter(tab.id);setListPage(1);}}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-all ${filter === tab.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {tab.label}
@@ -285,12 +321,12 @@ export function ChannelSalesView({
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {setSearch(event.target.value);setListPage(1);}}
                 className="h-10 rounded-xl bg-background pl-9"
                 placeholder="Tên, MST, điện thoại…"
               />
             </div>
-          </div>
+          </div>}
 
           <div className="hidden grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid">
             <span>Khách hàng</span>
@@ -300,7 +336,7 @@ export function ChannelSalesView({
             <span className="text-right">Thao tác</span>
           </div>
           <div className="divide-y divide-border/70">
-            {customers.map((customer) => (
+            {pageCustomers.map((customer) => (
               <CustomerRow
                 key={customer.id}
                 customer={customer}
@@ -308,7 +344,7 @@ export function ChannelSalesView({
                   onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined
                 }
                 canSeeRevenue={workspace.capabilities?.view_revenue !== false}
-                canRegister={canRegister}
+                canRegister={mode === 'all' && canRegister}
                 canAddActivity={canAddActivity}
                 canReportContract={canReportContract}
                 canRecordRevenue={canRecordRevenue}
@@ -324,14 +360,17 @@ export function ChannelSalesView({
                   <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
                     <Search className="size-5" />
                   </div>
-                  <p className="mt-4 font-semibold">Chưa tìm thấy khách hàng</p>
+                  <p className="mt-4 font-semibold">{mode === 'activities' ? 'Chưa có trường cần tư vấn' : mode === 'mine' ? 'Chưa có trường trong danh sách của bạn' : 'Chưa tìm thấy khách hàng'}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Thử từ khóa khác hoặc tạo lượt tiếp cận mới.
+                    {mode === 'all' ? 'Thử từ khóa khác hoặc tạo lượt tiếp cận mới.' : 'Hãy kiểm tra bộ lọc hoặc danh sách trường được phân công.'}
                   </p>
                 </div>
               </div>
             )}
           </div>
+          {mode !== 'all' && <AppPagination page={currentPage} pageSize={listPageSize} total={customers.length}
+            disabled={false} showSummary={false} onPageChange={setListPage} pageSizeOptions={[10,20,50,100]}
+            onPageSizeChange={size=>{setListPageSize(size);setListPage(1);}}/>}
         </CardContent>
       </Card>
 
@@ -481,29 +520,22 @@ function CustomerRow({
       </div>
       <div className="flex flex-wrap justify-end gap-2 xl:min-w-44">
         {customer.visible_status === 'AVAILABLE' && canRegister && (
-          <Button onClick={onRegister} size="sm" className="rounded-xl">
-            Đăng ký <ArrowRight />
+          <Button onClick={onRegister} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800" title="Đăng ký tiếp cận" aria-label={`Đăng ký tiếp cận ${customer.display_name}`}>
+            <Plus className="size-4" aria-hidden="true"/>
           </Button>
         )}
         {customer.visible_status === 'APPROACHING' && (
           <>
             {canAddActivity && customer.can_manage_approach && (
-              <Button
-                onClick={onActivity}
-                size="sm"
-                variant="outline"
-                className="rounded-xl"
-              >
-                Cập nhật
+              <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
+                title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}>
+                <SquarePen className="size-4" aria-hidden="true"/>
               </Button>
             )}
             {canReportContract && customer.can_manage_approach && (
-              <Button
-                onClick={onContract}
-                size="sm"
-                className="rounded-xl bg-[#1b5e20] hover:bg-[#124c17]"
-              >
-                Báo hợp đồng
+              <Button onClick={onContract} size="icon" className="size-9 rounded-lg bg-[#1b5e20] hover:bg-[#124c17]"
+                title="Báo hợp đồng" aria-label={`Báo hợp đồng ${customer.display_name}`}>
+                <FileCheck2 className="size-4" aria-hidden="true"/>
               </Button>
             )}
           </>
@@ -518,13 +550,9 @@ function CustomerRow({
             {canRecordRevenue &&
               customer.can_record_revenue &&
               customer.collected_revenue < customer.contract_value && (
-                <Button
-                  onClick={onReceipt}
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl"
-                >
-                  <ReceiptText /> Ghi nhận thu
+                <Button onClick={onReceipt} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
+                  title="Ghi nhận thu" aria-label={`Ghi nhận thu ${customer.display_name}`}>
+                  <ReceiptText className="size-4" aria-hidden="true"/>
                 </Button>
               )}
           </>

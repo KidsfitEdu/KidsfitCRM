@@ -22,6 +22,7 @@ import {
   UsersRound,
   Search,
   RotateCcw,
+  UserRoundPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppButton } from '@/components/common/app-button';
@@ -52,6 +53,7 @@ type Props = {
   onChanged: () => Promise<void>;
   adminMode?: boolean;
   renderImportAction?: (openImport: () => void) => ReactNode;
+  registrationIconOnly?: boolean;
 };
 type School = {
   id: number;
@@ -172,6 +174,7 @@ export function SchoolDirectory({
   onChanged,
   adminMode = false,
   renderImportAction,
+  registrationIconOnly = false,
 }: Props) {
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
@@ -431,7 +434,11 @@ export function SchoolDirectory({
                         </AppButton>
                         {!adminMode && s.can_register && (
                           <Button
-                            size="sm"
+                            type="button"
+                            size={registrationIconOnly ? 'icon' : 'sm'}
+                            className={registrationIconOnly ? 'h-9 w-9 rounded-lg border border-primary bg-card text-primary shadow-sm hover:bg-primary hover:text-primary-foreground' : undefined}
+                            title={registrationIconOnly ? 'Đăng ký tiếp cận' : undefined}
+                            aria-label={registrationIconOnly ? `Đăng ký tiếp cận ${s.display_name}` : undefined}
                             disabled={mutation.isPending}
                             onClick={() =>
                               run({
@@ -444,7 +451,7 @@ export function SchoolDirectory({
                               }).catch(() => undefined)
                             }
                           >
-                            Đăng ký tiếp cận
+                            {registrationIconOnly ? <UserRoundPlus className="size-4" aria-hidden="true"/> : 'Đăng ký tiếp cận'}
                           </Button>
                         )}
                       </div>

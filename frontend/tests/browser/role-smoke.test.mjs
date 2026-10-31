@@ -47,7 +47,7 @@ async function login(profileLabel, viewport={width:1400,height:900}) {
 test('seven CRM roles across eight demo accounts can log in and open their menu', async () => {
   const roles = [
     ['Quản trị viên',7],['Quản lý bán hàng',6],
-    ['Nhân viên bán hàng',9],['CTV đối tác',9],
+    ['Nhân viên bán hàng',6],['CTV đối tác',6],
     ['Ban giám đốc',5],['Kế toán',5],
     ['Chăm sóc khách hàng',5],['CHECKEE',5],
   ];
@@ -76,12 +76,55 @@ test('Admin can navigate seven screens without browser exceptions', async () => 
 test('Collaborator mobile navigation and logout work', async () => {
   const {context,page,errors} = await login('CTV đối tác',{width:390,height:844});
   const nav = page.getByRole('navigation',{name:'Điều hướng di động'});
-  assert.equal(await nav.locator('button').count(),9);
+  assert.equal(await nav.locator('button').count(),6);
   await nav.locator('button').nth(1).click();
   assert.deepEqual(errors,[]);
   await page.screenshot({path:resolve(artifacts,'collaborator-mobile.png')});
   await page.setViewportSize({width:1400,height:900});
   await page.getByRole('button',{name:'Đăng xuất'}).click();
   await page.getByRole('button',{name:'Đăng nhập',exact:true}).waitFor();
+  await context.close();
+});
+
+test('Sales desktop uses 30% flat underline tabs and a table for proposals', async () => {
+  const {context,page,navigation,errors} = await login('Nhân viên bán hàng');
+  await navigation.getByRole('button',{name:'Trường của tôi',exact:true}).click();
+  const tabs = page.getByRole('navigation',{name:'Nhóm công việc Sales'});
+  await tabs.waitFor();
+  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  assert.ok(await page.getByRole('combobox',{name:'Số dòng mỗi trang'}).isVisible());
+  assert.ok(await page.getByRole('button',{name:'Trang 1'}).isVisible());
+  const sizes = await tabs.evaluate(element => ({
+    outer: element.getBoundingClientRect().width,
+    inner: element.firstElementChild.getBoundingClientRect().width,
+  }));
+  assert.ok(sizes.inner / sizes.outer > 0.27 && sizes.inner / sizes.outer < 0.33,
+    'Sales underline tab group should occupy about 30% of the content width');
+  const style = await tabs.evaluate(element => {
+    const tab = element.querySelector('button[aria-current="page"]');
+    return {navBackground:getComputedStyle(element).backgroundColor,
+      activeUnderline:getComputedStyle(tab).borderBottomColor,
+      activeWidth:getComputedStyle(tab).borderBottomWidth};
+  });
+  assert.equal(style.navBackground, 'rgb(255, 255, 255)');
+  assert.equal(style.activeUnderline, 'rgb(27, 94, 32)');
+  assert.equal(style.activeWidth, '3px');
+  await tabs.getByRole('button',{name:'Chờ nhận phân bổ'}).click();
+  await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
+  await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).waitFor();
+  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  await navigation.getByRole('button',{name:'Tiếp cận & tư vấn',exact:true}).click();
+  await page.getByRole('navigation',{name:'Nhóm công việc Sales'})
+    .getByRole('button',{name:'Gia hạn tiếp cận'}).click();
+  await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
+  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  await navigation.getByRole('button',{name:'Đề xuất trường',exact:true}).click();
+  await page.getByRole('table').waitFor();
+  assert.ok(await page.getByRole('columnheader',{name:'Người đề xuất'}).isVisible());
+  assert.ok(await page.getByRole('button',{name:'Đặt lại bộ lọc'}).isVisible());
+  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  assert.ok(await page.getByLabel('Cố định 100 dòng mỗi trang').isVisible());
+  assert.deepEqual(errors,[]);
+  await page.screenshot({path:resolve(artifacts,'sales-proposals-table.png')});
   await context.close();
 });

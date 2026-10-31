@@ -24,11 +24,13 @@ import {
   History,
   Plus,
   RefreshCw,
+  SquarePen,
   ShieldCheck,
   UsersRound,
   WalletCards,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AppPagination } from '@/components/common/app-pagination';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -404,6 +406,7 @@ function OperationsContent({
           ) : (
             finance.data && (
               <FinancePanel
+                salesMode={compactOperations}
                 data={finance.data}
                 can={can}
                 run={run}
@@ -651,7 +654,9 @@ function FinancePanel({
   pending,
   showModal,
   closeModal,
+  salesMode = false,
 }: {
+  salesMode?: boolean;
   data: FinanceWorkspace;
   can: (p: string) => boolean;
   run: (command: Command) => Promise<void>;
@@ -659,6 +664,14 @@ function FinancePanel({
   showModal: (content: ReactNode) => void;
   closeModal: () => void;
 }) {
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerSize, setLedgerSize] = useState(20);
+  const [payoutPage, setPayoutPage] = useState(1);
+  const [payoutSize, setPayoutSize] = useState(20);
+  const currentLedgerPage = Math.min(ledgerPage, Math.max(1, Math.ceil(data.ledger.length / ledgerSize)));
+  const currentPayoutPage = Math.min(payoutPage, Math.max(1, Math.ceil(data.payouts.length / payoutSize)));
+  const ledgerRows = salesMode ? data.ledger.slice((currentLedgerPage - 1) * ledgerSize, currentLedgerPage * ledgerSize) : data.ledger;
+  const payoutRows = salesMode ? data.payouts.slice((currentPayoutPage - 1) * payoutSize, currentPayoutPage * payoutSize) : data.payouts;
   const metrics = [
     ['Hoa hồng phát sinh', data.summary.accrued],
     ['Đủ điều kiện lập chi', data.summary.eligible],
@@ -735,7 +748,7 @@ function FinancePanel({
               </tr>
             </thead>
             <tbody className="divide-y">
-              {data.ledger.map((entry) => (
+              {ledgerRows.map((entry) => (
                 <tr key={entry.id}>
                   <td className="px-5 py-4">
                     <p className="font-medium">{entry.beneficiary_name}</p>
@@ -768,9 +781,11 @@ function FinancePanel({
                     {entry.entry_type === 'ACCRUAL' &&
                       can('channel_sales.commission.adjust') && (
                         <Button
-                          size="sm"
+                          size={salesMode ? 'icon' : 'sm'}
                           variant="ghost"
-                          className="mt-1"
+                          className={salesMode ? 'mt-1 size-9 rounded-lg' : 'mt-1'}
+                          title={salesMode ? `Điều chỉnh hoa hồng ${entry.contract_code}` : undefined}
+                          aria-label={salesMode ? `Điều chỉnh hoa hồng ${entry.contract_code}` : undefined}
                           onClick={() =>
                             showModal(
                               <AdjustmentForm
@@ -787,7 +802,7 @@ function FinancePanel({
                             )
                           }
                         >
-                          Điều chỉnh
+                          {salesMode ? <SquarePen className="size-4" aria-hidden="true"/> : 'Điều chỉnh'}
                         </Button>
                       )}
                   </td>
@@ -800,15 +815,18 @@ function FinancePanel({
           )}
           {data.ledger_total > data.ledger.length && (
             <p className="p-4 text-xs text-muted-foreground">
-              Hiển thị {data.ledger.length}/{data.ledger_total} bút toán.
+              Dữ liệu API hiện tải {data.ledger.length}/{data.ledger_total} bút toán. Footer chỉ phân trang các bút toán đã tải.
             </p>
           )}
         </div>
+        {salesMode && <AppPagination page={currentLedgerPage} pageSize={ledgerSize} total={data.ledger.length}
+          itemLabel="bút toán đã tải" showSummary={false} onPageChange={setLedgerPage}
+          pageSizeOptions={[10,20,50,100]} onPageSizeChange={n=>{setLedgerSize(n);setLedgerPage(1);}}/>}
       </section>
       <section className="rounded-2xl border bg-card p-5">
         <h3 className="mb-4 font-semibold">Phiếu chi trong kỳ</h3>
         <div className="space-y-3">
-          {data.payouts.map((payout) => (
+          {payoutRows.map((payout) => (
             <div key={payout.id} className="rounded-xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -895,6 +913,9 @@ function FinancePanel({
             <Empty message="Chưa lập phiếu chi trong kỳ này." />
           )}
         </div>
+        {salesMode && <AppPagination page={currentPayoutPage} pageSize={payoutSize} total={data.payouts.length}
+          itemLabel="phiếu chi đã tải" showSummary={false} onPageChange={setPayoutPage}
+          pageSizeOptions={[10,20,50,100]} onPageSizeChange={n=>{setPayoutSize(n);setPayoutPage(1);}}/>}
       </section>
       <section className="rounded-2xl border bg-card p-5">
         <div className="mb-4 flex items-center justify-between gap-4">

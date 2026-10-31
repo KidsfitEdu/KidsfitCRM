@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, type ComponentProps } from 'react';
-import { CalendarClock, Handshake, School, UsersRound } from 'lucide-react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { CalendarClock, Handshake, Plus, School, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
+import { AppButton } from '@/components/common/app-button';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';
@@ -39,6 +40,7 @@ type Props = RolePageProps & {section: SalesSection};
 /** One task-focused Sales workspace, shared by employee and collaborator accounts. */
 export function SalesFocusPage({section, ...props}: Props) {
   const {apiBase, token, abilities, workspace, onChanged, search, setSearch, salesWorkflow} = props;
+  const proposalActionRef = useRef<{open: () => void} | null>(null);
   const [subview, setSubview] = useState<'main' | 'invitations' | 'extensions'>(() =>
     section === 'customers' && salesWorkflow === 'invitations' ? 'invitations'
       : section === 'activities' && salesWorkflow === 'extensions' ? 'extensions' : 'main'
@@ -69,7 +71,8 @@ export function SalesFocusPage({section, ...props}: Props) {
   const table = <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
     apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
     initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
-    compactOperations embeddedSalesTable={section === 'proposals'} initialOperationsTab={tab}
+    compactOperations embeddedSalesTable={section === 'proposals' || isInvitations || isExtensions}
+    proposalActionRef={proposalActionRef} initialOperationsTab={tab}
     customerView={onOpenCustomer => <ChannelSalesView mode={mode}
       embedded={section === 'customers' || section === 'activities'} workspace={workspace}
       search={search} setSearch={setSearch} onOpenCustomer={onOpenCustomer}
@@ -79,33 +82,47 @@ export function SalesFocusPage({section, ...props}: Props) {
       canRecordRevenue={can('channel_sales.revenue.record')}
       onRegister={props.onRegister} onAddActivity={props.onAddActivity}
       onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>} />;
-  const contained = section === 'customers' || section === 'activities' || section === 'proposals';
+  const hasTaskTabs = section === 'customers' || section === 'activities';
+  const contained = hasTaskTabs || section === 'proposals';
+  const canCreateProposal = section === 'proposals' && !!apiBase && !!token &&
+    abilities.includes('channel_sales.school.proposal.submit') &&
+    !abilities.includes('channel_sales.scope.all');
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BÁN HÀNG / KIDSFIT CRM" title={copy[section].title}
-      description={copy[section].description}/>
+      description={copy[section].description}
+      actions={canCreateProposal ? <AppButton type="button" tone="green"
+        className="h-10 rounded-lg px-4"
+        leadingIcon={<Plus className="size-4" aria-hidden="true"/>}
+        onClick={() => proposalActionRef.current?.open()}>Thêm mới</AppButton> : undefined}/>
     {section === 'customers' && <div className="grid gap-3 sm:grid-cols-3">
       <AppStatCard icon={Handshake} label="Đang tiếp cận" value={activeCount}/>
       <AppStatCard icon={School} label="Hồ sơ hợp đồng" value={contractsCount}/>
       <AppStatCard icon={CalendarClock} label="Sắp hết hạn (48 giờ)" value={expiringCount}/>
     </div>}
-    {contained ? <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
-      {(section === 'customers' || section === 'activities') && <nav aria-label="Nhóm công việc Sales"
-        className="flex w-full overflow-x-auto border-b border-border bg-card p-3">
-        <div className="flex w-full gap-2 md:w-1/2">
+    {contained ? <div className="space-y-0">
+      {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
+        className="relative flex w-full justify-start bg-transparent">
+        <div className="relative flex w-full items-center gap-0 rounded-t-[24px] bg-white px-1.5 pb-1 pt-2 dark:bg-card lg:w-[30%]">
           {(section === 'customers'
             ? [{id:'main',label:'Trường đang phụ trách',icon:UsersRound},
                {id:'invitations',label:'Chờ nhận phân bổ',icon:School}]
             : [{id:'main',label:'Hoạt động tư vấn',icon:Handshake},
                {id:'extensions',label:'Gia hạn tiếp cận',icon:CalendarClock}]
-          ).map(item => <button key={item.id} type="button" onClick={()=>setSubview(item.id as typeof subview)}
+          ).map(item => <button key={item.id} type="button" title={item.label}
+            onClick={() => setSubview(item.id as typeof subview)}
             aria-current={subview === item.id ? 'page' : undefined}
-            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${subview === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-            <item.icon className="size-4 shrink-0" aria-hidden="true"/><span>{item.label}</span>
+            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-t-xl px-1.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary xl:text-[13px] ${subview === item.id ? 'font-bold text-[#1b5e20] dark:text-[#a5d6a7]' : 'text-slate-500 hover:text-[#1b5e20] dark:text-slate-400'}`}>
+            <item.icon className="size-3.5 shrink-0" aria-hidden="true"/>
+            <span className="min-w-0 truncate">{item.label}</span>
           </button>)}
         </div>
       </nav>}
-      {table}
-    </section> : section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
+      <section className={hasTaskTabs
+        ? 'crm-brand-surface overflow-hidden rounded-b-2xl rounded-tr-2xl border-x border-b border-border/80 bg-white shadow-sm dark:bg-card'
+        : 'crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card'}>
+        {table}
+      </section>
+    </div> : section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
       <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
         {apiBase ? 'Tài khoản chưa được cấp quyền xem thu nhập cá nhân.' : 'Chế độ xem thử chưa kết nối dữ liệu doanh thu và hoa hồng cá nhân.'}
       </div>

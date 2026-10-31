@@ -52,6 +52,7 @@ type Props = {
   onChanged: () => Promise<void>;
   initialTab?: string;
   hideTabs?: boolean;
+  compactHeader?: boolean;
 };
 const reason: SchoolActionField = {
   name: 'reason',
@@ -76,6 +77,7 @@ export function SchoolOperations({
   onChanged,
   initialTab = 'proposals',
   hideTabs = false,
+  compactHeader = false,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
   const [search, setSearch] = useState('');
@@ -425,7 +427,7 @@ export function SchoolOperations({
   const pageSize = data.pagination?.page_size ?? 100;
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
+      {!compactHeader && <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#1b5e20] dark:text-[#a5d6a7]">
             CHECKEE · Vận hành
@@ -443,7 +445,7 @@ export function SchoolOperations({
             <Plus className="size-4" /> Đề xuất trường
           </Button>
         )}
-      </header>
+      </header>}
       {preview && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           Các tình huống dưới đây dùng dữ liệu minh họa, chỉ đọc. Để ghi nhận hồ

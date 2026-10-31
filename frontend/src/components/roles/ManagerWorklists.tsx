@@ -9,11 +9,10 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { SchoolActionForm, type SchoolAction, type SchoolActionField } from '@/components/crm/school-action-form';
-import { channelRequest, channelQueryKeys, currentBusinessPeriod } from '@/lib/channel-operations';
-import { workflowLabels, workflowDate, vietnamDateTimeInput, type SchoolOperationsWorkspace, type SchoolOperationsReport } from '@/lib/school-operations';
-import { schoolOperationsPreview, schoolOperationsReportPreview } from '@/lib/school-operations-preview';
+import { channelRequest, channelQueryKeys } from '@/lib/channel-operations';
+import { workflowLabels, workflowDate, vietnamDateTimeInput, type SchoolOperationsWorkspace } from '@/lib/school-operations';
+import { schoolOperationsPreview } from '@/lib/school-operations-preview';
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace } from '@/lib/channel-sales';
 import type { ManagerPageProps } from '@/types/manager-pages';
 
@@ -51,7 +50,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [filter, setFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [period, setPeriod] = useState(currentBusinessPeriod);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [history, setHistory] = useState<{ kind: string; id: number; name: string } | null>(null);
   const [action, setAction] = useState<SchoolAction | null>(null);
@@ -74,11 +72,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const customers = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-progress-customers'],
     queryFn: () => preview ? Promise.resolve(demoChannelSalesWorkspace) : api<ChannelSalesWorkspace>('/workspace'),
-    enabled: section === 'progress' && (preview || !!token),
-  });
-  const report = useQuery({
-    queryKey: [...channelQueryKeys.all, 'manager-progress-report', period],
-    queryFn: () => preview ? Promise.resolve(schoolOperationsReportPreview()) : api<SchoolOperationsReport>('/school-operations/report?period=' + encodeURIComponent(period)),
     enabled: section === 'progress' && (preview || !!token),
   });
   const availableSchools = useQuery({
@@ -165,8 +158,8 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   );
   const progressPage = progressRows.slice((page - 1) * pageSize, page * pageSize);
   const total = section === 'progress' ? progressRows.length : serverTotal;
-  const busy = section === 'progress' ? customers.isPending || report.isPending : operations.isPending;
-  const failed = section === 'progress' ? customers.error ?? report.error : operations.error;
+  const busy = section === 'progress' ? customers.isPending : operations.isPending;
+  const failed = section === 'progress' ? customers.error : operations.error;
   const config = headings[section];
   const reset = () => { setDraft(''); setSearch(''); setFilter('ALL'); setPage(1); };
 
@@ -183,24 +176,11 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     {notice && <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800" >{notice}</output>}
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {failed && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{failed.message}</p>}
-    {section === 'progress' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {([
-        ['Trường chưa đăng ký', report.data?.available_schools],
-        ['Tiếp cận hết hạn', report.data?.expired_approaches],
-        ['Hợp đồng hoạt động', report.data?.active_contracts],
-        ['Hồ sơ quá hạn', report.data ? report.data.overdue_proposals + report.data.overdue_extensions : undefined],
-      ] as [string, number | undefined][]).map(([label, value]) =>
-        <div key={label} className="rounded-2xl border border-border/80 bg-card p-5">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-3 text-3xl font-bold tabular-nums">{value ?? '—'}</p>
-        </div>)}
-    </div>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={() => { setSearch(draft.trim()); setPage(1); }}
         onReset={reset} searchLabel={'Tìm kiếm ' + config.title.toLocaleLowerCase('vi')} placeholder={config.placeholder}
         filters={<div className="flex flex-wrap gap-2">
-          {section === 'progress' && <Input aria-label="Kỳ báo cáo" type="month" className="h-11 w-[165px]" value={period} onChange={e => setPeriod(e.target.value)}/>}
           <AppNativeSelect aria-label="Lọc trạng thái" containerClassName="w-[192px]" value={filter}
             onChange={e => {setFilter(e.target.value);setPage(1);}}>
             <option value="ALL">Tất cả trạng thái</option>
@@ -297,16 +277,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       <AppPagination page={page} pageSize={pageSize} total={total} disabled={busy} showSummary={false}
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
-    {section === 'progress' && report.data && <AdminListPanel>
-      <h3 className="px-5 py-4 text-base font-semibold">Hiệu quả phân bổ theo đội ngũ · {period}</h3>
-      <div className="overflow-x-auto"><table className={adminTableClass}>
-        <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Quản lý</th><th className="px-5 py-4">Nhân sự</th><th className="px-5 py-4 text-center">Đã mời</th><th className="px-5 py-4 text-center">Đã nhận</th><th className="px-5 py-4 text-center">Từ chối</th><th className="px-5 py-4 text-center">Đã hủy</th></tr></thead>
-        <tbody>{report.data.allocation_performance.map((r, i) => <tr key={r.assigned_by_user_id+'-'+r.assignee_user_id+'-'+i} className="border-t even:bg-muted/20">
-          <td className={adminTableCellClass}>{r.manager_name}</td><td className={adminTableCellClass}>{r.assignee_name}</td><td className="px-5 py-4 text-center">{r.invited}</td><td className="px-5 py-4 text-center">{r.accepted}</td><td className="px-5 py-4 text-center">{r.declined}</td><td className="px-5 py-4 text-center">{r.cancelled}</td>
-        </tr>)}</tbody>
-      </table></div>
-      {!report.data.allocation_performance.length && <p className="px-5 py-6 text-sm text-muted-foreground">Chưa có dữ liệu phân bổ trong kỳ.</p>}
-    </AdminListPanel>}
     <Dialog open={action!==null} onOpenChange={v=>{if(!v)setAction(null);}}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         {action && <SchoolActionForm key={action.path+'-'+action.title} action={action} save={save}/>}

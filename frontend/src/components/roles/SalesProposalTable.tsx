@@ -22,10 +22,11 @@ type Props = {
   onOpen: (proposal: Proposal) => void;
   onHistory: (proposal: Proposal) => void;
   onSearch: (term: string) => void;
+  onStatusChange?: (status: string) => void;
 };
 
 export function SalesProposalTable({proposals, page, total, pageSize, loading, preview, onPageChange,
-  onOpen, onHistory, onSearch}: Props) {
+  onOpen, onHistory, onSearch, onStatusChange}: Props) {
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('ALL');
   const [applied, setApplied] = useState('');
@@ -38,7 +39,7 @@ export function SalesProposalTable({proposals, page, total, pageSize, loading, p
     setApplied(term.trim());
     onSearch(term.trim());
   };
-  const reset = () => {setTerm('');setApplied('');setStatus('ALL');onSearch('');};
+  const reset = () => {setTerm('');setApplied('');setStatus('ALL');onSearch('');onStatusChange?.('ALL');};
   return <div className="min-w-0">
     <form onSubmit={submit} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
       <div className="relative min-w-[190px] flex-1">
@@ -47,7 +48,7 @@ export function SalesProposalTable({proposals, page, total, pageSize, loading, p
           placeholder="Tên trường, mã trường, người đề xuất..." value={term} onChange={e=>setTerm(e.target.value)}/>
       </div>
       <AppNativeSelect aria-label="Trạng thái đề xuất" value={status} containerClassName="w-full sm:w-48"
-        onChange={e=>setStatus(e.target.value)}>
+        onChange={e=>{setStatus(e.target.value);onStatusChange?.(e.target.value);}}>
         <option value="ALL">Tất cả trạng thái</option>
         <option value="PENDING_MANAGER">Chờ Quản lý</option>
         <option value="PENDING_ADMIN">Chờ Admin</option>
@@ -91,7 +92,8 @@ export function SalesProposalTable({proposals, page, total, pageSize, loading, p
       </table>
     </div>
     {!items.length && <p className="p-10 text-center text-sm text-muted-foreground">Không có đề xuất trường phù hợp. Hãy thử bộ lọc khác.</p>}
-    {!preview && <AppPagination page={page} pageSize={pageSize} total={total} disabled={loading}
-      onPageChange={onPageChange}/>}
+    <AppPagination page={preview ? 1 : page} pageSize={pageSize} total={preview ? proposals.length : total}
+      showSummary={false} fixedPageSize disabled={loading || preview}
+      onPageChange={onPageChange}/>
   </div>;
 }

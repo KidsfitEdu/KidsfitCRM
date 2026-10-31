@@ -23,8 +23,8 @@ test('Admin page headers do not expose manual refresh buttons', () => {
   }
   const proposals = read('src/screens/Admin/Proposals/ProposalsPage.tsx');
   const capacities = read('src/screens/Admin/Capacities/CapacitiesPage.tsx');
-  assert.match(proposals, /useEffect\(\(\) => \{void reload\(\);\},\[reload\]\)/);
-  assert.match(capacities, /useEffect\(\(\) => \{void reload\(\);\},\[reload\]\)/);
+  assert.match(proposals, /useEffect\(\(\)=>\{void reload\(\);\},\[reload\]\)/);
+  assert.match(capacities, /useEffect\(\(\)=>\{void reload\(\);\},\[reload\]\)/);
   assert.match(proposals, /onReset=/);
   assert.match(capacities, /onReset=/);
 });

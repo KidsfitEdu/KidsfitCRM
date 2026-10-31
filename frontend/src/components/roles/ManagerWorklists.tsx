@@ -188,7 +188,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       description: '',
       path: '/school-invitations',
       fields: [
-        { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number', options: schools.map(s => ({ value: String(s.id), label: s.display_name + ' · ' + s.school_code })) },
+        { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number', options: schools.map(s => ({ value: String(s.id), label: s.display_name })) },
         { name: 'organization_id', label: 'Tổ chức', type: 'number', options: (operations.data?.organizations ?? []).map(o => ({ value: String(o.id), label: o.name })) },
         { name: 'assignee_user_id', label: 'Sales/CTV nhận phân bổ', type: 'number', options: members.map(m => {
           const cap = capacities.data?.data.find(c => c.id === m.id);

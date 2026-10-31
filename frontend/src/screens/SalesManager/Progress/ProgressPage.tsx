@@ -1,4 +1,6 @@
 'use client';
-import { ManagerOperationsPage } from '@/components/roles/ManagerOperationsPage';
+import { ManagerWorklists } from '@/components/roles/ManagerWorklists';
 import type { ManagerPageProps } from '@/types/manager-pages';
-export function ProgressPage(props:ManagerPageProps){return <ManagerOperationsPage section="progress" {...props}/>;}
+export function ProgressPage(props: ManagerPageProps) {
+  return <ManagerWorklists section="progress" {...props} />;
+}

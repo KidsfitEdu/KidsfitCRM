@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import { AppFormDialog } from '@/components/common/app-form-dialog';
-import { SchoolActionForm, type SchoolAction } from '@/components/crm/school-action-form';
+import { AppFormDialog } from '@/components/common/dialogs/app-form-dialog';
+import { SchoolActionForm, type SchoolAction } from '@/components/crm/schools/school-action-form';
 
 /** Adapt existing CRM action schemas to the shared dialog without changing API payloads. */
 export function SchoolActionDialog({

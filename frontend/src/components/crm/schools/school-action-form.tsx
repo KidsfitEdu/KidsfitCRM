@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { workflowFormValue } from '@/lib/school-operations';
-import { AppCombobox } from '@/components/common/app-combobox';
-import { AppDateTimePicker } from '@/components/common/app-date-time-picker';
+import { AppCombobox } from '@/components/common/forms/app-combobox';
+import { AppDateTimePicker } from '@/components/common/forms/app-date-time-picker';
 
 export type SchoolActionField = {
   name: string;

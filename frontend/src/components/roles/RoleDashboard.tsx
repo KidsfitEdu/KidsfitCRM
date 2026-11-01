@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, RefreshCw, Activity, Building2, CalendarClock, ClipboardList, FileCheck2, Handshake } from 'lucide-react';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { channelRequest } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';

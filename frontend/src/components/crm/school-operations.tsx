@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { AppDrawer } from '@/components/common/app-drawer';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import {
   channelRequest,
   channelQueryKeys,
@@ -34,8 +34,8 @@ import {
   schoolOperationsPreview,
   schoolOperationsReportPreview,
 } from '@/lib/school-operations-preview';
-import { type SchoolAction, type SchoolActionField } from './school-action-form';
-import { SchoolActionDialog } from './school-action-dialog';
+import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
+import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 
 type Props = {
   apiBase: string;

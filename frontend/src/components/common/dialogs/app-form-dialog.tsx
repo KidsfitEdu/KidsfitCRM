@@ -1,8 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { AppDialog } from '@/components/common/app-dialog';
-import { AppButton } from '@/components/common/app-button';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { AppButton } from '@/components/common/buttons/app-button';
 
 type Props = {
   open: boolean;

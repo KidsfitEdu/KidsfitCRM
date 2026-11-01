@@ -1,7 +1,7 @@
 'use client';
 import type { FormEvent, ReactNode } from 'react';
 import { Search, RotateCcw } from 'lucide-react';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { Input } from '@/components/ui/input';
 
 type Props = {

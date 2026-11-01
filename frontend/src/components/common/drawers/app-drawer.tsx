@@ -6,7 +6,7 @@ import {
   Sheet, SheetContent, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 
 type Props = {
   open: boolean;

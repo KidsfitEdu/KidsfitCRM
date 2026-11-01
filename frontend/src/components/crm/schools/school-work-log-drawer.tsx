@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AppDrawer } from '@/components/common/app-drawer';
-import { AppWorkNoteContent } from '@/components/common/app-work-note';
-import { AppButton } from '@/components/common/app-button';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AppWorkNoteContent } from '@/components/common/forms/app-work-note';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { channelQueryKeys, channelRequest } from '@/lib/channel-operations';
 

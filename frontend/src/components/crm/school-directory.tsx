@@ -11,7 +11,7 @@ import {
   workflowLabels,
   type SchoolOperationsWorkspace,
 } from '@/lib/school-operations';
-import { SchoolActionForm, type SchoolAction } from './school-action-form';
+import { SchoolActionForm, type SchoolAction } from '@/components/crm/schools/school-action-form';
 import { EvidenceReference } from './school-operations';
 import {
   Building2,
@@ -22,9 +22,9 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AppButton } from '@/components/common/app-button';
-import { AppWorkNoteEditor } from '@/components/common/app-work-note';
-import { SchoolWorkLogDrawer } from '@/components/crm/school-work-log-drawer';
+import { AppButton } from '@/components/common/buttons/app-button';
+import { AppWorkNoteEditor } from '@/components/common/forms/app-work-note';
+import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppPageHeader } from '@/components/common/app-page-header';

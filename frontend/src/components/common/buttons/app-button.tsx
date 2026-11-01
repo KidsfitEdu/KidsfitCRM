@@ -5,7 +5,7 @@ import { LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type Tone = 'green' | 'orange' | 'blue' | 'outline' | 'ghost' | 'danger';
+type Tone = 'green' | 'orange' | 'blue' | 'outline' | 'neutral' | 'ghost' | 'danger';
 type Props = Omit<ComponentProps<typeof Button>, 'variant'> & {
   tone?: Tone;
   busy?: boolean;
@@ -18,6 +18,8 @@ const tones: Record<Tone, string> = {
   orange: 'bg-[#d97706] text-white hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white',
   blue: 'bg-[#0369a1] text-white hover:bg-[#075985] hover:text-white dark:bg-[#0369a1] dark:text-white dark:hover:bg-[#075985] dark:hover:text-white',
   outline: 'border border-[#a5d6a7] bg-card text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-card dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white',
+  // Neutral secondary actions (Hủy/Đóng) must never turn into primary green on hover.
+  neutral: 'border border-border bg-card text-foreground hover:bg-muted hover:text-foreground dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground',
   ghost: 'bg-transparent text-foreground hover:bg-muted',
   danger: 'border border-transparent bg-[#be123c] text-white hover:bg-[#9f1239] hover:text-white dark:bg-[#be123c] dark:text-white',
 };

@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { SchoolDirectory } from '@/components/crm/school-directory';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { FormActions } from '@/components/common/form-actions';
 import { FormError } from '@/components/common/form-error';
 import { appNotice } from '@/components/common/app-toast-provider';

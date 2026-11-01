@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 
 type Props = {

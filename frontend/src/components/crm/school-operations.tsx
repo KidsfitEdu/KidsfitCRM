@@ -20,17 +20,13 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SalesProposalTable } from '@/components/roles/SalesProposalTable';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   channelRequest,
   channelQueryKeys,
@@ -48,11 +44,8 @@ import {
   schoolOperationsPreview,
   schoolOperationsReportPreview,
 } from '@/lib/school-operations-preview';
-import {
-  SchoolActionForm,
-  type SchoolAction,
-  type SchoolActionField,
-} from './school-action-form';
+import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
+import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 
 type Props = {
   apiBase: string;
@@ -1599,27 +1592,13 @@ export function SchoolOperations({
           </div>}
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={action !== null}
-        onOpenChange={(open) => !open && setAction(null)}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl">
-          {action && (
-            <SchoolActionForm
-              key={action.path + action.title}
-              action={action}
-              save={save}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-      <Dialog
+      <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
+      <AppDrawer
         open={history !== null}
         onOpenChange={(open) => !open && setHistory(null)}
+        title="Lịch sử xử lý"
+        description={history?.name}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-          <DialogTitle>Lịch sử xử lý</DialogTitle>
-          <DialogDescription>{history?.name}</DialogDescription>
           {historyQuery.isPending && <p>Đang tải lịch sử…</p>}
           {historyQuery.error && (
             <p role="alert" className="text-red-600">
@@ -1653,8 +1632,7 @@ export function SchoolOperations({
               </div>
             );
           })}
-        </DialogContent>
-      </Dialog>
+      </AppDrawer>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { CalendarClock, Handshake, Plus, School, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';

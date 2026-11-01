@@ -14,6 +14,7 @@ public static class ChannelSalesOperationsEndpoints
         group.MapGet("/reconciliation-cases", Reconciliations).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/management", Management).RequireAuthorization(Permissions.ChannelSalesTeamManage);
         group.MapGet("/customers/{id:long}", CustomerDetail).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/customers/{id:long}/work-logs", CustomerWorkLogEndpoints.List).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/customers/{id:long}/support-activities", async (long id, AddCustomerActivityRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
             Results.Created($"/api/channel-sales/customers/{id}", new { data = new { id = await actions.RecordSupportActivity(id, request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesActivity);
         group.MapPost("/commissions/{id:long}/adjustments", async (long id, AdjustCommissionRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { fetchCapacities, updateCapacity } from '@/services/capacity.service';
 import type { Capacity } from '@/types/capacity';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { ConfirmDialog } from '@/components/common/confirm-dialog';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { FormActions } from '@/components/common/form-actions';
 import { FormError } from '@/components/common/form-error';
 

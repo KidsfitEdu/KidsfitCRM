@@ -4,13 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Eye, History, Plus, X, Ban, ListChecks } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
-import { AppButton } from '@/components/common/app-button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { Button } from '@/components/ui/button';
-import { SchoolActionForm, type SchoolAction, type SchoolActionField } from '@/components/crm/school-action-form';
+import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
+import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { channelRequest, channelQueryKeys, ChannelRequestError } from '@/lib/channel-operations';
 import { loadAllocationSchools } from '@/lib/manager-allocation';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -31,7 +34,6 @@ type Selection =
 type Capacity = { id: number; name: string; organization_name: string; school_approach_limit: number; active: number };
 type School = { id: number; display_name: string; school_code: string; visible_status: string; can_register: boolean };
 type SchoolList = { data: School[]; total: number };
-type CustomerTimeline = { activities: { id: number; activity_type: string; content: string; user_name: string; created_at: string; next_follow_up_at: string | null }[] };
 type HistoryResult = { data: { id: number; action: string; actor_name: string; created_at: string; new_values: string | null }[] };
 
 const headings: Record<ManagerWorklistSection, { title: string; description: string; placeholder: string }> = {
@@ -55,6 +57,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [pageSize, setPageSize] = useState(20);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [history, setHistory] = useState<{ kind: string; id: number; name: string } | null>(null);
+  const [workLog, setWorkLog] = useState<{ customerId: number; schoolName: string } | null>(null);
   const [action, setAction] = useState<SchoolAction | null>(null);
   const [confirmProposal, setConfirmProposal] = useState<{ id: number; name: string } | null>(null);
   const [confirmingProposal, setConfirmingProposal] = useState(false);
@@ -89,11 +92,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     queryKey: [...channelQueryKeys.all, 'manager-capacities'],
     queryFn: () => api<{ data: Capacity[] }>('/school-capacities'),
     enabled: section === 'allocations' && !preview && !!token,
-  });
-  const timeline = useQuery({
-    queryKey: [...channelQueryKeys.all, 'manager-customer-timeline', selection?.kind === 'progress' ? selection.item.id : null],
-    queryFn: () => api<CustomerTimeline>('/customers/' + (selection?.kind === 'progress' ? selection.item.id : 0)),
-    enabled: !!token && !preview && selection?.kind === 'progress',
   });
   const historyQuery = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-operation-history', history?.kind, history?.id],
@@ -183,10 +181,10 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     }
     setAction({
       title: 'Mời Sales/CTV nhận trường',
-      description: 'Sau khi gửi lời mời, Sales/CTV cần xác nhận. Quyền tiếp cận chỉ bắt đầu khi nhận thành công và còn hạn mức.',
+      description: '',
       path: '/school-invitations',
       fields: [
-        { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number', options: schools.map(s => ({ value: String(s.id), label: s.display_name + ' · ' + s.school_code })) },
+        { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number', options: schools.map(s => ({ value: String(s.id), label: s.display_name })) },
         { name: 'organization_id', label: 'Tổ chức', type: 'number', options: (operations.data?.organizations ?? []).map(o => ({ value: String(o.id), label: o.name })) },
         { name: 'assignee_user_id', label: 'Sales/CTV nhận phân bổ', type: 'number', options: members.map(m => {
           const cap = capacities.data?.data.find(c => c.id === m.id);
@@ -335,39 +333,27 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       <AppPagination page={page} pageSize={pageSize} total={total} disabled={busy} showSummary={false}
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
-    <Dialog open={confirmProposal!==null} onOpenChange={open => { if (!open && !confirmingProposal) setConfirmProposal(null); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="gap-3">
-          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">Xác nhận chuyển đề xuất</DialogTitle>
-          <DialogDescription className="text-[15px] leading-7 text-foreground/90 sm:text-base">
-            Bạn có xác nhận chuyển đề xuất trường <strong className="text-foreground">{confirmProposal?.name}</strong> lên Admin để xem xét và phê duyệt không?
-          </DialogDescription>
-        </DialogHeader>
-        {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
-        <div className="flex flex-col-reverse items-stretch justify-center gap-3 pt-2 sm:flex-row sm:items-center">
-          <Button type="button" variant="outline" disabled={confirmingProposal} className="h-11 w-full font-semibold sm:w-40" onClick={() => setConfirmProposal(null)}>Hủy</Button>
-          <Button type="button" disabled={confirmingProposal} className="h-11 w-full bg-[#1b5e20] font-semibold text-white hover:bg-[#124c17] sm:w-40" onClick={async () => {
-            if (!confirmProposal || confirmingProposal) return;
-            setConfirmingProposal(true);
-            setConfirmationError('');
-            try {
-              await save({ path: '/school-proposals/' + confirmProposal.id + '/manager-review', body: { approve: true, reason: null, review_due_at: null } });
-              setConfirmProposal(null);
-            } catch (cause) {
-              setConfirmationError(cause instanceof Error ? cause.message : 'Không thể chuyển đề xuất.');
-            } finally { setConfirmingProposal(false); }
-          }}>{confirmingProposal ? 'Đang chuyển…' : 'Xác nhận chuyển'}</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-    <Dialog open={action!==null} onOpenChange={v=>{if(!v)setAction(null);}}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        {action && <SchoolActionForm key={action.path+'-'+action.title} action={action} save={save}/>}
-      </DialogContent>
-    </Dialog>
-    <Dialog open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader><DialogTitle>Chi tiết hồ sơ</DialogTitle><DialogDescription>Thông tin trong phạm vi quản lý được Backend cho phép truy cập.</DialogDescription></DialogHeader>
+    <ConfirmDialog open={confirmProposal!==null}
+      onOpenChange={open => { if (!open && !confirmingProposal) setConfirmProposal(null); }}
+      title="Xác nhận chuyển đề xuất"
+      description={<>Bạn có xác nhận chuyển đề xuất trường <strong className="font-semibold text-foreground">{confirmProposal?.name}</strong> lên Admin để xem xét và phê duyệt không?</>}
+      confirmLabel="Xác nhận chuyển" busy={confirmingProposal}
+      onConfirm={async () => {
+        if (!confirmProposal || confirmingProposal) return;
+        setConfirmingProposal(true);
+        setConfirmationError('');
+        try {
+          await save({ path: '/school-proposals/' + confirmProposal.id + '/manager-review', body: { approve: true, reason: null, review_due_at: null } });
+          setConfirmProposal(null);
+        } catch (cause) {
+          setConfirmationError(cause instanceof Error ? cause.message : 'Không thể chuyển đề xuất.');
+        } finally { setConfirmingProposal(false); }
+      }}>
+      {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
+    </ConfirmDialog>
+    <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
+    <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}} title="Chi tiết hồ sơ"
+      description="Thông tin trong phạm vi quản lý được Backend cho phép truy cập.">
         {selection?.kind==='proposal' && <div className="space-y-3 text-sm">
           <p className="font-semibold text-base">{selection.item.name}</p>
           <p>Mã trường: {selection.item.school_code} · {selection.item.province} · {selection.item.ward}</p>
@@ -396,22 +382,17 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
           <p className="font-semibold text-base">{selection.item.display_name}</p>
           <p>Phụ trách: {selection.item.owner_user_name ?? 'Chưa có'} · Trạng thái: {statusLabel(selection.item.visible_status)}</p>
           <p>Lịch hẹn tiếp: {nice(selection.item.next_follow_up_at)} · Hạn bảo vệ: {nice(selection.item.protected_until)}</p>
-          <h3 className="pt-2 font-semibold">Nhật ký hoạt động</h3>
-          {preview && <p>Nhật ký hoạt động chỉ có trong API thật.</p>}
-          {timeline.isPending && !preview && <p>Đang tải nhật ký…</p>}
-          {timeline.error && <p role="alert" className="text-red-600">{timeline.error.message}</p>}
-          {timeline.data?.activities.map(a=><div key={a.id} className="rounded-xl border p-3">
-            <p className="text-xs text-muted-foreground">{nice(a.created_at)} · {a.user_name} · {a.activity_type}</p>
-            <p className="mt-1">{a.content}</p>
-            {a.next_follow_up_at && <p className="mt-1 text-xs">Hẹn tiếp: {nice(a.next_follow_up_at)}</p>}
-          </div>)}
-          {timeline.data && !timeline.data.activities.length && <p>Chưa ghi nhận hoạt động nào có thể xem.</p>}
+          {!preview && <AppButton tone="neutral" type="button" onClick={()=>{
+            setWorkLog({ customerId: selection.item.id, schoolName: selection.item.display_name });
+            setSelection(null);
+          }}>Xem nhật ký làm việc với trường</AppButton>}
+          {preview && <p>Nhật ký làm việc chỉ có trong API thật.</p>}
         </div>}
-      </DialogContent>
-    </Dialog>
-    <Dialog open={history!==null} onOpenChange={v=>{if(!v)setHistory(null);}}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader><DialogTitle>Lịch sử xử lý</DialogTitle><DialogDescription>{history?.name}</DialogDescription></DialogHeader>
+    </AppDrawer>
+    <SchoolWorkLogDrawer open={workLog!==null} onOpenChange={v=>{if(!v)setWorkLog(null);}}
+      customerId={workLog?.customerId ?? null} schoolName={workLog?.schoolName ?? ''} apiBase={apiBase} token={token}/>
+    <AppDrawer open={history!==null} onOpenChange={v=>{if(!v)setHistory(null);}}
+      title="Lịch sử xử lý" description={history?.name}>
         {historyQuery.isPending && <p className="text-sm">Đang tải lịch sử…</p>}
         {historyQuery.error && <p role="alert" className="text-red-600">{historyQuery.error.message}</p>}
         {historyQuery.data?.data.map(entry=><div key={entry.id} className="rounded-xl border p-3 text-sm">
@@ -419,7 +400,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
           <p className="text-xs text-muted-foreground">{entry.actor_name} · {nice(entry.created_at)}</p>
         </div>)}
         {historyQuery.data && !historyQuery.data.data.length && <p className="text-sm">Chưa có lịch sử xử lý.</p>}
-      </DialogContent>
-    </Dialog>
+    </AppDrawer>
   </div>;
 }

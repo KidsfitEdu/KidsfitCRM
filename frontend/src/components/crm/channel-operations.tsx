@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SchoolDirectory } from './school-directory';
 import { EvidenceReference, SchoolOperations } from './school-operations';
-import { SchoolActionForm } from './school-action-form';
+import { SchoolActionForm } from '@/components/crm/schools/school-action-form';
 import {
   BadgeCheck,
   ClipboardList,

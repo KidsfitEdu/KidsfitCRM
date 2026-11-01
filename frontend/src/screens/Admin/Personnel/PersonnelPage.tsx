@@ -7,7 +7,8 @@ import { AppButton } from '@/components/common/buttons/app-button';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { FormActions } from '@/components/common/form-actions';
 import { FormError } from '@/components/common/form-error';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -84,9 +85,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       itemLabel="nhân sự" showSummary={false} pageSizeOptions={[10,20,50]}
       onPageChange={setTeamPage} onPageSizeChange={v=>{setTeamPageSize(v);setTeamPage(1);}}/>}
   </AdminListPanel>
-  <Dialog open={teamFormOpen} onOpenChange={open=>{if(!busy)setTeamFormOpen(open);}}>
-    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-      <DialogHeader><DialogTitle>Thêm nhân sự</DialogTitle><DialogDescription>Tạo tài khoản thuộc tổ chức được quản lý. Không cấp quyền Admin/BGĐ tại đây.</DialogDescription></DialogHeader>
+  <AppDialog open={teamFormOpen} onOpenChange={open=>{if(!busy)setTeamFormOpen(open);}} busy={busy} title="Thêm nhân sự" description="Tạo tài khoản thuộc tổ chức được quản lý. Không cấp quyền Admin/BGĐ tại đây.">
       <div className="grid gap-4 sm:grid-cols-2">
         {(['name','email','password'] as const).map(k=><label className="text-sm font-medium" key={k}>
           {({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (tối thiểu 12 ký tự)'} as Record<string,string>)[k]}
@@ -105,11 +104,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
         </label>
       </div>
       <FormActions busy={busy} onCancel={()=>setTeamFormOpen(false)} onSave={()=>void createTeamMember()} saveLabel="Tạo tài khoản"/>
-    </DialogContent>
-  </Dialog>
-  <Dialog open={teamDetail!==null} onOpenChange={open=>{if(!open)setTeamDetail(null);}}>
-    <DialogContent className="sm:max-w-lg">
-      <DialogHeader><DialogTitle>Thông tin nhân sự</DialogTitle><DialogDescription>Chi tiết từ danh sách nhân sự được cấp quyền xem.</DialogDescription></DialogHeader>
+    </AppDialog>
+  <AppDrawer open={teamDetail!==null} onOpenChange={open=>{if(!open)setTeamDetail(null);}} title="Thông tin nhân sự" description="Chi tiết từ danh sách nhân sự được cấp quyền xem.">
       {teamDetail && <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-3 text-sm">
         <dt className="text-muted-foreground">Họ và tên</dt><dd className="font-semibold">{teamDetail.name}</dd>
         <dt className="text-muted-foreground">Email</dt><dd className="break-all">{teamDetail.email}</dd>
@@ -118,8 +114,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
         <dt className="text-muted-foreground">Trạng thái</dt><dd><AdminStatusBadge status={teamDetail.status} label={teamDetail.status==='ACTIVE'?'Hoạt động':teamDetail.status==='SUSPENDED'?'Tạm khóa':teamDetail.status}/></dd>
       </dl>}
       <div className="flex justify-end"><AppButton tone="outline" onClick={()=>setTeamDetail(null)}>Đóng</AppButton></div>
-    </DialogContent>
-  </Dialog>
+    </AppDrawer>
 </div>
   </AdminPageStatus>;
 }

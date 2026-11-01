@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SchoolDirectory } from './school-directory';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { EvidenceReference, SchoolOperations } from './school-operations';
 import { SchoolActionForm } from '@/components/crm/schools/school-action-form';
 import {
@@ -539,18 +540,7 @@ function OperationsContent({
           )}
         </>
       )}
-      <Dialog
-        open={customerId !== null}
-        onOpenChange={(open) => !open && setCustomerId(null)}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl">
-          <DialogTitle>
-            {detail.data?.data.display_name ?? 'Hồ sơ khách hàng'}
-          </DialogTitle>
-          <DialogDescription>
-            Thông tin hợp đồng, lịch sử tiếp cận và chăm sóc trong phạm vi được
-            cấp.
-          </DialogDescription>
+      <AppDrawer open={customerId !== null} onOpenChange={(open) => !open && setCustomerId(null)} title={detail.data?.data.display_name ?? 'Hồ sơ khách hàng'} description="Thông tin hợp đồng, lịch sử tiếp cận và chăm sóc trong phạm vi được cấp.">
           {detail.isPending ? (
             <Loading />
           ) : detail.error ? (
@@ -633,8 +623,7 @@ function OperationsContent({
               </>
             )
           )}
-        </DialogContent>
-      </Dialog>
+        </AppDrawer>
       <Dialog
         open={modal !== null}
         onOpenChange={(open) => !open && setModal(null)}

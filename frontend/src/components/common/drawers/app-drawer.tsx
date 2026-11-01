@@ -23,22 +23,22 @@ type Props = {
 export function AppDrawer({ open, onOpenChange, title, description, children, footer, busy = false, bodyClassName }: Props) {
   return <Sheet open={open} onOpenChange={next=>{if(!busy)onOpenChange(next);}}>
     <SheetContent side="right" showCloseButton={false}
-      className="h-dvh w-full max-w-full gap-0 overflow-hidden border-l border-border bg-card p-0 shadow-[0_22px_80px_rgba(14,42,26,.22)] sm:w-[min(560px,95vw)] sm:max-w-none">
-      <div className="shrink-0 bg-[#1b5e20] px-5 py-5 text-white">
-        <div className="flex items-start justify-between gap-3">
+      className="right-0 h-dvh w-screen max-w-none gap-0 overflow-hidden border-l border-border bg-card p-0 shadow-[0_22px_80px_rgba(14,42,26,.22)] sm:w-[min(560px,100vw)]">
+      <header className="relative w-full shrink-0 self-stretch bg-[#1b5e20] px-5 py-5 pr-16 text-white">
+        <div className="min-w-0">
           <div className="min-w-0 space-y-1">
             <span className="text-[11px] font-semibold tracking-[.14em] text-[#d8eedb]">KIDSFIT CRM</span>
             <SheetTitle className="text-lg font-bold leading-snug text-white">{title}</SheetTitle>
           </div>
-          <button type="button" title="Đóng" aria-label="Đóng" disabled={busy} onClick={()=>onOpenChange(false)}
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-white hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white disabled:opacity-50">
+          <button type="button" title="Đóng" aria-label="Đóng ngăn chi tiết" disabled={busy} onClick={()=>onOpenChange(false)}
+            className="absolute right-4 top-4 inline-flex size-10 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50">
             <X aria-hidden="true" className="size-5"/>
           </button>
         </div>
         <SheetDescription className={description ? 'mt-1 text-sm text-[#d8eedb]' : 'sr-only'}>
           {description ?? title}
         </SheetDescription>
-      </div>
+      </header>
       <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5',bodyClassName)}>
         {children}
       </div>

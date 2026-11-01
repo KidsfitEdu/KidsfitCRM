@@ -27,12 +27,7 @@ import { Input } from '@/components/ui/input';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
-import {
-  Dialog as UiDialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { channelDate } from '@/lib/channel-operations';
 import type {
   ChannelCustomer,
@@ -606,7 +601,7 @@ function RegisterApproachDialog({
     }
   };
   return (
-    <Dialog
+    <SalesFormDialog
       title="Đăng ký tiếp cận"
       subtitle="Quyền bảo vệ được tính 120 giờ theo thời gian máy chủ."
       onClose={onClose}
@@ -709,7 +704,7 @@ function RegisterApproachDialog({
           label="Xác lập quyền 5 ngày"
         />
       </form>
-    </Dialog>
+    </SalesFormDialog>
   );
 }
 
@@ -748,7 +743,7 @@ function ActivityDialog({
     }
   };
   return (
-    <Dialog
+    <SalesFormDialog
       title="Cập nhật tiếp cận"
       subtitle="Hoạt động không tự động gia hạn quyền bảo vệ."
       onClose={onClose}
@@ -790,7 +785,7 @@ function ActivityDialog({
           label="Lưu hoạt động"
         />
       </form>
-    </Dialog>
+    </SalesFormDialog>
   );
 }
 
@@ -834,7 +829,7 @@ function ContractDialog({
     }
   };
   return (
-    <Dialog
+    <SalesFormDialog
       title="Báo cáo hợp đồng"
       subtitle="Hồ sơ trường học cần quản lý kiểm tra, CHECKEE xác minh và KIDSFIT ghi nhận trước khi được bảo vệ 5 năm."
       onClose={onClose}
@@ -905,7 +900,7 @@ function ContractDialog({
           label="Gửi báo cáo hợp đồng"
         />
       </form>
-    </Dialog>
+    </SalesFormDialog>
   );
 }
 
@@ -952,7 +947,7 @@ function ReceiptDialog({
     .toISOString()
     .slice(0, 16);
   return (
-    <Dialog
+    <SalesFormDialog
       title="Ghi nhận doanh thu"
       subtitle="Hoa hồng chỉ phát sinh từ khoản thực thu theo chính sách đang hiệu lực."
       onClose={onClose}
@@ -1012,11 +1007,11 @@ function ReceiptDialog({
           label="Xác nhận khoản thu"
         />
       </form>
-    </Dialog>
+    </SalesFormDialog>
   );
 }
 
-function Dialog({
+function SalesFormDialog({
   title,
   subtitle,
   onClose,
@@ -1028,23 +1023,10 @@ function Dialog({
   children: ReactNode;
 }) {
   return (
-    <UiDialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-[26px] bg-card p-5 text-card-foreground shadow-2xl sm:max-w-2xl sm:p-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <DialogTitle className="text-xl font-bold tracking-[-0.03em]">
-              {title}
-            </DialogTitle>
-            <DialogDescription className="mt-1 text-sm leading-5 text-muted-foreground">
-              {subtitle}
-            </DialogDescription>
-          </div>
-        </div>
-        {children}
-      </DialogContent>
-    </UiDialog>
-  );
-}
+    <AppDialog open onOpenChange={(open) => { if (!open) onClose(); }} title={title} description={subtitle}>
+      {children}
+    </AppDialog>
+  );}
 
 function DialogFooter({
   saving,

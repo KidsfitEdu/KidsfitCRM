@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Plus, FileSpreadsheet } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { Input } from '@/components/ui/input';
 import { SchoolDirectory } from '@/components/crm/school-directory';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -34,7 +34,7 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
   };
   return <AdminPageStatus apiBase={apiBase}>
     <>
-      <Dialog open={manualOpen} onOpenChange={open => { if (!busy) setManualOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm trường học</DialogTitle><DialogDescription>Tạo trường chính hoặc phân hiệu thuộc trường chính đã có.</DialogDescription></DialogHeader><div className="space-y-3">
+      <AppDialog open={manualOpen} onOpenChange={open => { if (!busy) setManualOpen(open); }} busy={busy} title="Thêm trường học" description="Tạo trường chính hoặc phân hiệu thuộc trường chính đã có."><div className="space-y-3">
         
         <p className="mb-3 text-xs text-muted-foreground">Với phân hiệu, nhập mã trường chính đã có để liên kết.</p>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -42,7 +42,7 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
           {(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email','school_phone','reason'] as const).map(k=><label className="text-sm" key={k}>{({school_code:'Mã trường chính',name:'Tên trường/phân hiệu',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'SĐT liên hệ',email:'Email',school_phone:'SĐT trường',reason:'Lý do tạo'} as Record<string,string>)[k]}<Input className="mt-1" aria-invalid={!!formErrors[k]} value={manual[k]||''} onChange={e=>{setManual(m=>({...m,[k]:e.target.value}));setFormErrors(x=>({...x,[k]:''}));}}/><FormError>{formErrors[k]}</FormError></label>)}
         </div>
         <FormActions busy={busy} onCancel={()=>setManualOpen(false)} onSave={()=>void createManual()} saveLabel="Lưu trường"/>
-      </div></DialogContent></Dialog>
+      </div></AppDialog>
       <SchoolDirectory adminMode apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
         renderImportAction={openImport => <div className="flex flex-wrap items-center justify-end gap-2">
           <AppButton tone="green" premium className="h-11 px-5" disabled={preview} leadingIcon={<Plus className="size-4"/>}

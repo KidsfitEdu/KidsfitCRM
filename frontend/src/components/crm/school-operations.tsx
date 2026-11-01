@@ -26,7 +26,6 @@ import { AppNativeSelect } from '@/components/common/app-native-select';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   channelRequest,
   channelQueryKeys,
@@ -1577,10 +1576,7 @@ export function SchoolOperations({
           )}
         </section>
       )}
-      <Dialog open={selectedProposal !== null} onOpenChange={open => !open && setSelectedProposal(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-          <DialogTitle>Chi tiết đề xuất trường</DialogTitle>
-          <DialogDescription>{selectedProposal?.name}</DialogDescription>
+      <AppDrawer open={selectedProposal !== null} onOpenChange={open => !open && setSelectedProposal(null)} title="Chi tiết đề xuất trường" description={selectedProposal?.name}>
           {selectedProposal && <div className="space-y-3 text-sm">
             <p><strong>Người đề xuất:</strong> {selectedProposal.submitted_by}</p>
             <p><strong>Quản lý:</strong> {selectedProposal.manager_name}</p>
@@ -1590,8 +1586,7 @@ export function SchoolOperations({
             <p><strong>Nội dung:</strong> {selectedProposal.reason}</p>
             {selectedProposal.decision_reason && <p><strong>Phản hồi:</strong> {selectedProposal.decision_reason}</p>}
           </div>}
-        </DialogContent>
-      </Dialog>
+        </AppDrawer>
       <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
       <AppDrawer
         open={history !== null}

@@ -34,12 +34,8 @@ import { SCHOOL_ROWS_PER_PAGE } from '@/lib/school-page-window';
 import { AppEmptyState } from '@/components/common/app-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import {
   channelDate,
   channelRequest,
@@ -470,18 +466,7 @@ export function SchoolDirectory({
           disabled={schools.isFetching} onPageChange={setPage}
           pageSizeOptions={SCHOOL_ROWS_PER_PAGE} onPageSizeChange={value => {setPageSize(value);setPage(1);}}/>
       </section>
-      <Dialog
-        open={importOpen}
-        onOpenChange={(open) => {
-          if (!upload.isPending) setImportOpen(open);
-        }}
-      >
-        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
-          <DialogTitle>Nhập danh bạ trường học</DialogTitle>
-          <DialogDescription>
-            File .xlsx tối đa 2 MB, sheet DANH_SACH_TRUONG, đúng 12 cột của mẫu.
-            Xem trước không thay đổi dữ liệu.
-          </DialogDescription>
+      <AppDialog open={importOpen} onOpenChange={(open) => {if (!upload.isPending) setImportOpen(open);}} busy={upload.isPending} title="Nhập danh bạ trường học" description="File .xlsx tối đa 2 MB, sheet DANH_SACH_TRUONG, đúng 12 cột của mẫu. Xem trước không thay đổi dữ liệu.">
           <Input
             type="file"
             accept=".xlsx"
@@ -544,22 +529,8 @@ export function SchoolDirectory({
               </Button>
             </>
           )}
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={selected !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-          <DialogTitle>
-            {detail.data?.display_name ?? 'Hồ sơ trường học'}
-          </DialogTitle>
-          <DialogDescription>
-            {detail.data?.school_code} · Bảo vệ theo trường chính, không đăng ký
-            riêng từng phân hiệu.
-          </DialogDescription>
+        </AppDialog>
+      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={`${detail.data?.school_code ?? ''} · Bảo vệ theo trường chính, không đăng ký riêng từng phân hiệu.`}>
           {detail.error && <ErrorText>{detail.error.message}</ErrorText>}
           {detail.isPending ? (
             <p>Đang tải hồ sơ…</p>
@@ -576,20 +547,8 @@ export function SchoolDirectory({
             )
           )}
           {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={!!capacity}
-        onOpenChange={(open) => {
-          if (!open) setCapacity(null);
-        }}
-      >
-        <DialogContent>
-          <DialogTitle>Hạn mức trường của {capacity?.name}</DialogTitle>
-          <DialogDescription>
-            Giảm hạn mức không thu hồi quyền bảo vệ hiện tại. CTV chỉ nhận thêm
-            khi còn suất.
-          </DialogDescription>
+        </AppDrawer>
+      <AppDialog open={!!capacity} onOpenChange={(open) => {if (!open) setCapacity(null);}} title={`Hạn mức trường của ${capacity?.name ?? ''}`} description="Giảm hạn mức không thu hồi quyền bảo vệ hiện tại. CTV chỉ nhận thêm khi còn suất.">
           {capacity && (
             <CapacityForm
               key={capacity.id}
@@ -605,8 +564,7 @@ export function SchoolDirectory({
             />
           )}
           {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
-        </DialogContent>
-      </Dialog>
+        </AppDialog>
     </div>
   );
 }

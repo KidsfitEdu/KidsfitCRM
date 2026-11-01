@@ -19,7 +19,6 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
   const [manualOpen,setManualOpen]=useState(false);
   const [manual,setManual]=useState<Record<string,string>>({unit_type:'MAIN'});
   const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
   const [formErrors,setFormErrors]=useState<Record<string,string>>({});
   const preview=!apiBase;
   const createManual=async()=>{
@@ -28,12 +27,12 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
     if(manual.email?.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manual.email.trim()))errs.email='Email không đúng định dạng.';
     if(manual.reason?.trim()&&manual.reason.trim().length<3)errs.reason='Vui lòng nêu lý do ít nhất 3 ký tự.';
     setFormErrors(errs);if(Object.keys(errs).length)return;
-    setBusy(true);setError('');
-    try {await createManualSchool(apiBase,token,manual);setManual({unit_type:'MAIN'});setManualOpen(false);appNotice.success('Đã thêm trường thành công.');await queryClient.invalidateQueries();await onChanged();}
-    catch(e){setError(e instanceof Error?e.message:'Không lưu được trường.');}
+    setBusy(true);
+    try {await createManualSchool(apiBase,token,manual);setManual({unit_type:'MAIN'});setManualOpen(false);appNotice.success('Đã thêm trường thành công.');try{await queryClient.invalidateQueries();await onChanged();}catch(e){appNotice.warning('Đã thêm trường, nhưng chưa tải lại được danh sách.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}}
+    catch(e){appNotice.error('Không thêm được trường học.',e instanceof Error?e.message:'Vui lòng kiểm tra thông tin và thử lại.');}
     finally{setBusy(false);}
   };
-  return <AdminPageStatus apiBase={apiBase} error={error}>
+  return <AdminPageStatus apiBase={apiBase}>
     <>
       <Dialog open={manualOpen} onOpenChange={open => { if (!busy) setManualOpen(open); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Thêm trường học</DialogTitle><DialogDescription>Tạo trường chính hoặc phân hiệu thuộc trường chính đã có.</DialogDescription></DialogHeader><div className="space-y-3">
         

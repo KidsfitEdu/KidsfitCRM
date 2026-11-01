@@ -15,6 +15,10 @@ internal static class CrmScenarioSeeder
         var ctv = await db.Users.SingleAsync(x => x.Code == "CTV001");
         var partnerManager = await db.Users.SingleAsync(x => x.Code == "PARTNER001");
 
+        // The Admin policy table needs representative demo versions; drafts must never control live SLA behavior.
+        var admin = await db.Users.SingleAsync(x => x.Code == "ADMIN001");
+        await SeedDraftSchoolPoliciesAsync(db, kidsfit.Id, admin.Id, now);
+
         var proposals = new[]
         {
             (Code:"SEED-SCH-PENDING", Name:"Trường Mầm non Sao Mai (demo)", Org:partner.Id, Owner:ctv.Id, Manager:partnerManager.Id, Status:"PENDING_MANAGER", Offset:-3),
@@ -120,5 +124,43 @@ internal static class CrmScenarioSeeder
                 });
         }
         await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedDraftSchoolPoliciesAsync(KidsfitDbContext db, long organizationId, long adminId, DateTime now)
+    {
+        // Illustrative manager review windows only; none of these versions is approved or activated.
+        var examples = new[]
+        {
+            (Reference: "DEMO-KIDSFIT-WORKFLOW-24H", ManagerHours: 24),
+            (Reference: "DEMO-KIDSFIT-WORKFLOW-48H", ManagerHours: 48),
+            (Reference: "DEMO-KIDSFIT-WORKFLOW-72H", ManagerHours: 72),
+        };
+        var existing = await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.OrganizationId == organizationId)
+            .Select(x => new { x.Version, x.DecisionReference })
+            .ToListAsync();
+        var nextVersion = (existing.Count == 0 ? 0 : existing.Max(x => x.Version)) + 1;
+
+        foreach (var example in examples)
+        {
+            if (existing.Any(x => x.DecisionReference == example.Reference)) continue;
+            db.SchoolWorkflowPolicies.Add(new SchoolWorkflowPolicyVersion
+            {
+                OrganizationId = organizationId,
+                Version = nextVersion++,
+                Status = "DRAFT",
+                ManagerReviewHours = example.ManagerHours,
+                AdminReviewHours = 72,
+                InvitationHours = 24,
+                MaxExtensionDays = 7,
+                MaxExtensionCount = 3,
+                MaxTotalExtensionDays = 21,
+                DecisionReference = example.Reference,
+                CreatedByUserId = adminId,
+                RequestFingerprint = "synthetic-" + example.Reference,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
     }
 }

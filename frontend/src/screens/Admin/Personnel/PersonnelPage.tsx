@@ -26,12 +26,12 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const [teamStatus,setTeamStatus]=useState('ALL');
   const [teamForm,setTeamForm]=useState({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});
   const [formErrors,setFormErrors]=useState<Record<string,string>>({});
-  const [error,setError]=useState('');const [busy,setBusy]=useState(false);const preview=!apiBase;
+  const [busy,setBusy]=useState(false);const preview=!apiBase;
   const can=(permission:string)=>abilities.includes('*')||abilities.includes(permission);
   const reload=useCallback(async()=>{
-    if(preview||!token)return;setBusy(true);setError('');
+    if(preview||!token)return;setBusy(true);
     try{setManagement(await fetchAdminManagement(apiBase,token));}
-    catch(e){setError(e instanceof Error?e.message:'Không tải được dữ liệu.');}finally{setBusy(false);}
+    catch(e){appNotice.error('Không tải được danh sách nhân sự.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
   },[apiBase,token,preview]);
   useEffect(()=>{void reload();},[reload]);
   const createTeamMember=async()=>{
@@ -41,12 +41,12 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     if(teamForm.password.length<12)errs.password='Mật khẩu cần ít nhất 12 ký tự.';
     if(!teamForm.organization_id)errs.organization_id='Vui lòng chọn tổ chức.';
     setFormErrors(errs);if(Object.keys(errs).length)return;
-    setBusy(true);setError('');
+    setBusy(true);
     try{await createAdminTeamMember(apiBase,token,{...teamForm,organization_id:Number(teamForm.organization_id)});
       setTeamFormOpen(false);setTeamForm({name:'',email:'',password:'',organization_id:'',role_code:'CHANNEL_SALES'});appNotice.success('Đã tạo tài khoản nhân sự.');await reload();
-    }catch(e){setError(e instanceof Error?e.message:'Không tạo được tài khoản.');}finally{setBusy(false);}
+    }catch(e){appNotice.error('Không tạo được tài khoản nhân sự.',e instanceof Error?e.message:'Vui lòng kiểm tra thông tin và thử lại.');}finally{setBusy(false);}
   };
-  return <AdminPageStatus apiBase={apiBase} error={error}>
+  return <AdminPageStatus apiBase={apiBase}>
     <div className="space-y-5">
   <AppPageHeader eyebrow="QUẢN TRỊ / NHÂN SỰ & ĐỐI TÁC" title="Nhân sự & đối tác"
     description="Quản lý tài khoản, tổ chức, vai trò và trạng thái nhân sự."

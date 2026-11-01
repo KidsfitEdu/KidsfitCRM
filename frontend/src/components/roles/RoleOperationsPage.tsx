@@ -3,6 +3,7 @@
 import type { ComponentProps } from 'react';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
+import { SalesFocusPage } from './SalesFocusPage';
 import { rolePageSections, type RolePageGroup } from '@/config/role-pages';
 import type { RolePageProps } from '@/types/role-pages';
 
@@ -11,6 +12,7 @@ type SectionDefinition = {label: string; panel: string; tab: string};
 
 /** Presents an existing ChannelOperations view without copying business rules into each role. */
 export function RoleOperationsPage({ profile, section, ...props }: RolePageProps & { profile: RolePageGroup; section: string }) {
+  if (profile === 'SalesStaff') return <SalesFocusPage section={section as 'schools'|'customers'|'activities'|'proposals'|'income'} {...props}/>;
   const sections: Record<string, SectionDefinition> = rolePageSections[profile];
   const active = sections[section];
   if (!active || active.panel === 'dashboard') return <p role="alert">Không tìm thấy chức năng được yêu cầu.</p>;

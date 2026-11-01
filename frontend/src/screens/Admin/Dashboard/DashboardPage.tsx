@@ -5,24 +5,24 @@ import { Building2, ClipboardList, CalendarClock, Handshake, TrendingUp, UsersRo
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { fetchAdminOperations } from '@/services/proposal.service';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
 export function DashboardPage({apiBase,token,workspace}:AdminPageProps) {
   const [operations,setOperations]=useState<SchoolOperationsWorkspace|null>(null);
-  const [error,setError]=useState('');
   const preview=!apiBase;
   const reload=useCallback(async()=>{
     if(preview||!token)return;
-    try {setError('');setOperations(await fetchAdminOperations(apiBase,token,1,''));}
-    catch(e){setError(e instanceof Error?e.message:'Không tải được dữ liệu.');}
+    try {setOperations(await fetchAdminOperations(apiBase,token,1,''));}
+    catch(e){appNotice.error('Không tải được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng thử lại.');}
   },[apiBase,token,preview]);
   useEffect(()=>{void reload();},[reload]);
   const pending=operations?.proposals.filter(p=>p.status==='PENDING_ADMIN').length??0;
   const metrics=workspace.metrics;
   const fmt=(value:number)=>value.toLocaleString('vi-VN');
   const panel='crm-brand-surface rounded-2xl border border-border/80 bg-card p-5';
-  return <AdminPageStatus apiBase={apiBase} error={error}>
+  return <AdminPageStatus apiBase={apiBase}>
     <>
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
         {([

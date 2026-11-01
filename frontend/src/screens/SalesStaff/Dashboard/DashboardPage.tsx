@@ -1,9 +1,9 @@
 'use client';
 
-import { RoleDashboard } from '@/components/roles/RoleDashboard';
+import { SalesDashboard } from '@/components/roles/SalesDashboard';
 import type { RolePageProps } from '@/types/role-pages';
 
 /** SalesStaff · Dashboard (shared domain view). */
 export function DashboardPage(props: RolePageProps) {
-  return <RoleDashboard profile="SalesStaff" {...props}/>;
+  return <SalesDashboard {...props}/>;
 }

@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react';
+import type { View } from '@/config/navigation';
 import type { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import type { ChannelSalesWorkspace } from '@/lib/channel-sales';
 
@@ -9,6 +10,8 @@ export type RolePageProps = {
   abilities: string[];
   workspace: ChannelSalesWorkspace;
   onChanged: () => Promise<void>;
+  salesWorkflow?: 'invitations' | 'extensions';
+  onSalesNavigate?: (view: View) => void;
   search: string;
   setSearch: (value: string) => void;
   onRegister: ComponentProps<typeof ChannelSalesView>['onRegister'];

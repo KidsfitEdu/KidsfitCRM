@@ -11,6 +11,7 @@ type Props = {
   itemLabel?: string;
   disabled?: boolean;
   showSummary?: boolean;
+  fixedPageSize?: boolean;
   pageSizeOptions?: readonly number[];
   onPageSizeChange?: (size: number) => void;
   onPageChange: (page: number) => void;
@@ -30,7 +31,7 @@ export function paginationNumbers(page: number, pages: number): Array<number | '
   return values;
 }
 
-export function AppPagination({ page, pageSize, total, itemLabel = 'bản ghi', disabled = false, showSummary = true, onPageChange, pageSizeOptions, onPageSizeChange }: Props) {
+export function AppPagination({ page, pageSize, total, itemLabel = 'bản ghi', disabled = false, showSummary = true, fixedPageSize = false, onPageChange, pageSizeOptions, onPageSizeChange }: Props) {
   const pages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
@@ -40,6 +41,7 @@ export function AppPagination({ page, pageSize, total, itemLabel = 'bản ghi', 
         {showSummary && <span className="text-sm text-muted-foreground" aria-live="polite">
           Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} {itemLabel}
         </span>}
+        {fixedPageSize && <span className="text-sm text-muted-foreground">Số dòng/trang <span className="ml-1 inline-flex h-10 min-w-[70px] items-center justify-center rounded-lg border border-border bg-background px-3 font-medium tabular-nums text-foreground" aria-label={`Cố định ${pageSize} dòng mỗi trang`}>{pageSize}</span></span>}
         {pageSizeOptions && onPageSizeChange && <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           Số dòng/trang
           <AppNativeSelect aria-label="Số dòng mỗi trang" containerClassName="h-10 min-w-[84px] rounded-lg" value={pageSize} disabled={disabled}

@@ -19,6 +19,7 @@ public static class ManagerContractEndpoints
     public static void MapManagerContractOperations(this RouteGroupBuilder group)
     {
         group.MapGet("/school-contracts/reviews", List).RequireAuthorization(Permissions.SchoolContractReview);
+        group.MapGet("/school-contracts/my-revisions", MyRevisions).RequireAuthorization(Permissions.ChannelSalesReportContract);
         group.MapGet("/school-contracts/{id:long}/review-detail", Detail).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/school-contracts/{id:long}/request-revision", ReturnForRevision)
             .RequireAuthorization(Permissions.SchoolContractReview);
@@ -29,6 +30,29 @@ public static class ManagerContractEndpoints
     private static IQueryable<SalesContract> ManagerScope(KidsfitDbContext db, ChannelSalesAccess access) =>
         db.SalesContracts.Where(c => c.RequiresSchoolVerification &&
             (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId))));
+
+    private static async Task<IResult> MyRevisions(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesReportContract)) return Results.Forbid();
+        var actor = http.UserId();
+        var scoped = access.Contracts(db).AsNoTracking()
+            .Where(c => c.RequiresSchoolVerification && c.Status == "NEEDS_REVISION"
+                && (c.OwnerUserId == actor || c.ReportedByUserId == actor));
+        var rows = await (from contract in scoped
+                          join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+                          orderby contract.UpdatedAt descending
+                          select new
+                          {
+                              id = contract.Id, contract_code = contract.ContractCode, school_name = school.DisplayName,
+                              reason = (from reconciliation in db.ReconciliationCases
+                                        join evt in db.ReconciliationEvents on reconciliation.Id equals evt.ReconciliationCaseId
+                                        where reconciliation.ContractId == contract.Id && evt.EventType == "MANAGER_REQUESTED_REVISION"
+                                        orderby evt.CreatedAt descending, evt.Id descending
+                                        select evt.Reason).FirstOrDefault(),
+                          }).Take(100).ToArrayAsync(ct);
+        return Results.Ok(new { data = rows, total = await scoped.CountAsync(ct) });
+    }
 
     private static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
         string? search, string? status, int? page, int? page_size, CancellationToken ct)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
+import { AlertCircle, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -275,8 +275,8 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         onPageChange={setPage}
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </section>
-    <AppDrawer wide open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
-      title="Chi tiết hợp đồng" description={detail?.data.contract_code ?? 'Đang tải thông tin'}>
+    <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
+      title="KIDSFIT CRM - CHI TIẾT HỢP ĐỒNG" description="Chi tiết hợp đồng kế toán">
       {!detail ? <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p> : <div className="space-y-6 text-sm">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
@@ -296,7 +296,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           <Metric label="Hoa hồng đã chuyển" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
         </div>
         <section className="space-y-3 border-t pt-5">
-          <h3 className="flex items-center gap-2 text-base font-semibold"><FileText className="size-5 text-muted-foreground"/>1. Thông tin hợp đồng</h3>
+          <h3 className="text-lg font-bold text-foreground">1. Thông tin hợp đồng</h3>
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
@@ -320,53 +320,89 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         </section>
         <section className="space-y-3 border-t pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-base font-semibold"><ArrowDownToLine className="size-5 text-emerald-600"/>2. Nhà trường thanh toán</h3>
+            <h3 className="text-lg font-bold text-foreground">2. Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
               onClick={()=>{setActionError('');setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
-          <div className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
-            <MetricLine label="Nhà trường đã trả" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0))}/>
-            <MetricLine label="Còn phải thanh toán" value={channelMoney(Math.max(0,detail.data.total_value-detail.receipts.reduce((sum,x)=>sum+x.amount,0)))}/>
+          <div className="overflow-x-auto rounded-lg border border-border/80">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-3">Ngày nhận</th>
+                  <th className="px-3 py-3">Mã giao dịch</th>
+                  <th className="px-3 py-3 text-right">Số tiền</th>
+                  <th className="w-16 px-3 py-3 text-center">Ảnh</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/70">
+                {detail.receipts.length===0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Chưa có khoản thu nào.</td></tr>
+                  : detail.receipts.map(x=>{
+                    const proof = detail.evidence.find(e=>e.revenue_receipt_id===x.id);
+                    return <tr key={x.id} className="hover:bg-muted/20">
+                      <td className="whitespace-nowrap px-3 py-3">{channelDate(x.received_at)}</td>
+                      <td className="max-w-[160px] break-words px-3 py-3">{x.reference_code || '—'}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-right font-medium tabular-nums">{channelMoney(x.amount)}</td>
+                      <td className="px-3 py-2 text-center">
+                        {proof ? <Button type="button" variant="outline" size="icon" title="Xem ảnh nhà trường chuyển khoản"
+                          aria-label={`Xem chứng từ khoản thu ${x.reference_code}`}
+                          onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>
+                          : <span className="text-muted-foreground" aria-label="Không có ảnh chứng từ">—</span>}
+                      </td>
+                    </tr>;
+                  })}
+              </tbody>
+            </table>
           </div>
-          {detail.receipts.length===0 ? <p className="py-3 text-center text-muted-foreground">Chưa có khoản thu nào.</p> : <div className="space-y-1">
-            {detail.receipts.map(x=><div key={x.id} className="flex items-center justify-between gap-3 border-b py-3">
-              <div><div>{channelDate(x.received_at)}</div><div className="text-xs text-muted-foreground">{x.reference_code}</div></div>
-              <div className="flex items-center gap-3"><span className="font-medium tabular-nums">{channelMoney(x.amount)}</span>
-                {detail.evidence.filter(e=>e.revenue_receipt_id===x.id).map(e=><Button key={e.id} type="button" variant="ghost" size="icon"
-                  title="Xem ảnh nhà trường chuyển khoản" aria-label="Xem ảnh nhà trường chuyển khoản" onClick={()=>void viewEvidence(e.id,e.file_name)}>
-                  <ImageIcon className="size-4"/></Button>)}
-              </div>
-            </div>)}
-          </div>}
         </section>
         <section className="space-y-3 border-t pt-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-base font-semibold"><ArrowUpFromLine className="size-5 text-muted-foreground"/>3. Hoa hồng Sales/CTV</h3>
+            <h3 className="text-lg font-bold text-foreground">3. Hoa hồng Sales</h3>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
               onClick={()=>{setActionError('');setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
             {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <Button size="sm" variant="outline" disabled={saving}
               onClick={()=>void createPayout()}><Plus className="size-4"/> Lập phiếu chi</Button>}
           </div>
-          <div className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-3">
-            <MetricLine label="Tổng hoa hồng" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
-            <MetricLine label="Đã chuyển" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
-            <MetricLine label="Chưa chuyển" value={channelMoney(Math.max(0,detail.ledger.reduce((sum,x)=>sum+x.amount,0)-detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0)))}/>
+          {detail.ledger.some(x=>x.entry_type!=='ACCRUAL') && <div className="rounded-lg border border-border/80 px-3 py-2 text-xs text-muted-foreground">
+            Có điều chỉnh hoa hồng. Chi tiết: {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').map(x=>`${x.reason || 'Điều chỉnh'} (${channelMoney(x.amount)})`).join('; ')}
+          </div>}
+          <div className="overflow-x-auto rounded-lg border border-border/80">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-3">Ngày chuyển</th>
+                  <th className="px-3 py-3">Mã giao dịch</th>
+                  <th className="px-3 py-3 text-right">Số tiền</th>
+                  <th className="w-16 px-3 py-3 text-center">Ảnh</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/70">
+                {detail.payouts.filter(x=>x.status==='PAID').length===0 ?
+                  <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Chưa có khoản chi hoa hồng nào.</td></tr>
+                  : detail.payouts.filter(x=>x.status==='PAID').map(x=>{
+                    const proof = detail.evidence.find(e=>e.payout_id===x.id);
+                    return <tr key={x.id} className="hover:bg-muted/20">
+                      <td className="whitespace-nowrap px-3 py-3">{x.paid_at ? channelDate(x.paid_at) : '—'}</td>
+                      <td className="max-w-[160px] break-words px-3 py-3">{x.payment_reference || x.code}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-right font-medium tabular-nums">{channelMoney(x.net_amount)}</td>
+                      <td className="px-3 py-2 text-center">
+                        {proof ? <Button type="button" variant="outline" size="icon" title="Xem ảnh chuyển hoa hồng"
+                          aria-label={`Xem chứng từ khoản chi ${x.code}`}
+                          onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>
+                          : <span className="text-muted-foreground" aria-label="Không có ảnh chứng từ">—</span>}
+                      </td>
+                    </tr>;
+                  })}
+              </tbody>
+            </table>
           </div>
-          {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').length>0 && <div className="rounded-lg border p-3">
-            <p className="font-medium">Các khoản điều chỉnh hoa hồng</p>
-            {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').map(x=><div key={x.id} className="flex justify-between gap-2 py-1">
-              <span className="text-muted-foreground">{x.reason ?? 'Điều chỉnh'} </span><span>{channelMoney(x.amount)}</span>
+          {detail.payouts.some(x=>x.status!=='PAID') && <div className="space-y-2 rounded-lg border border-border/80 p-3">
+            <h4 className="font-semibold">Phiếu chi đang xử lý</h4>
+            {detail.payouts.filter(x=>x.status!=='PAID').map(x=><div key={x.id} className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-muted-foreground">{x.code} · {x.status}</span>
+              {x.status==='DRAFT' && canApprovePayout && <Button size="sm" variant="outline" disabled={saving}
+                onClick={()=>void approvePayout(x.id)}>Duyệt phiếu chi</Button>}
             </div>)}
           </div>}
-          {detail.payouts.length===0 && <p className="py-3 text-center text-muted-foreground">Chưa có lịch sử chuyển hoa hồng.</p>}
-          {detail.payouts.map(x=><div key={x.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-3">
-            <div><div className="font-medium">{x.code}</div><div className="text-xs text-muted-foreground">{x.paid_at ? channelDate(x.paid_at) : x.status}</div></div>
-            <div className="flex items-center gap-2"><span className="tabular-nums">{channelMoney(x.net_amount)}</span>
-              {detail.evidence.filter(e=>e.payout_id===x.id).map(e=><Button key={e.id} variant="ghost" size="icon" title="Xem ảnh chuyển hoa hồng" aria-label="Xem ảnh chuyển hoa hồng"
-                onClick={()=>void viewEvidence(e.id,e.file_name)}><ImageIcon className="size-4"/></Button>)}
-              {x.status==='DRAFT' && canApprovePayout && <Button size="sm" variant="outline" disabled={saving} onClick={()=>void approvePayout(x.id)}>Duyệt phiếu chi</Button>}
-            </div>
-          </div>)}
         </section>
         {actionError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-red-700">{actionError}</p>}
         <p className="text-xs text-muted-foreground">Kế toán xác nhận tiền đã thực sự vào tài khoản trước khi thêm khoản thu. Mỗi khoản thu và chi đều phải kèm ảnh chuyển khoản.</p>
@@ -411,7 +447,4 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
 
 function Metric({ label, value }: {label:string;value:string}) {
   return <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-lg font-bold tabular-nums">{value}</p></div>;
-}
-function MetricLine({label,value}:{label:string;value:string}) {
-  return <div><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold tabular-nums">{value}</p></div>;
 }

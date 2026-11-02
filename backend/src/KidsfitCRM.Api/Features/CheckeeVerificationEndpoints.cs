@@ -40,7 +40,7 @@ internal static class CheckeeVerificationEndpoints
         {
             pending = await scoped.CountAsync(r => r.Status == "PENDING", ct),
             feedback = await scoped.CountAsync(r => r.Status == "DISPUTED", ct),
-            confirmed = await scoped.CountAsync(r => r.Status == "CONFIRMED" || r.Status == "RESOLVED", ct)
+            confirmed = await scoped.CountAsync(r => r.Status == "CONFIRMED", ct)
         };
         var query = scoped;
         if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
@@ -48,9 +48,7 @@ internal static class CheckeeVerificationEndpoints
             var selected = status.Trim().ToUpperInvariant();
             if (selected is not ("PENDING" or "DISPUTED" or "CONFIRMED"))
                 throw ApiValidationException.For("status", "Trạng thái xác minh không hợp lệ.");
-            query = selected == "CONFIRMED"
-                ? query.Where(r => r.Status == "CONFIRMED" || r.Status == "RESOLVED")
-                : query.Where(r => r.Status == selected);
+            query = query.Where(r => r.Status == selected);
         }
         if (!string.IsNullOrWhiteSpace(search))
         {

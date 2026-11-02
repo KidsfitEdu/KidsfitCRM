@@ -117,12 +117,21 @@ public sealed partial class ChannelSalesActions
         var managerId = member.ManagerUserId ?? throw ApiValidationException.For("manager", "Chưa có Quản lý trực tiếp nhận yêu cầu.");
         var manager = await ChannelSalesAccess.Load(db, managerId, ct);
         if (!manager.Has(Permissions.SchoolExtensionReview) || !manager.CanManageOrganization(registration.OwnerOrganizationId) || managerId == actorId) throw new ApiConflictException("Quản lý trực tiếp chưa được cấp quyền duyệt gia hạn.");
-        var policy = await ActiveSchoolPolicy(registration.OwnerOrganizationId, ct);
-        var due = SchoolDeadline(now, policy?.ManagerReviewHours, request.ReviewDueAt);
+        var policy = await ActiveSchoolPolicy(registration.OwnerOrganizationId, ct)
+            ?? throw new ApiConflictException("Admin chưa kích hoạt chính sách gia hạn của tổ chức.");
+        var approvedCount = await db.SchoolExtensionRequests.CountAsync(x =>
+            x.ApproachRegistrationId == registrationId && x.Status == "APPROVED", ct);
+        if (approvedCount >= policy.MaxExtensionCount)
+            throw new ApiConflictException("Đã đạt số lần gia hạn tối đa theo chính sách.");
+        var requestedUntil = SchoolFuture(request.RequestedUntil, "requested_until", registration.ProtectedUntil);
+        if (requestedUntil > registration.ProtectedUntil.AddDays(policy.MaxExtensionDays)
+            || requestedUntil > registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays))
+            throw ApiValidationException.For("requested_until", "Thời gian xin gia hạn vượt giới hạn chính sách.");
+        var due = SchoolDeadline(now, policy.ManagerReviewHours, request.ReviewDueAt);
         var extension = new SchoolExtensionRequest
         {
             ApproachRegistrationId = registrationId, OrganizationId = registration.OwnerOrganizationId, RequestedByUserId = actorId, ManagerUserId = managerId,
-            OriginalProtectedUntil = SchoolUtc(registration.ProtectedUntil), RequestedUntil = SchoolFuture(request.RequestedUntil, "requested_until", registration.ProtectedUntil),
+            OriginalProtectedUntil = SchoolUtc(registration.ProtectedUntil), RequestedUntil = requestedUntil,
             ReviewDueAt = due < registration.ProtectedUntil ? due : registration.ProtectedUntil,
             NextAppointmentAt = SchoolFuture(request.NextAppointmentAt, "next_appointment_at", now),
             Progress = Validation.Required(request.Progress, "progress", "Cần báo cáo tiến độ.", 4000),

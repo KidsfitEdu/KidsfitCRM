@@ -1537,8 +1537,8 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.Property<string>("EventType")
                         .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
                         .HasColumnName("event_type");
 
                     b.Property<string>("Reason")

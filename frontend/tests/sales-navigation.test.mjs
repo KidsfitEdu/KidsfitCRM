@@ -142,3 +142,18 @@ test('Sales screens share list toolbar, rows, and pagination without duplicate H
   assert.match(operations, /onAccept=\{x => setAction/);
   assert.match(operations, /onReject=\{x => setAction/);
 });
+
+test('Income simplification and Sales page-size selection stay consistent', () => {
+  const income = read('src/components/roles/SalesIncomePage.tsx');
+  const focus = read('src/components/roles/SalesFocusPage.tsx');
+  const operations = read('src/components/crm/school-operations.tsx');
+  const shared = read('src/components/common/sales-list.tsx');
+  assert.doesNotMatch(income, /Kỳ hoa hồng|Lịch sử phiếu chi của tôi|Chưa nhận có thể gồm/);
+  assert.match(income, /Tổng hoa hồng/);
+  assert.match(income, /CHI TIẾT HOA HỒNG/);
+  assert.doesNotMatch(focus, /Đề xuất mới chỉ được thêm vào danh bạ/);
+  assert.match(operations, /const pageSize = embeddedSalesTable \? salesPageSize/);
+  assert.match(operations, /setTab\(initialTab\)/);
+  assert.match(operations, /onPageSizeChange=\{size => \{ setSalesPageSize\(size\); setPage\(1\); \}\}/);
+  assert.match(shared, /disabled=\{loading\}/);
+});

@@ -84,7 +84,12 @@ public static class FinancialEvidenceEndpoints
             : proof.PayoutId.HasValue && proof.Kind == "PAYOUT"
                 ? await access.Payouts(db).AnyAsync(x => x.Id == proof.PayoutId.Value, ct)
                 : proof.ContractId.HasValue
-                    && await access.Contracts(db).AnyAsync(x => x.Id == proof.ContractId.Value, ct);
+                    && (await access.Contracts(db).AnyAsync(x => x.Id == proof.ContractId.Value, ct)
+                        || (proof.Kind == "CONTRACT" && access.Has(Permissions.ChannelSalesReconcile)
+                            && await db.ReconciliationCases.AnyAsync(r => r.ContractId == proof.ContractId.Value
+                                && access.OrganizationIds.Contains(r.CheckeeOrganizationId)
+                                && db.SalesContracts.Any(c => c.Id == r.ContractId && c.ManagerReviewedAt != null
+                                    && c.Status != "NEEDS_REVISION" && c.Status != "PENDING_REVIEW"), ct)));
         if (!permitted) throw new KeyNotFoundException();
         http.Response.Headers["Cache-Control"] = "private, no-store";
         http.Response.Headers["X-Content-Type-Options"] = "nosniff";

@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
-import { Eye, FileCheck2, FileText, RotateCcw, Send, Undo2, ExternalLink } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Eye, FileCheck2, FileText, Send, Undo2, ExternalLink } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -10,7 +10,6 @@ import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { Input } from '@/components/ui/input';
 import { channelRequest, channelDate, channelMoney } from '@/lib/channel-operations';
 import type { ManagerPageProps } from '@/types/manager-pages';
 
@@ -63,8 +62,8 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
      setRows(result.data);setTotal(result.total);
    }catch(e){setError(e instanceof Error?e.message:'Không tải được hợp đồng.');setRows([]);setTotal(0);}
    finally{setLoading(false);}
- },[apiBase,token,connected,page,pageSize,status,search,revisionNo]);
- useEffect(()=>{void load();},[load]);
+ },[apiBase,token,connected,page,pageSize,status,search]);
+ useEffect(()=>{void load();},[load,revisionNo]);
  useEffect(()=>{
    if(!connected||selected===null){setDetail(null);return;}
    let active=true;setDetail(null);setDetailError('');
@@ -103,7 +102,7 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
    <AppPageHeader eyebrow="QUẢN LÝ BÁN HÀNG / HỢP ĐỒNG & XÁC MINH"
      title="Hợp đồng & xác minh"
      description="Rà soát hợp đồng do Sales báo cáo, chuyển CHECKEE xác minh và theo dõi phản hồi."/>
-   {!connected&&<p role="status" className="rounded-xl border p-4 text-sm text-muted-foreground">Chế độ xem thử: đăng nhập hệ thống để xem và duyệt hợp đồng thật.</p>}
+   {!connected&&<output className="block rounded-xl border p-4 text-sm text-muted-foreground">Chế độ xem thử: đăng nhập hệ thống để xem và duyệt hợp đồng thật.</output>}
    {error&&<p role="alert" className="rounded-xl border border-red-200 p-3 text-sm text-red-700">{error}</p>}
    <AdminListPanel>
      <AdminListToolbar search={draft} onSearchChange={setDraft}

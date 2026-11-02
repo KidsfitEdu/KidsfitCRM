@@ -79,8 +79,7 @@ export function SalesFocusPage({section, ...props}: Props) {
   const canCreateProposal = section === 'proposals' && !!apiBase && !!token &&
     abilities.includes('channel_sales.school.proposal.submit') &&
     !abilities.includes('channel_sales.scope.all');
-  if (section === 'income') return <SalesIncomePage apiBase={apiBase} token={token} abilities={abilities}/>;
-  return <div className="space-y-5">
+  return section === 'income' ? <SalesIncomePage apiBase={apiBase} token={token} abilities={abilities}/> : <div className="space-y-5">
     <AppPageHeader eyebrow="BÁN HÀNG / KIDSFIT CRM" title={copy[section].title}
       description={copy[section].description}
       actions={canCreateProposal ? <AppButton type="button" tone="green"

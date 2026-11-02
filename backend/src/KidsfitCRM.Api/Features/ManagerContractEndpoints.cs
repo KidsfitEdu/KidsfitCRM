@@ -231,6 +231,11 @@ public static class ManagerContractEndpoints
                 can_review = contract.Status == "PENDING_REVIEW" && access.Has(Permissions.SchoolContractReview)
                     && (access.All || (access.CanManageOrganization(contract.OwnerOrganizationId)
                         && contract.OwnerUserId != access.UserId)),
+                reconciliation_status = await db.ReconciliationCases.Where(r => r.ContractId == id).Select(r => r.Status).FirstOrDefaultAsync(ct),
+                can_return = (contract.Status == "PENDING_REVIEW" || (contract.Status == "MANAGER_REVIEWED"
+                    && await db.ReconciliationCases.AnyAsync(r => r.ContractId == id && r.Status == "DISPUTED", ct)))
+                    && access.Has(Permissions.SchoolContractReview)
+                    && access.CanManageOrganization(contract.OwnerOrganizationId),
                 can_resubmit = contract.Status == "NEEDS_REVISION" && access.Has(Permissions.ChannelSalesReportContract)
                     && (contract.OwnerUserId == access.UserId || contract.ReportedByUserId == access.UserId)
             },

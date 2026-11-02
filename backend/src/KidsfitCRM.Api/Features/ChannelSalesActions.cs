@@ -180,6 +180,15 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         var signedOn = request.SignedOn ?? throw ApiValidationException.For("signed_on", "Vui lòng chọn ngày ký hợp đồng.");
         if (signedOn > ChannelSalesValidation.BusinessDate(DateTime.UtcNow)) throw ApiValidationException.For("signed_on", "Ngày ký không được ở tương lai.");
         ChannelSalesValidation.WholeDong(request.TotalValue, "total_value");
+        if (request.Installments is { Length: > 0 })
+        {
+            if (request.Installments.Length > 60) throw ApiValidationException.For("installments", "Tối đa 60 đợt thanh toán trong một hợp đồng.");
+            if (request.Installments.Any(x => x.DueOn < request.SignedOn))
+                throw ApiValidationException.For("installments", "Hạn thanh toán không được trước ngày ký.");
+            foreach (var item in request.Installments) ChannelSalesValidation.WholeDong(item.Amount, "installments");
+            if (request.Installments.Sum(x => x.Amount) != request.TotalValue)
+                throw ApiValidationException.For("installments", "Tổng các đợt phải bằng giá trị hợp đồng.");
+        }
 
         var now = DateTime.UtcNow;
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
@@ -206,9 +215,18 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 ?? throw ApiValidationException.For("product_package_id", "Gói CHECKEE không tồn tại hoặc đã ngừng áp dụng.");
 
             var schoolContract = await db.DirectorySchools.AnyAsync(x => x.CustomerId == customer.Id, cancellationToken);
+            FinancialEvidence? contractProof = null;
+            if (request.EvidenceId.HasValue)
+            {
+                contractProof = await db.FinancialEvidences
+                    .FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
+                    .SingleOrDefaultAsync(cancellationToken);
+                if (contractProof is null || contractProof.Kind != "CONTRACT" || contractProof.UploadedByUserId != actorId
+                    || contractProof.ContractId.HasValue || contractProof.AttachedAt.HasValue) throw new KeyNotFoundException();
+            }
             if (schoolContract)
             {
-                Validation.Required(request.EvidenceReference, "evidence_reference", "Hợp đồng trường học cần tham chiếu bằng chứng để xác minh.", 500);
+                if (contractProof is null) Validation.Required(request.EvidenceReference, "evidence_reference", "Hợp đồng trường học cần bằng chứng xác minh.", 500);
                 if (await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration.Id, cancellationToken)) throw new ApiConflictException("Lượt tiếp cận đã báo cáo hợp đồng. Hãy theo dõi hồ sơ xác minh.");
             }
 
@@ -237,6 +255,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             };
             db.SalesContracts.Add(contract);
             await db.SaveChangesAsync(cancellationToken);
+            if (contractProof is not null) { contractProof.ContractId = contract.Id; contractProof.AttachedAt = now; contractProof.UpdatedAt = now; }
 
             registration.Status = schoolContract ? "ACTIVE" : "CONVERTED";
             registration.UpdatedAt = now;
@@ -269,16 +288,19 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 CreatedAt = now,
                 UpdatedAt = now,
             });
-            db.RevenueSchedules.Add(new RevenueSchedule
+            var planned = request.Installments is { Length: > 0 }
+                ? request.Installments
+                : [new ContractPaymentInstallment(request.FirstPaymentDueOn ?? signedOn.AddDays(30), contract.TotalValue)];
+            db.RevenueSchedules.AddRange(planned.Select(installment => new RevenueSchedule
             {
                 ContractId = contract.Id,
-                AmountDue = contract.TotalValue,
+                AmountDue = installment.Amount,
                 AmountReceived = 0,
-                DueOn = request.FirstPaymentDueOn ?? signedOn.AddDays(30),
+                DueOn = installment.DueOn,
                 Status = "PENDING",
                 CreatedAt = now,
                 UpdatedAt = now,
-            });
+            }));
             var checkeeOrganizationId = await db.Organizations.Where(x => x.Code == "CHECKEE").Select(x => x.Id).SingleAsync(cancellationToken);
             var reconciliation = new ReconciliationCase
             {
@@ -334,6 +356,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         var existing = await db.RevenueReceipts.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
         if (existing is not null) return ChannelSalesValidation.Replay(existing.Id, existing.RecordedByUserId, actorId, existing.RequestFingerprint, hash);
         ChannelSalesValidation.WholeDong(request.Amount, "amount");
+        if (request.EvidenceId is null) throw ApiValidationException.For("evidence_id", "Bắt buộc upload ảnh chuyển khoản trước khi ghi nhận thực thu.");
         var referenceCode = Validation.Required(request.ReferenceCode, "reference_code", "Vui lòng nhập mã phiếu thu.", 64).ToUpperInvariant();
         var paymentMethod = Validation.Required(request.PaymentMethod ?? "BANK_TRANSFER", "payment_method", "Phương thức thu không hợp lệ.", 32).ToUpperInvariant();
         if (!new[] { "BANK_TRANSFER", "CASH", "CARD", "OTHER" }.Contains(paymentMethod)) throw ApiValidationException.For("payment_method", "Phương thức thu không được hỗ trợ.");
@@ -376,6 +399,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             var receivedAt = request.ReceivedAt?.ToUniversalTime() ?? now;
             if (receivedAt > now.AddMinutes(1) || ChannelSalesValidation.BusinessDate(receivedAt) < contract.SignedOn)
                 throw ApiValidationException.For("received_at", "Thời điểm thu phải từ ngày ký đến hiện tại.");
+            var receiptProof = await db.FinancialEvidences
+                .FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
+            if (receiptProof is null || receiptProof.Kind != "RECEIPT" || receiptProof.ContractId != contract.Id
+                || receiptProof.UploadedByUserId != actorId || receiptProof.AttachedAt.HasValue) throw new KeyNotFoundException();
             var receipt = new RevenueReceipt
             {
                 ContractId = contract.Id,
@@ -396,6 +424,9 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             schedule.Status = schedule.AmountReceived == schedule.AmountDue ? "PAID" : "PARTIAL";
             schedule.UpdatedAt = now;
             await db.SaveChangesAsync(cancellationToken);
+            receiptProof.RevenueReceiptId = receipt.Id;
+            receiptProof.AttachedAt = now;
+            receiptProof.UpdatedAt = now;
 
             var receiptDate = ChannelSalesValidation.BusinessDate(receivedAt);
             var policy = await db.CommissionPolicyVersions
@@ -406,8 +437,8 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 .ThenByDescending(x => x.EffectiveFrom)
                 .ThenByDescending(x => x.Id)
                 .FirstOrDefaultAsync(cancellationToken);
-            if (policy is null || policy.EffectiveUntil < receiptDate) throw new ApiConflictException("Chưa có chính sách hoa hồng hiệu lực cho ngày thu này. Vui lòng cấu hình trước khi ghi nhận thu.");
-            if (policy is not null)
+            // Recording verified money must not fail when no approved commission policy is effective.
+            if (policy is not null && (policy.EffectiveUntil is null || policy.EffectiveUntil >= receiptDate))
             {
                 db.CommissionLedgerEntries.Add(new CommissionLedgerEntry
                 {

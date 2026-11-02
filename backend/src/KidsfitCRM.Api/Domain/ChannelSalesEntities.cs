@@ -256,3 +256,18 @@ public sealed class ReconciliationEvent : EntityBase
     public string EventType { get; set; } = "OPENED";
     public string? Reason { get; set; }
 }
+
+/** Private, immutable proof bytes for a single contract, receipt or payout. Never expose in public URLs. */
+public sealed class FinancialEvidence : EntityBase
+{
+    public string Kind { get; set; } = "";
+    public long? ContractId { get; set; }
+    public long? RevenueReceiptId { get; set; }
+    public long? PayoutId { get; set; }
+    public long UploadedByUserId { get; set; }
+    public string FileName { get; set; } = "";
+    public string MimeType { get; set; } = "";
+    public string Sha256 { get; set; } = "";
+    public byte[] Bytes { get; set; } = [];
+    public DateTime? AttachedAt { get; set; }
+}

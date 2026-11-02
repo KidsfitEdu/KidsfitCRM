@@ -52,7 +52,8 @@ public static class ChannelSalesOperationsEndpoints
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var customer = await access.Customers(db).AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
         var internalScope = access.All || access.OrganizationIds.Contains(customer.OrganizationId)
-            || await access.Contracts(db).AnyAsync(x => x.CustomerId == id, ct);
+            || await access.Contracts(db).AnyAsync(x => x.CustomerId == id, ct)
+            || await db.ApproachRegistrations.AnyAsync(x => x.CustomerId == id && x.OwnerUserId == access.UserId && access.OrganizationIds.Contains(x.OwnerOrganizationId), ct);
         var canSeeMoney = access.Has(Permissions.ChannelSalesCommissionView) || access.Has(Permissions.ChannelSalesRecordRevenue);
         var scopedContractIds = access.Contracts(db).Select(x => x.Id);
         var contracts = await db.SalesContracts.AsNoTracking().Where(x => x.CustomerId == id
@@ -64,9 +65,23 @@ public static class ChannelSalesOperationsEndpoints
                                 where internalScope && activity.CustomerId == id && (access.All || access.Organization || activity.UserId == access.UserId)
                                 orderby activity.CreatedAt descending, activity.Id descending
                                 select new { activity.Id, activity.ActivityType, activity.Content, activity.NextFollowUpAt, activity.CreatedAt, user_name = user.Name }).Take(100).ToArrayAsync(ct);
+        var schoolUnits = internalScope ? await (from school in db.DirectorySchools.AsNoTracking()
+                    join unit in db.SchoolUnits.AsNoTracking() on school.Id equals unit.DirectorySchoolId
+                    where school.CustomerId == id
+                    orderby unit.UnitType, unit.Name
+                    select new { unit.Id, unit.Name, unit.UnitType, unit.Address, unit.Province, unit.Ward, unit.ContactName, unit.ContactPosition, unit.ContactPhone, unit.Email }).ToArrayAsync(ct)
+            : [];
         return Results.Ok(new
         {
-            data = new { customer.Id, customer.DisplayName, customer.TaxCode, phone = internalScope ? customer.Phone : null, email = internalScope ? customer.Email : null, contact_name = internalScope ? customer.ContactName : null, customer.LifecycleStatus },
+            data = new { customer.Id, customer.DisplayName, customer.TaxCode,
+                address = internalScope ? customer.Address : null,
+                province = internalScope ? customer.Province : null,
+                district = internalScope ? customer.District : null,
+                phone = internalScope ? customer.Phone : null, email = internalScope ? customer.Email : null,
+                contact_name = internalScope ? customer.ContactName : null,
+                contact_position = internalScope ? customer.ContactPosition : null,
+                customer.LifecycleStatus },
+            school_units = schoolUnits,
             contracts,
             activities,
             can_record_support = internalScope && customer.LifecycleStatus == "CONTRACTED" && access.Has(Permissions.ChannelSalesActivity)

@@ -227,11 +227,12 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       <AppDialog open={createOpen} onOpenChange={open=>{if(!busy)setCreateOpen(open);}}
         busy={busy} title="Thêm nhân sự" description="Tạo tài khoản đúng tổ chức và vai trò. Không cấp quyền Admin/BGĐ.">
         <div className="grid gap-4 sm:grid-cols-2">
-          {(['name','email','password'] as const).map(k=><label key={k} className="text-sm font-medium">
-            {({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (ít nhất 12 ký tự)'} as const)[k]}
-            <Input type={k==='password'?'password':'text'} className="mt-1.5" value={createForm[k]} aria-invalid={!!errors[k]}
+          {(['name','email','password'] as const).map(k=><div key={k} className="text-sm font-medium">
+            <span>{({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (ít nhất 12 ký tự)'} as const)[k]}</span>
+            <Input aria-label={k==='name'?'Họ và tên':k==='email'?'Email':'Mật khẩu ban đầu'}
+              type={k==='password'?'password':'text'} className="mt-1.5" value={createForm[k]} aria-invalid={!!errors[k]}
               onChange={e=>setCreateForm(v=>({...v,[k]:e.target.value}))}/><FormError>{errors[k]}</FormError>
-          </label>)}
+          </div>)}
           <div className="text-sm font-medium"><span>Tổ chức</span>
             <AppNativeSelect aria-label="Tổ chức" className="mt-1.5 w-full" value={createForm.organization_id}
               onChange={e=>setCreateForm(v=>({...v,organization_id:e.target.value,manager_user_id:''}))}>

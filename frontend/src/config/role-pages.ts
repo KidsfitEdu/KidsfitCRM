@@ -32,9 +32,6 @@ export const rolePageSections = {
   Checkee: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},
     verification: {label:"Xác minh hợp đồng",panel:"reconciliation",tab:""},
-    reconciliation: {label:"Đối soát",panel:"reconciliation",tab:""},
-    disputes: {label:"Tranh chấp",panel:"reconciliation",tab:""},
-    history: {label:"Lịch sử",panel:"reconciliation",tab:""},
   },
   Collaborator: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},

@@ -11,7 +11,7 @@ import type { VerificationResponse } from '../Verification/VerificationPage';
 
 /** CHECKEE metrics are calculated on the server over the complete scoped dataset. */
 export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: RolePageProps) {
-  const authorized = abilities.includes('*') || abilities.includes('channel_sales.reconcile');
+  const authorized = !apiBase || abilities.includes('*') || abilities.includes('channel_sales.reconcile');
   const connected = !!apiBase && !!token && authorized;
   const summary = useQuery({
     queryKey: ['checkee-dashboard',token],

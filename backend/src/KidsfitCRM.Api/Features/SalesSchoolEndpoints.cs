@@ -99,9 +99,11 @@ public static class SalesSchoolEndpoints
             var approvedCount = requests.Count(x => x.Status == "APPROVED");
             var policy = reg is null ? null : policies.FirstOrDefault(x => x.OrganizationId == reg.OwnerOrganizationId);
             var manager = reg is null ? null : managerIds.FirstOrDefault(x => x.OrganizationId == reg.OwnerOrganizationId);
+            var totalExtensionExhausted = reg is not null && policy is not null &&
+                reg.ProtectedUntil >= reg.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays);
             var canRequestExtension = reg is not null && !contracted &&
                 access.Has(Permissions.ChannelSalesRegister) && !extensionPending &&
-                policy is not null && approvedCount < policy.MaxExtensionCount;
+                policy is not null && approvedCount < policy.MaxExtensionCount && !totalExtensionExhausted;
             var unavailableReason = reg is null ? "Không có lượt tiếp cận còn hiệu lực."
                 : contracted ? "Trường đã có hợp đồng, không cần gia hạn tiếp cận."
                 : extensionPending ? "Yêu cầu gia hạn đang chờ Quản lý bán hàng duyệt."
@@ -109,6 +111,7 @@ public static class SalesSchoolEndpoints
                 : manager?.ManagerUserId is null ? "Chưa có Quản lý bán hàng trực tiếp."
                 : policy is null ? "Admin chưa kích hoạt chính sách gia hạn."
                 : approvedCount >= policy.MaxExtensionCount ? "Đã đạt số lần gia hạn tối đa theo chính sách."
+                : totalExtensionExhausted ? "Đã dùng hết tổng thời gian gia hạn theo chính sách."
                 : null;
             canRequestExtension = canRequestExtension && manager?.ManagerUserId is not null;
             return new ChannelCustomerListItem(

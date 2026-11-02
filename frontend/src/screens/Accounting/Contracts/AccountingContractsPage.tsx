@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPageHeader } from '@/components/common/app-page-header';
+import { AppPagination } from '@/components/common/app-pagination';
+import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { channelDate, channelMoney, channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
@@ -42,6 +45,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [personnel, setPersonnel] = useState('ALL');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
@@ -58,7 +62,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     setBusy(true);
     setError('');
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: '20', personnel_type: personnel });
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), personnel_type: personnel });
       if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
       const result = await channelRequest<ContractList>(apiBase, token, `/accounting/contracts?${params.toString()}`);
       setRows(result.data);
@@ -69,7 +73,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     } finally {
       setBusy(false);
     }
-  }, [apiBase, token, page, appliedSearch, personnel, connected]);
+  }, [apiBase, token, page, pageSize, appliedSearch, personnel, connected]);
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
@@ -199,64 +203,77 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     } catch (cause) { setActionError(cause instanceof Error ? cause.message : 'Không duyệt được phiếu chi.'); }
     finally { setSaving(false); }
   };
-  const pages = Math.max(1, Math.ceil(total / 20));
+  const resetFilters = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setPersonnel('ALL');
+    setPage(1);
+    void load();
+  };
   return <div className="space-y-5">
     <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Hợp đồng & hoa hồng"
       description="Đối chiếu số tiền nhà trường thanh toán và hoa hồng của từng Nhân viên/CTV." />
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     {error && <p role="alert" className="flex items-center gap-2 rounded-lg border border-red-300 p-3 text-sm text-red-700"><AlertCircle className="size-4"/>{error}</p>}
-    <section className="overflow-hidden rounded-xl border bg-card">
-      <form className="flex flex-wrap items-center gap-3 border-b p-4" onSubmit={submitSearch}>
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
-          <Input value={search} onChange={event => setSearch(event.target.value)}
-            aria-label="Tìm kiếm hợp đồng" placeholder="Tìm tên trường, hợp đồng, nhân sự..." className="pl-9"/>
+    <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+      <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
+        <div className="relative min-w-[190px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+          <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-11 w-full rounded-xl pl-10"
+            placeholder="Tên trường, mã hợp đồng, nhân sự..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <select aria-label="Lọc nhân sự" className="h-9 rounded-lg border border-input bg-background px-3 text-sm"
-          value={personnel} onChange={event => {setPersonnel(event.target.value); setPage(1);}}>
+        <AppNativeSelect aria-label="Lọc theo nhân sự" value={personnel} containerClassName="w-full sm:w-48"
+          onChange={e=>{setPersonnel(e.target.value);setPage(1);}}>
           <option value="ALL">Tất cả nhân sự</option>
           <option value="SALES">Nhân viên</option>
           <option value="COLLABORATOR">CTV</option>
-        </select>
-        <Button type="submit" variant="outline">Tìm kiếm</Button>
-        <Button type="button" size="icon" variant="ghost" onClick={() => void load()} disabled={busy} aria-label="Làm mới"><RefreshCw className="size-4"/></Button>
+        </AppNativeSelect>
+        <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+        <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
+          aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>
+          <RotateCcw className="size-4" aria-hidden="true"/>
+        </AppButton>
       </form>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[930px] text-left text-sm">
-          <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+          <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white">
             <tr>
-              <th className="px-4 py-3">Nhà trường</th>
-              <th className="px-4 py-3">Phụ trách</th>
-              <th className="px-4 py-3 text-right">Giá trị hợp đồng</th>
-              <th className="px-4 py-3 text-right">Thực thu</th>
-              <th className="px-4 py-3 text-right">Hoa hồng</th>
-              <th className="px-4 py-3 text-center"><span className="sr-only">Thao tác</span></th>
+              <th className="px-5 py-4">Nhà trường</th>
+              <th className="px-4 py-4">Phụ trách</th>
+              <th className="px-4 py-4 text-right">Giá trị hợp đồng</th>
+              <th className="px-4 py-4 text-right">Thực thu</th>
+              <th className="px-4 py-4 text-right">Hoa hồng</th>
+              <th className="px-5 py-4 text-center">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
-            {rows.map(row => <tr key={row.id} className="hover:bg-muted/20">
-              <td className="px-4 py-3"><div className="font-medium">{row.school_name}</div><div className="text-xs text-muted-foreground">{row.contract_code}</div></td>
-              <td className="px-4 py-3"><div>{row.owner_name}</div><div className="text-xs text-muted-foreground">{row.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}</div></td>
-              <td className="px-4 py-3 text-right tabular-nums">{channelMoney(row.total_value)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{channelMoney(row.received - row.refunded)}</td>
-              <td className="px-4 py-3 text-right font-semibold tabular-nums">{channelMoney(row.commission)}</td>
-              <td className="px-4 py-3 text-center">
-                <Button type="button" variant="ghost" size="icon" onClick={() => setSelected(row.id)}
-                  aria-label={`Xem chi tiết ${row.contract_code}`} title="Xem chi tiết"><Eye className="size-4"/></Button>
+          <tbody className="divide-y divide-border/70">
+            {rows.map(row=><tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
+              <td className="px-5 py-4 align-middle">
+                <p className="font-semibold text-foreground">{row.school_name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
+              </td>
+              <td className="px-4 py-4 align-middle">
+                <p>{row.owner_name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
+              </td>
+              <td className="px-4 py-4 text-right align-middle tabular-nums">{channelMoney(row.total_value)}</td>
+              <td className="px-4 py-4 text-right align-middle tabular-nums">{channelMoney(row.received-row.refunded)}</td>
+              <td className="px-4 py-4 text-right align-middle font-semibold tabular-nums">{channelMoney(row.commission)}</td>
+              <td className="px-5 py-4 text-center align-middle">
+                <Button type="button" variant="outline" size="icon" onClick={()=>setSelected(row.id)}
+                  aria-label={`Xem chi tiết ${row.contract_code}`} title={`Xem hợp đồng ${row.contract_code}`}>
+                  <Eye className="size-4"/>
+                </Button>
               </td>
             </tr>)}
-            {!busy && rows.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Không có hợp đồng phù hợp.</td></tr>}
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between border-t px-4 py-3 text-xs text-muted-foreground">
-        <span>{busy ? 'Đang tải...' : `${total} hợp đồng`}</span>
-        <div className="flex items-center gap-3">
-          <span>Trang {page}/{pages}</span>
-          <Button variant="outline" size="sm" disabled={page <= 1 || busy} onClick={() => setPage(p => p - 1)}>Trước</Button>
-          <Button variant="outline" size="sm" disabled={page >= pages || busy} onClick={() => setPage(p => p + 1)}>Sau</Button>
-        </div>
-      </div>
+      {!busy && rows.length===0 && <p className="p-10 text-center text-sm text-muted-foreground">Không có hợp đồng phù hợp. Hãy thử bộ lọc khác.</p>}
+      <AppPagination page={page} pageSize={pageSize} total={total} itemLabel="hợp đồng"
+        disabled={busy} showSummary={false} pageSizeOptions={[20,50,100]}
+        onPageChange={setPage}
+        onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </section>
     <AppDrawer wide open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
       title="Chi tiết hợp đồng" description={detail?.data.contract_code ?? 'Đang tải thông tin'}>

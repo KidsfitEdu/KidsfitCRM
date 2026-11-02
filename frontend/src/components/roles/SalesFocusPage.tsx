@@ -62,7 +62,8 @@ export function SalesFocusPage({section, ...props}: Props) {
   const table = <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
     apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
     initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
-    compactOperations embeddedSalesTable={section === 'proposals' || isInvitations || isExtensions}
+    compactOperations hideCustomerActivityHistory={section === 'customers' || section === 'activities'}
+    embeddedSalesTable={section === 'proposals' || isInvitations || isExtensions}
     proposalActionRef={proposalActionRef} initialOperationsTab={tab}
     customerView={onOpenCustomer => <ChannelSalesView apiBase={apiBase} token={token} mode={mode}
       embedded={section === 'customers' || section === 'activities'} workspace={workspace}

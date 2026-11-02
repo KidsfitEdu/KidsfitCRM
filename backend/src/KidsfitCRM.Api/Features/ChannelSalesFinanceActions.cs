@@ -264,10 +264,20 @@ public sealed partial class ChannelSalesActions
         if (roleCode == "SALES")
         {
             managerId = request.ManagerUserId ?? (access.Has(Permissions.ChannelSalesIdentityManage) ? null : actorId);
-            if (!managerId.HasValue || !await db.OrganizationMemberships.AnyAsync(x =>
+            if (!managerId.HasValue && access.Has(Permissions.ChannelSalesIdentityManage))
+            {
+                // Compatibility for existing Admin API clients: choose only an unambiguous active manager.
+                var managers = await db.OrganizationMemberships.Where(x => x.OrganizationId == request.OrganizationId
+                    && x.Status == "ACTIVE" && (x.MembershipType == "SALES_MANAGER" || x.MembershipType == "PARTNER_ADMIN"))
+                    .Select(x => x.UserId).Take(2).ToArrayAsync(ct);
+                if (managers.Length == 1) managerId = managers[0];
+            }
+            if (managerId.HasValue && !await db.OrganizationMemberships.AnyAsync(x =>
                 x.UserId == managerId.Value && x.OrganizationId == request.OrganizationId && x.Status == "ACTIVE" &&
                 (x.MembershipType == "SALES_MANAGER" || x.MembershipType == "PARTNER_ADMIN"), ct))
-                throw ApiValidationException.For("manager_user_id", "Cần chọn Quản lý bán hàng đang hoạt động cùng tổ chức.");
+                throw ApiValidationException.For("manager_user_id", "Quản lý bán hàng không thuộc tổ chức hoặc đã ngưng hoạt động.");
+            if (!managerId.HasValue && await db.Organizations.AnyAsync(x => x.Id == request.OrganizationId && x.OrganizationType != "CHECKEE", ct))
+                throw ApiValidationException.For("manager_user_id", "Cần chọn Quản lý bán hàng trực tiếp cùng tổ chức.");
         }
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Code == roleCode, ct) ?? throw new KeyNotFoundException();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);

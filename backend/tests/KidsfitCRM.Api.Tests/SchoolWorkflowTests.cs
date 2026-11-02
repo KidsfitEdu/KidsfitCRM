@@ -397,6 +397,9 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var details = Json(await ManagerContractEndpoints.Detail(contractId, AsUser(manager), db, Ct));
         Assert.Single(details.GetProperty("evidence").EnumerateArray());
         Assert.True(details.GetProperty("data").GetProperty("can_review").GetBoolean());
+        Assert.NotNull(await FinancialEvidenceEndpoints.Download(first.Id, AsUser(manager), db, Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            FinancialEvidenceEndpoints.Download(first.Id, AsUser(peer.UserId), db, Ct));
 
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             ManagerContractEndpoints.ReturnForRevision(contractId, new(""), AsUser(manager), db, Ct));

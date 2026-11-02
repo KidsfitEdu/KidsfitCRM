@@ -23,6 +23,8 @@ export type ChannelCustomer = {
   reconciliation_status: string | null;
   can_manage_approach: boolean;
   can_record_revenue: boolean;
+  address?: string | null;
+  can_request_extension?: boolean;
 };
 
 export type CheckeePackage = {

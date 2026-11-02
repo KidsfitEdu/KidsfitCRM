@@ -155,7 +155,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       <AppPageHeader eyebrow="QUẢN TRỊ / NHÂN SỰ & ĐỐI TÁC" title="Nhân sự & đối tác"
         description="Hồ sơ nhân sự, tổ chức, phân quyền và trạng thái truy cập."
         actions={<AppButton tone="green" premium leadingIcon={<Plus className="size-4"/>}
-          disabled={preview||!canTeam} onClick={()=>{setErrors({});if(tab==='people'){setCreateForm(blankCreate);setCreateOpen(true);}else openPartner(null);}}>
+          disabled={preview||(tab==='people'?!canTeam:!identity)} onClick={()=>{setErrors({});if(tab==='people'){setCreateForm(blankCreate);setCreateOpen(true);}else openPartner(null);}}>
           {tab==='people'?'Thêm nhân sự':'Thêm đối tác'}
         </AppButton>}/>
       <div role="tablist" aria-label="Quản lý nhân sự và đối tác" className="flex gap-4 border-b">
@@ -235,7 +235,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           </div>)}
           <div className="text-sm font-medium"><span>Tổ chức</span>
             <AppNativeSelect aria-label="Tổ chức" className="mt-1.5 w-full" value={createForm.organization_id}
-              onChange={e=>setCreateForm(v=>({...v,organization_id:e.target.value,manager_user_id:''}))}>
+              onChange={e=>setCreateForm(v=>({...v,organization_id:e.target.value,manager_user_id:'',
+                role_code:management?.organizations.find(o=>String(o.id)===e.target.value)?.organization_type==='CHECKEE'?'CHECKEE':'SALES'}))}>
               <option value="">Chọn tổ chức</option>
               {management?.organizations.filter(o=>o.status==='ACTIVE').map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
             </AppNativeSelect><FormError>{errors.organization_id}</FormError>

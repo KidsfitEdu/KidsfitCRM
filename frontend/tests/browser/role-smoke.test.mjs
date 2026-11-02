@@ -124,11 +124,8 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
   await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).waitFor();
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
-  // The separate extension tab was removed from Sales on develop; access it via the
-  // existing row action instead. Smoke-test the shared activity page here.
-  await navigation.getByRole('button',{name:'Tiếp cận & tư vấn',exact:true}).click();
-  await page.getByRole('navigation',{name:'Nhóm công việc Sales'}).waitFor();
-  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  // Sales now uses the five-entry menu; consultation and extension actions live
+  // inside "Trường của tôi", so there is no separate activity sidebar entry.
   await navigation.getByRole('button',{name:'Đề xuất trường',exact:true}).click();
   await page.getByRole('table').waitFor();
   assert.ok(await page.getByRole('columnheader',{name:'Người đề xuất'}).isVisible());

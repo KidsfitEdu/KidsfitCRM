@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   BadgeCheck,
+  Eye,
+  History,
   Building2,
   CalendarClock,
   CircleDollarSign,
@@ -21,6 +23,8 @@ import {
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,6 +42,16 @@ import type {
   RevenueReceiptInput,
 } from '@/lib/channel-sales';
 
+type SalesSchoolProfile = {
+  data: { id:number; display_name:string; tax_code:string|null; address:string|null;
+    province:string|null; district:string|null; phone:string|null; email:string|null;
+    contact_name:string|null; contact_position:string|null; lifecycle_status:string };
+  contracts: {id:number;contract_code:string;status:string;signed_on:string;
+    protection_until:string|null;total_value:number|null}[];
+  school_units:{id:number;name:string;unit_type:string;address:string|null;
+    province:string;ward:string;contact_name:string|null;contact_position:string|null;
+    contact_phone:string|null;email:string|null}[];
+};
 type StatusFilter = 'ALL' | ChannelCustomer['visible_status'];
 export type SalesCustomerMode = 'all' | 'mine' | 'activities';
 
@@ -140,9 +154,16 @@ export function ChannelSalesView({
   const [draftSearch, setDraftSearch] = useState(search);
   const [listPage, setListPage] = useState(1);
   const [listPageSize, setListPageSize] = useState(20);
+  const [minePage, setMinePage] = useState<{data:ChannelCustomer[];total:number}|null>(null);
+  const [mineLoading,setMineLoading] = useState(false);
+  const [mineError,setMineError] = useState('');
   const [registerCustomer, setRegisterCustomer] = useState<
     ChannelCustomer | null | undefined
   >(undefined);
+  const [historyCustomer, setHistoryCustomer] = useState<ChannelCustomer | null>(null);
+  const [detailCustomer, setDetailCustomer] = useState<ChannelCustomer | null>(null);
+  const [schoolProfile,setSchoolProfile] = useState<SalesSchoolProfile|null>(null);
+  const [profileError,setProfileError] = useState('');
   const [activityCustomer, setActivityCustomer] =
     useState<ChannelCustomer | null>(null);
   const [contractCustomer, setContractCustomer] =
@@ -150,17 +171,38 @@ export function ChannelSalesView({
   const [receiptCustomer, setReceiptCustomer] =
     useState<ChannelCustomer | null>(null);
 
-  const scopedCustomers = useMemo(() => workspace.data.filter(customer =>
+  useEffect(()=>{
+    if(!detailCustomer || !apiBase || !token){setSchoolProfile(null);return;}
+    let active=true;setSchoolProfile(null);setProfileError('');
+    void channelRequest<SalesSchoolProfile>(apiBase,token,`/customers/${detailCustomer.id}`)
+      .then(result=>{if(active)setSchoolProfile(result);})
+      .catch(err=>{if(active)setProfileError(err instanceof Error?err.message:'Không tải được hồ sơ trường.');});
+    return()=>{active=false;};
+  },[detailCustomer,apiBase,token]);
+  const serverMine = mode === 'mine' && Boolean(apiBase && token);
+  useEffect(()=>{
+    if(!serverMine)return;
+    let active=true;
+    setMineLoading(true);setMineError('');
+    const params=new URLSearchParams({page:String(listPage),pageSize:String(listPageSize),status:filter});
+    if(search.trim())params.set('search',search.trim());
+    void channelRequest<{data:ChannelCustomer[];total:number}>(apiBase!,token!,`/schools/mine?${params}`)
+      .then(result=>{if(active)setMinePage(result);})
+      .catch(err=>{if(active){setMinePage(null);setMineError(err instanceof Error?err.message:'Không tải được trường của tôi.');}})
+      .finally(()=>{if(active)setMineLoading(false);});
+    return()=>{active=false;};
+  },[serverMine,apiBase,token,listPage,listPageSize,filter,search,workspace]);
+  const scopedCustomers = useMemo(() => (serverMine ? (minePage?.data ?? []) : workspace.data).filter(customer =>
     mode === 'all' || (mode === 'activities'
       ? customer.visible_status === 'APPROACHING' && customer.can_manage_approach
       : customer.can_manage_approach || (customer.visible_status === 'CONTRACTED' && customer.contract_id !== null))
-  ), [mode, workspace.data]);
+  ), [mode, workspace.data, minePage, serverMine]);
   const customers = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
     return scopedCustomers.filter(
       (customer) =>
-        (filter === 'ALL' || customer.visible_status === filter) &&
-        (!term ||
+        (serverMine || filter === 'ALL' || customer.visible_status === filter) &&
+        (serverMine || !term ||
           [
             customer.display_name,
             customer.code,
@@ -169,11 +211,11 @@ export function ChannelSalesView({
             customer.contact_name,
           ].some((value) => value?.toLocaleLowerCase('vi').includes(term))),
     );
-  }, [filter, search, scopedCustomers]);
+  }, [filter, search, scopedCustomers, serverMine]);
 
-  const totalPages = Math.max(1, Math.ceil(customers.length / listPageSize));
+  const totalPages = Math.max(1, Math.ceil((serverMine ? (minePage?.total ?? 0) : customers.length) / listPageSize));
   const currentPage = Math.min(listPage, totalPages);
-  const pageCustomers = customers.slice((currentPage - 1) * listPageSize, currentPage * listPageSize);
+  const pageCustomers = serverMine ? customers : customers.slice((currentPage - 1) * listPageSize, currentPage * listPageSize);
 
   const tabs: { id: StatusFilter; label: string; count: number }[] = [
     {
@@ -296,6 +338,13 @@ export function ChannelSalesView({
               <option value="APPROACHING">Đang tiếp cận</option>
               <option value="CONTRACTED">Đã ký hợp đồng</option>
             </AppNativeSelect>}
+            {serverMine && <select aria-label="Lọc trạng thái trường của tôi" value={filter}
+              onChange={event=>{setFilter(event.target.value as StatusFilter);setListPage(1);}}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-sm">
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="APPROACHING">Đang tiếp cận</option>
+              <option value="CONTRACTED">Đã ký hợp đồng</option>
+            </select>}
             <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
             <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
               aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');setListPage(1);}}>
@@ -327,21 +376,24 @@ export function ChannelSalesView({
             </div>
           </div>}
 
-          <div className="hidden grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid">
+          <div className={`hidden gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid ${mode === 'mine' ? 'xl:grid-cols-[minmax(230px,1.6fr)_minmax(150px,.9fr)_minmax(180px,.9fr)_auto]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
             <span>Khách hàng</span>
             <span>Trạng thái</span>
             <span>Quyền bảo vệ</span>
-            <span>Tài chính</span>
+            {mode !== 'mine' && <span>Tài chính</span>}
             <span className="text-right">Thao tác</span>
           </div>
+          {mineError && <p role="alert" className="px-4 py-3 text-sm text-red-700">{mineError}</p>}
+          {mineLoading && <p className="px-4 py-3 text-sm text-muted-foreground">Đang tải trường của tôi…</p>}
           <div className="divide-y divide-border/70">
             {pageCustomers.map((customer) => (
               <CustomerRow
                 key={customer.id}
                 customer={customer}
-                onOpenDetail={
-                  onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined
-                }
+                onOpenDetail={mode === 'mine' ? () => setDetailCustomer(customer)
+                  : onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined}
+                mineMode={mode === 'mine'}
+                onHistory={() => setHistoryCustomer(customer)}
                 canSeeRevenue={workspace.capabilities?.view_revenue !== false}
                 canRegister={mode === 'all' && canRegister}
                 canAddActivity={canAddActivity}
@@ -367,12 +419,57 @@ export function ChannelSalesView({
               </div>
             )}
           </div>
-          {mode !== 'all' && <AppPagination page={currentPage} pageSize={listPageSize} total={customers.length}
+          {mode !== 'all' && <AppPagination page={currentPage} pageSize={listPageSize} total={serverMine ? minePage?.total ?? 0 : customers.length}
             disabled={false} showSummary={false} onPageChange={setListPage} pageSizeOptions={[10,20,50,100]}
             onPageSizeChange={size=>{setListPageSize(size);setListPage(1);}}/>}
         </CardContent>
       </Card>
 
+      <AppDrawer open={detailCustomer!==null} onOpenChange={open=>{if(!open)setDetailCustomer(null);}}
+        title="CHI TIẾT NHÀ TRƯỜNG" description={detailCustomer?.display_name??''} wide>
+        {profileError&&<p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
+        {!schoolProfile&&!profileError&&<p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
+        {detailCustomer && schoolProfile && <div className="space-y-5 text-sm">
+          <section className="space-y-2">
+            <h3 className="text-lg font-semibold">{schoolProfile.data.display_name}</h3>
+            <p className="text-muted-foreground">{[schoolProfile.data.address,schoolProfile.data.district,schoolProfile.data.province].filter(Boolean).join(', ')||'Chưa cập nhật địa chỉ'}</p>
+            <p>Trạng thái: <strong>{statusCopy[detailCustomer.visible_status].label}</strong></p>
+            <p>Người phụ trách: {detailCustomer.owner_user_name??'—'}</p>
+            <p>Quyền bảo vệ đến: {detailCustomer.protected_until?channelDate(detailCustomer.protected_until):'Chưa có'}</p>
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="font-semibold">1. Thông tin liên hệ</h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p>Người liên hệ: {schoolProfile.data.contact_name??'—'}</p>
+              <p>Chức vụ: {schoolProfile.data.contact_position??'—'}</p>
+              <p>Điện thoại: {schoolProfile.data.phone??'—'}</p>
+              <p>Email: {schoolProfile.data.email??'—'}</p>
+            </div>
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="font-semibold">2. Trường chính & phân hiệu</h3>
+            {schoolProfile.school_units.length===0?<p className="text-muted-foreground">Chưa có thông tin trường điểm.</p>
+              :schoolProfile.school_units.map(u=><div key={u.id} className="rounded-lg border p-3">
+                <p className="font-medium">{u.name} · {u.unit_type==='MAIN'?'Trường chính':'Phân hiệu'}</p>
+                <p className="mt-1 text-muted-foreground">{[u.address,u.ward,u.province].filter(Boolean).join(', ')||'Chưa có địa chỉ'}</p>
+              </div>)}
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="font-semibold">3. Hợp đồng và quyền bảo vệ</h3>
+            {schoolProfile.contracts.length===0&&<p className="text-muted-foreground">Chưa có hợp đồng.</p>}
+            {schoolProfile.contracts.map(c=><div key={c.id} className="rounded-lg border p-3">
+              <p className="font-medium">{c.contract_code} · {c.status}</p>
+              <p className="mt-1 text-muted-foreground">Ngày ký: {channelDate(c.signed_on)}</p>
+            </div>)}
+            {canReportContract && detailCustomer.can_manage_approach && detailCustomer.visible_status==='APPROACHING' && !detailCustomer.contract_id &&
+              <Button type="button" onClick={()=>{setDetailCustomer(null);setContractCustomer(detailCustomer);}}>Báo cáo hợp đồng đã ký</Button>}
+          </section>
+          <p className="border-t pt-3 text-xs text-muted-foreground">Tiến độ và lịch sử tư vấn được xem tại icon Lịch sử tiếp cận riêng trong bảng.</p>
+        </div>}
+      </AppDrawer>
+      {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
+        onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}
+        customerId={historyCustomer.id} schoolName={historyCustomer.display_name} apiBase={apiBase} token={token}/>}
       {registerCustomer !== undefined && (
         <RegisterApproachDialog
           customer={registerCustomer}
@@ -421,6 +518,8 @@ export function ChannelSalesView({
 }
 
 function CustomerRow({
+  mineMode,
+  onHistory,
   canSeeRevenue,
   onOpenDetail,
   customer,
@@ -433,6 +532,8 @@ function CustomerRow({
   onContract,
   onReceipt,
 }: {
+  mineMode: boolean;
+  onHistory: () => void;
   canSeeRevenue: boolean;
   onOpenDetail?: () => void;
   customer: ChannelCustomer;
@@ -445,9 +546,11 @@ function CustomerRow({
   onContract: () => void;
   onReceipt: () => void;
 }) {
-  const status = statusCopy[customer.visible_status];
+  const status = customer.contract_id && customer.visible_status === 'APPROACHING'
+    ? {label:'Chờ xác minh hợp đồng',compact:'Quản lý / CHECKEE đang xử lý',className:'border-blue-200 bg-blue-50 text-blue-800'}
+    : statusCopy[customer.visible_status];
   return (
-    <div className="grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] xl:items-center">
+    <div className={`grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:items-center ${mineMode ? 'xl:grid-cols-[minmax(230px,1.6fr)_minmax(150px,.9fr)_minmax(180px,.9fr)_auto]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
       <div className="flex min-w-0 gap-3">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#e8f5e9] text-[#1b5e20] dark:bg-[#1b5e20]/20">
           {customer.customer_type === 'ORGANIZATION' ? (
@@ -500,7 +603,7 @@ function CustomerRow({
           <p className="text-sm text-muted-foreground">Chưa có quyền bảo vệ</p>
         )}
       </div>
-      <div className="text-sm">
+      {!mineMode && <div className="text-sm">
         {customer.contract_id && canSeeRevenue ? (
           <>
             <p className="font-semibold">{money(customer.collected_revenue)}</p>
@@ -518,14 +621,23 @@ function CustomerRow({
             </p>
           </>
         )}
-      </div>
+      </div>}
       <div className="flex flex-wrap justify-end gap-2 xl:min-w-44">
-        {customer.visible_status === 'AVAILABLE' && canRegister && (
+        {mineMode && <>
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onOpenDetail}
+            disabled={!onOpenDetail} title="Xem chi tiết trường" aria-label={`Xem chi tiết ${customer.display_name}`}><Eye className="size-4"/></Button>
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onActivity}
+            disabled={!canAddActivity || !customer.can_manage_approach || customer.visible_status !== 'APPROACHING'}
+            title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
+            title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
+        </>}
+        {!mineMode && customer.visible_status === 'AVAILABLE' && canRegister && (
           <Button onClick={onRegister} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800" title="Đăng ký tiếp cận" aria-label={`Đăng ký tiếp cận ${customer.display_name}`}>
             <Plus className="size-4" aria-hidden="true"/>
           </Button>
         )}
-        {customer.visible_status === 'APPROACHING' && (
+        {!mineMode && customer.visible_status === 'APPROACHING' && (
           <>
             {canAddActivity && customer.can_manage_approach && (
               <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
@@ -541,7 +653,7 @@ function CustomerRow({
             )}
           </>
         )}
-        {customer.visible_status === 'CONTRACTED' && (
+        {!mineMode && customer.visible_status === 'CONTRACTED' && (
           <>
             <Badge variant="outline" className="h-8 rounded-xl px-2.5">
               {customer.reconciliation_status === 'CONFIRMED'
@@ -732,12 +844,19 @@ function ActivityDialog({
     setError('');
     try {
       const next = text(form, 'next_follow_up_at');
+      const occurred = text(form, 'occurred_at');
+      if (!occurred) throw new Error('Vui lòng nhập thời gian thực hiện.');
+      if (occurred && new Date(occurred).getTime() > Date.now()) throw new Error('Thời gian thực hiện không được ở tương lai.');
       await onSubmit({
-        activity_type: text(
-          form,
-          'activity_type',
-        ) as CustomerActivityInput['activity_type'],
+        activity_type: text(form, 'activity_type') as CustomerActivityInput['activity_type'],
         content: text(form, 'content'),
+        occurred_at: occurred ? new Date(occurred).toISOString() : undefined,
+        contact_name: text(form, 'contact_name') || undefined,
+        contact_position: text(form, 'contact_position') || undefined,
+        feedback: text(form, 'feedback') || undefined,
+        outcome: text(form, 'outcome') as CustomerActivityInput['outcome'],
+        evidence_reference: text(form, 'evidence_reference') || undefined,
+        commitment: text(form, 'commitment') || undefined,
         next_follow_up_at: next ? new Date(next).toISOString() : undefined,
       });
     } catch (cause) {
@@ -750,7 +869,7 @@ function ActivityDialog({
   };
   return (
     <SalesFormDialog
-      title="Cập nhật tiếp cận"
+      title="Cập nhật kết quả tư vấn"
       subtitle="Hoạt động không tự động gia hạn quyền bảo vệ."
       onClose={onClose}
     >
@@ -759,12 +878,20 @@ function ActivityDialog({
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Loại hoạt động">
             <Select name="activity_type" defaultValue="CALL">
-              <option value="CALL">Cuộc gọi</option>
-              <option value="MEETING">Cuộc gặp</option>
-              <option value="PROPOSAL">Gửi đề xuất</option>
+              <option value="CALL">Gọi điện</option>
+              <option value="ZALO">Zalo</option>
+              <option value="MEETING">Gặp trực tiếp</option>
+              <option value="DEMO">Demo sản phẩm</option>
+              <option value="PROPOSAL">Gửi đề xuất / báo giá</option>
               <option value="NOTE">Ghi chú</option>
             </Select>
           </Field>
+          <Field label="Thời gian đã thực hiện">
+            <Input name="occurred_at" type="datetime-local" required className="rounded-xl"
+              defaultValue={new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)} />
+          </Field>
+          <Field label="Người liên hệ"><Input name="contact_name" maxLength={500} placeholder="Họ tên"/></Field>
+          <Field label="Chức vụ"><Input name="contact_position" maxLength={120} placeholder="Hiệu trưởng, kế toán..."/></Field>
           <Field label="Lịch theo dõi tiếp theo">
             <Input
               name="next_follow_up_at"
@@ -773,7 +900,19 @@ function ActivityDialog({
             />
           </Field>
           <div className="sm:col-span-2">
-            <Field label="Kết quả / ghi chú *">
+            <Field label="Kết quả tư vấn *">
+              <Select name="outcome" required defaultValue="INTERESTED">
+                <option value="INTERESTED">Quan tâm sản phẩm</option>
+                <option value="NEEDS_INFO">Cần tư vấn thêm</option>
+                <option value="DEMO_SCHEDULED">Đã hẹn demo</option>
+                <option value="WAITING">Chờ phản hồi</option>
+                <option value="DECLINED">Không có nhu cầu</option>
+                <option value="UNREACHABLE">Không liên hệ được</option>
+              </Select>
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="Nội dung trao đổi *">
               <textarea
                 name="content"
                 required
@@ -783,6 +922,9 @@ function ActivityDialog({
               />
             </Field>
           </div>
+          <div className="sm:col-span-2"><Field label="Phản hồi của nhà trường"><textarea name="feedback" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
+          <div className="sm:col-span-2"><Field label="Cam kết / bước tiếp theo"><textarea name="commitment" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
+          <div className="sm:col-span-2"><Field label="Tham chiếu minh chứng (nếu có)"><Input name="evidence_reference" maxLength={500} placeholder="Mã tài liệu / liên kết được quản lý bởi tổ chức"/></Field></div>
         </div>
         <DialogFooter
           saving={saving}

@@ -126,6 +126,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         var content = Validation.Required(request.Content, "content", "Vui lòng nhập nội dung hoạt động.", 4000);
         var activityType = Validation.Required(request.ActivityType ?? "NOTE", "activity_type", "Loại hoạt động không hợp lệ.", 32).ToUpperInvariant();
         if (!new[] { "NOTE", "CALL", "MEETING", "PROPOSAL", "ZALO", "DEMO" }.Contains(activityType)) throw ApiValidationException.For("activity_type", "Loại hoạt động không được hỗ trợ.");
+        var outcome = CleanOptional(request.Outcome, 40)?.ToUpperInvariant();
+        if (outcome is not null && outcome is not ("INTERESTED" or "NEEDS_INFO" or "DEMO_SCHEDULED"
+            or "WAITING" or "DECLINED" or "UNREACHABLE"))
+            throw ApiValidationException.For("outcome", "Kết quả tư vấn không hợp lệ.");
+        var evidenceReference = CleanOptional(request.EvidenceReference, 500);
         var now = DateTime.UtcNow;
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var registration = await db.ApproachRegistrations
@@ -156,6 +161,8 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             ContactName = CleanOptional(request.ContactName, 500),
             ContactPosition = CleanOptional(request.ContactPosition, 120),
             Feedback = CleanOptional(request.Feedback, 2000),
+            Outcome = outcome,
+            EvidenceReference = evidenceReference,
             Commitment = CleanOptional(request.Commitment, 2000),
             CreatedAt = now,
             UpdatedAt = now,

@@ -64,6 +64,7 @@ type Props = {
   hideOperationsTabs?: boolean;
   compactOperations?: boolean;
   embeddedSalesTable?: boolean;
+  hideCustomerActivityHistory?: boolean;
   proposalActionRef?: RefObject<{open: () => void} | null>;
   initialOperationsTab?: string;
   reconciliationView?: 'verification' | 'reconciliation' | 'disputes' | 'history';
@@ -103,6 +104,7 @@ function OperationsContent({
   hideOperationsTabs = false,
   compactOperations = false,
   embeddedSalesTable = false,
+  hideCustomerActivityHistory = false,
   proposalActionRef,
   initialOperationsTab,
   reconciliationView = 'reconciliation',
@@ -568,6 +570,7 @@ function OperationsContent({
                     }}
                   />
                 )}
+                {!hideCustomerActivityHistory && <>
                 <h4 className="mt-2 font-semibold">Lịch sử hoạt động</h4>
                 <ol className="space-y-4 border-l pl-4">
                   {detail.data.activities.map((activity) => (
@@ -592,6 +595,7 @@ function OperationsContent({
                 {detail.data.activities.length === 0 && (
                   <Empty message="Chưa có hoạt động hiển thị." />
                 )}
+                </>}
               </>
             )
           )}

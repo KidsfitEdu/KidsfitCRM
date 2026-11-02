@@ -130,6 +130,8 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<ApproachRegistration>().HasIndex(x => new { x.OwnerUserId, x.Status, x.ProtectedUntil });
 
         b.Entity<CustomerActivity>().Property(x => x.ActivityType).HasMaxLength(32);
+        b.Entity<CustomerActivity>().Property(x => x.Outcome).HasMaxLength(40);
+        b.Entity<CustomerActivity>().Property(x => x.EvidenceReference).HasMaxLength(500);
         b.Entity<CustomerActivity>().HasIndex(x => new { x.CustomerId, x.CreatedAt });
 
         b.Entity<CheckeeProductPackage>().Property(x => x.Name).HasMaxLength(190);

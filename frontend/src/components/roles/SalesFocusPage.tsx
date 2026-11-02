@@ -67,6 +67,7 @@ export function SalesFocusPage({section, ...props}: Props) {
     customerView={onOpenCustomer => <ChannelSalesView apiBase={apiBase} token={token} mode={mode}
       embedded={section === 'customers' || section === 'activities'} workspace={workspace}
       search={search} setSearch={setSearch} onOpenCustomer={onOpenCustomer}
+      onExtensionSubmitted={onChanged}
       canRegister={can('channel_sales.approach.register')}
       canAddActivity={can('channel_sales.activity.create')}
       canReportContract={can('channel_sales.contract.report')}

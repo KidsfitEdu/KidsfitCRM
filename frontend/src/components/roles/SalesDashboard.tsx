@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CalendarClock, ClipboardList, FileCheck2, Handshake, School, SquarePen, UsersRound } from 'lucide-react';
+import { AlertCircle, CalendarClock, FileCheck2, Handshake, SquarePen, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { channelRequest } from '@/lib/channel-operations';
@@ -42,46 +42,34 @@ export function SalesDashboard({apiBase, token, abilities, workspace, onSalesNav
       <AppStatCard icon={UsersRound} label="Lời mời chờ phản hồi" value={preview ? '—' : pendingInvitations} description="Nhận hoặc từ chối phân bổ"/>
       <AppStatCard icon={FileCheck2} label="Đề xuất đang xử lý" value={preview ? '—' : pendingProposals} description="Chờ Quản lý hoặc Admin phản hồi"/>
     </div>
-    <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <CalendarClock className="size-5 text-primary" aria-hidden="true"/>
-          <h3 className="font-semibold">Lịch tư vấn sắp tới</h3>
+    <section aria-labelledby="sales-upcoming-heading" className="overflow-hidden rounded-2xl border border-border/80 bg-card">
+      <div className="flex items-center gap-2 border-b border-border/80 px-5 py-4">
+        <CalendarClock aria-hidden="true" className="size-5 text-primary"/>
+        <h2 id="sales-upcoming-heading" className="font-semibold">Lịch tư vấn sắp tới</h2>
+      </div>
+      {nextFollowups.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[460px] text-left text-sm">
+            <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-wide text-white">
+              <tr><th scope="col" className="px-5 py-3">Trường học</th><th scope="col" className="px-5 py-3">Lịch hẹn</th><th scope="col" className="px-5 py-3 text-right">Thao tác</th></tr>
+            </thead>
+            <tbody className="divide-y divide-border/70">
+              {nextFollowups.map(customer => <tr key={customer.id} className="hover:bg-muted/30">
+                <td className="px-5 py-4 font-medium">{customer.display_name}</td>
+                <td className="px-5 py-4 text-muted-foreground">{formatDate(customer.next_follow_up_at!)}</td>
+                <td className="px-5 py-4 text-right">
+                  <button type="button" onClick={()=>go('role-sales-staff-activities')}
+                    className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-[#1b5e20] hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
+                    title={`Xem hoạt động tư vấn ${customer.display_name}`} aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}>
+                    <SquarePen className="size-4" aria-hidden="true"/>
+                  </button>
+                </td>
+              </tr>)}
+            </tbody>
+          </table>
         </div>
-        {nextFollowups.length ? <ul className="divide-y divide-border">
-          {nextFollowups.map(customer => <li key={customer.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <div className="min-w-0">
-              <p className="font-medium">{customer.display_name}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Hẹn: {formatDate(customer.next_follow_up_at!)}</p>
-            </div>
-            <button type="button" onClick={()=>go('role-sales-staff-activities')}
-              className="grid size-10 place-items-center rounded-lg border border-border text-[#1b5e20] hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
-              title={`Cập nhật tư vấn ${customer.display_name}`} aria-label={`Cập nhật tư vấn ${customer.display_name}`}>
-              <SquarePen className="size-4" aria-hidden="true"/>
-            </button>
-          </li>)}
-        </ul> : <p className="rounded-xl bg-muted/40 p-5 text-sm text-muted-foreground">
-          Chưa có lịch tư vấn được ghi nhận trong danh sách trường đang phụ trách.
-        </p>}
-      </section>
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <ClipboardList className="size-5 text-primary" aria-hidden="true"/>
-          <h3 className="font-semibold">Lối tắt công việc</h3>
-        </div>
-        <div className="grid gap-2">
-          {[
-            {label:'Tìm và đăng ký trường',view:'role-sales-staff-schools' as const,icon:School},
-            {label:'Trường của tôi / nhận phân bổ',view:'role-sales-staff-customers' as const,icon:UsersRound},
-            {label:'Tiếp cận / yêu cầu gia hạn',view:'role-sales-staff-activities' as const,icon:Handshake},
-            {label:'Theo dõi đề xuất trường',view:'role-sales-staff-proposals' as const,icon:ClipboardList},
-          ].map(link=><button key={link.view} type="button" onClick={()=>go(link.view)}
-            className="flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 text-left text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary">
-            <link.icon className="size-4 shrink-0 text-primary" aria-hidden="true"/>{link.label}
-          </button>)}
-        </div>
-      </section>
-    </div>
+      ) : <p className="px-5 py-6 text-sm text-muted-foreground">Chưa có lịch tư vấn trong danh sách trường đang phụ trách.</p>}
+    </section>
     <p className="text-xs text-muted-foreground">Hạn mức tiếp cận do Admin cấu hình và được kiểm tra bởi hệ thống khi đăng ký hoặc nhận phân bổ.</p>
   </div>;
 }

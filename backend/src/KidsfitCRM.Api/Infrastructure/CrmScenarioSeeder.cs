@@ -175,9 +175,11 @@ internal static class CrmScenarioSeeder
             {
                 registration = new ApproachRegistration { CustomerId = customer.Id, OwnerUserId = salesId,
                     OwnerOrganizationId = organizationId, CreatedByUserId = salesId, Status = "ACTIVE",
-                    RegisteredAt = now.AddDays(-2), ProtectedUntil = now.AddDays(3),
+                    // Historic signed-contract scenarios must not consume today's Sales capacity.
+                    // The 5-day initial protection was valid when the sample contract was signed.
+                    RegisteredAt = now.AddDays(-7), ProtectedUntil = now.AddDays(-2),
                     Source = "DEMO_MANAGER_CONTRACT", IdempotencyKey = key,
-                    CreatedAt = now.AddDays(-2), UpdatedAt = now };
+                    CreatedAt = now.AddDays(-7), UpdatedAt = now };
                 db.ApproachRegistrations.Add(registration); await db.SaveChangesAsync();
             }
             var contractCode = "DEMO-" + example.Code;
@@ -188,14 +190,14 @@ internal static class CrmScenarioSeeder
                 {
                     CustomerId = customer.Id, ApproachRegistrationId = registration.Id,
                     OwnerUserId = salesId, ReportedByUserId = salesId, OwnerOrganizationId = organizationId,
-                    ContractCode = contractCode, SignedOn = DateOnly.FromDateTime(now.AddDays(-1)),
+                    ContractCode = contractCode, SignedOn = DateOnly.FromDateTime(now.AddDays(-3)),
                     TotalValue = 12_000_000m, Status = example.Status, OwnerPersonnelType = "SALES",
                     RequiresSchoolVerification = true, ServicePlan = "SCHOOL_YEAR", StudentCount = 280,
                     SchoolUnitIdsJson = "[]", IdempotencyKey = "scenario-manager-contract-" + example.Code,
                     ProtectionStartsAt = now, ProtectionUntil = now,
                     ManagerReviewedAt = example.Status == "MANAGER_REVIEWED" ? now.AddHours(-2) : null,
                     ManagerReviewedByUserId = example.Status == "MANAGER_REVIEWED" ? managerId : null,
-                    CreatedAt = now.AddDays(-1), UpdatedAt = now,
+                    CreatedAt = now.AddDays(-3), UpdatedAt = now,
                 };
                 db.SalesContracts.Add(contract); await db.SaveChangesAsync();
             }
@@ -225,14 +227,23 @@ internal static class CrmScenarioSeeder
                 db.ReconciliationCases.Add(reconciliation); await db.SaveChangesAsync();
                 db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
                     ActorUserId = salesId, EventType = "OPENED", CreatedAt = now.AddDays(-1), UpdatedAt = now });
+                await db.SaveChangesAsync();
+                // Insert each distinct event separately: avoid multi-row INSERT parameter issues
+                // with the MySQL EF provider and preserve a deterministic event order.
                 if (example.Status == "NEEDS_REVISION")
+                {
                     db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
                         ActorUserId = managerId, EventType = "MANAGER_REVISION",
                         Reason = "Cần bổ sung trang ký và đóng dấu (dữ liệu demo).", CreatedAt = now.AddHours(-3), UpdatedAt = now });
+                    await db.SaveChangesAsync();
+                }
                 if (example.Status == "MANAGER_REVIEWED")
+                {
                     db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
                         ActorUserId = managerId, EventType = "MANAGER_FORWARDED",
                         CreatedAt = now.AddHours(-2), UpdatedAt = now });
+                    await db.SaveChangesAsync();
+                }
             }
             await db.SaveChangesAsync();
         }

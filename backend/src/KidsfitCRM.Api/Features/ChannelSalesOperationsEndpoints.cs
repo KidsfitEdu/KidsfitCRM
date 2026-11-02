@@ -183,7 +183,7 @@ public static class ChannelSalesOperationsEndpoints
         var contracts = access.Contracts(db).Select(x => x.Id);
         var query = db.ReconciliationCases.AsNoTracking().Where(x => access.All || contracts.Contains(x.ContractId)
             || (access.Has(Permissions.ChannelSalesReconcile) && access.OrganizationIds.Contains(x.CheckeeOrganizationId)));
-        // CHECKEE must only access school contracts actually forwarded by their manager.
+        // CHECKEE must not see unforwarded school contracts as an actionable verification inbox.
         if (access.Has(Permissions.ChannelSalesReconcile) && !access.All)
             query = query.Where(x => db.SalesContracts.Any(c => c.Id == x.ContractId &&
                 (!c.RequiresSchoolVerification || (c.ManagerReviewedAt != null && c.Status != "NEEDS_REVISION"))));

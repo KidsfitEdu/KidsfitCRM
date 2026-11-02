@@ -427,6 +427,27 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         Assert.Equal("PENDING", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
         var permitted = await FinancialEvidenceEndpoints.Download(first.Id, AsUser(checkee), db, Ct);
         Assert.NotNull(permitted);
+
+        // CHECKEE can dispute a forwarded contract; Manager must be able to route it back to Sales.
+        await actions.Reconcile(caseId, false, new("CHECKEE: thiếu trang xác nhận"), checkee, Http(), Ct);
+        var disputed = Json(await ManagerContractEndpoints.List(AsUser(manager), db, null, "DISPUTED", 1, 20, Ct));
+        Assert.Contains(disputed.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contractId);
+        await ManagerContractEndpoints.ReturnForRevision(contractId,
+            new("CHECKEE yêu cầu bổ sung trang xác nhận."), AsUser(manager), db, Ct);
+        Assert.Equal("NEEDS_REVISION", (await db.SalesContracts.FindAsync(contractId))!.Status);
+        Assert.Null((await db.SalesContracts.FindAsync(contractId))!.ManagerReviewedAt);
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.Reconcile(caseId, true, new(null), checkee, Http(), Ct));
+        var finalEvidence = new FinancialEvidence {
+            Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "signed-supplement.pdf",
+            MimeType = "application/pdf", Bytes = pdf,
+            Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
+        };
+        db.FinancialEvidences.Add(finalEvidence);
+        await db.SaveChangesAsync();
+        await ManagerContractEndpoints.Resubmit(contractId, new(finalEvidence.Id), AsUser(seller.UserId), db, Ct);
+        await actions.ReviewSchoolContract(contractId, manager, Http(), Ct);
+        Assert.Equal(3, await db.FinancialEvidences.CountAsync(x => x.ContractId == contractId));
+        Assert.Equal("PENDING", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
         await actions.Reconcile(caseId, true, new("CHECKEE xác minh hợp lệ"), checkee, Http(), Ct);
         Assert.Equal("PENDING_KIDSFIT", (await db.SalesContracts.FindAsync(contractId))!.Status);
         Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId));

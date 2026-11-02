@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SalesProposalTable } from '@/components/roles/SalesProposalTable';
+import { SalesInvitationList } from '@/components/roles/SalesInvitationList';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
@@ -85,9 +86,16 @@ export function SchoolOperations({
   proposalActionRef,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
+  // Sales switches between proposals and invitations in the parent tabs.
+  // Keep the workspace tab in sync instead of retaining the previous view.
+  useEffect(() => {
+    setTab(initialTab);
+    setPage(1);
+  }, [initialTab]);
   const [search, setSearch] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
   const [page, setPage] = useState(1);
+  const [salesPageSize, setSalesPageSize] = useState(20);
   const searchTerm = useDeferredValue(search.trim());
   const [pendingOnly, setPendingOnly] = useState(true);
   const [proposalStatus, setProposalStatus] = useState('ALL');
@@ -118,13 +126,15 @@ export function SchoolOperations({
   const api = <T,>(path: string, options?: RequestInit) =>
     channelRequest<T>(apiBase, token, path, options);
   const workspace = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus],
+    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus, embeddedSalesTable ? salesPageSize : 100, embeddedSalesTable && tab === 'invitations' && pendingOnly],
     queryFn: () =>
       preview
         ? Promise.resolve(schoolOperationsPreview(abilities))
         : api<SchoolOperationsWorkspace>(
             '/school-operations?page=' +
               page +
+              (embeddedSalesTable ? '&page_size=' + salesPageSize : '') +
+              (embeddedSalesTable && tab === 'invitations' && pendingOnly ? '&pending_invitations=true' : '') +
               '&search=' +
               encodeURIComponent(searchTerm) +
               (proposalStatus === 'ALL' ? '' : '&status=' + encodeURIComponent(proposalStatus)),
@@ -441,7 +451,9 @@ export function SchoolOperations({
     policies: data.policies.length + data.imports.length,
   };
   const total = data.pagination?.totals[active] ?? 0;
-  const pageSize = data.pagination?.page_size ?? 100;
+  // Keep the dropdown controlled by the user selection, not stale placeholderData
+  // from the previous query while the new page size is being fetched.
+  const pageSize = embeddedSalesTable ? salesPageSize : (data.pagination?.page_size ?? 100);
   return (
     <div className={embeddedSalesTable ? 'space-y-0' : 'space-y-5'}>
       {!compactHeader && <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
@@ -527,12 +539,12 @@ export function SchoolOperations({
           </p>
         </div>
       )}
-      {embeddedSalesTable && (active === 'invitations' || active === 'extensions') && (
+      {embeddedSalesTable && active === 'extensions' && (
         <form className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-white px-4 py-4 dark:bg-card sm:px-5"
           onSubmit={event => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
           <div className="relative min-w-[190px] flex-1">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-            <Input aria-label="Tìm hồ sơ" placeholder={active === 'invitations' ? 'Tên trường, nhân sự phân bổ...' : 'Tên trường, người yêu cầu...'}
+            <Input aria-label="Tìm hồ sơ" placeholder="Tên trường, người yêu cầu..."
               className="h-11 w-full rounded-xl pl-10" value={searchDraft} onChange={e => setSearchDraft(e.target.value)}/>
           </div>
           <AppNativeSelect aria-label="Lọc trạng thái hồ sơ" value={pendingOnly ? 'PENDING' : 'ALL'} containerClassName="w-full sm:w-48"
@@ -548,15 +560,36 @@ export function SchoolOperations({
           </AppButton>
         </form>
       )}
+      {embeddedSalesTable && active === 'invitations' && <SalesInvitationList
+        invitations={data.invitations} page={page} total={total} pageSize={pageSize}
+        loading={workspace.isPending} preview={preview} pendingOnly={pendingOnly}
+        onPageChange={setPage}
+        onPageSizeChange={size => { setSalesPageSize(size); setPage(1); }}
+        onSearch={term => {setSearch(term);setPage(1);}}
+        onPendingChange={value => {setPendingOnly(value);setPage(1);}}
+        onAccept={x => setAction({
+          title: 'Nhận trường',
+          description: 'Hệ thống kiểm tra lại quyền hiện tại và hạn mức. Bảo vệ 5 ngày bắt đầu khi nhận thành công.',
+          path: '/school-invitations/' + x.id + '/respond',
+          fields: [], preset: {accept: true},
+        })}
+        onReject={x => setAction({
+          title: 'Từ chối phân bổ', description: 'Phản hồi lý do để Quản lý sắp xếp lại.',
+          path: '/school-invitations/' + x.id + '/respond',
+          fields: [reason], preset: {accept: false},
+        })}
+        onHistory={x => setHistory({kind:'invitation',id:x.id,name:x.school_name})}
+      />}
       {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isFetching} preview={preview}
-        onPageChange={setPage} onSearch={term => {setSearch(term);setPage(1);}}
+        loading={workspace.isPending} preview={preview}
+        onPageChange={setPage} onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}
+        onSearch={term => {setSearch(term);setPage(1);}}
         onStatusChange={value=>{setProposalStatus(value);setPage(1);}}
         onOpen={setSelectedProposal}
         onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}/>
       }
-      {!(embeddedSalesTable && active === 'proposals') && <div className={embeddedSalesTable
+      {!(embeddedSalesTable && (active === 'proposals' || active === 'invitations')) && <div className={embeddedSalesTable
         ? 'divide-y divide-border/70 bg-white dark:bg-card'
         : 'grid gap-4 lg:grid-cols-2'}>
         {active === 'proposals' &&
@@ -1462,7 +1495,7 @@ export function SchoolOperations({
           )}
         </div>
       )}
-      {!(embeddedSalesTable && active === 'proposals') &&
+      {!(embeddedSalesTable && (active === 'proposals' || active === 'invitations')) &&
         (preview ? embeddedSalesTable : !!data.pagination) &&
         active !== 'report' &&
         active !== 'policies' && (

@@ -290,7 +290,10 @@ public static class DatabaseSeeder
         }
         await db.SaveChangesAsync();
 
-        // This method only runs with Seed:DisposableDatabase=true and never in Production.
+        // Optional accounting scenarios are restricted to disposable nonproduction databases.
+        // Base fixture remains stable for older integrity tests; opt in via Seed:AccountingScenarios=true.
+        if (services.GetRequiredService<IConfiguration>().GetValue<bool>("Seed:AccountingScenarios"))
+        {
         // 30% is the approved rate for employees and collaborators, applied to actual receipts.
         // Keep legacy DRAFT policies unchanged to preserve their historical meaning.
         var demoRateEffective = new DateOnly(2026, 1, 1);
@@ -321,6 +324,7 @@ public static class DatabaseSeeder
             }
         }
         await db.SaveChangesAsync();
+        }
 
         if (!await db.ChannelCustomers.AnyAsync(x => x.Code == "CUS-DEMO-AVAILABLE"))
         {
@@ -366,7 +370,7 @@ public static class DatabaseSeeder
         if (!await db.ChannelCustomers.AnyAsync(x => x.Code == "CUS-DEMO-CONTRACT"))
         {
             var package = await db.CheckeeProductPackages.SingleAsync(x => x.Code == "CHECKEE_GROWTH");
-            var policy = await db.CommissionPolicyVersions.SingleAsync(x => x.Code == "DEMO-SALES-30-2026");
+            var policy = await db.CommissionPolicyVersions.SingleAsync(x => x.Code == "KIDSFIT-2026-V1");
             var customer = new ChannelCustomer
             {
                 Code = "CUS-DEMO-CONTRACT", CustomerType = "ORGANIZATION", DisplayName = "Trường Mầm non Happy House",
@@ -404,7 +408,7 @@ public static class DatabaseSeeder
             var receipt = new RevenueReceipt { ContractId = contract.Id, RevenueScheduleId = schedule.Id, Amount = 15_000_000m, ReceivedAt = now.AddDays(-20), ReferenceCode = "RC-2026-0001", PaymentMethod = "BANK_TRANSFER", Status = "COMPLETED", IdempotencyKey = "seed-receipt-happy-house", RecordedByUserId = admin.Id, CreatedAt = now.AddDays(-20), UpdatedAt = now };
             db.RevenueReceipts.Add(receipt);
             await db.SaveChangesAsync();
-            db.CommissionLedgerEntries.Add(new CommissionLedgerEntry { ContractId = contract.Id, RevenueReceiptId = receipt.Id, PolicyVersionId = policy.Id, BeneficiaryUserId = sales.Id, BeneficiaryOrganizationId = kidsfit.Id, EntryType = "ACCRUAL", CalculationBase = 15_000_000m, RatePercent = 30m, Amount = 4_500_000m, Status = "ACCRUED", Period = $"{receipt.ReceivedAt:yyyy-MM}", OccurredAt = receipt.ReceivedAt, CreatedByUserId = admin.Id, CreatedAt = receipt.CreatedAt, UpdatedAt = now });
+            db.CommissionLedgerEntries.Add(new CommissionLedgerEntry { ContractId = contract.Id, RevenueReceiptId = receipt.Id, PolicyVersionId = policy.Id, BeneficiaryUserId = sales.Id, BeneficiaryOrganizationId = kidsfit.Id, EntryType = "ACCRUAL", CalculationBase = 15_000_000m, RatePercent = 10m, Amount = 1_500_000m, Status = "ACCRUED", Period = $"{receipt.ReceivedAt:yyyy-MM}", OccurredAt = receipt.ReceivedAt, CreatedByUserId = admin.Id, CreatedAt = receipt.CreatedAt, UpdatedAt = now });
             var reconciliation = new ReconciliationCase { CustomerId = customer.Id, ContractId = contract.Id, CheckeeOrganizationId = checkee.Id, Status = "PENDING", OpenedAt = contract.CreatedAt, CreatedAt = contract.CreatedAt, UpdatedAt = now };
             db.ReconciliationCases.Add(reconciliation);
             await db.SaveChangesAsync();

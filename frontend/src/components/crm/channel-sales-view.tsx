@@ -843,6 +843,7 @@ function ActivityDialog({
     try {
       const next = text(form, 'next_follow_up_at');
       const occurred = text(form, 'occurred_at');
+      if (!occurred) throw new Error('Vui lòng nhập thời gian thực hiện.');
       if (occurred && new Date(occurred).getTime() > Date.now()) throw new Error('Thời gian thực hiện không được ở tương lai.');
       await onSubmit({
         activity_type: text(form, 'activity_type') as CustomerActivityInput['activity_type'],
@@ -851,6 +852,8 @@ function ActivityDialog({
         contact_name: text(form, 'contact_name') || undefined,
         contact_position: text(form, 'contact_position') || undefined,
         feedback: text(form, 'feedback') || undefined,
+        outcome: text(form, 'outcome') as CustomerActivityInput['outcome'],
+        evidence_reference: text(form, 'evidence_reference') || undefined,
         commitment: text(form, 'commitment') || undefined,
         next_follow_up_at: next ? new Date(next).toISOString() : undefined,
       });
@@ -882,7 +885,8 @@ function ActivityDialog({
             </Select>
           </Field>
           <Field label="Thời gian đã thực hiện">
-            <Input name="occurred_at" type="datetime-local" className="rounded-xl" max={new Date().toISOString().slice(0,16)} />
+            <Input name="occurred_at" type="datetime-local" required className="rounded-xl"
+              defaultValue={new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)} />
           </Field>
           <Field label="Người liên hệ"><Input name="contact_name" maxLength={500} placeholder="Họ tên"/></Field>
           <Field label="Chức vụ"><Input name="contact_position" maxLength={120} placeholder="Hiệu trưởng, kế toán..."/></Field>
@@ -894,7 +898,19 @@ function ActivityDialog({
             />
           </Field>
           <div className="sm:col-span-2">
-            <Field label="Kết quả tư vấn / ghi chú *">
+            <Field label="Kết quả tư vấn *">
+              <Select name="outcome" required defaultValue="INTERESTED">
+                <option value="INTERESTED">Quan tâm sản phẩm</option>
+                <option value="NEEDS_INFO">Cần tư vấn thêm</option>
+                <option value="DEMO_SCHEDULED">Đã hẹn demo</option>
+                <option value="WAITING">Chờ phản hồi</option>
+                <option value="DECLINED">Không có nhu cầu</option>
+                <option value="UNREACHABLE">Không liên hệ được</option>
+              </Select>
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="Nội dung trao đổi *">
               <textarea
                 name="content"
                 required
@@ -906,6 +922,7 @@ function ActivityDialog({
           </div>
           <div className="sm:col-span-2"><Field label="Phản hồi của nhà trường"><textarea name="feedback" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
           <div className="sm:col-span-2"><Field label="Cam kết / bước tiếp theo"><textarea name="commitment" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
+          <div className="sm:col-span-2"><Field label="Tham chiếu minh chứng (nếu có)"><Input name="evidence_reference" maxLength={500} placeholder="Mã tài liệu / liên kết được quản lý bởi tổ chức"/></Field></div>
         </div>
         <DialogFooter
           saving={saving}

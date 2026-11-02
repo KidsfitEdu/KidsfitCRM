@@ -473,7 +473,15 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
             AsUser(checkee), db, null, "PENDING", 1, 1, Ct));
         Assert.Equal(1, page.GetProperty("page_size").GetInt32());
         Assert.True(page.GetProperty("summary").GetProperty("pending").GetInt32() >= 1);
+        Assert.True(page.GetProperty("summary").GetProperty("feedback").GetInt32() >= 1);
+        Assert.True(page.GetProperty("summary").GetProperty("confirmed").GetInt32() >= 1);
         Assert.True(page.GetProperty("total").GetInt32() >= 1);
+        var feedback = Json(await CheckeeVerificationEndpoints.List(
+            AsUser(checkee), db, null, "DISPUTED", 1, 20, Ct));
+        Assert.True(feedback.GetProperty("total").GetInt32() >= 1);
+        var confirmed = Json(await CheckeeVerificationEndpoints.List(
+            AsUser(checkee), db, null, "CONFIRMED", 1, 20, Ct));
+        Assert.True(confirmed.GetProperty("total").GetInt32() >= 1);
         var row = page.GetProperty("data").EnumerateArray().First();
         var caseId = row.GetProperty("id").GetInt64();
         var detail = Json(await CheckeeVerificationEndpoints.Detail(caseId, AsUser(checkee), db, Ct));

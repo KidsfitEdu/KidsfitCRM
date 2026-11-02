@@ -80,16 +80,15 @@ public static class AdminPersonnelEndpoints
         }
         if (code == "SALES")
         {
-            if (request.ManagerUserId.HasValue)
-            {
-                if (request.ManagerUserId == user.Id || !await db.OrganizationMemberships.AnyAsync(x =>
-                    x.UserId == request.ManagerUserId.Value && x.OrganizationId == membership.OrganizationId &&
-                    x.Status == "ACTIVE" && x.MembershipType == "SALES_MANAGER", ct))
-                    throw ApiValidationException.For("manager_user_id", "Quản lý trực tiếp phải đang hoạt động trong cùng tổ chức.");
-                membership.ManagerUserId = request.ManagerUserId;
-            }
-            if (!membership.ManagerUserId.HasValue && organization.OrganizationType != "CHECKEE")
+            var managerId = request.ManagerUserId ?? membership.ManagerUserId;
+            if (!managerId.HasValue && organization.OrganizationType != "CHECKEE")
                 throw ApiValidationException.For("manager_user_id", "Sales cần được gán Quản lý bán hàng trực tiếp.");
+            if (managerId.HasValue && (managerId.Value == user.Id ||
+                !await db.OrganizationMemberships.AnyAsync(x =>
+                    x.UserId == managerId.Value && x.OrganizationId == membership.OrganizationId &&
+                    x.Status == "ACTIVE" && x.MembershipType == "SALES_MANAGER", ct)))
+                throw ApiValidationException.For("manager_user_id", "Quản lý trực tiếp phải đang hoạt động trong cùng tổ chức.");
+            membership.ManagerUserId = managerId;
         }
         else if (oldRole != code) membership.ManagerUserId = null;
         var old = new { user.Name, user.Phone, role = oldRole };

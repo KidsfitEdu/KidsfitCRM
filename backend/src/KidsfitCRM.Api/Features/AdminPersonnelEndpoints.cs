@@ -33,7 +33,7 @@ public static class AdminPersonnelEndpoints
         return access;
     }
 
-    private static async Task<IResult> UpdateMember(long id, UpdateAdminMemberRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    internal static async Task<IResult> UpdateMember(long id, UpdateAdminMemberRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var actor = http.UserId();
         await Admin(db, actor, ct);
@@ -104,7 +104,7 @@ public static class AdminPersonnelEndpoints
         return Results.Ok(new { message = "Đã cập nhật nhân sự." });
     }
 
-    private static async Task<IResult> CreatePartner(CreateAdminPartnerRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    internal static async Task<IResult> CreatePartner(CreateAdminPartnerRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var actor = http.UserId();
         await Admin(db, actor, ct);
@@ -129,7 +129,7 @@ public static class AdminPersonnelEndpoints
         return Results.Created($"/api/channel-sales/admin/partners/{organization.Id}", new { data = new { organization.Id } });
     }
 
-    private static async Task<IResult> UpdatePartner(long id, UpdateAdminPartnerRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    internal static async Task<IResult> UpdatePartner(long id, UpdateAdminPartnerRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var actor = http.UserId();
         await Admin(db, actor, ct);

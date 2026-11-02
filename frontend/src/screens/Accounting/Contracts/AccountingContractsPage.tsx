@@ -23,11 +23,13 @@ type ContractRow = {
 type ContractList = { data: ContractRow[]; total: number; page: number; page_size: number };
 type Detail = {
   data: { id: number; contract_code: string; school_name: string; owner_name: string; personnel_type: string | null;
-    signed_on: string; effective_on: string | null; status: string; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number };
+    signed_on: string; effective_on: string | null; status: string; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string }[];
   payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null }[];
+  evidence: {id:number;kind:string;file_name:string;revenue_receipt_id:number|null;payout_id:number|null}[];
+  school_units: {id:number;name:string}[];
 };
 
 export function AccountingContractsPage({ apiBase, token, abilities }: {
@@ -78,6 +80,27 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
+  const downloadEvidence = async (id: number, name: string) => {
+    setActionError('');
+    try {
+      const response = await fetch(`${apiBase}/channel-sales/evidence/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('Không có quyền xem chứng từ hoặc tệp không còn tồn tại.');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'Không tải được chứng từ.');
+    }
+  };
   const submitSearch = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPage(1);
@@ -238,7 +261,12 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           <h3 className="font-semibold">Hồ sơ hợp đồng</h3>
           <p>Mã: {detail.data.contract_code} · Người phụ trách: {detail.data.owner_name}</p>
           <p>Ngày ký: {detail.data.signed_on} · Trạng thái: {detail.data.status}</p>
+          <p>Gói: {detail.data.service_plan === 'SCHOOL_YEAR' ? 'Năm học' : detail.data.service_plan === 'MONTHLY_9' ? 'Thanh toán tháng' : 'Chưa khai báo'}
+            {detail.data.student_count ? ` · ${detail.data.student_count} học sinh` : ''}</p>
+          <p>Trường điểm: {detail.school_units.length ? detail.school_units.map(x=>x.name).join(', ') : 'Chỉ trường chính / chưa khai báo'}</p>
           <p>Tham chiếu hợp đồng: {detail.data.evidence_reference ?? 'Chưa có'}</p>
+          {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><Button key={x.id} variant="outline" size="sm"
+            onClick={() => void downloadEvidence(x.id,x.file_name)}>Xem hợp đồng · {x.file_name}</Button>)}
         </section>
         <section className="space-y-2">
           <h3 className="font-semibold">Lịch thanh toán theo hợp đồng</h3>
@@ -252,7 +280,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           {detail.receipts.length === 0 && <p className="text-muted-foreground">Chưa ghi nhận khoản thu.</p>}
           {detail.receipts.map(x => <div key={x.id} className="flex justify-between border-b py-2">
             <span>{channelDate(x.received_at)}<span className="block text-xs text-muted-foreground">{x.reference_code}</span></span>
-            <span className="font-medium">{channelMoney(x.amount)}</span>
+            <span className="text-right font-medium">{channelMoney(x.amount)}{detail.evidence.filter(e=>e.revenue_receipt_id===x.id).map(e=><button key={e.id} className="block text-xs font-normal text-primary underline" onClick={()=>void downloadEvidence(e.id,e.file_name)}>Xem ảnh chứng từ</button>)}</span>
           </div>)}
         </section>
         <section className="space-y-2">
@@ -268,7 +296,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           {detail.payouts.length === 0 && <p className="text-muted-foreground">Chưa có phiếu chi.</p>}
           {detail.payouts.map(x => <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
             <span>{x.code}<span className="block text-xs text-muted-foreground">{x.paid_at ? channelDate(x.paid_at) : x.status}</span></span>
-            <span className="font-medium">{channelMoney(x.net_amount)}</span>
+            <span className="text-right font-medium">{channelMoney(x.net_amount)}{detail.evidence.filter(e=>e.payout_id===x.id).map(e=><button key={e.id} className="block text-xs font-normal text-primary underline" onClick={()=>void downloadEvidence(e.id,e.file_name)}>Xem ảnh chuyển khoản</button>)}</span>
             {x.status === 'DRAFT' && canApprovePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approvePayout(x.id)}>Duyệt phiếu chi</Button>}
             {x.status === 'APPROVED' && canCompletePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => {setActionError('');setEntryMode('payout');}}>Ghi nhận đã chuyển</Button>}
           </div>)}

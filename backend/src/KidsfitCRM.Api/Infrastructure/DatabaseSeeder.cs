@@ -36,6 +36,8 @@ public static class DatabaseSeeder
         await SeedChannelSalesAsync(services, password);
         await NormalizeDemoPasswordsAsync(db, hasher, password);
         await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+        if (config.GetValue<bool>("Seed:AccountingScenarios"))
+            await AccountingScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
     }
 
     private static async Task NormalizeDemoPasswordsAsync(KidsfitDbContext db, IPasswordHasher<User> hasher, string password)

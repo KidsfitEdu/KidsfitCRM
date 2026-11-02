@@ -376,8 +376,8 @@ export function ChannelSalesView({
 
           <div className={`hidden gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid ${mode === 'mine' ? 'xl:grid-cols-[minmax(300px,1.8fr)_minmax(140px,.75fr)_minmax(165px,.85fr)_minmax(225px,1.1fr)]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
             <span>{mode === 'mine' ? 'Trường học' : 'Khách hàng'}</span>
-            <span>Trạng thái</span>
-            <span>{mode === 'mine' ? 'Thời hạn bảo vệ' : 'Quyền bảo vệ'}</span>
+            <span className={mode === 'mine' ? 'text-center' : ''}>Trạng thái</span>
+            <span className={mode === 'mine' ? 'text-center' : ''}>{mode === 'mine' ? 'Thời hạn bảo vệ' : 'Quyền bảo vệ'}</span>
             {mode !== 'mine' && <span>Tài chính</span>}
             <span className="text-right">Thao tác</span>
           </div>
@@ -525,6 +525,8 @@ function CustomerRow({
   onContract: () => void;
   onReceipt: () => void;
 }) {
+  const urgency = mineMode && customer.visible_status === 'APPROACHING' && customer.protected_until
+    ? protectionUrgency(customer.protected_until) : null;
   const status = customer.contract_id && customer.visible_status === 'APPROACHING'
     ? {label:'Chờ xác minh hợp đồng',compact:'Quản lý / CHECKEE đang xử lý',className:'border-blue-200 bg-blue-50 text-blue-800'}
     : statusCopy[customer.visible_status];
@@ -565,7 +567,7 @@ function CustomerRow({
           )}
         </div>
       </div>
-      <div>
+      <div className={mineMode ? 'text-center' : ''}>
         <Badge variant="outline" className={status.className}>
           {status.label}
         </Badge>
@@ -573,20 +575,22 @@ function CustomerRow({
           {status.compact}
         </p>
       </div>
-      <div className="text-sm">
+      <div className={mineMode ? 'text-center text-sm' : 'text-sm'}>
         {customer.protected_until ? (
           <>
-            <p className="flex items-center gap-1.5 font-medium">
-              <ShieldCheck className="size-4 text-[#1b5e20]" />
-              {mineMode ? `Đến ${channelDate(customer.protected_until)}` : (customer.owner_user_name ?? 'Đã xác lập quyền')}
-            </p>
+            <div className={mineMode ? 'flex items-center justify-center gap-1.5 font-medium' : 'flex items-center gap-1.5 font-medium'}>
+              <ShieldCheck className={`size-4 ${urgency === 'critical' ? 'text-red-600' : urgency === 'warning' ? 'text-amber-600' : 'text-[#1b5e20]'}`}/>
+              <span>{mineMode ? `Đến ${channelDate(customer.protected_until)}` : (customer.owner_user_name ?? 'Đã xác lập quyền')}</span>
+            </div>
             {(!mineMode || customer.visible_status === 'APPROACHING') && (
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className={`mt-1 text-xs ${urgency === 'critical' ? 'font-bold text-red-700 dark:text-red-400' : urgency === 'warning' ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
                 {customer.visible_status === 'APPROACHING'
                   ? timeRemaining(customer.protected_until)
                   : `Đến ${channelDate(customer.protected_until)}`}
               </p>
             )}
+            {urgency === 'critical' && <span className="mt-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800 dark:bg-red-950 dark:text-red-200">Khẩn cấp · sắp hết hạn</span>}
+            {urgency === 'warning' && <span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200">Sắp hết hạn</span>}
           </>
         ) : (
           <p className="text-sm text-muted-foreground">Chưa có quyền bảo vệ</p>
@@ -620,11 +624,13 @@ function CustomerRow({
             title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
-          {canRequestExtension && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (
+          {customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (canRequestExtension || customer.extension_pending) && (
             <Button type="button" size="icon" variant="outline"
-              className="size-9 rounded-lg border-amber-500 text-amber-700"
-              onClick={onExtension} title="Xin gia hạn tiếp cận"
-              aria-label={`Xin gia hạn tiếp cận ${customer.display_name}`}>
+              className={`size-9 rounded-lg ${customer.extension_pending ? 'border-slate-300 text-slate-500' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700'}`}
+              disabled={Boolean(customer.extension_pending)}
+              onClick={onExtension}
+              title={customer.extension_pending ? 'Đang chờ quản lý duyệt gia hạn' : 'Xin gia hạn tiếp cận'}
+              aria-label={customer.extension_pending ? `Gia hạn đang chờ duyệt cho ${customer.display_name}` : `Xin gia hạn tiếp cận ${customer.display_name}`}>
               <CalendarClock className="size-4" aria-hidden="true"/>
             </Button>
           )}
@@ -1433,6 +1439,13 @@ const text = (form: FormData, key: string) => {
   const value = form.get(key);
   return typeof value === 'string' ? value.trim() : '';
 };
+
+/** Visual urgency only. The server remains responsible for expiry and ownership. */
+function protectionUrgency(value: string): 'warning' | 'critical' | null {
+  const remaining = new Date(value).getTime() - Date.now();
+  if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 24 * 3600000) return null;
+  return remaining <= 6 * 3600000 ? 'critical' : 'warning';
+}
 
 function timeRemaining(value: string) {
   const milliseconds = new Date(value).getTime() - Date.now();

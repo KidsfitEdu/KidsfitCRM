@@ -23,7 +23,6 @@ import {
   Check,
   ChevronRight,
   FileCheck2,
-  History,
   Plus,
   RefreshCw,
   SquarePen,

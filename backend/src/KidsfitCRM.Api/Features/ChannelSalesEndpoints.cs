@@ -52,6 +52,7 @@ public static class ChannelSalesEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesActivity);
         channel.MapPost("/approach-registrations/{id:long}/report-contract", async (long id, ReportSalesContractRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>
         {
+            if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Bắt buộc upload hợp đồng trước khi gửi xác minh.");
             var contractId = await actions.ReportSignedContract(id, request, http.UserId(), http, cancellationToken);
             return Results.Created($"/api/channel-sales/contracts/{contractId}", new { data = new { id = contractId } });
         }).RequireAuthorization(Permissions.ChannelSalesReportContract);

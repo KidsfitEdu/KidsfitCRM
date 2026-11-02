@@ -95,7 +95,6 @@ public sealed partial class ChannelSalesActions
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutComplete, ct);
         var reference = Validation.Required(request.PaymentReference, "payment_reference", "Cần mã giao dịch / phiếu chi thực tế.", 120);
-        if (request.EvidenceId is null) throw ApiValidationException.For("evidence_id", "Bắt buộc upload ảnh chứng từ trước khi ghi nhận đã chuyển.");
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var payout = await LockPayout(id, ct);
         if (!access.CanManageOrganization(payout.OrganizationId)) throw new KeyNotFoundException();
@@ -106,13 +105,16 @@ public sealed partial class ChannelSalesActions
         }
         if (payout.Status != "APPROVED") throw new ApiConflictException("Phải duyệt phiếu chi trước khi ghi nhận đã chi.");
         await EnsurePayoutReconciled(payout.Id, ct);
-        var proof = await db.FinancialEvidences
-            .FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
-            .SingleOrDefaultAsync(ct);
-        if (proof is null || proof.Kind != "PAYOUT" || proof.PayoutId != id || proof.UploadedByUserId != actorId
-            || proof.AttachedAt.HasValue) throw new KeyNotFoundException();
-        proof.AttachedAt = DateTime.UtcNow;
-        proof.UpdatedAt = proof.AttachedAt.Value;
+        if (request.EvidenceId.HasValue)
+        {
+            var proof = await db.FinancialEvidences
+                .FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
+                .SingleOrDefaultAsync(ct);
+            if (proof is null || proof.Kind != "PAYOUT" || proof.PayoutId != id || proof.UploadedByUserId != actorId
+                || proof.AttachedAt.HasValue) throw new KeyNotFoundException();
+            proof.AttachedAt = DateTime.UtcNow;
+            proof.UpdatedAt = proof.AttachedAt.Value;
+        }
         payout.Status = "PAID";
         var paidAt = request.PaidAt?.ToUniversalTime() ?? DateTime.UtcNow;
         if (paidAt > DateTime.UtcNow.AddMinutes(1)) throw ApiValidationException.For("paid_at", "Ngày chuyển tiền không được ở tương lai.");

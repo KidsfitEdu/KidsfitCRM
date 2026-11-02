@@ -22,7 +22,7 @@ type IncomeDetail = {
     rate_percent:number;policy_code:string;period:string;occurred_at:string;reason:string|null}[];
   receipts:{id:number;amount:number;received_at:string;reference_code:string}[];
   payments:{id:number;code:string;period:string;status:string;paid_at:string|null;
-    payment_reference:string|null;allocated_amount:number}[];
+    payment_reference:string|null;allocated_amount:number;evidence_id:number|null;evidence_name:string|null}[];
 };
 const statusLabel: Record<string,string> = {
   DRAFT:'Chờ duyệt', APPROVED:'Chờ chuyển', PAID:'Đã chuyển'
@@ -39,6 +39,22 @@ export function SalesIncomePage({apiBase,token,abilities}:{
   const [selected,setSelected]=useState<Row|null>(null);
   const [detail,setDetail]=useState<IncomeDetail|null>(null);
   const [detailError,setDetailError]=useState('');
+  const [proofError,setProofError]=useState('');
+  const openProof=async(id:number,name:string)=>{
+    setProofError('');
+    const tab=window.open('','_blank');
+    if(!tab){setProofError('Trình duyệt đang chặn cửa sổ mới.');return;}
+    try{
+      const response=await fetch(`${apiBase}/channel-sales/evidence/${id}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+      if(!response.ok)throw new Error('Không có quyền mở chứng từ hoặc chứng từ không tồn tại.');
+      const bytes=await response.blob();
+      const ext=name.toLowerCase().split('.').pop();
+      const mime=ext==='png'?'image/png':ext==='webp'?'image/webp':'image/jpeg';
+      const url=URL.createObjectURL(new Blob([bytes],{type:mime}));
+      tab.location.replace(url);
+      window.addEventListener('pagehide',()=>URL.revokeObjectURL(url),{once:true});
+    }catch(error){tab.close();setProofError(error instanceof Error?error.message:'Không thể mở chứng từ.');}
+  };
   const [data,setData]=useState<Income|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
@@ -182,8 +198,11 @@ export function SalesIncomePage({apiBase,token,abilities}:{
                 <div className="flex flex-wrap justify-between gap-2"><strong>{x.code}</strong><span>{statusLabel[x.status]??x.status}</span></div>
                 <p className="mt-2">Phần tiền phân bổ: {channelMoney(x.allocated_amount)}</p>
                 <p className="mt-1 text-muted-foreground">{x.paid_at?channelDate(x.paid_at):'Chưa chuyển'} · {x.payment_reference||'Chưa có mã giao dịch'}</p>
+                {x.evidence_id && x.evidence_name && <Button type="button" variant="outline" size="sm"
+                  className="mt-2" onClick={()=>void openProof(x.evidence_id!,x.evidence_name!)}>Xem ảnh chứng từ</Button>}
               </div>)}
           </section>
+          {proofError&&<p role="alert" className="text-red-700">{proofError}</p>}
           <p className="text-xs text-muted-foreground">Với phiếu chi gộp nhiều hợp đồng, số tiền được phân bổ theo tỷ trọng bút toán; không phải giao dịch ngân hàng tách riêng cho từng trường.</p>
         </>}
       </div>}

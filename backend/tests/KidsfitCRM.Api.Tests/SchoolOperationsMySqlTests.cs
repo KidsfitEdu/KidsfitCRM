@@ -242,7 +242,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
 
     [MySqlFact] public async Task PendingExtensionDoesNotHoldExpiredRightsOrOverwriteNewOwner()
     {
-        var s = await Arrange(); await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
+        var s = await Arrange(); await Policy(s.OrgId); await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var registration = await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
         var original = (await db.ApproachRegistrations.FindAsync(registration))!.ProtectedUntil;
         var extension = await a.RequestSchoolExtension(registration, Extension(original.AddDays(7)), s.Seller.UserId, Http(), Ct);
@@ -262,12 +262,14 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var registration = await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
         var original = (await db.ApproachRegistrations.FindAsync(registration))!.ProtectedUntil;
-        var id = await a.RequestSchoolExtension(registration, Extension(original.AddDays(8)), s.Seller.UserId, Http(), Ct);
-        var approved = new ReviewSchoolExtensionRequest(true, original.AddDays(7), DateTime.UtcNow.AddDays(1), "Duyệt có lịch rà soát");
-        await Assert.ThrowsAsync<ApiConflictException>(() => a.ReviewSchoolExtension(id, approved, s.Manager.UserId, Http(), Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            a.RequestSchoolExtension(registration, Extension(original.AddDays(7)), s.Seller.UserId, Http(), Ct));
         Assert.Equal(original, (await db.ApproachRegistrations.FindAsync(registration))!.ProtectedUntil);
         var policyId = await Policy(s.OrgId);
-        await Assert.ThrowsAsync<ApiValidationException>(() => a.ReviewSchoolExtension(id, approved with { ApprovedUntil = original.AddDays(8) }, s.Manager.UserId, Http(), Ct));
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            a.RequestSchoolExtension(registration, Extension(original.AddDays(8)), s.Seller.UserId, Http(), Ct));
+        var id = await a.RequestSchoolExtension(registration, Extension(original.AddDays(7)), s.Seller.UserId, Http(), Ct);
+        var approved = new ReviewSchoolExtensionRequest(true, original.AddDays(7), DateTime.UtcNow.AddDays(1), "Duyệt có lịch rà soát");
         await a.ReviewSchoolExtension(id, approved, s.Manager.UserId, Http(), Ct);
         await a.ReviewSchoolExtension(id, approved, s.Manager.UserId, Http(), Ct);
         Assert.Equal(policyId, (await db.SchoolExtensionRequests.FindAsync(id))!.PolicyVersionId);
@@ -452,7 +454,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
 
     [MySqlFact] public async Task AccountRestorationDoesNotRestoreRevokedClaimsOrPendingExtensions()
     {
-        var s = await Arrange(); var admin = await User("admin@kidsfit.vn");
+        var s = await Arrange(); await Policy(s.OrgId); var admin = await User("admin@kidsfit.vn");
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var registration = await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
         var until = await db.ApproachRegistrations.Where(x => x.Id == registration).Select(x => x.ProtectedUntil).SingleAsync();
@@ -481,8 +483,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             var id = await a.RequestSchoolExtension(registration, Extension(until), s.Seller.UserId, Http(), Ct);
             await a.ReviewSchoolExtension(id, new(true, DateTime.SpecifyKind(until, DateTimeKind.Utc), DateTime.UtcNow.AddDays(1), "Gia hạn theo quyết định"), s.Manager.UserId, Http(), Ct);
         }
-        var excess = await a.RequestSchoolExtension(registration, Extension(until.AddDays(1)), s.Seller.UserId, Http(), Ct);
-        await Assert.ThrowsAsync<ApiValidationException>(() => a.ReviewSchoolExtension(excess, new(true, DateTime.SpecifyKind(until.AddDays(1), DateTimeKind.Utc), DateTime.UtcNow.AddDays(1), "Vượt trần"), s.Manager.UserId, Http(), Ct));
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            a.RequestSchoolExtension(registration, Extension(until.AddDays(1)), s.Seller.UserId, Http(), Ct));
         Assert.Equal(until, await db.ApproachRegistrations.Where(x => x.Id == registration).Select(x => x.ProtectedUntil).SingleAsync());
         Assert.Equal(2, await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration && x.Status == "APPROVED"));
     }

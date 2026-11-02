@@ -54,7 +54,7 @@ const eventLabels: Record<string, string> = {
 const canVerify = (abilities: string[]) => abilities.includes('*') || abilities.includes('channel_sales.reconcile');
 
 export function VerificationPage({apiBase, token, abilities, onChanged}: RolePageProps) {
-  const authorized = canVerify(abilities);
+  const authorized = !apiBase || canVerify(abilities);
   const connected = !!apiBase && !!token && authorized;
   const [rows, setRows] = useState<VerificationRow[]>([]);
   const [summary, setSummary] = useState<VerificationSummary | null>(null);

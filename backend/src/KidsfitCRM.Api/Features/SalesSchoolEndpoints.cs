@@ -69,8 +69,9 @@ public static class SalesSchoolEndpoints
             where ids.Contains(school.CustomerId) && unit.UnitType == "MAIN"
             select new { school.CustomerId, unit.Address, unit.Ward, unit.Province })
             .ToArrayAsync(ct);
+        var registrationIds = registrations.Select(r => r.Id).ToArray();
         var extensionRequests = await db.SchoolExtensionRequests.AsNoTracking()
-            .Where(x => x.RequestedByUserId == actor && registrations.Select(r => r.Id).Contains(x.ApproachRegistrationId))
+            .Where(x => x.RequestedByUserId == actor && registrationIds.Contains(x.ApproachRegistrationId))
             .Select(x => new { x.ApproachRegistrationId, x.Status }).ToArrayAsync(ct);
         var organizationIds = registrations.Select(x => x.OwnerOrganizationId).Distinct().ToArray();
         var policies = await db.SchoolWorkflowPolicies.AsNoTracking()

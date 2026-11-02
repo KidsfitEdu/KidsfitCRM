@@ -124,6 +124,11 @@ public static class SalesIncomeEndpoints
                 payout.PaidAt, payout.PaymentReference, payout.NetAmount, payout.GrossAmount,
                 item.Amount }
         ).ToArrayAsync(ct);
+        var payoutIds = paymentItems.Select(x => x.Id).Distinct().ToArray();
+        var proofs = await db.FinancialEvidences.AsNoTracking()
+            .Where(x => x.PayoutId.HasValue && payoutIds.Contains(x.PayoutId.Value)
+                && x.Kind == "PAYOUT" && x.AttachedAt != null)
+            .Select(x => new { x.Id, x.PayoutId, x.FileName }).ToArrayAsync(ct);
         var payments = paymentItems.GroupBy(x => x.Id).Select(g => {
             var first = g.First();
             var allocation = first.GrossAmount > 0
@@ -131,7 +136,9 @@ public static class SalesIncomeEndpoints
                 : 0m;
             return new { id = first.Id, code = first.Code, period = first.Period,
                 status = first.Status, paid_at = first.PaidAt,
-                payment_reference = first.PaymentReference, allocated_amount = allocation };
+                payment_reference = first.PaymentReference, allocated_amount = allocation,
+                evidence_id = proofs.FirstOrDefault(x => x.PayoutId == first.Id)?.Id,
+                evidence_name = proofs.FirstOrDefault(x => x.PayoutId == first.Id)?.FileName };
         }).OrderByDescending(x => x.paid_at).ToArray();
         var receiptIds = entries.Where(x => x.receipt_id.HasValue)
             .Select(x => x.receipt_id!.Value).Distinct().ToArray();

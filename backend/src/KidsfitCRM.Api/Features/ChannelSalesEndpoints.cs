@@ -28,7 +28,9 @@ public sealed record ChannelCustomerListItem(
     decimal CommissionAccrued,
     string? ReconciliationStatus,
     bool CanManageApproach,
-    bool CanRecordRevenue);
+    bool CanRecordRevenue,
+    string? Address = null,
+    bool CanRequestExtension = false);
 
 public static class ChannelSalesEndpoints
 {

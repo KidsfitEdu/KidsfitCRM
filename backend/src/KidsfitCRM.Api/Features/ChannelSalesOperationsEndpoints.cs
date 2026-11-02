@@ -13,6 +13,7 @@ public static class ChannelSalesOperationsEndpoints
         group.MapGet("/accounting/contracts", AccountingContractEndpoints.List).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/accounting/contracts/{id:long}", AccountingContractEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/finance", Finance).RequireAuthorization(Permissions.ChannelSalesCommissionView);
+        group.MapGet("/income/me", SalesIncomeEndpoints.Mine).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/reconciliation-cases", Reconciliations).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/management", Management).RequireAuthorization(Permissions.ChannelSalesTeamManage);
         group.MapGet("/customers/{id:long}", CustomerDetail).RequireAuthorization(Permissions.ChannelSalesView);

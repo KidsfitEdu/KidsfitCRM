@@ -176,7 +176,7 @@ public sealed partial class ChannelSalesActions
         if (string.CompareOrdinal(period, ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow)) < 0) throw ApiValidationException.For("period", "Điều chỉnh chỉ được ghi vào kỳ hiện tại hoặc kỳ sau.");
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var original = await db.CommissionLedgerEntries.FromSqlInterpolated($"SELECT * FROM commission_ledger_entries WHERE id = {entryId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(original.BeneficiaryOrganizationId)) throw new KeyNotFoundException();
+        if (!await access.Commissions(db).AnyAsync(x => x.Id == original.Id, ct)) throw new KeyNotFoundException();
         if (original.EntryType != "ACCRUAL") throw new ApiConflictException("Chỉ điều chỉnh từ bút toán phát sinh gốc.");
         if (string.CompareOrdinal(period, original.Period) < 0) throw ApiValidationException.For("period", "Kỳ điều chỉnh không được trước kỳ phát sinh gốc.");
         var replay = await db.CommissionLedgerEntries.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);

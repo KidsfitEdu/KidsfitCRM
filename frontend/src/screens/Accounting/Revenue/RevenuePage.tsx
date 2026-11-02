@@ -1,9 +1,9 @@
 'use client';
 
-import { RoleOperationsPage } from '@/components/roles/RoleOperationsPage';
 import type { RolePageProps } from '@/types/role-pages';
+import { AccountingContractsPage } from '../Contracts/AccountingContractsPage';
 
-/** Accounting · Revenue (shared domain view). */
-export function RevenuePage(props: RolePageProps) {
-  return <RoleOperationsPage profile="Accounting" section="revenue" {...props}/>;
+/** Accounting contracts, receipts and commission overview; financial writes remain permission gated. */
+export function RevenuePage({ apiBase, token, onChanged, abilities }: RolePageProps) {
+  return <AccountingContractsPage apiBase={apiBase} token={token} onChanged={onChanged} abilities={abilities}/>;
 }

@@ -10,6 +10,8 @@ public static class ChannelSalesOperationsEndpoints
 {
     public static void MapChannelSalesOperations(this RouteGroupBuilder group)
     {
+        group.MapGet("/accounting/contracts", AccountingContractEndpoints.List).RequireAuthorization(Permissions.ChannelSalesCommissionView);
+        group.MapGet("/accounting/contracts/{id:long}", AccountingContractEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/finance", Finance).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/reconciliation-cases", Reconciliations).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/management", Management).RequireAuthorization(Permissions.ChannelSalesTeamManage);

@@ -564,23 +564,8 @@ export function SchoolDirectory({
 
 /** Read-only profile used by the school directory. Operational actions live in their dedicated workflows. */
 function SchoolDetail({ data }: { data: Detail }) {
-  const branchCount = data.units.filter(unit => unit.unit_type !== 'MAIN').length;
   return (
     <div className="space-y-5 text-sm">
-      <section className="rounded-xl border bg-muted/30 p-4 sm:p-5">
-        <h3 className="text-lg font-semibold">{data.display_name}</h3>
-        <p className="mt-1 text-muted-foreground">{data.school_code} · Hồ sơ trường chính và các phân hiệu trực thuộc</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <p className="text-xs text-muted-foreground">Số phân hiệu</p>
-            <p className="font-semibold">{branchCount}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Quyền tiếp cận</p>
-            <p className="font-semibold">{data.protected_until ? `Bảo vệ đến ${channelDate(data.protected_until)}` : 'Chưa có thời hạn bảo vệ'}</p>
-          </div>
-        </div>
-      </section>
       <section className="space-y-3">
         <h3 className="text-base font-semibold">Thông tin trường chính và trường điểm / phân hiệu</h3>
         {data.units.map(unit => (

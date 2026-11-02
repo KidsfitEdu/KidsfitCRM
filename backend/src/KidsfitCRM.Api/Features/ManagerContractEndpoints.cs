@@ -33,7 +33,7 @@ public static class ManagerContractEndpoints
         db.SalesContracts.Where(c => c.RequiresSchoolVerification &&
             (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId))));
 
-    private static async Task<IResult> Overview(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    internal static async Task<IResult> Overview(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.SchoolAllocationManage)) return Results.Forbid();
@@ -58,7 +58,7 @@ public static class ManagerContractEndpoints
         });
     }
 
-    private static async Task<IResult> Team(HttpContext http, KidsfitDbContext db,
+    internal static async Task<IResult> Team(HttpContext http, KidsfitDbContext db,
         string? search, string? status, int? page, int? page_size, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
@@ -119,7 +119,7 @@ public static class ManagerContractEndpoints
         });
     }
 
-    private static async Task<IResult> MyRevisions(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    internal static async Task<IResult> MyRevisions(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesReportContract)) return Results.Forbid();
@@ -142,7 +142,7 @@ public static class ManagerContractEndpoints
         return Results.Ok(new { data = rows, total = await scoped.CountAsync(ct) });
     }
 
-    private static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
+    internal static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
         string? search, string? status, int? page, int? page_size, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
@@ -186,7 +186,7 @@ public static class ManagerContractEndpoints
         return Results.Ok(new { data = rows, total, page = number, page_size = size });
     }
 
-    private static async Task<IResult> Detail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    internal static async Task<IResult> Detail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var scoped = access.Has(Permissions.SchoolContractReview) ? ManagerScope(db, access) : access.Contracts(db);
@@ -233,7 +233,7 @@ public static class ManagerContractEndpoints
         });
     }
 
-    private static async Task<IResult> ReturnForRevision(long id, ReturnSchoolContractRequest request,
+    internal static async Task<IResult> ReturnForRevision(long id, ReturnSchoolContractRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
@@ -264,7 +264,7 @@ public static class ManagerContractEndpoints
         return Results.Ok(new { message = "Đã trả hồ sơ để Sales bổ sung." });
     }
 
-    private static async Task<IResult> Resubmit(long id, ResubmitSchoolContractRequest request,
+    internal static async Task<IResult> Resubmit(long id, ResubmitSchoolContractRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);

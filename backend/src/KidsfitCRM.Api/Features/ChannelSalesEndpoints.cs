@@ -31,7 +31,10 @@ public sealed record ChannelCustomerListItem(
     bool CanRecordRevenue,
     string? Address = null,
     bool CanRequestExtension = false,
-    bool ExtensionPending = false);
+    bool ExtensionPending = false,
+    int ExtensionApprovedCount = 0,
+    int? ExtensionMaxCount = null,
+    string? ExtensionUnavailableReason = null);
 
 public static class ChannelSalesEndpoints
 {

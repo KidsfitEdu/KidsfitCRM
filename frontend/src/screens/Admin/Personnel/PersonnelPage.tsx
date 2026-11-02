@@ -261,8 +261,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       <AppDialog open={edit!==null} onOpenChange={open=>{if(!busy&&!open)setEdit(null);}}
         busy={busy} title="Chỉnh sửa nhân sự" description="Thay đổi vai trò chỉ áp dụng sau khi backend kiểm tra quyền và dữ liệu bàn giao.">
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm font-medium">Họ và tên<Input className="mt-1.5" value={editForm.name} onChange={e=>setEditForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></label>
-          <label className="text-sm font-medium">Điện thoại<Input className="mt-1.5" value={editForm.phone} onChange={e=>setEditForm(v=>({...v,phone:e.target.value}))}/></label>
+          <div className="text-sm font-medium">Họ và tên<Input aria-label="Họ và tên" className="mt-1.5" value={editForm.name} onChange={e=>setEditForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></div>
+          <div className="text-sm font-medium">Điện thoại<Input aria-label="Điện thoại" className="mt-1.5" value={editForm.phone} onChange={e=>setEditForm(v=>({...v,phone:e.target.value}))}/></div>
           <div className="text-sm font-medium"><span>Vai trò</span>
             <AppNativeSelect aria-label="Vai trò nhân sự" className="mt-1.5 w-full" value={editForm.role_code} onChange={e=>setEditForm(v=>({...v,role_code:e.target.value}))}>
               {management?.roles.filter(r=>editableRoles.includes(r.code) &&
@@ -275,22 +275,22 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
               <option value="">Chọn Quản lý</option>{managers(String(edit?.organization_id??'')).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}
             </AppNativeSelect><FormError>{errors.manager_user_id}</FormError>
           </div>}
-          <label className="text-sm font-medium sm:col-span-2">Lý do thay đổi<Input className="mt-1.5" value={editForm.reason} onChange={e=>setEditForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></label>
+          <div className="text-sm font-medium sm:col-span-2">Lý do thay đổi<Input aria-label="Lý do thay đổi" className="mt-1.5" value={editForm.reason} onChange={e=>setEditForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></div>
         </div>
         <FormActions busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>
       </AppDialog>
       <AppDialog open={partnerOpen} onOpenChange={open=>{if(!busy)setPartnerOpen(open);}}
         busy={busy} title={partner?'Cập nhật đối tác':'Thêm đối tác'} description="Chỉ tổ chức đối tác được phép thay đổi; không sửa KIDSFIT/CHECKEE.">
         <div className="space-y-3">
-          {!partner&&<label className="block text-sm font-medium">Mã đối tác<Input className="mt-1.5" value={partnerForm.code} onChange={e=>setPartnerForm(v=>({...v,code:e.target.value}))}/><FormError>{errors.code}</FormError></label>}
-          <label className="block text-sm font-medium">Tên đối tác<Input className="mt-1.5" value={partnerForm.name} onChange={e=>setPartnerForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></label>
+          {!partner&&<div className="block text-sm font-medium">Mã đối tác<Input aria-label="Mã đối tác" className="mt-1.5" value={partnerForm.code} onChange={e=>setPartnerForm(v=>({...v,code:e.target.value}))}/><FormError>{errors.code}</FormError></div>}
+          <div className="block text-sm font-medium">Tên đối tác<Input aria-label="Tên đối tác" className="mt-1.5" value={partnerForm.name} onChange={e=>setPartnerForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></div>
           {partner&&<>
             <div className="block text-sm font-medium"><span>Trạng thái</span>
               <AppNativeSelect aria-label="Trạng thái đối tác" className="mt-1.5 w-full" value={partnerForm.status} onChange={e=>setPartnerForm(v=>({...v,status:e.target.value as 'ACTIVE'|'SUSPENDED'}))}>
                 <option value="ACTIVE">Hoạt động</option><option value="SUSPENDED">Tạm khóa</option>
               </AppNativeSelect>
             </div>
-            <label className="block text-sm font-medium">Lý do<Input className="mt-1.5" value={partnerForm.reason} onChange={e=>setPartnerForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></label>
+            <div className="block text-sm font-medium">Lý do<Input aria-label="Lý do cập nhật đối tác" className="mt-1.5" value={partnerForm.reason} onChange={e=>setPartnerForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></div>
           </>}
         </div>
         <FormActions busy={busy} onCancel={()=>setPartnerOpen(false)} onSave={submitPartner} saveLabel={partner?'Lưu đối tác':'Tạo đối tác'}/>
@@ -316,16 +316,16 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           ?'Tác động đến toàn tài khoản. Cần hoàn tất bàn giao ở mọi tổ chức trước khi khóa.'
           :'Chỉ tác động tư cách thành viên ở tổ chức hiện tại. Trường đang tiếp cận và yêu cầu chờ được xử lý theo quy trình bàn giao.'}
         confirmLabel={statusAction?.suspend?'Khóa và bàn giao':'Mở quyền'} onConfirm={submitStatus}>
-        <label className="block text-sm font-medium">Lý do *
-          <Input className="mt-1.5" value={reason} onChange={e=>setReason(e.target.value)}/>
+        <div className="block text-sm font-medium">Lý do *
+          <Input aria-label="Lý do khóa hoặc mở quyền" className="mt-1.5" value={reason} onChange={e=>setReason(e.target.value)}/>
           <FormError>{errors.reason}</FormError>
-        </label>
-        {statusAction?.suspend&&<label className="block text-sm font-medium">Nội dung bàn giao *
-          <textarea className="mt-1.5 min-h-24 w-full rounded-lg border bg-background p-3"
+        </div>
+        {statusAction?.suspend&&<div className="block text-sm font-medium">Nội dung bàn giao *
+          <textarea aria-label="Nội dung bàn giao" className="mt-1.5 min-h-24 w-full rounded-lg border bg-background p-3"
             value={summary} onChange={e=>setSummary(e.target.value)}
             placeholder="Tình trạng các trường, lịch hẹn, người nhận bàn giao và cam kết còn lại"/>
           <FormError>{errors.summary}</FormError>
-        </label>}
+        </div>}
       </ConfirmDialog>
     </div>
   </AdminPageStatus>;

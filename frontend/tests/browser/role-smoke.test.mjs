@@ -46,7 +46,7 @@ async function login(profileLabel, viewport={width:1400,height:900}) {
 
 test('seven CRM roles across eight demo accounts can log in and open their menu', async () => {
   const roles = [
-    ['Quản trị viên',7],['Quản lý bán hàng',6],
+    ['Quản trị viên',7],['Quản lý bán hàng',7],
     ['Nhân viên bán hàng',6],['CTV đối tác',6],
     ['Ban giám đốc',5],['Kế toán',2],
     ['Chăm sóc khách hàng',5],['CHECKEE',5],

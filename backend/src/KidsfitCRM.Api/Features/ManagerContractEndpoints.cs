@@ -20,6 +20,7 @@ public static class ManagerContractEndpoints
     {
         group.MapGet("/school-contracts/reviews", List).RequireAuthorization(Permissions.SchoolContractReview);
         group.MapGet("/school-contracts/my-revisions", MyRevisions).RequireAuthorization(Permissions.ChannelSalesReportContract);
+        group.MapGet("/manager/team", Team).RequireAuthorization(Permissions.ChannelSalesTeamManage);
         group.MapGet("/school-contracts/{id:long}/review-detail", Detail).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/school-contracts/{id:long}/request-revision", ReturnForRevision)
             .RequireAuthorization(Permissions.SchoolContractReview);
@@ -30,6 +31,67 @@ public static class ManagerContractEndpoints
     private static IQueryable<SalesContract> ManagerScope(KidsfitDbContext db, ChannelSalesAccess access) =>
         db.SalesContracts.Where(c => c.RequiresSchoolVerification &&
             (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId))));
+
+    private static async Task<IResult> Team(HttpContext http, KidsfitDbContext db,
+        string? search, string? status, int? page, int? page_size, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesTeamManage)) return Results.Forbid();
+        var actor = http.UserId();
+        var members = db.OrganizationMemberships.AsNoTracking()
+            .Where(m => access.OrganizationIds.Contains(m.OrganizationId)
+                && (access.All || m.ManagerUserId == actor)
+                && (m.MembershipType == "SALES" || m.MembershipType == "CHANNEL_SALES"
+                    || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"));
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            var selected = status.Trim().ToUpperInvariant();
+            if (selected is not ("ACTIVE" or "SUSPENDED" or "INACTIVE"))
+                throw ApiValidationException.For("status", "Trạng thái nhân sự không hợp lệ.");
+            members = members.Where(m => m.Status == selected);
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            members = members.Where(m => db.Users.Any(u => u.Id == m.UserId && (u.Name.Contains(term) || u.Email.Contains(term)))
+                || db.Organizations.Any(o => o.Id == m.OrganizationId && o.Name.Contains(term)));
+        }
+        var total = await members.CountAsync(ct);
+        var pageNumber = Math.Max(1, page ?? 1);
+        var size = Math.Clamp(page_size ?? 20, 1, 100);
+        var now = DateTime.UtcNow;
+        var soon = now.AddHours(48);
+        var rows = await (from m in members
+                          join user in db.Users.AsNoTracking() on m.UserId equals user.Id
+                          join organization in db.Organizations.AsNoTracking() on m.OrganizationId equals organization.Id
+                          orderby user.Name, m.Id
+                          select new
+                          {
+                              id = m.Id, m.UserId, name = user.Name, user.Email,
+                              m.OrganizationId, organization_name = organization.Name,
+                              m.MembershipType, m.Status, m.SchoolApproachLimit,
+                              active_schools = db.ApproachRegistrations
+                                  .Where(r => r.OwnerUserId == m.UserId && r.OwnerOrganizationId == m.OrganizationId
+                                      && r.Status == "ACTIVE" && r.ProtectedUntil > now
+                                      && db.DirectorySchools.Any(s => s.CustomerId == r.CustomerId))
+                                  .Select(r => r.CustomerId).Distinct().Count(),
+                              expiring_schools = db.ApproachRegistrations
+                                  .Where(r => r.OwnerUserId == m.UserId && r.OwnerOrganizationId == m.OrganizationId
+                                      && r.Status == "ACTIVE" && r.ProtectedUntil > now && r.ProtectedUntil <= soon
+                                      && db.DirectorySchools.Any(s => s.CustomerId == r.CustomerId))
+                                  .Select(r => r.CustomerId).Distinct().Count(),
+                              contracts_reported = db.SalesContracts.Count(c =>
+                                  c.OwnerUserId == m.UserId && c.OwnerOrganizationId == m.OrganizationId),
+                          }).Skip((pageNumber - 1) * size).Take(size).ToArrayAsync(ct);
+        return Results.Ok(new {
+            data = rows, total, page = pageNumber, page_size = size,
+            summary = new {
+                members = total,
+                active = await members.CountAsync(m => m.Status == "ACTIVE", ct),
+                organizations = await members.Select(m => m.OrganizationId).Distinct().CountAsync(ct),
+            }
+        });
+    }
 
     private static async Task<IResult> MyRevisions(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {

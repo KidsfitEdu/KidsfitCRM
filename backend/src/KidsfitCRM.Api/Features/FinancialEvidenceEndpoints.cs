@@ -85,6 +85,10 @@ public static class FinancialEvidenceEndpoints
                 ? await access.Payouts(db).AnyAsync(x => x.Id == proof.PayoutId.Value, ct)
                 : proof.ContractId.HasValue
                     && (await access.Contracts(db).AnyAsync(x => x.Id == proof.ContractId.Value, ct)
+                        || (proof.Kind == "CONTRACT" && access.Has(Permissions.SchoolContractReview)
+                            && await db.SalesContracts.AnyAsync(c => c.Id == proof.ContractId.Value
+                                && c.RequiresSchoolVerification
+                                && (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId))), ct))
                         || (proof.Kind == "CONTRACT" && access.Has(Permissions.ChannelSalesReconcile)
                             && await db.ReconciliationCases.AnyAsync(r => r.ContractId == proof.ContractId.Value
                                 && access.OrganizationIds.Contains(r.CheckeeOrganizationId)

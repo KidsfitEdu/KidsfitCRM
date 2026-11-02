@@ -64,6 +64,52 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task AdminPartnerCrudIsScopedAuditedAndNeverDeletesOrganization()
+    {
+        var actor = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var code = "P-" + Key()[..14].ToUpperInvariant();
+        var created = await AdminPersonnelEndpoints.CreatePartner(
+            new(code, "Đối tác kiểm thử"), Http(actor), db, Ct);
+        var id = Json(created).GetProperty("data").GetProperty("id").GetInt64();
+        Assert.Equal("ACTIVE", await db.Organizations.Where(x => x.Id == id).Select(x => x.Status).SingleAsync(Ct));
+        await AdminPersonnelEndpoints.UpdatePartner(id,
+            new("Đối tác kiểm thử cập nhật", "SUSPENDED", "Ngừng hợp tác có căn cứ"),
+            Http(actor), db, Ct);
+        Assert.Equal("SUSPENDED", await db.Organizations.Where(x => x.Id == id).Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("Đối tác kiểm thử cập nhật", await db.Organizations.Where(x => x.Id == id).Select(x => x.Name).SingleAsync(Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityType == nameof(Organization) &&
+            x.EntityId == id && x.Action == "UPDATE_ADMIN_PARTNER", Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            AdminPersonnelEndpoints.UpdatePartner(
+                db.Organizations.Single(x => x.Code == "KIDSFIT").Id,
+                new("Sửa KIDSFIT", "SUSPENDED", "Không hợp lệ"), Http(actor), db, Ct));
+    }
+
+    [MySqlFact] public async Task AdminRoleEditRequiresHandoverAndCannotEscalateToDirector()
+    {
+        var scenario = await Arrange();
+        var actor = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var original = await db.Users.SingleAsync(x => x.Id == scenario.Peer.UserId, Ct);
+        await AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
+            new("Nhân sự cập nhật", "0901002003", "SALES", "Bổ sung thông tin", scenario.Manager.UserId),
+            Http(actor), db, Ct);
+        Assert.Equal("0901002003", (await db.Users.FindAsync([scenario.Peer.UserId], Ct))!.Phone);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
+                new("Nhân sự cập nhật", null, "DIRECTOR", "Không được cấp đặc quyền"),
+                Http(actor), db, Ct));
+        var actions = new ChannelSalesActions(db);
+        await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Peer.UserId, Http(), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
+                new("Nhân sự cập nhật", null, "ACCOUNTANT", "Chuyển vai trò sai khi còn trường"),
+                Http(actor), db, Ct));
+        Assert.True(await db.UserRoles.AnyAsync(x => x.UserId == scenario.Peer.UserId &&
+            db.Roles.Any(r => r.Id == x.RoleId && r.Code == "SALES"), Ct));
+    }
+
     [MySqlFact] public async Task DemoWorkflowPoliciesAreDraftOnlyIdempotentAndDoNotSetActiveSla()
     {
         await using var db = fixture.Open();

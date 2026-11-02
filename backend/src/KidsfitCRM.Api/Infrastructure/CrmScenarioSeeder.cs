@@ -225,14 +225,23 @@ internal static class CrmScenarioSeeder
                 db.ReconciliationCases.Add(reconciliation); await db.SaveChangesAsync();
                 db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
                     ActorUserId = salesId, EventType = "OPENED", CreatedAt = now.AddDays(-1), UpdatedAt = now });
+                await db.SaveChangesAsync();
+                // Insert each distinct event separately: avoid multi-row INSERT parameter issues
+                // with the MySQL EF provider and preserve a deterministic event order.
                 if (example.Status == "NEEDS_REVISION")
+                {
                     db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
                         ActorUserId = managerId, EventType = "MANAGER_REVISION",
                         Reason = "Cần bổ sung trang ký và đóng dấu (dữ liệu demo).", CreatedAt = now.AddHours(-3), UpdatedAt = now });
+                    await db.SaveChangesAsync();
+                }
                 if (example.Status == "MANAGER_REVIEWED")
+                {
                     db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
                         ActorUserId = managerId, EventType = "MANAGER_FORWARDED",
                         CreatedAt = now.AddHours(-2), UpdatedAt = now });
+                    await db.SaveChangesAsync();
+                }
             }
             await db.SaveChangesAsync();
         }

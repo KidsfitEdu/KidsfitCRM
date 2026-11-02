@@ -85,9 +85,9 @@ public static class SalesSchoolEndpoints
             var address = mainUnit is null ? null : !string.IsNullOrWhiteSpace(mainUnit.Address)
                 ? mainUnit.Address
                 : string.Join(", ", new[] { mainUnit.Ward, mainUnit.Province }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            var extensionPending = reg is not null && pendingExtensionRegistrationIds.Contains(reg.Id);
             var canRequestExtension = reg is not null && !contracted &&
-                access.Has(Permissions.ChannelSalesRegister) &&
-                !pendingExtensionRegistrationIds.Contains(reg.Id);
+                access.Has(Permissions.ChannelSalesRegister) && !extensionPending;
             return new ChannelCustomerListItem(
                 c.Id, c.Code, c.DisplayName, c.CustomerType, c.TaxCode, c.Phone,
                 c.Email, c.ContactName, c.Source, contracted ? "CONTRACTED" : "APPROACHING",
@@ -98,7 +98,7 @@ public static class SalesSchoolEndpoints
                 contract != null && canViewMoney ? receipts.GetValueOrDefault(contract.Id) : 0,
                 contract != null && canViewMoney ? commissions.GetValueOrDefault(contract.Id) : 0,
                 contract != null ? recon.GetValueOrDefault(contract.Id) : null,
-                reg != null, canRecordRevenue && contracted, address, canRequestExtension);
+                reg != null, canRecordRevenue && contracted, address, canRequestExtension, extensionPending);
         });
         return Results.Ok(new { data = rows, total, page, page_size = pageSize });
     }

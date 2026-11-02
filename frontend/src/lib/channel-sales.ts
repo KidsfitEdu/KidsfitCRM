@@ -25,6 +25,7 @@ export type ChannelCustomer = {
   can_record_revenue: boolean;
   address?: string | null;
   can_request_extension?: boolean;
+  extension_pending?: boolean;
 };
 
 export type CheckeePackage = {

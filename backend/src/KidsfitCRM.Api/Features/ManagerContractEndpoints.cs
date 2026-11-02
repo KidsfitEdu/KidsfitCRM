@@ -52,8 +52,11 @@ public static class ManagerContractEndpoints
             pending_invitations = await invitations.CountAsync(x => x.Status == "PENDING", ct),
             pending_extensions = await extensions.CountAsync(x => x.Status == "PENDING", ct),
             pending_contracts = await contracts.CountAsync(x => x.Status == "PENDING_REVIEW", ct),
-            awaiting_checkee = await contracts.CountAsync(x => x.Status == "MANAGER_REVIEWED", ct),
-            needs_revision = await contracts.CountAsync(x => x.Status == "NEEDS_REVISION", ct),
+            awaiting_checkee = await contracts.CountAsync(x => x.Status == "MANAGER_REVIEWED"
+                && !db.ReconciliationCases.Any(r => r.ContractId == x.Id && r.Status == "DISPUTED"), ct),
+            needs_revision = await contracts.CountAsync(x => x.Status == "NEEDS_REVISION"
+                || (x.Status == "MANAGER_REVIEWED"
+                    && db.ReconciliationCases.Any(r => r.ContractId == x.Id && r.Status == "DISPUTED")), ct),
             verified_contracts = await contracts.CountAsync(x => x.Status == "ACTIVE", ct),
         });
     }

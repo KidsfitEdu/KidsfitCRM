@@ -18,27 +18,36 @@ type Props = {
   busy?: boolean;
   bodyClassName?: string;
   wide?: boolean;
+  compactAccountingHeader?: boolean;
 };
 
 /** Shared CRM right-side detail/history drawer; not a form or data access layer. */
-export function AppDrawer({ open, onOpenChange, title, description, children, footer, busy = false, bodyClassName, wide = false }: Props) {
+export function AppDrawer({ open, onOpenChange, title, description, children, footer, busy = false, bodyClassName, wide = false, compactAccountingHeader = false }: Props) {
   return <Sheet open={open} onOpenChange={next=>{if(!busy)onOpenChange(next);}}>
     <SheetContent side="right" showCloseButton={false}
       className={cn("right-0 h-dvh w-screen max-w-none gap-0 overflow-hidden border-l border-border bg-card p-0 shadow-[0_22px_80px_rgba(14,42,26,.22)]", wide ? "sm:!w-[min(800px,100vw)] sm:!max-w-[800px]" : "sm:!w-[min(560px,100vw)] sm:!max-w-[560px]")}>
-      <header className="relative w-full shrink-0 self-stretch bg-[#1b5e20] px-5 py-5 pr-16 text-white">
-        <div className="min-w-0">
-          <div className="min-w-0 space-y-1">
-            <span className="text-[11px] font-semibold tracking-[.14em] text-[#d8eedb]">KIDSFIT CRM</span>
-            <SheetTitle className="text-lg font-bold leading-snug text-white">{title}</SheetTitle>
-          </div>
-          <button type="button" title="Đóng" aria-label="Đóng ngăn chi tiết" disabled={busy} onClick={()=>onOpenChange(false)}
-            className="absolute right-4 top-4 inline-flex size-10 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50">
-            <X aria-hidden="true" className="size-5"/>
-          </button>
-        </div>
-        <SheetDescription className={description ? 'mt-1 text-sm text-[#d8eedb]' : 'sr-only'}>
-          {description ?? title}
-        </SheetDescription>
+      <header className={cn("relative w-full shrink-0 self-stretch bg-[#1b5e20] px-5 pr-16 text-white",
+        compactAccountingHeader ? "py-3" : "py-5")}>
+        {compactAccountingHeader ? (
+          <SheetTitle className="py-1 text-base font-bold leading-6 text-white sm:text-lg">
+            {title}
+          </SheetTitle>
+        ) : (
+          <>
+            <div className="min-w-0 space-y-1">
+              <span className="text-[11px] font-semibold tracking-[.14em] text-[#d8eedb]">KIDSFIT CRM</span>
+              <SheetTitle className="text-lg font-bold leading-snug text-white">{title}</SheetTitle>
+            </div>
+            <SheetDescription className={description ? 'mt-1 text-sm text-[#d8eedb]' : 'sr-only'}>
+              {description ?? title}
+            </SheetDescription>
+          </>
+        )}
+        {compactAccountingHeader && <SheetDescription className="sr-only">{description ?? title}</SheetDescription>}
+        <button type="button" title="Đóng" aria-label="Đóng ngăn chi tiết" disabled={busy} onClick={()=>onOpenChange(false)}
+          className="absolute right-4 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50">
+          <X aria-hidden="true" className="size-5"/>
+        </button>
       </header>
       <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5',bodyClassName)}>
         {children}

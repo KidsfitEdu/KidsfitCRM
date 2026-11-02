@@ -89,6 +89,11 @@ export type ReportContractInput = {
   total_value: number;
   first_payment_due_on?: string;
   evidence_reference?: string;
+  evidence_id?: number;
+  installments?: {due_on:string;amount:number}[];
+  service_plan?: 'SCHOOL_YEAR' | 'MONTHLY_9';
+  student_count?: number;
+  school_unit_ids?: number[];
 };
 
 export type RevenueReceiptInput = {

@@ -22,6 +22,9 @@ public static class SalesSchoolEndpoints
         var activeContractIds = db.SalesContracts.AsNoTracking()
             .Where(c => c.OwnerUserId == actor && c.Status != "CANCELLED")
             .Select(c => c.CustomerId);
+        var verifiedContractIds = db.SalesContracts.AsNoTracking()
+            .Where(c => c.OwnerUserId == actor && c.Status == "ACTIVE")
+            .Select(c => c.CustomerId);
         var query = access.Customers(db).AsNoTracking().Where(c =>
             activeApproachIds.Contains(c.Id) || activeContractIds.Contains(c.Id));
 
@@ -30,8 +33,8 @@ public static class SalesSchoolEndpoints
             query = query.Where(c => c.DisplayName.Contains(text) || c.Code.Contains(text));
         }
         switch (status?.Trim().ToUpperInvariant()) {
-            case "APPROACHING": query = query.Where(c => activeApproachIds.Contains(c.Id) && !activeContractIds.Contains(c.Id)); break;
-            case "CONTRACTED": query = query.Where(c => activeContractIds.Contains(c.Id)); break;
+            case "APPROACHING": query = query.Where(c => !verifiedContractIds.Contains(c.Id)); break;
+            case "CONTRACTED": query = query.Where(c => verifiedContractIds.Contains(c.Id)); break;
             case null or "" or "ALL": break;
             default: throw ApiValidationException.For("status", "Trạng thái trường không hợp lệ.");
         }

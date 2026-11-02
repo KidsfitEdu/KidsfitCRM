@@ -57,6 +57,7 @@ public static class ChannelSalesEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesReportContract);
         channel.MapPost("/contracts/{id:long}/revenue-receipts", async (long id, RecordRevenueReceiptRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>
         {
+            if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Bắt buộc upload ảnh chứng từ nhận tiền.");
             var receiptId = await actions.RecordRevenueReceipt(id, request, http.UserId(), http, cancellationToken);
             return Results.Created($"/api/channel-sales/contracts/{id}/revenue-receipts/{receiptId}", new { data = new { id = receiptId } });
         }).RequireAuthorization(Permissions.ChannelSalesRecordRevenue);

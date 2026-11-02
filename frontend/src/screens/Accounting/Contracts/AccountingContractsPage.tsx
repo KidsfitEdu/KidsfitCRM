@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AlertCircle, Eye, RefreshCw, Search } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -23,7 +23,7 @@ type ContractRow = {
 type ContractList = { data: ContractRow[]; total: number; page: number; page_size: number };
 type Detail = {
   data: { id: number; contract_code: string; school_name: string; owner_name: string; personnel_type: string | null;
-    signed_on: string; effective_on: string | null; status: string; total_value: number; evidence_reference: string | null };
+    signed_on: string; effective_on: string | null; status: string; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string }[];
@@ -41,6 +41,10 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [detailRevision, setDetailRevision] = useState(0);
+  const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
@@ -72,12 +76,91 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       .then(value => { if (live) setDetail(value); })
       .catch(cause => { if (live) setError(cause instanceof Error ? cause.message : 'Không tải được chi tiết.'); });
     return () => { live = false; };
-  }, [apiBase, token, selected, connected]);
+  }, [apiBase, token, selected, connected, detailRevision]);
 
   const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPage(1);
     setAppliedSearch(search);
+  };
+
+  const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
+  const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
+  const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
+  const canApprovePayout = abilities.includes('channel_sales.payout.approve') || abilities.includes('*');
+  const sendRecord = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (selected === null || !detail || !entryMode) return;
+    const form = new FormData(event.currentTarget);
+    const proof = form.get('proof');
+    if (!(proof instanceof File) || proof.size === 0) {
+      setActionError('Vui lòng chọn ảnh chứng từ chuyển khoản.');
+      return;
+    }
+    setSaving(true);
+    setActionError('');
+    try {
+      const attachment = new FormData();
+      attachment.set('kind', entryMode === 'receipt' ? 'RECEIPT' : 'PAYOUT');
+      attachment.set('file', proof);
+      const payoutId = Number(form.get('payout_id'));
+      if (entryMode === 'receipt') attachment.set('contract_id', String(selected));
+      else attachment.set('payout_id', String(payoutId));
+      const uploaded = await channelRequest<{data:{id:number}}>(apiBase, token, '/evidence', { method: 'POST', body: attachment });
+      const date = String(form.get('transaction_date'));
+      const timestamp = new Date(date + 'T12:00:00+07:00').toISOString();
+      if (entryMode === 'receipt') {
+        await channelRequest(apiBase, token, `/contracts/${selected}/revenue-receipts`, {
+          method: 'POST', body: JSON.stringify({
+            idempotency_key: crypto.randomUUID(), revenue_schedule_id: Number(form.get('schedule_id')),
+            received_at: timestamp, amount: Number(form.get('amount')),
+            reference_code: String(form.get('reference_code')),
+            payment_method: 'BANK_TRANSFER', evidence_id: uploaded.data.id,
+          }),
+        });
+      } else {
+        await channelRequest(apiBase, token, `/payouts/${payoutId}/complete`, {
+          method: 'POST', body: JSON.stringify({
+            paid_at: timestamp, payment_reference: String(form.get('reference_code')),
+            evidence_id: uploaded.data.id,
+          }),
+        });
+      }
+      setEntryMode(null);
+      setDetailRevision(v => v + 1);
+      await load();
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'Không thể lưu giao dịch.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const createPayout = async () => {
+    if (!detail) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      const date = new Date();
+      const period = new Intl.DateTimeFormat('en-CA', {year:'numeric',month:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(date);
+      const payoutPeriod = period.replace(/\/(\d\d)$/, '-$1');
+      await channelRequest(apiBase, token, '/payouts', {method:'POST',body:JSON.stringify({
+        idempotency_key: crypto.randomUUID(), organization_id: detail.data.owner_organization_id,
+        beneficiary_user_id: detail.data.owner_user_id, period: payoutPeriod,
+        withholding_amount: 0,
+      })});
+      setDetailRevision(v => v+1);
+      await load();
+    } catch (cause) { setActionError(cause instanceof Error ? cause.message : 'Không tạo được phiếu chi.'); }
+    finally { setSaving(false); }
+  };
+  const approvePayout = async (id: number) => {
+    setSaving(true);
+    setActionError('');
+    try {
+      await channelRequest(apiBase, token, `/payouts/${id}/approve`, {method:'POST'});
+      setDetailRevision(v => v+1);
+    } catch (cause) { setActionError(cause instanceof Error ? cause.message : 'Không duyệt được phiếu chi.'); }
+    finally { setSaving(false); }
   };
   const pages = Math.max(1, Math.ceil(total / 20));
   return <div className="space-y-5">
@@ -146,7 +229,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>
           <Metric label="Nhà trường đã trả" value={channelMoney(detail.receipts.reduce((sum, x) => sum + x.amount, 0))}/>
           <Metric label="Hoa hồng phát sinh" value={channelMoney(detail.ledger.reduce((sum, x) => sum + x.amount, 0))}/>
-          <Metric label="Đã chuyển (phiếu chi)" value={channelMoney(detail.payouts.filter(x => x.status === 'PAID').reduce((sum, x) => sum + x.net_amount, 0))}/>
+          <Metric label="Phiếu chi liên quan" value={String(detail.payouts.length)}/>
         </div>
         <section className="space-y-2">
           <h3 className="font-semibold">Hồ sơ hợp đồng</h3>
@@ -162,7 +245,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           </div>)}
         </section>
         <section className="space-y-2">
-          <h3 className="font-semibold">Nhà trường đã thanh toán</h3>
+          <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Nhà trường đã thanh toán</h3>{canRecordRevenue && detail.data.status === 'ACTIVE' && <Button size="sm" variant="outline" disabled={saving} onClick={() => {setActionError('');setEntryMode('receipt');}}>Ghi nhận thực thu</Button>}</div>
           {detail.receipts.length === 0 && <p className="text-muted-foreground">Chưa ghi nhận khoản thu.</p>}
           {detail.receipts.map(x => <div key={x.id} className="flex justify-between border-b py-2">
             <span>{channelDate(x.received_at)}<span className="block text-xs text-muted-foreground">{x.reference_code}</span></span>
@@ -178,16 +261,47 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           </div>)}
         </section>
         <section className="space-y-2">
-          <h3 className="font-semibold">Lịch sử chi hoa hồng</h3>
+          <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Lịch sử chi hoa hồng</h3>{canCreatePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => void createPayout()}>Lập phiếu chi</Button>}</div>
           {detail.payouts.length === 0 && <p className="text-muted-foreground">Chưa có phiếu chi.</p>}
-          {detail.payouts.map(x => <div key={x.id} className="flex justify-between border-b py-2">
+          {detail.payouts.map(x => <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
             <span>{x.code}<span className="block text-xs text-muted-foreground">{x.paid_at ? channelDate(x.paid_at) : x.status}</span></span>
             <span className="font-medium">{channelMoney(x.net_amount)}</span>
+            {x.status === 'DRAFT' && canApprovePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approvePayout(x.id)}>Duyệt phiếu chi</Button>}
+            {x.status === 'APPROVED' && canCompletePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => {setActionError('');setEntryMode('payout');}}>Ghi nhận đã chuyển</Button>}
           </div>)}
         </section>
+        {actionError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{actionError}</p>}
+        {entryMode && <form className="space-y-3 rounded-lg border p-4" onSubmit={event => void sendRecord(event)}>
+          <h3 className="font-semibold">{entryMode === 'receipt' ? 'Ghi nhận tiền nhà trường' : 'Ghi nhận đã chuyển hoa hồng'}</h3>
+          {entryMode === 'receipt' ? <label className="block space-y-1">
+            <span>Đợt thanh toán *</span>
+            <select name="schedule_id" required className="w-full rounded-lg border bg-background p-2">
+              {detail.schedules.filter(x => x.amount_received < x.amount_due).map(x =>
+                <option key={x.id} value={x.id}>{x.due_on} · Còn {channelMoney(x.amount_due - x.amount_received)}</option>)}
+            </select>
+          </label> : <label className="block space-y-1">
+            <span>Phiếu chi đã duyệt *</span>
+            <select name="payout_id" required className="w-full rounded-lg border bg-background p-2">
+              {detail.payouts.filter(x => x.status === 'APPROVED').map(x =>
+                <option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
+            </select>
+          </label>}
+          <label className="block space-y-1"><span>Ngày giao dịch *</span><Input type="date" name="transaction_date" required defaultValue={new Date().toLocaleDateString('en-CA')}/></label>
+          {entryMode === 'receipt' && <label className="block space-y-1"><span>Số tiền nhà trường thực trả (VNĐ) *</span>
+            <Input type="number" min={1} step={1} name="amount" required /></label>}
+          <label className="block space-y-1"><span>Mã giao dịch / tham chiếu *</span><Input name="reference_code" required maxLength={64}/></label>
+          <label className="block space-y-1"><span>Ảnh chuyển khoản *</span>
+            <Input type="file" name="proof" accept="image/jpeg,image/png,image/webp" required/>
+            <span className="block text-xs text-muted-foreground">JPG, PNG hoặc WEBP · Tối đa 5 MB · Chỉ người có quyền mới xem được</span>
+          </label>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu giao dịch và ảnh chứng từ'}</Button>
+            <Button type="button" variant="outline" onClick={() => setEntryMode(null)} disabled={saving}>Hủy</Button>
+          </div>
+        </form>}
         <p className="rounded-lg border p-3 text-xs text-muted-foreground">
-          Chứng từ chuyển khoản thu/chi phải được lưu qua API bảo mật. Chưa cho phép xác nhận giao dịch
-          khi hệ thống chưa hỗ trợ lưu ảnh bắt buộc, để tránh ghi nhận khoản tiền thiếu chứng từ.
+          Kế toán xác nhận tiền đã vào tài khoản trước khi ghi thực thu. Mỗi giao dịch phải có ảnh chuyển khoản
+          và được lưu theo quyền truy cập nội bộ.
         </p>
       </div>}
     </AppDrawer>

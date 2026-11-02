@@ -15,6 +15,15 @@ type Payout = {id:number;code:string;period:string;amount:number;status:string;p
 type Income = {period:string;page:number;page_size:number;total:number;
   summary:{accrued:number;paid:number;unpaid:number;contracts:number};
   data:Row[];payouts:Payout[]};
+type IncomeDetail = {
+  contract:{contract_code:string;school_name:string;contract_value:number;contract_status:string};
+  reconciliation_status:string|null;
+  ledger:{id:number;entry_type:string;amount:number;calculation_base:number;
+    rate_percent:number;policy_code:string;period:string;occurred_at:string;reason:string|null}[];
+  receipts:{id:number;amount:number;received_at:string;reference_code:string}[];
+  payments:{id:number;code:string;period:string;status:string;paid_at:string|null;
+    payment_reference:string|null;allocated_amount:number}[];
+};
 const statusLabel: Record<string,string> = {
   DRAFT:'Chờ duyệt', APPROVED:'Chờ chuyển', PAID:'Đã chuyển'
 };
@@ -28,6 +37,8 @@ export function SalesIncomePage({apiBase,token,abilities}:{
   const [search,setSearch]=useState('');
   const [term,setTerm]=useState('');
   const [selected,setSelected]=useState<Row|null>(null);
+  const [detail,setDetail]=useState<IncomeDetail|null>(null);
+  const [detailError,setDetailError]=useState('');
   const [data,setData]=useState<Income|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
@@ -43,6 +54,15 @@ export function SalesIncomePage({apiBase,token,abilities}:{
     finally{setLoading(false);}
   },[apiBase,token,permitted,page,pageSize,period,term]);
   useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+    if(!selected||!permitted||!apiBase||!token){setDetail(null);return;}
+    let active=true;setDetail(null);setDetailError('');
+    const q=new URLSearchParams({period});
+    void channelRequest<IncomeDetail>(apiBase,token,`/income/me/contracts/${selected.contract_id}?${q}`)
+      .then(value=>{if(active)setDetail(value);})
+      .catch(cause=>{if(active)setDetailError(cause instanceof Error?cause.message:'Không tải được chi tiết hoa hồng.');});
+    return()=>{active=false;};
+  },[selected,permitted,apiBase,token,period]);
   const rows=data?.data??[];
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BÁN HÀNG / KIDSFIT CRM" title="Thu nhập"
@@ -119,8 +139,8 @@ export function SalesIncomePage({apiBase,token,abilities}:{
       </section>
     </>}
     <AppDrawer open={!!selected} onOpenChange={open=>{if(!open)setSelected(null);}}
-      title="CHI TIẾT HOA HỒNG" description={selected?.school_name??''}>
-      {selected&&<div className="space-y-4 text-sm">
+      title="CHI TIẾT HOA HỒNG" description={selected?.school_name??''} wide>
+      {selected&&<div className="space-y-5 text-sm">
         <div className="rounded-xl border p-4"><p className="font-semibold">{selected.school_name}</p>
           <p className="mt-1 text-muted-foreground">{selected.contract_code}</p></div>
         <div className="grid grid-cols-2 gap-3">
@@ -128,7 +148,44 @@ export function SalesIncomePage({apiBase,token,abilities}:{
           <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Đã nhận (phân bổ)</p><p className="mt-2 font-semibold">{channelMoney(selected.paid)}</p></div>
         </div>
         <p>Chưa nhận: <strong>{channelMoney(selected.unpaid)}</strong></p>
-        <p className="text-xs text-muted-foreground">Giá trị đã nhận theo hợp đồng được phân bổ từ các phiếu chi chung; xem lịch sử phiếu chi cá nhân bên dưới bảng.</p>
+        {detailError&&<p role="alert" className="text-red-700">{detailError}</p>}
+        {!detail&&!detailError&&<p className="text-muted-foreground">Đang tải chi tiết…</p>}
+        {detail&&<>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="text-base font-semibold">1. Thông tin hợp đồng</h3>
+            <p>Giá trị hợp đồng: {channelMoney(detail.contract.contract_value)}</p>
+            <p>Trạng thái hợp đồng: {detail.contract.contract_status}</p>
+            <p>Đối soát CHECKEE: {detail.reconciliation_status==='CONFIRMED'?'Đã xác nhận':(detail.reconciliation_status??'Chưa đối soát')}</p>
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="text-base font-semibold">2. Cơ sở và chính sách hoa hồng</h3>
+            {detail.ledger.map(entry=><div key={entry.id} className="rounded-lg border p-3">
+              <div className="flex flex-wrap justify-between gap-2">
+                <strong>{channelMoney(entry.amount)}</strong>
+                <span className="text-muted-foreground">Kỳ {entry.period} · {channelDate(entry.occurred_at)}</span>
+              </div>
+              <p className="mt-2 text-muted-foreground">Cơ sở: {channelMoney(entry.calculation_base)} · Tỷ lệ {entry.rate_percent}% · {entry.policy_code}</p>
+              {entry.reason&&<p className="mt-1">Điều chỉnh: {entry.reason}</p>}
+            </div>)}
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="text-base font-semibold">3. Các khoản trường đã thanh toán làm cơ sở tính</h3>
+            {detail.receipts.length===0?<p className="text-muted-foreground">Chưa có khoản thu liên kết với bút toán.</p>
+              :detail.receipts.map(x=><div key={x.id} className="flex flex-wrap justify-between gap-2 border-b py-2">
+              <span>{channelDate(x.received_at)} · {x.reference_code||'—'}</span><strong>{channelMoney(x.amount)}</strong>
+            </div>)}
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="text-base font-semibold">4. Lịch sử phiếu chi liên quan</h3>
+            {detail.payments.length===0?<p className="text-muted-foreground">Chưa có phiếu chi cho các bút toán này.</p>
+              :detail.payments.map(x=><div key={x.id} className="rounded-lg border p-3">
+                <div className="flex flex-wrap justify-between gap-2"><strong>{x.code}</strong><span>{statusLabel[x.status]??x.status}</span></div>
+                <p className="mt-2">Phần tiền phân bổ: {channelMoney(x.allocated_amount)}</p>
+                <p className="mt-1 text-muted-foreground">{x.paid_at?channelDate(x.paid_at):'Chưa chuyển'} · {x.payment_reference||'Chưa có mã giao dịch'}</p>
+              </div>)}
+          </section>
+          <p className="text-xs text-muted-foreground">Với phiếu chi gộp nhiều hợp đồng, số tiền được phân bổ theo tỷ trọng bút toán; không phải giao dịch ngân hàng tách riêng cho từng trường.</p>
+        </>}
       </div>}
     </AppDrawer>
   </div>;

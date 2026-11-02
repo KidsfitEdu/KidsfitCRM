@@ -1,12 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, RotateCcw } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
-import { AppNativeSelect } from '@/components/common/app-native-select';
 import { Button } from '@/components/ui/button';
 import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
 
@@ -32,7 +31,8 @@ const statusLabel: Record<string,string> = {
 export function SalesIncomePage({apiBase,token,abilities}:{
   apiBase:string;token:string;abilities:string[];
 }) {
-  const [period,setPeriod]=useState('ALL');
+  // The income screen now shows all periods, with no period filter.
+  const period = 'ALL';
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(20);
   const [search,setSearch]=useState('');
@@ -86,19 +86,6 @@ export function SalesIncomePage({apiBase,token,abilities}:{
       description="Theo dõi hoa hồng cá nhân theo hợp đồng và lịch sử chi trả."/>
     {!permitted && <p role="alert" className="rounded-lg border p-4 text-sm">Tài khoản chưa có quyền xem hoa hồng.</p>}
     {permitted && <>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm font-medium">Kỳ hoa hồng
-          <AppNativeSelect aria-label="Kỳ hoa hồng" value={period} containerClassName="ml-2 inline-flex min-w-44"
-            onChange={event=>{setPeriod(event.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả các kỳ</option>
-            {Array.from({length:24},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);
-              const value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-              return <option key={value} value={value}>Tháng {String(d.getMonth()+1).padStart(2,'0')}/{d.getFullYear()}</option>;
-            })}
-          </AppNativeSelect>
-        </label>
-        <Button variant="outline" size="icon" title="Tải lại" aria-label="Tải lại thu nhập" onClick={()=>void load()}><RotateCcw className="size-4"/></Button>
-      </div>
       {error && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{error}</p>}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
@@ -111,7 +98,6 @@ export function SalesIncomePage({apiBase,token,abilities}:{
           <p className="mt-2 text-xl font-bold tabular-nums">{i===3?value:channelMoney(Number(value))}</p>
         </div>)}
       </div>
-      <p className="text-xs text-muted-foreground">Chưa nhận có thể gồm khoản chưa đối soát, chờ duyệt hoặc chờ chuyển. Tiền đã nhận của phiếu chi nhiều hợp đồng được phân bổ theo tỷ trọng bút toán, sau khấu trừ.</p>
       <SalesListLayout
         columns={['Trường học','Hoa hồng','Đã nhận','Thao tác']}
         template="minmax(240px,2fr) minmax(150px,1fr) minmax(150px,1fr) minmax(100px,auto)"
@@ -137,14 +123,6 @@ export function SalesIncomePage({apiBase,token,abilities}:{
           </div>
         </SalesListRow>)}
       </SalesListLayout>
-      <section className="rounded-xl border bg-card p-4">
-        <h3 className="mb-3 font-semibold">Lịch sử phiếu chi của tôi</h3>
-        <div className="space-y-2">{(data?.payouts??[]).map(p=><div key={p.id} className="flex flex-wrap items-center justify-between gap-3 border-b py-2 text-sm">
-          <div><p className="font-medium">{p.code}</p><p className="text-xs text-muted-foreground">Kỳ {p.period} · {p.paid_at?channelDate(p.paid_at):'Chưa chuyển'}</p></div>
-          <div className="text-right"><p className="font-semibold tabular-nums">{channelMoney(p.amount)}</p><p className="text-xs text-muted-foreground">{statusLabel[p.status]??p.status}{p.payment_reference?` · ${p.payment_reference}`:''}</p></div>
-        </div>)}
-        {data?.payouts.length===0&&<p className="text-sm text-muted-foreground">Chưa có phiếu chi trong phạm vi đã chọn.</p>}</div>
-      </section>
     </>}
     <AppDrawer open={!!selected} onOpenChange={open=>{if(!open)setSelected(null);}}
       title="CHI TIẾT HOA HỒNG" description={selected?.school_name??''} wide>

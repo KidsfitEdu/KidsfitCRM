@@ -261,13 +261,13 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-medium">Họ và tên<Input className="mt-1.5" value={editForm.name} onChange={e=>setEditForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></label>
           <label className="text-sm font-medium">Điện thoại<Input className="mt-1.5" value={editForm.phone} onChange={e=>setEditForm(v=>({...v,phone:e.target.value}))}/></label>
-          <label className="text-sm font-medium">Vai trò
-            <AppNativeSelect className="mt-1.5 w-full" value={editForm.role_code} onChange={e=>setEditForm(v=>({...v,role_code:e.target.value}))}>
+          <div className="text-sm font-medium"><span>Vai trò</span>
+            <AppNativeSelect aria-label="Vai trò nhân sự" className="mt-1.5 w-full" value={editForm.role_code} onChange={e=>setEditForm(v=>({...v,role_code:e.target.value}))}>
               {management?.roles.filter(r=>editableRoles.includes(r.code) &&
                 (r.code==='CHECKEE')===(management.organizations.find(o=>o.id===edit?.organization_id)?.organization_type==='CHECKEE'))
                 .map(r=><option key={r.code} value={r.code}>{roleText(r.code)}</option>)}
             </AppNativeSelect>
-          </label>
+          </div>
           {editForm.role_code==='SALES'&&<div className="text-sm font-medium"><span>Quản lý trực tiếp</span>
             <AppNativeSelect aria-label="Quản lý trực tiếp" className="mt-1.5 w-full" value={editForm.manager_user_id} onChange={e=>setEditForm(v=>({...v,manager_user_id:e.target.value}))}>
               <option value="">Chọn Quản lý</option>{managers(String(edit?.organization_id??'')).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}

@@ -77,6 +77,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             new("Đối tác kiểm thử cập nhật", "SUSPENDED", "Ngừng hợp tác có căn cứ"),
             Http(actor), db, Ct);
         Assert.Equal("SUSPENDED", await db.Organizations.Where(x => x.Id == id).Select(x => x.Status).SingleAsync(Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            new ChannelSalesActions(db).CreateSalesAccount(
+                new CreateSalesAccountRequest(id, "Nhân sự mới", Key() + "@example.test", "Password@2026Secure", "ACCOUNTANT"),
+                actor, new Microsoft.AspNetCore.Identity.PasswordHasher<User>(), Http(actor), Ct));
         Assert.Equal("Đối tác kiểm thử cập nhật", await db.Organizations.Where(x => x.Id == id).Select(x => x.Name).SingleAsync(Ct));
         Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityType == nameof(Organization) &&
             x.EntityId == id && x.Action == "UPDATE_ADMIN_PARTNER", Ct));

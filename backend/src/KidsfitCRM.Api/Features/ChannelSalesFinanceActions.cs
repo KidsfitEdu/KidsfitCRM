@@ -239,6 +239,10 @@ public sealed partial class ChannelSalesActions
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesTeamManage, ct);
         if (!access.CanManageOrganization(request.OrganizationId)) throw new KeyNotFoundException();
+        var targetOrganization = await db.Organizations.AsNoTracking().SingleOrDefaultAsync(x => x.Id == request.OrganizationId, ct)
+            ?? throw new KeyNotFoundException();
+        if (targetOrganization.Status != "ACTIVE")
+            throw new ApiConflictException("Tổ chức đang tạm khóa; không thể tạo thành viên mới.");
         var name = Validation.Required(request.Name, "name", "Vui lòng nhập họ tên.", 190);
         var email = Validation.Required(request.Email, "email", "Vui lòng nhập email.", 190).ToLowerInvariant();
         if (!MailAddress.TryCreate(email, out var address) || address.Address != email) throw ApiValidationException.For("email", "Email không hợp lệ.");
@@ -260,6 +264,8 @@ public sealed partial class ChannelSalesActions
         if (!access.Has(Permissions.ChannelSalesIdentityManage) && roleCode != "SALES")
             throw new KeyNotFoundException();
         if (roleCode is "ADMIN" or "DIRECTOR") throw new ApiConflictException("Không cấp vai trò Admin/BGĐ qua chức năng quản lý nhân sự thông thường.");
+        if ((roleCode == "CHECKEE") != (targetOrganization.OrganizationType == "CHECKEE") && roleCode == "CHECKEE")
+            throw new ApiConflictException("Chỉ có thể tạo vai trò CHECKEE trong tổ chức CHECKEE.");
         long? managerId = null;
         if (roleCode == "SALES")
         {

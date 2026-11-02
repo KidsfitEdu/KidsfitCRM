@@ -46,7 +46,7 @@ const eventLabels: Record<string, string> = {
   OPENED: 'Sales gửi hợp đồng',
   MANAGER_FORWARDED: 'Quản lý chuyển CHECKEE',
   MANAGER_REVISION: 'Quản lý yêu cầu bổ sung',
-  MANAGER_RESUBMITTED: 'Sales bổ sung hợp đồng',
+  SALES_RESUBMITTED: 'Sales bổ sung hợp đồng',
   CONFIRMED: 'CHECKEE xác minh hợp lệ',
   DISPUTED: 'CHECKEE phản hồi hồ sơ',
   RESOLVED: 'Đã hoàn tất',

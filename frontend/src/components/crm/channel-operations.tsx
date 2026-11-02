@@ -13,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SchoolDirectory } from './school-directory';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AdminListPanel, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { EvidenceReference, SchoolOperations } from './school-operations';
 import { SchoolActionForm } from '@/components/crm/schools/school-action-form';
 import {
@@ -22,7 +23,6 @@ import {
   Check,
   ChevronRight,
   FileCheck2,
-  History,
   Plus,
   RefreshCw,
   SquarePen,
@@ -66,6 +66,7 @@ type Props = {
   embeddedSalesTable?: boolean;
   proposalActionRef?: RefObject<{open: () => void} | null>;
   initialOperationsTab?: string;
+  reconciliationView?: 'verification' | 'reconciliation' | 'disputes' | 'history';
 };
 export type Panel =
   | 'customers'
@@ -104,6 +105,7 @@ function OperationsContent({
   embeddedSalesTable = false,
   proposalActionRef,
   initialOperationsTab,
+  reconciliationView = 'reconciliation',
 }: Props) {
   const [panel, setPanel] = useState<Panel>(initialPanel);
   const visiblePanel = allowedPanels && !allowedPanels.includes(panel) ? allowedPanels[0] : panel;
@@ -130,6 +132,18 @@ function OperationsContent({
       ),
     enabled: connected && visiblePanel === 'reconciliation',
   });
+  const reconciliationRows = (reconciliation.data?.data ?? []).filter(item => {
+    if (reconciliationView === 'verification') return item.status === 'PENDING' || item.status === 'REVIEW_REQUIRED';
+    if (reconciliationView === 'disputes') return item.status === 'DISPUTED';
+    if (reconciliationView === 'history') return item.events.length > 0;
+    return true;
+  });
+  const reconciliationHeading = {
+    verification: ['Hồ sơ cần xác minh', 'Hợp đồng đang chờ kiểm tra và xác nhận quyền bảo vệ.'],
+    reconciliation: ['Đối soát quyền khách hàng', 'Kiểm tra hợp đồng, xác nhận quyền bảo vệ và lịch sử xử lý.'],
+    disputes: ['Tranh chấp đang xử lý', 'Hồ sơ có trạng thái tranh chấp cần được đối chiếu.'],
+    history: ['Lịch sử đối soát', 'Các hồ sơ đã có sự kiện xác minh hoặc đối soát.'],
+  }[reconciliationView];
   const management = useQuery({
     queryKey: keys.management,
     queryFn: () => api<ChannelManagement>('/management'),
@@ -262,118 +276,76 @@ function OperationsContent({
       {visiblePanel === 'reconciliation' && (
         <>
           <PanelHeading
-            title="Đối soát quyền khách hàng"
-            description="Kiểm tra hợp đồng, xác nhận quyền bảo vệ và lưu lịch sử xử lý tranh chấp."
+            title={reconciliationHeading[0]}
+            description={reconciliationHeading[1]}
           />
           {reconciliation.isPending ? (
             <Loading />
           ) : reconciliation.error ? (
             <ErrorBox message={reconciliation.error.message} />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {reconciliation.data?.data.map((item) => (
-                <section
-                  key={item.id}
-                  className="rounded-2xl border bg-card p-5 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{item.customer_name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.contract_code} · MST {item.tax_code ?? 'Chưa có'}
-                      </p>
-                    </div>
-                    <StateBadge value={item.status} />
-                  </div>
-                  <div className="my-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/50 p-4 text-sm">
-                    <Info
-                      label="Giá trị hợp đồng"
-                      value={money(item.total_value)}
-                    />
-                    <Info label="Nhân sự phụ trách" value={item.owner_name} />
-                    <Info label="Ngày ký" value={channelDate(item.signed_on)} />
-                    <Info
-                      label="Bảo vệ dài hạn đến"
-                      value={
-                        item.protection_until
-                          ? channelDate(item.protection_until)
-                          : 'Chưa ghi nhận'
-                      }
-                    />
-                  </div>
-                  {item.dispute_reason && (
-                    <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                      {item.dispute_reason}
-                    </p>
-                  )}
-                  <details className="text-sm">
-                    <summary className="cursor-pointer text-muted-foreground">
-                      <History className="mr-1 inline size-4" /> Lịch sử (
-                      {item.events.length})
-                    </summary>
-                    <ol className="mt-3 space-y-2 border-l pl-4">
-                      {item.events.map((event) => (
-                        <li key={event.id}>
-                          <span className="font-medium">
-                            {eventCopy[event.event_type] ?? event.event_type}
-                          </span>{' '}
-                          · {channelDate(event.created_at)}
-                          {event.reason && (
-                            <p className="text-muted-foreground">
-                              {event.reason}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                  {item.can_reconcile &&
-                    (item.status === 'PENDING' ||
-                      item.status === 'DISPUTED') && (
-                      <div className="mt-5 flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          disabled={mutation.isPending}
-                          onClick={() =>
-                            setModal(
-                              <ReasonForm
-                                title="Mở tranh chấp"
-                                description={item.customer_name}
-                                label="Lý do tranh chấp"
-                                onSubmit={async (reason) => {
-                                  await run({
-                                    path: `/reconciliation-cases/${item.id}/dispute`,
-                                    body: { reason },
-                                  });
-                                  setModal(null);
-                                }}
-                              />,
-                            )
-                          }
-                        >
-                          Tranh chấp
-                        </Button>
-                        <Button
-                          disabled={mutation.isPending}
-                          onClick={() => {
-                            run({
-                              path: `/reconciliation-cases/${item.id}/confirm`,
-                              body: {
-                                reason: 'Đã kiểm tra hồ sơ và quyền bảo vệ.',
-                              },
-                            }).catch(() => undefined);
-                          }}
-                        >
-                          <BadgeCheck /> Xác nhận
-                        </Button>
-                      </div>
-                    )}
-                </section>
-              ))}
-              {reconciliation.data?.data.length === 0 && (
-                <Empty message="Chưa có hồ sơ đối soát trong phạm vi của bạn." />
-              )}
-            </div>
+            <AdminListPanel>
+              <div className="overflow-x-auto">
+                <table className={adminTableClass}>
+                  <thead className={adminTableHeadClass}>
+                    <tr>
+                      <th scope="col" className="px-5 py-4">Khách hàng / hợp đồng</th>
+                      <th scope="col" className="px-5 py-4">Phụ trách</th>
+                      <th scope="col" className="px-5 py-4">Giá trị</th>
+                      <th scope="col" className="px-5 py-4">Trạng thái</th>
+                      <th scope="col" className="px-5 py-4 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reconciliationRows.map(item => (
+                      <tr key={item.id} className="border-t border-border/70 align-top even:bg-muted/20 hover:bg-accent">
+                        <td className="px-5 py-4">
+                          <p className="font-semibold">{item.customer_name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{item.contract_code} · MST {item.tax_code ?? 'Chưa có'}</p>
+                          <details className="mt-3 text-xs text-muted-foreground">
+                            <summary className="cursor-pointer font-medium text-primary focus-visible:outline-2 focus-visible:outline-primary">Chi tiết và lịch sử ({item.events.length})</summary>
+                            <dl className="mt-3 grid grid-cols-2 gap-3">
+                              <div><dt>Ngày ký</dt><dd className="font-medium">{channelDate(item.signed_on)}</dd></div>
+                              <div><dt>Bảo vệ đến</dt><dd className="font-medium">{item.protection_until ? channelDate(item.protection_until) : 'Chưa ghi nhận'}</dd></div>
+                            </dl>
+                            {item.dispute_reason && <p className="mt-2 text-amber-700">{item.dispute_reason}</p>}
+                            {item.events.length > 0 && <ol className="mt-2 space-y-2 border-l pl-3">
+                              {item.events.map(event => <li key={event.id}>
+                                <span className="font-medium">{eventCopy[event.event_type] ?? event.event_type}</span> · {channelDate(event.created_at)}
+                                {event.reason && <p>{event.reason}</p>}
+                              </li>)}
+                            </ol>}
+                          </details>
+                        </td>
+                        <td className="px-5 py-4">{item.owner_name}</td>
+                        <td className="px-5 py-4 font-medium tabular-nums">{money(item.total_value)}</td>
+                        <td className="px-5 py-4"><StateBadge value={item.status}/></td>
+                        <td className="px-5 py-4 text-right">
+                          {item.can_reconcile && (item.status === 'PENDING' || item.status === 'DISPUTED') ? (
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button variant="outline" size="sm" disabled={mutation.isPending}
+                                onClick={() => setModal(<ReasonForm title="Mở tranh chấp" description={item.customer_name}
+                                  label="Lý do tranh chấp" onSubmit={async reason => {
+                                    await run({path: `/reconciliation-cases/${item.id}/dispute`, body: {reason}});
+                                    setModal(null);
+                                  }}/>)}>
+                                Tranh chấp
+                              </Button>
+                              <Button size="sm" disabled={mutation.isPending}
+                                onClick={() => {run({path: `/reconciliation-cases/${item.id}/confirm`,
+                                  body: {reason: 'Đã kiểm tra hồ sơ và quyền bảo vệ.'}}).catch(() => undefined);}}>
+                                <BadgeCheck aria-hidden="true" className="size-4"/> Xác nhận
+                              </Button>
+                            </div>
+                          ) : <span className="text-xs text-muted-foreground">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {reconciliationRows.length === 0 && <Empty message="Chưa có hồ sơ phù hợp trong phạm vi của bạn."/>}
+            </AdminListPanel>
           )}
         </>
       )}

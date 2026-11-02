@@ -37,9 +37,9 @@ export function RoleDashboard({ profile, ...props }: RolePageProps & { profile: 
       <AppStatCard key={label} label={label} value={preview ? '—' : format(value)}
         icon={[Building2, Handshake, FileCheck2, CalendarClock, ClipboardList, Activity][index % 6]} />
     )}</div>
-    <div className="crm-dashboard-panel p-5">
+    <section className="border-t border-border/80 pt-5">
       <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Công việc cần xử lý</h3><AppButton tone="outline" disabled={preview || operations.isFetching} onClick={() => void operations.refetch()}><RefreshCw className="mr-2 size-4"/>Làm mới</AppButton></div>
       <p className="mt-2 text-sm text-muted-foreground">Các số liệu phản ánh dữ liệu tài khoản được API cho phép truy cập. Mở menu bên trái để xem hồ sơ và thực hiện thao tác đúng thẩm quyền.</p>
-    </div>
+    </section>
   </div>;
 }

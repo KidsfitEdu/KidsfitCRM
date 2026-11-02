@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { CalendarClock, Handshake, Plus, School, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { AppStatCard } from '@/components/common/app-stat-card';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';
 import type { RolePageProps } from '@/types/role-pages';
@@ -60,14 +59,6 @@ export function SalesFocusPage({section, ...props}: Props) {
     : isInvitations ? 'invitations' : isExtensions ? 'extensions' : undefined;
   const mode: SalesCustomerMode = section === 'customers' ? 'mine'
     : section === 'activities' ? 'activities' : 'all';
-  const owned = workspace.data.filter(c => c.can_manage_approach ||
-    (c.visible_status === 'CONTRACTED' && c.contract_id !== null));
-  const activeCount = owned.filter(c => c.visible_status === 'APPROACHING').length;
-  const contractsCount = owned.filter(c => c.visible_status === 'CONTRACTED').length;
-  const expiringCount = owned.filter(c => c.visible_status === 'APPROACHING' && c.protected_until &&
-    new Date(c.protected_until).getTime() > Date.now() &&
-    new Date(c.protected_until).getTime() <= Date.now() + 48 * 3600000).length;
-
   const table = <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
     apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
     initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
@@ -94,14 +85,9 @@ export function SalesFocusPage({section, ...props}: Props) {
         className="h-10 rounded-lg px-4"
         leadingIcon={<Plus className="size-4" aria-hidden="true"/>}
         onClick={() => proposalActionRef.current?.open()}>Thêm mới</AppButton> : undefined}/>
-    {section === 'customers' && <div className="grid gap-3 sm:grid-cols-3">
-      <AppStatCard icon={Handshake} label="Đang tiếp cận" value={activeCount}/>
-      <AppStatCard icon={School} label="Hồ sơ hợp đồng" value={contractsCount}/>
-      <AppStatCard icon={CalendarClock} label="Sắp hết hạn (48 giờ)" value={expiringCount}/>
-    </div>}
     {contained ? <section className={section === 'customers'
       ? 'min-w-0 bg-white dark:bg-card'
-      : 'crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-white shadow-sm dark:bg-card'}>
+      : 'min-w-0 bg-white dark:bg-card'}>
       {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
         className="flex w-full items-end border-b border-border/70 bg-white px-4 dark:bg-card sm:px-5">
         <div className="flex w-full items-end gap-3 sm:gap-5 lg:w-[30%]">

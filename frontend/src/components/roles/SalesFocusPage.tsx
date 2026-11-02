@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { CalendarClock, Handshake, Plus, School, UsersRound } from 'lucide-react';
+import { CalendarClock, Plus, School, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';
+import { SalesIncomePage } from './SalesIncomePage';
 import type { RolePageProps } from '@/types/role-pages';
 
 type SalesSection = 'schools' | 'customers' | 'activities' | 'proposals' | 'income';
@@ -18,7 +19,7 @@ const copy: Record<SalesSection, {title:string;description:string}> = {
   },
   customers: {
     title: 'Trường của tôi',
-    description: 'Theo dõi trường đang phụ trách, hợp đồng và lời mời phân bổ từ Quản lý.',
+    description: 'Hồ sơ trường, cập nhật tư vấn và lịch sử tiếp cận.',
   },
   activities: {
     title: 'Tiếp cận & tư vấn',
@@ -41,24 +42,23 @@ export function SalesFocusPage({section, ...props}: Props) {
   const {apiBase, token, abilities, workspace, onChanged, search, setSearch, salesWorkflow} = props;
   const proposalActionRef = useRef<{open: () => void} | null>(null);
   const [subview, setSubview] = useState<'main' | 'invitations' | 'extensions'>(() =>
-    section === 'customers' && salesWorkflow === 'invitations' ? 'invitations'
-      : section === 'activities' && salesWorkflow === 'extensions' ? 'extensions' : 'main'
+    salesWorkflow === 'invitations' ? 'invitations'
+      : salesWorkflow === 'extensions' ? 'extensions' : 'main'
   );
   useEffect(() => {
-    setSubview(section === 'customers' && salesWorkflow === 'invitations' ? 'invitations'
-      : section === 'activities' && salesWorkflow === 'extensions' ? 'extensions' : 'main');
+    setSubview(salesWorkflow === 'invitations' ? 'invitations'
+      : salesWorkflow === 'extensions' ? 'extensions' : 'main');
   }, [section, salesWorkflow]);
 
   const can = (permission: string) => abilities.includes('*') || abilities.includes(permission);
-  const isInvitations = section === 'customers' && subview === 'invitations';
-  const isExtensions = section === 'activities' && subview === 'extensions';
+  const isInvitations = (section === 'customers' || section === 'activities') && subview === 'invitations';
+  const isExtensions = (section === 'customers' || section === 'activities') && subview === 'extensions';
   const panel: Panel = section === 'schools' ? 'schools'
     : section === 'income' ? 'finance'
     : section === 'proposals' || isInvitations || isExtensions ? 'operations' : 'customers';
   const tab = section === 'proposals' ? 'proposals'
     : isInvitations ? 'invitations' : isExtensions ? 'extensions' : undefined;
-  const mode: SalesCustomerMode = section === 'customers' ? 'mine'
-    : section === 'activities' ? 'activities' : 'all';
+  const mode: SalesCustomerMode = section === 'customers' || section === 'activities' ? 'mine' : 'all';
   const table = <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
     apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
     initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
@@ -78,6 +78,7 @@ export function SalesFocusPage({section, ...props}: Props) {
   const canCreateProposal = section === 'proposals' && !!apiBase && !!token &&
     abilities.includes('channel_sales.school.proposal.submit') &&
     !abilities.includes('channel_sales.scope.all');
+  if (section === 'income') return <SalesIncomePage apiBase={apiBase} token={token} abilities={abilities}/>;
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BÁN HÀNG / KIDSFIT CRM" title={copy[section].title}
       description={copy[section].description}
@@ -91,12 +92,11 @@ export function SalesFocusPage({section, ...props}: Props) {
       {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
         className="flex w-full items-end border-b border-border/70 bg-white px-4 dark:bg-card sm:px-5">
         <div className="flex w-full items-end gap-3 sm:gap-5 lg:w-[30%]">
-          {(section === 'customers'
-            ? [{id:'main',label:'Trường đang phụ trách',icon:UsersRound},
-               {id:'invitations',label:'Chờ nhận phân bổ',icon:School}]
-            : [{id:'main',label:'Hoạt động tư vấn',icon:Handshake},
-               {id:'extensions',label:'Gia hạn tiếp cận',icon:CalendarClock}]
-          ).map(item => <button key={item.id} type="button" title={item.label}
+          {[
+            {id:'main',label:'Trường đang phụ trách',icon:UsersRound},
+            {id:'invitations',label:'Chờ nhận phân bổ',icon:School},
+            {id:'extensions',label:'Gia hạn tiếp cận',icon:CalendarClock},
+          ].map(item => <button key={item.id} type="button" title={item.label}
             onClick={() => setSubview(item.id as typeof subview)}
             aria-current={subview === item.id ? 'page' : undefined}
             className={`flex min-h-12 min-w-0 flex-1 items-center justify-center gap-1.5 border-b-[3px] bg-transparent px-1 pt-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary sm:text-sm lg:text-[12px] xl:text-[13px] ${subview === item.id

@@ -387,7 +387,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     </AppDialog>
     <AppDialog open={preview!==null} onOpenChange={open=>{if(!open)closePreview();}} title={preview?.name??'Ảnh chuyển khoản'}
       description="Chứng từ riêng tư – chỉ sử dụng để đối soát." contentClassName="sm:!max-w-4xl">
-      {preview && <img src={preview.url} alt={preview.name} className="mx-auto max-h-[68dvh] max-w-full object-contain"/>}
+      {preview && <object data={preview.url} type="image/png" aria-label={preview.name} className="mx-auto h-[min(68dvh,620px)] w-full object-contain">Không thể xem ảnh này trên trình duyệt.</object>}
     </AppDialog>
   </div>;
 }

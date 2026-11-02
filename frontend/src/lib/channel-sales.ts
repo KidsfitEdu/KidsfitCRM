@@ -26,6 +26,9 @@ export type ChannelCustomer = {
   address?: string | null;
   can_request_extension?: boolean;
   extension_pending?: boolean;
+  extension_approved_count?: number;
+  extension_max_count?: number | null;
+  extension_unavailable_reason?: string | null;
 };
 
 export type CheckeePackage = {

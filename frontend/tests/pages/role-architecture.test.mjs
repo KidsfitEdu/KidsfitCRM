@@ -12,12 +12,12 @@ const profileSections = {
   SalesStaff: ['Dashboard','Schools','Customers','Activities','Proposals','Income'],
   Collaborator: ['Dashboard','Schools','Proposals','Invitations','Approaches','Extensions','Income'],
   Board: ['Dashboard','Oversight','Overdue','Disputes','Policies'],
-  Accounting: ['Dashboard','Revenue','Payments','Refunds','Reports'],
+  Accounting: ['Dashboard','Revenue'],
   CustomerCare: ['Dashboard','Handover','Cases','Customers','Followup'],
   Checkee: ['Dashboard','Verification','Reconciliation','Disputes','History'],
 };
 
-test('All 46 role menu pages exist and are compiled from src/pages', () => {
+test('All 43 active role menu pages exist and are compiled from src/pages', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
@@ -28,14 +28,14 @@ test('All 46 role menu pages exist and are compiled from src/pages', () => {
       total += 1;
     }
   }
-  assert.equal(total, 46);
+  assert.equal(total, 43);
 });
 
 test('Navigation targets and role-to-page config preserve legacy IDs', () => {
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
-  assert.equal(known.length, 46, 'Expected 46 role navigation entries');
+  assert.equal(known.length, 43, 'Expected 43 active role navigation entries');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;

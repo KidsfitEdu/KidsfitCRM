@@ -227,7 +227,7 @@ internal static class CrmScenarioSeeder
                     ActorUserId = salesId, EventType = "OPENED", CreatedAt = now.AddDays(-1), UpdatedAt = now });
                 if (example.Status == "NEEDS_REVISION")
                     db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
-                        ActorUserId = managerId, EventType = "MANAGER_REQUESTED_REVISION",
+                        ActorUserId = managerId, EventType = "MANAGER_REVISION",
                         Reason = "Cần bổ sung trang ký và đóng dấu (dữ liệu demo).", CreatedAt = now.AddHours(-3), UpdatedAt = now });
                 if (example.Status == "MANAGER_REVIEWED")
                     db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,

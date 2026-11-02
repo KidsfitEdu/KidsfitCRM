@@ -527,6 +527,14 @@ function CustomerRow({
 }) {
   const urgency = mineMode && customer.visible_status === 'APPROACHING' && customer.protected_until
     ? protectionUrgency(customer.protected_until) : null;
+  // Rendering the extension icon is separate from authorization to submit a request.
+  const activeApproach = mineMode && customer.visible_status === 'APPROACHING' &&
+    Boolean(customer.approach_registration_id && customer.protected_until &&
+      new Date(customer.protected_until).getTime() > Date.now());
+  const extensionBlocked = !canRequestExtension || Boolean(customer.extension_pending);
+  const extensionHint = customer.extension_pending
+    ? 'Yêu cầu gia hạn đang chờ Quản lý bán hàng duyệt.'
+    : customer.extension_unavailable_reason || (canRequestExtension ? 'Xin gia hạn tiếp cận' : 'Chưa đủ điều kiện xin gia hạn.');
   const status = customer.contract_id && customer.visible_status === 'APPROACHING'
     ? {label:'Chờ xác minh hợp đồng',compact:'Quản lý / CHECKEE đang xử lý',className:'border-blue-200 bg-blue-50 text-blue-800'}
     : statusCopy[customer.visible_status];
@@ -624,15 +632,15 @@ function CustomerRow({
             title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
-          {customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (canRequestExtension || customer.extension_pending) && (
-            <Button type="button" size="icon" variant="outline"
-              className={`size-9 rounded-lg ${customer.extension_pending ? 'border-slate-300 text-slate-500' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700'}`}
-              disabled={Boolean(customer.extension_pending)}
-              onClick={onExtension}
-              title={customer.extension_pending ? 'Đang chờ quản lý duyệt gia hạn' : 'Xin gia hạn tiếp cận'}
-              aria-label={customer.extension_pending ? `Gia hạn đang chờ duyệt cho ${customer.display_name}` : `Xin gia hạn tiếp cận ${customer.display_name}`}>
-              <CalendarClock className="size-4" aria-hidden="true"/>
-            </Button>
+          {activeApproach && (
+            <span title={extensionHint} className="inline-flex">
+              <Button type="button" size="icon" variant="outline"
+                className={`size-9 rounded-lg ${extensionBlocked ? 'border-slate-300 text-slate-500' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700'}`}
+                disabled={extensionBlocked} onClick={onExtension}
+                aria-label={`${extensionHint} - ${customer.display_name}`}>
+                <CalendarClock className="size-4" aria-hidden="true"/>
+              </Button>
+            </span>
           )}
           {canReportContract && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (
             <Button type="button" size="icon" variant="outline"
@@ -745,6 +753,7 @@ function ExtensionDialog({
       <CustomerHighlight customer={customer}/>
       <p className="text-sm text-muted-foreground">
         Bảo vệ hiện tại đến: {customer.protected_until ? channelDate(customer.protected_until) : 'Chưa có'}
+        {customer.extension_max_count != null && <span className="mt-1 block">Đã được duyệt {customer.extension_approved_count ?? 0}/{customer.extension_max_count} lần gia hạn.</span>}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Xin gia hạn đến *"><Input type="datetime-local" name="requested_until" required/></Field>

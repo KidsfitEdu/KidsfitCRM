@@ -89,4 +89,61 @@ public static class SalesIncomeEndpoints
             payouts
         });
     }
+    public static async Task<IResult> Detail(long contractId, HttpContext http, KidsfitDbContext db,
+        string? period, CancellationToken ct)
+    {
+        var actor = http.UserId();
+        var access = await ChannelSalesAccess.Load(db, actor, ct);
+        if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
+        var ledger = db.CommissionLedgerEntries.AsNoTracking()
+            .Where(x => x.BeneficiaryUserId == actor && x.ContractId == contractId);
+        if (!string.IsNullOrWhiteSpace(period) && period != "ALL") {
+            var selected = ChannelSalesValidation.Period(period);
+            ledger = ledger.Where(x => x.Period == selected);
+        }
+        if (!await ledger.AnyAsync(ct)) throw new KeyNotFoundException();
+        var contract = await (from c in db.SalesContracts.AsNoTracking()
+            join school in db.ChannelCustomers.AsNoTracking() on c.CustomerId equals school.Id
+            where c.Id == contractId
+            select new { contract_code = c.ContractCode, school_name = school.DisplayName,
+                contract_value = c.TotalValue, contract_status = c.Status }).SingleAsync(ct);
+        var entries = await (from entry in ledger
+            join policy in db.CommissionPolicyVersions.AsNoTracking() on entry.PolicyVersionId equals policy.Id
+            orderby entry.OccurredAt descending, entry.Id descending
+            select new { id = entry.Id, entry_type = entry.EntryType, amount = entry.Amount,
+                calculation_base = entry.CalculationBase, rate_percent = entry.RatePercent,
+                policy_code = policy.Code, period = entry.Period,
+                occurred_at = entry.OccurredAt, reason = entry.Reason, receipt_id = entry.RevenueReceiptId
+            }).ToArrayAsync(ct);
+        var entryIds = entries.Select(e => e.id).ToArray();
+        var paymentItems = await (
+            from item in db.PayoutItems.AsNoTracking()
+            join payout in db.Payouts.AsNoTracking() on item.PayoutId equals payout.Id
+            where entryIds.Contains(item.CommissionLedgerEntryId) && payout.BeneficiaryUserId == actor
+            select new { payout.Id, payout.Code, payout.Period, payout.Status,
+                payout.PaidAt, payout.PaymentReference, payout.NetAmount, payout.GrossAmount,
+                item.Amount }
+        ).ToArrayAsync(ct);
+        var payments = paymentItems.GroupBy(x => x.Id).Select(g => {
+            var first = g.First();
+            var allocation = first.GrossAmount > 0
+                ? Math.Round(g.Sum(x => x.Amount * first.NetAmount / first.GrossAmount), 0)
+                : 0m;
+            return new { id = first.Id, code = first.Code, period = first.Period,
+                status = first.Status, paid_at = first.PaidAt,
+                payment_reference = first.PaymentReference, allocated_amount = allocation };
+        }).OrderByDescending(x => x.paid_at).ToArray();
+        var receiptIds = entries.Where(x => x.receipt_id.HasValue)
+            .Select(x => x.receipt_id!.Value).Distinct().ToArray();
+        var receipts = await db.RevenueReceipts.AsNoTracking()
+            .Where(x => receiptIds.Contains(x.Id) && x.Status == "COMPLETED")
+            .OrderByDescending(x => x.ReceivedAt)
+            .Select(x => new { id = x.Id, amount = x.Amount, received_at = x.ReceivedAt,
+                reference_code = x.ReferenceCode }).ToArrayAsync(ct);
+        var reconciliation = await db.ReconciliationCases.AsNoTracking()
+            .Where(x => x.ContractId == contractId).Select(x => x.Status).FirstOrDefaultAsync(ct);
+        return Results.Ok(new { contract, reconciliation_status = reconciliation,
+            ledger = entries, receipts, payments });
+    }
+
 }

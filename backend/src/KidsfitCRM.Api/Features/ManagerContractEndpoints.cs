@@ -150,9 +150,11 @@ public static class ManagerContractEndpoints
         if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
             var selected = status.Trim().ToUpperInvariant();
-            if (selected is not ("PENDING_REVIEW" or "MANAGER_REVIEWED" or "NEEDS_REVISION" or "PENDING_KIDSFIT" or "ACTIVE" or "CANCELLED"))
+            if (selected is not ("PENDING_REVIEW" or "MANAGER_REVIEWED" or "NEEDS_REVISION" or "PENDING_KIDSFIT" or "ACTIVE" or "CANCELLED" or "DISPUTED"))
                 throw ApiValidationException.For("status", "Trạng thái hợp đồng không hợp lệ.");
-            query = query.Where(x => x.Status == selected);
+            query = selected == "DISPUTED"
+                ? query.Where(x => db.ReconciliationCases.Any(r => r.ContractId == x.Id && r.Status == "DISPUTED"))
+                : query.Where(x => x.Status == selected);
         }
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -176,10 +178,13 @@ public static class ManagerContractEndpoints
                               sales_name = owner.Name,
                               contract_code = contract.ContractCode,
                               total_value = contract.TotalValue,
-                              status = contract.Status,
+                              status = db.ReconciliationCases.Any(r => r.ContractId == contract.Id && r.Status == "DISPUTED")
+                                  ? "DISPUTED" : contract.Status,
                               can_review = contract.Status == "PENDING_REVIEW" && access.Has(Permissions.SchoolContractReview)
                                   && (access.All || access.OrganizationIds.Contains(contract.OwnerOrganizationId)),
-                              can_return = contract.Status == "PENDING_REVIEW" && access.Has(Permissions.SchoolContractReview)
+                              can_return = (contract.Status == "PENDING_REVIEW" || (contract.Status == "MANAGER_REVIEWED"
+                                  && db.ReconciliationCases.Any(r => r.ContractId == contract.Id && r.Status == "DISPUTED")))
+                                  && access.Has(Permissions.SchoolContractReview)
                                   && (access.All || access.OrganizationIds.Contains(contract.OwnerOrganizationId)),
                           })
                          .Skip((number - 1) * size).Take(size).ToArrayAsync(ct);
@@ -245,11 +250,15 @@ public static class ManagerContractEndpoints
             || !access.CanManageOrganization(contract.OwnerOrganizationId)
             || !await ManagerScope(db, access).AnyAsync(x => x.Id == id, ct))
             throw new KeyNotFoundException();
-        if (contract.Status != "PENDING_REVIEW") throw new ApiConflictException("Chỉ trả bổ sung hồ sơ đang chờ Quản lý.");
+        var reconciliation = await db.ReconciliationCases.SingleOrDefaultAsync(x => x.ContractId == id, ct);
+        var previousStatus = contract.Status;
+        if (contract.Status != "PENDING_REVIEW" && !(contract.Status == "MANAGER_REVIEWED" && reconciliation?.Status == "DISPUTED"))
+            throw new ApiConflictException("Chỉ trả bổ sung hồ sơ chờ Quản lý hoặc hồ sơ CHECKEE phản hồi.");
         var now = DateTime.UtcNow;
         contract.Status = "NEEDS_REVISION";
+        contract.ManagerReviewedAt = null;
+        contract.ManagerReviewedByUserId = null;
         contract.UpdatedAt = now;
-        var reconciliation = await db.ReconciliationCases.SingleOrDefaultAsync(x => x.ContractId == id, ct);
         if (reconciliation is not null)
         {
             reconciliation.Status = "AWAITING_MANAGER";
@@ -258,7 +267,7 @@ public static class ManagerContractEndpoints
                 ActorUserId = http.UserId(), EventType = "MANAGER_REVISION", Reason = reason, CreatedAt = now, UpdatedAt = now });
         }
         Audit.Add(db, http.UserId(), "REQUEST_SCHOOL_CONTRACT_REVISION", nameof(SalesContract), id,
-            new { status = "PENDING_REVIEW" }, new { contract.Status, reason }, http);
+            new { status = previousStatus }, new { contract.Status, reason }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { message = "Đã trả hồ sơ để Sales bổ sung." });

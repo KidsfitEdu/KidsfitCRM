@@ -83,6 +83,8 @@ export type CustomerActivityInput = {
   contact_position?: string;
   feedback?: string;
   commitment?: string;
+  outcome?: 'INTERESTED' | 'NEEDS_INFO' | 'DEMO_SCHEDULED' | 'WAITING' | 'DECLINED' | 'UNREACHABLE';
+  evidence_reference?: string;
   next_follow_up_at?: string;
 };
 

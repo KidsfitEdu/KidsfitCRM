@@ -86,7 +86,9 @@ public static class SchoolOperationsEndpoints
         var contractIds = a.Contracts(db).Select(x => x.Id);
         var canMoney = a.Has(Permissions.ChannelSalesCommissionView) || a.Has(Permissions.ChannelSalesRecordRevenue);
         var canTeam = a.Has(Permissions.SchoolAllocationManage) || a.Has(Permissions.SchoolHandoverManage) || a.Has(Permissions.SchoolCareAssign);
-        const int pageSize = 100;
+        // Optional page size for Sales lists; default remains 100 for existing clients.
+        var requestedSize = int.TryParse(http.Request.Query["page_size"], out var size) ? size : 100;
+        var pageSize = requestedSize is 10 or 20 or 50 or 100 ? requestedSize : 100;
         var selectedPage = Math.Clamp(page ?? 1, 1, 10000);
         var skip = (selectedPage - 1) * pageSize;
         var term = search?.Trim() ?? "";
@@ -98,6 +100,9 @@ public static class SchoolOperationsEndpoints
         if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
         var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status) && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)));
         var invitationQuery = Invitations(db, a).AsNoTracking().Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
+        // Optional Sales-only pending filter, applied before counting/paging.
+        if (string.Equals(http.Request.Query["pending_invitations"].ToString(), "true", StringComparison.OrdinalIgnoreCase))
+            invitationQuery = invitationQuery.Where(x => x.Status == "PENDING" && x.RespondBy > now);
         var extensionQuery = Extensions(db, a).AsNoTracking().Where(x => term == "" || x.Progress.Contains(term) || db.ApproachRegistrations.Any(r => r.Id == x.ApproachRegistrationId && matchingCustomers.Contains(r.CustomerId)));
         var disputeQuery = Disputes(db, a).AsNoTracking().Where(x => term == "" || matchingCustomers.Contains(x.CustomerId) || x.Reason.Contains(term));
         var deferralQuery = db.SchoolDeferrals.AsNoTracking().Where(x => a.All || (a.Has(Permissions.SchoolAllocationManage) && a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))

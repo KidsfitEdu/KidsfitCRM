@@ -90,12 +90,13 @@ test('Sales underline tabs and proposal table retain shared role layouts', () =>
   assert.match(directory, /UserRoundPlus/);
   assert.match(directory, /aria-label=\{registrationIconOnly \?/);
   assert.match(proposals, /embeddedSalesTable && active === 'proposals'/);
-  assert.match(table, /<table/);
-  assert.match(table, /aria-label="Đặt lại bộ lọc"/);
+  assert.match(table, /<SalesListLayout/);
+  assert.doesNotMatch(table, /<table/);
+  assert.match(table, /<SalesListToolbar/);
   assert.doesNotMatch(table, /Thêm mới/);
   assert.match(focus, />Thêm mới<\/AppButton>/);
   assert.match(proposals, /proposalActionRef\.current = \{ open: openProposal \}/);
-  assert.match(proposals, /embeddedSalesTable && \(active === 'invitations' \|\| active === 'extensions'\)/);
+  assert.match(proposals, /embeddedSalesTable && active === 'invitations'/);
 });
 
 test('Sales actions and footer pagination remain accessible and scoped', () => {
@@ -116,8 +117,28 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(operations.includes('Nhận trường ${x.school_name}'));
   assert.ok(operations.includes('Từ chối gia hạn ${x.school_name}'));
   assert.ok(operations.includes('<AppPagination page={preview ? 1 : page}'));
-  assert.ok(proposals.includes('fixedPageSize'));
+  assert.ok(proposals.includes('onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}'));
   assert.ok(finance.includes('total={data.ledger.length}'));
   assert.ok(finance.includes('total={data.payouts.length}'));
   assert.ok(pager.includes('fixedPageSize'));
+});
+
+test('Sales screens share list toolbar, rows, and pagination without duplicate HTML tables', () => {
+  const income = read('src/components/roles/SalesIncomePage.tsx');
+  const proposal = read('src/components/roles/SalesProposalTable.tsx');
+  const invitations = read('src/components/roles/SalesInvitationList.tsx');
+  const common = read('src/components/common/sales-list.tsx');
+  const operations = read('src/components/crm/school-operations.tsx');
+  for (const screen of [income, proposal, invitations]) {
+    assert.match(screen, /<SalesListLayout/);
+    assert.match(screen, /<SalesListToolbar/);
+    assert.match(screen, /<SalesListRow/);
+  }
+  assert.doesNotMatch(income, /<table/);
+  assert.doesNotMatch(proposal, /<table/);
+  assert.match(common, /<AppPagination/);
+  assert.match(common, /pageSizeOptions=\{\[10,20,50,100\]\}/);
+  assert.match(operations, /page_size=/);
+  assert.match(operations, /onAccept=\{x => setAction/);
+  assert.match(operations, /onReject=\{x => setAction/);
 });

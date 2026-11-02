@@ -49,14 +49,14 @@ export function SalesInvitationList({
       placeholder="Tên trường, nhân viên phân bổ..." searchLabel="Tìm trường chờ phân bổ"
       filters={filter}/>}>
     {shown.map(x => <SalesListRow key={x.id} template={columns}>
-      <div role="cell" className="min-w-0">
+      <div className="min-w-0">
         <p className="font-semibold">{x.school_name}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">{x.assigned_by} · {x.reason}</p>
       </div>
-      <div role="cell">{x.assignee_name}</div>
-      <div role="cell" className="tabular-nums">{workflowDate(x.respond_by)}</div>
-      <div role="cell"><Badge variant="outline">{x.is_expired ? 'Đã hết hạn' : workflowLabels[x.status] ?? x.status}</Badge></div>
-      <div role="cell" className="flex justify-end gap-2">
+      <div>{x.assignee_name}</div>
+      <div className="tabular-nums">{workflowDate(x.respond_by)}</div>
+      <div><Badge variant="outline">{x.is_expired ? 'Đã hết hạn' : workflowLabels[x.status] ?? x.status}</Badge></div>
+      <div className="flex justify-end gap-2">
         {x.can_respond && !preview && <>
           <AdminIconAction icon={CheckCircle2} label={`Nhận trường ${x.school_name}`} onClick={() => onAccept(x)}/>
           <AdminIconAction icon={XCircle} tone="red" label={`Từ chối phân bổ ${x.school_name}`} onClick={() => onReject(x)}/>

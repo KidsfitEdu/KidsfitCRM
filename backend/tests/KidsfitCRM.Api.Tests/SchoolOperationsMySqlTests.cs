@@ -513,7 +513,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             var id = await a.RequestSchoolExtension(registration, Extension(until), s.Seller.UserId, Http(), Ct);
             await a.ReviewSchoolExtension(id, new(true, DateTime.SpecifyKind(until, DateTimeKind.Utc), DateTime.UtcNow.AddDays(1), "Gia hạn theo quyết định"), s.Manager.UserId, Http(), Ct);
         }
-        await Assert.ThrowsAsync<ApiValidationException>(() =>
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
             a.RequestSchoolExtension(registration, Extension(until.AddDays(1)), s.Seller.UserId, Http(), Ct));
         Assert.Equal(until, await db.ApproachRegistrations.Where(x => x.Id == registration).Select(x => x.ProtectedUntil).SingleAsync());
         Assert.Equal(2, await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration && x.Status == "APPROVED"));

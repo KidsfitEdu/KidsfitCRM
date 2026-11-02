@@ -5,13 +5,15 @@ import { ProposalsPage } from './Proposals/ProposalsPage';
 import { AllocationsPage } from './Allocations/AllocationsPage';
 import { ProgressPage } from './Progress/ProgressPage';
 import { ExtensionsPage } from './Extensions/ExtensionsPage';
+import { ContractsPage } from './Contracts/ContractsPage';
 import { TeamPage } from './Team/TeamPage';
-export type ManagerSection='manager-dashboard'|'manager-proposals'|'manager-allocations'|'manager-progress'|'manager-extensions'|'manager-team';
+export type ManagerSection='manager-dashboard'|'manager-proposals'|'manager-allocations'|'manager-progress'|'manager-contracts'|'manager-extensions'|'manager-team';
 const pages={
  'manager-dashboard':DashboardPage,
  'manager-proposals':ProposalsPage,
  'manager-allocations':AllocationsPage,
  'manager-progress':ProgressPage,
+ 'manager-contracts':ContractsPage,
  'manager-extensions':ExtensionsPage,
  'manager-team':TeamPage,
 };

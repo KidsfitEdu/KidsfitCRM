@@ -86,6 +86,12 @@ export function SchoolOperations({
   proposalActionRef,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
+  // Sales switches between proposals and invitations in the parent tabs.
+  // Keep the workspace tab in sync instead of retaining the previous view.
+  useEffect(() => {
+    setTab(initialTab);
+    setPage(1);
+  }, [initialTab]);
   const [search, setSearch] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
   const [page, setPage] = useState(1);
@@ -445,7 +451,9 @@ export function SchoolOperations({
     policies: data.policies.length + data.imports.length,
   };
   const total = data.pagination?.totals[active] ?? 0;
-  const pageSize = data.pagination?.page_size ?? (embeddedSalesTable ? salesPageSize : 100);
+  // Keep the dropdown controlled by the user selection, not stale placeholderData
+  // from the previous query while the new page size is being fetched.
+  const pageSize = embeddedSalesTable ? salesPageSize : (data.pagination?.page_size ?? 100);
   return (
     <div className={embeddedSalesTable ? 'space-y-0' : 'space-y-5'}>
       {!compactHeader && <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
@@ -554,7 +562,7 @@ export function SchoolOperations({
       )}
       {embeddedSalesTable && active === 'invitations' && <SalesInvitationList
         invitations={data.invitations} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isFetching} preview={preview} pendingOnly={pendingOnly}
+        loading={workspace.isPending} preview={preview} pendingOnly={pendingOnly}
         onPageChange={setPage}
         onPageSizeChange={size => { setSalesPageSize(size); setPage(1); }}
         onSearch={term => {setSearch(term);setPage(1);}}
@@ -574,7 +582,7 @@ export function SchoolOperations({
       />}
       {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isFetching} preview={preview}
+        loading={workspace.isPending} preview={preview}
         onPageChange={setPage} onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}
         onSearch={term => {setSearch(term);setPage(1);}}
         onStatusChange={value=>{setProposalStatus(value);setPage(1);}}

@@ -110,9 +110,6 @@ export function SalesFocusPage({section, ...props}: Props) {
     {section === 'customers' && !apiBase && <p className="text-xs text-muted-foreground">
       Dữ liệu xem trước không đại diện cho quyền sở hữu trường thực tế.
     </p>}
-    {section === 'proposals' && <p className="text-xs text-muted-foreground">
-      Đề xuất mới chỉ được thêm vào danh bạ sau khi Quản lý chuyển tiếp và Admin phê duyệt.
-    </p>}
     {section === 'activities' && <p className="text-xs text-muted-foreground">
       Gia hạn phải có bằng chứng tiến độ và được Quản lý phê duyệt; ghi nhận hoạt động không tự kéo dài quyền tiếp cận.
     </p>}

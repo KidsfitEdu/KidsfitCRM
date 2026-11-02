@@ -30,7 +30,8 @@ public sealed record ChannelCustomerListItem(
     bool CanManageApproach,
     bool CanRecordRevenue,
     string? Address = null,
-    bool CanRequestExtension = false);
+    bool CanRequestExtension = false,
+    bool ExtensionPending = false);
 
 public static class ChannelSalesEndpoints
 {

@@ -98,7 +98,11 @@ public static class AccountingContractEndpoints
         var ledger = await access.Commissions(db).AsNoTracking().Where(x => x.ContractId == id)
             .OrderBy(x => x.OccurredAt).Select(x => new {
                 id = x.Id, entry_type = x.EntryType, amount = x.Amount,
-                rate_percent = x.RatePercent, reason = x.Reason, occurred_at = x.OccurredAt
+                rate_percent = x.RatePercent, reason = x.Reason, occurred_at = x.OccurredAt,
+                period = x.Period, beneficiary_user_id = x.BeneficiaryUserId,
+                beneficiary_organization_id = x.BeneficiaryOrganizationId,
+                assigned_to_payout = db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id),
+                reconciled = db.ReconciliationCases.Any(caseItem => caseItem.ContractId == x.ContractId && caseItem.Status == "CONFIRMED")
             }).ToArrayAsync(ct);
         var payoutIds = db.PayoutItems.Where(x => access.Commissions(db).Any(e => e.Id == x.CommissionLedgerEntryId && e.ContractId == id)).Select(x => x.PayoutId);
         var payouts = await access.Payouts(db).AsNoTracking().Where(x => payoutIds.Contains(x.Id))

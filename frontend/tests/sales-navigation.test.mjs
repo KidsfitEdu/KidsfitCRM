@@ -7,14 +7,13 @@ import { canonicalSalesView, legacySalesWorkflowTab, salesMenuIds } from '../src
 const root = resolve(import.meta.dirname, '..');
 const read = name => readFileSync(resolve(root,name),'utf8');
 
-test('Employee and collaborator Sales share exactly six canonical menu entries', () => {
-  assert.equal(salesMenuIds.length, 6);
-  assert.equal(new Set(salesMenuIds).size, 6);
+test('Employee and collaborator Sales share exactly five canonical menu entries', () => {
+  assert.equal(salesMenuIds.length, 5);
+  assert.equal(new Set(salesMenuIds).size, 5);
   assert.deepEqual(salesMenuIds,[
     'role-sales-staff-dashboard',
     'role-sales-staff-schools',
     'role-sales-staff-customers',
-    'role-sales-staff-activities',
     'role-sales-staff-proposals',
     'role-sales-staff-income',
   ]);
@@ -25,12 +24,13 @@ test('Employee and collaborator Sales share exactly six canonical menu entries',
 
 test('Every legacy collaborator deep link resolves without losing invitation or extension context', () => {
   const aliases = {
+    'role-sales-staff-activities':'role-sales-staff-customers',
     'role-collaborator-dashboard':'role-sales-staff-dashboard',
     'role-collaborator-schools':'role-sales-staff-schools',
     'role-collaborator-proposals':'role-sales-staff-proposals',
     'role-collaborator-invitations':'role-sales-staff-customers',
-    'role-collaborator-approaches':'role-sales-staff-activities',
-    'role-collaborator-extensions':'role-sales-staff-activities',
+    'role-collaborator-approaches':'role-sales-staff-customers',
+    'role-collaborator-extensions':'role-sales-staff-customers',
     'role-collaborator-income':'role-sales-staff-income',
   };
   for (const [source,target] of Object.entries(aliases)) assert.equal(canonicalSalesView(source),target);
@@ -46,7 +46,7 @@ test('Sales pages use focused customer subsets and retain original authorized ac
   const focus = read('src/components/roles/SalesFocusPage.tsx');
   const view = read('src/components/crm/channel-sales-view.tsx');
   assert.match(focus, /title: 'Trường của tôi'/);
-  assert.match(focus, /title: 'Tiếp cận & tư vấn'/);
+  assert.match(focus, /title: 'Trường của tôi'/);
   assert.match(focus, /id:'invitations'/);
   assert.match(focus, /id:'extensions'/);
   assert.match(focus, /onRegister=\{props\.onRegister\}/);

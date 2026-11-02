@@ -135,7 +135,7 @@ public static class ManagerContractEndpoints
                               id = contract.Id, contract_code = contract.ContractCode, school_name = school.DisplayName,
                               reason = (from reconciliation in db.ReconciliationCases
                                         join evt in db.ReconciliationEvents on reconciliation.Id equals evt.ReconciliationCaseId
-                                        where reconciliation.ContractId == contract.Id && evt.EventType == "MANAGER_REQUESTED_REVISION"
+                                        where reconciliation.ContractId == contract.Id && evt.EventType == "MANAGER_REVISION"
                                         orderby evt.CreatedAt descending, evt.Id descending
                                         select evt.Reason).FirstOrDefault(),
                           }).Take(100).ToArrayAsync(ct);
@@ -255,7 +255,7 @@ public static class ManagerContractEndpoints
             reconciliation.Status = "AWAITING_MANAGER";
             reconciliation.UpdatedAt = now;
             db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
-                ActorUserId = http.UserId(), EventType = "MANAGER_REQUESTED_REVISION", Reason = reason, CreatedAt = now, UpdatedAt = now });
+                ActorUserId = http.UserId(), EventType = "MANAGER_REVISION", Reason = reason, CreatedAt = now, UpdatedAt = now });
         }
         Audit.Add(db, http.UserId(), "REQUEST_SCHOOL_CONTRACT_REVISION", nameof(SalesContract), id,
             new { status = "PENDING_REVIEW" }, new { contract.Status, reason }, http);

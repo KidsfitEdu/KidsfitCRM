@@ -407,6 +407,7 @@ export function ChannelSalesView({
       )}
       {receiptCustomer && (
         <ReceiptDialog
+          apiBase={apiBase} token={token}
           customer={receiptCustomer}
           onClose={() => setReceiptCustomer(null)}
           onSubmit={async (input) => {
@@ -924,10 +925,14 @@ function ContractDialog({
 
 function ReceiptDialog({
   customer,
+  apiBase,
+  token,
   onClose,
   onSubmit,
 }: {
   customer: ChannelCustomer;
+  apiBase?: string;
+  token?: string;
   onClose: () => void;
   onSubmit: (input: RevenueReceiptInput) => Promise<void>;
 }) {
@@ -941,7 +946,20 @@ function ReceiptDialog({
     setSaving(true);
     setError('');
     try {
+      if (!apiBase || !token || customer.contract_id === null)
+        throw new Error('Chưa kết nối API hợp đồng để upload chứng từ.');
+      const file = form.get('proof');
+      if (!(file instanceof File) || file.size <= 0)
+        throw new Error('Bắt buộc upload ảnh chứng từ khoản thu.');
+      const upload = new FormData();
+      upload.set('kind', 'RECEIPT');
+      upload.set('contract_id', String(customer.contract_id));
+      upload.set('file', file);
+      const result = await channelRequest<{data:{id:number}}>(apiBase, token, '/evidence', {
+        method: 'POST', body: upload,
+      });
       await onSubmit({
+        evidence_id: result.data.id,
         idempotency_key: requestKey,
         amount: Number(text(form, 'amount')),
         received_at: new Date(text(form, 'received_at')).toISOString(),
@@ -1017,6 +1035,12 @@ function ReceiptDialog({
               <option value="OTHER">Khác</option>
             </Select>
           </Field>
+        </div>
+        <div className="mt-4">
+          <Field label="Ảnh chứng từ nhà trường chuyển tiền *">
+            <Input name="proof" type="file" accept="image/jpeg,image/png,image/webp" required/>
+          </Field>
+          <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · chỉ tài khoản được phân quyền có thể xem.</p>
         </div>
         <DialogFooter
           saving={saving}

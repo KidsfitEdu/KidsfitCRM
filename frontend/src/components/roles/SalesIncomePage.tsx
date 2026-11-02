@@ -37,12 +37,13 @@ export function SalesIncomePage({apiBase,token,abilities}:{
     setLoading(true);setError('');
     try{
       const qs=new URLSearchParams({period,page:String(page),pageSize:String(pageSize)});
+      if(term)qs.set('search',term);
       setData(await channelRequest<Income>(apiBase,token,`/income/me?${qs.toString()}`));
     }catch(e){setError(e instanceof Error?e.message:'Không tải được thu nhập.');setData(null);}
     finally{setLoading(false);}
-  },[apiBase,token,permitted,page,pageSize,period]);
+  },[apiBase,token,permitted,page,pageSize,period,term]);
   useEffect(()=>{void load();},[load]);
-  const rows=(data?.data??[]).filter(x=>[x.school_name,x.contract_code].some(v=>v.toLocaleLowerCase('vi').includes(term.toLocaleLowerCase('vi'))));
+  const rows=data?.data??[];
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BÁN HÀNG / KIDSFIT CRM" title="Thu nhập"
       description="Theo dõi hoa hồng cá nhân theo hợp đồng và lịch sử chi trả."/>
@@ -76,12 +77,12 @@ export function SalesIncomePage({apiBase,token,abilities}:{
       </div>
       <p className="text-xs text-muted-foreground">Chưa nhận có thể gồm khoản chưa đối soát, chờ duyệt hoặc chờ chuyển. Tiền đã nhận của phiếu chi nhiều hợp đồng được phân bổ theo tỷ trọng bút toán, sau khấu trừ.</p>
       <section className="overflow-hidden rounded-xl border bg-card">
-        <form className="flex flex-wrap items-center gap-2 border-b p-4" onSubmit={e=>{e.preventDefault();setTerm(search.trim());}}>
+        <form className="flex flex-wrap items-center gap-2 border-b p-4" onSubmit={e=>{e.preventDefault();setTerm(search.trim());setPage(1);}}>
           <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
             <Input aria-label="Tìm tên trường hoặc hợp đồng" placeholder="Tên trường, mã hợp đồng..." value={search}
               onChange={e=>setSearch(e.target.value)} className="pl-9"/></div>
           <Button type="submit">Tìm kiếm</Button>
-          <Button type="button" variant="outline" onClick={()=>{setTerm('');setSearch('');}}>Đặt lại</Button>
+          <Button type="button" variant="outline" onClick={()=>{setTerm('');setSearch('');setPage(1);}}>Đặt lại</Button>
         </form>
         <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-[#1b5e20] text-xs font-semibold uppercase text-white"><tr>

@@ -24,6 +24,7 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
+import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,16 @@ import type {
   RevenueReceiptInput,
 } from '@/lib/channel-sales';
 
+type SalesSchoolProfile = {
+  data: { id:number; display_name:string; tax_code:string|null; address:string|null;
+    province:string|null; district:string|null; phone:string|null; email:string|null;
+    contact_name:string|null; contact_position:string|null; lifecycle_status:string };
+  contracts: {id:number;contract_code:string;status:string;signed_on:string;
+    protection_until:string|null;total_value:number|null}[];
+  school_units:{id:number;name:string;unit_type:string;address:string|null;
+    province:string;ward:string;contact_name:string|null;contact_position:string|null;
+    contact_phone:string|null;email:string|null}[];
+};
 type StatusFilter = 'ALL' | ChannelCustomer['visible_status'];
 export type SalesCustomerMode = 'all' | 'mine' | 'activities';
 
@@ -150,6 +161,9 @@ export function ChannelSalesView({
     ChannelCustomer | null | undefined
   >(undefined);
   const [historyCustomer, setHistoryCustomer] = useState<ChannelCustomer | null>(null);
+  const [detailCustomer, setDetailCustomer] = useState<ChannelCustomer | null>(null);
+  const [schoolProfile,setSchoolProfile] = useState<SalesSchoolProfile|null>(null);
+  const [profileError,setProfileError] = useState('');
   const [activityCustomer, setActivityCustomer] =
     useState<ChannelCustomer | null>(null);
   const [contractCustomer, setContractCustomer] =
@@ -157,6 +171,14 @@ export function ChannelSalesView({
   const [receiptCustomer, setReceiptCustomer] =
     useState<ChannelCustomer | null>(null);
 
+  useEffect(()=>{
+    if(!detailCustomer || !apiBase || !token){setSchoolProfile(null);return;}
+    let active=true;setSchoolProfile(null);setProfileError('');
+    void channelRequest<SalesSchoolProfile>(apiBase,token,`/customers/${detailCustomer.id}`)
+      .then(result=>{if(active)setSchoolProfile(result);})
+      .catch(err=>{if(active)setProfileError(err instanceof Error?err.message:'Không tải được hồ sơ trường.');});
+    return()=>{active=false;};
+  },[detailCustomer,apiBase,token]);
   const serverMine = mode === 'mine' && Boolean(apiBase && token);
   useEffect(()=>{
     if(!serverMine)return;
@@ -368,9 +390,8 @@ export function ChannelSalesView({
               <CustomerRow
                 key={customer.id}
                 customer={customer}
-                onOpenDetail={
-                  onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined
-                }
+                onOpenDetail={mode === 'mine' ? () => setDetailCustomer(customer)
+                  : onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined}
                 mineMode={mode === 'mine'}
                 onHistory={() => setHistoryCustomer(customer)}
                 canSeeRevenue={workspace.capabilities?.view_revenue !== false}
@@ -404,6 +425,48 @@ export function ChannelSalesView({
         </CardContent>
       </Card>
 
+      <AppDrawer open={detailCustomer!==null} onOpenChange={open=>{if(!open)setDetailCustomer(null);}}
+        title="CHI TIẾT NHÀ TRƯỜNG" description={detailCustomer?.display_name??''} wide>
+        {profileError&&<p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
+        {!schoolProfile&&!profileError&&<p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
+        {detailCustomer && schoolProfile && <div className="space-y-5 text-sm">
+          <section className="space-y-2">
+            <h3 className="text-lg font-semibold">{schoolProfile.data.display_name}</h3>
+            <p className="text-muted-foreground">{[schoolProfile.data.address,schoolProfile.data.district,schoolProfile.data.province].filter(Boolean).join(', ')||'Chưa cập nhật địa chỉ'}</p>
+            <p>Trạng thái: <strong>{statusCopy[detailCustomer.visible_status].label}</strong></p>
+            <p>Người phụ trách: {detailCustomer.owner_user_name??'—'}</p>
+            <p>Quyền bảo vệ đến: {detailCustomer.protected_until?channelDate(detailCustomer.protected_until):'Chưa có'}</p>
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="font-semibold">1. Thông tin liên hệ</h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p>Người liên hệ: {schoolProfile.data.contact_name??'—'}</p>
+              <p>Chức vụ: {schoolProfile.data.contact_position??'—'}</p>
+              <p>Điện thoại: {schoolProfile.data.phone??'—'}</p>
+              <p>Email: {schoolProfile.data.email??'—'}</p>
+            </div>
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="font-semibold">2. Trường chính & phân hiệu</h3>
+            {schoolProfile.school_units.length===0?<p className="text-muted-foreground">Chưa có thông tin trường điểm.</p>
+              :schoolProfile.school_units.map(u=><div key={u.id} className="rounded-lg border p-3">
+                <p className="font-medium">{u.name} · {u.unit_type==='MAIN'?'Trường chính':'Phân hiệu'}</p>
+                <p className="mt-1 text-muted-foreground">{[u.address,u.ward,u.province].filter(Boolean).join(', ')||'Chưa có địa chỉ'}</p>
+              </div>)}
+          </section>
+          <section className="space-y-2 border-t pt-4">
+            <h3 className="font-semibold">3. Hợp đồng và quyền bảo vệ</h3>
+            {schoolProfile.contracts.length===0&&<p className="text-muted-foreground">Chưa có hợp đồng.</p>}
+            {schoolProfile.contracts.map(c=><div key={c.id} className="rounded-lg border p-3">
+              <p className="font-medium">{c.contract_code} · {c.status}</p>
+              <p className="mt-1 text-muted-foreground">Ngày ký: {channelDate(c.signed_on)}</p>
+            </div>)}
+            {canReportContract && detailCustomer.can_manage_approach && detailCustomer.visible_status==='APPROACHING' &&
+              <Button type="button" onClick={()=>{setDetailCustomer(null);setContractCustomer(detailCustomer);}}>Báo cáo hợp đồng đã ký</Button>}
+          </section>
+          <p className="border-t pt-3 text-xs text-muted-foreground">Tiến độ và lịch sử tư vấn được xem tại icon Lịch sử tiếp cận riêng trong bảng.</p>
+        </div>}
+      </AppDrawer>
       {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
         onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}
         customerId={historyCustomer.id} schoolName={historyCustomer.display_name} apiBase={apiBase} token={token}/>}

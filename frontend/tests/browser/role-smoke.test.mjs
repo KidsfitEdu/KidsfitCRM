@@ -121,8 +121,8 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   assert.equal(style.activeUnderline, 'rgb(27, 94, 32)');
   assert.equal(style.activeWidth, '3px');
   await tabs.getByRole('button',{name:'Chờ nhận phân bổ'}).click();
-  await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
-  await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).waitFor();
+  await page.getByRole('textbox',{name:'Tìm trường chờ phân bổ'}).waitFor();
+  await page.getByRole('combobox',{name:'Lọc trạng thái phân bổ'}).waitFor();
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
   // Sales now uses the five-entry menu; consultation and extension actions live
   // inside "Trường của tôi", so there is no separate activity sidebar entry.
@@ -131,7 +131,7 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   assert.ok(await page.getByRole('columnheader',{name:'Người đề xuất'}).isVisible());
   assert.ok(await page.getByRole('button',{name:'Đặt lại bộ lọc'}).isVisible());
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
-  assert.ok(await page.getByLabel('Cố định 100 dòng mỗi trang').isVisible());
+  assert.ok(await page.getByRole('combobox',{name:'Số dòng mỗi trang'}).isVisible());
   assert.deepEqual(errors,[]);
   await page.screenshot({path:resolve(artifacts,'sales-proposals-table.png')});
   await context.close();

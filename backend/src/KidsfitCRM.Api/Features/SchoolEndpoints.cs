@@ -10,6 +10,7 @@ public static class SchoolEndpoints
     public static void MapSchoolDirectory(this RouteGroupBuilder group)
     {
         group.MapSchoolOperations();
+        group.MapManagerContractOperations();
         group.MapPost("/schools/manual", async (CreateSchoolManualRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Results.Ok(new { data = new { id = await a.CreateManualSchool(request, h.UserId(), h, ct) } }))
             .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/schools", List).RequireAuthorization(Permissions.ChannelSalesView);

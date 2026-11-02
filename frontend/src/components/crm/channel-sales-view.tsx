@@ -185,6 +185,12 @@ export function ChannelSalesView({
     return()=>{active=false;};
   },[detailCustomer,apiBase,token]);
   const serverMine = mode === 'mine' && Boolean(apiBase && token);
+  // Refresh active approach ownership when its server-side protection expires.
+  useEffect(() => {
+    if (!serverMine) return;
+    const interval = window.setInterval(() => setExtensionRefresh(value => value + 1), 30_000);
+    return () => window.clearInterval(interval);
+  }, [serverMine]);
   useEffect(()=>{
     if(!serverMine)return;
     let active=true;

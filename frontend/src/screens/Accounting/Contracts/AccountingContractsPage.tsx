@@ -6,7 +6,7 @@ import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
+import { channelDate, channelMoney, channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
 
 type ContractRow = {
   id: number;
@@ -167,9 +167,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     setSaving(true);
     setActionError('');
     try {
-      const date = new Date();
-      const period = new Intl.DateTimeFormat('en-CA', {year:'numeric',month:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(date);
-      const payoutPeriod = period.replace(/\/(\d\d)$/, '-$1');
+      const payoutPeriod = currentBusinessPeriod();
       await channelRequest(apiBase, token, '/payouts', {method:'POST',body:JSON.stringify({
         idempotency_key: crypto.randomUUID(), organization_id: detail.data.owner_organization_id,
         beneficiary_user_id: detail.data.owner_user_id, period: payoutPeriod,

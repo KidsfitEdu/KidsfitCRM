@@ -77,7 +77,7 @@ test('Sales underline tabs and proposal table retain shared role layouts', () =>
   assert.match(focus, /lg:w-\[30%\]/);
   assert.match(focus, /border-b-\[3px\] bg-transparent/);
   assert.match(focus, /border-\[#1b5e20\]/);
-  assert.match(focus, /rounded-2xl border border-border\/80 bg-white shadow-sm/);
+  assert.match(focus, /min-w-0 bg-white dark:bg-card/);
   assert.doesNotMatch(focus, /rounded-t-\[24px\]/);
   assert.match(focus, /actions=\{canCreateProposal \?/);
   assert.match(focus, /embeddedSalesTable=\{section === 'proposals' \|\| isInvitations \|\| isExtensions\}/);
@@ -109,7 +109,7 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(sales.includes('total={customers.length}'));
   assert.ok(sales.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
   assert.ok(sales.includes('aria-label={`Báo hợp đồng ${customer.display_name}`}'));
-  assert.ok(dashboard.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
+  assert.ok(dashboard.includes('aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}'));
   assert.ok(operations.includes('Nhận trường ${x.school_name}'));
   assert.ok(operations.includes('Từ chối gia hạn ${x.school_name}'));
   assert.ok(operations.includes('<AppPagination page={preview ? 1 : page}'));

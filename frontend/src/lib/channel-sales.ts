@@ -98,6 +98,7 @@ export type ReportContractInput = {
 
 export type RevenueReceiptInput = {
   idempotency_key: string;
+  evidence_id?: number;
   amount: number;
   received_at: string;
   reference_code: string;

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   BadgeCheck,
+  Eye,
+  History,
   Building2,
   CalendarClock,
   CircleDollarSign,
@@ -21,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -143,6 +146,7 @@ export function ChannelSalesView({
   const [registerCustomer, setRegisterCustomer] = useState<
     ChannelCustomer | null | undefined
   >(undefined);
+  const [historyCustomer, setHistoryCustomer] = useState<ChannelCustomer | null>(null);
   const [activityCustomer, setActivityCustomer] =
     useState<ChannelCustomer | null>(null);
   const [contractCustomer, setContractCustomer] =
@@ -327,11 +331,11 @@ export function ChannelSalesView({
             </div>
           </div>}
 
-          <div className="hidden grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid">
+          <div className={`hidden gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid ${mode === 'mine' ? 'xl:grid-cols-[minmax(230px,1.6fr)_minmax(150px,.9fr)_minmax(180px,.9fr)_auto]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
             <span>Khách hàng</span>
             <span>Trạng thái</span>
             <span>Quyền bảo vệ</span>
-            <span>Tài chính</span>
+            {mode !== 'mine' && <span>Tài chính</span>}
             <span className="text-right">Thao tác</span>
           </div>
           <div className="divide-y divide-border/70">
@@ -342,6 +346,8 @@ export function ChannelSalesView({
                 onOpenDetail={
                   onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined
                 }
+                mineMode={mode === 'mine'}
+                onHistory={() => setHistoryCustomer(customer)}
                 canSeeRevenue={workspace.capabilities?.view_revenue !== false}
                 canRegister={mode === 'all' && canRegister}
                 canAddActivity={canAddActivity}
@@ -373,6 +379,9 @@ export function ChannelSalesView({
         </CardContent>
       </Card>
 
+      {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
+        onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}
+        customerId={historyCustomer.id} schoolName={historyCustomer.display_name} apiBase={apiBase} token={token}/>}
       {registerCustomer !== undefined && (
         <RegisterApproachDialog
           customer={registerCustomer}
@@ -421,6 +430,8 @@ export function ChannelSalesView({
 }
 
 function CustomerRow({
+  mineMode,
+  onHistory,
   canSeeRevenue,
   onOpenDetail,
   customer,
@@ -433,6 +444,8 @@ function CustomerRow({
   onContract,
   onReceipt,
 }: {
+  mineMode: boolean;
+  onHistory: () => void;
   canSeeRevenue: boolean;
   onOpenDetail?: () => void;
   customer: ChannelCustomer;
@@ -447,7 +460,7 @@ function CustomerRow({
 }) {
   const status = statusCopy[customer.visible_status];
   return (
-    <div className="grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto] xl:items-center">
+    <div className={`grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:items-center ${mineMode ? 'xl:grid-cols-[minmax(230px,1.6fr)_minmax(150px,.9fr)_minmax(180px,.9fr)_auto]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
       <div className="flex min-w-0 gap-3">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#e8f5e9] text-[#1b5e20] dark:bg-[#1b5e20]/20">
           {customer.customer_type === 'ORGANIZATION' ? (
@@ -500,7 +513,7 @@ function CustomerRow({
           <p className="text-sm text-muted-foreground">Chưa có quyền bảo vệ</p>
         )}
       </div>
-      <div className="text-sm">
+      {!mineMode && <div className="text-sm">
         {customer.contract_id && canSeeRevenue ? (
           <>
             <p className="font-semibold">{money(customer.collected_revenue)}</p>
@@ -518,14 +531,23 @@ function CustomerRow({
             </p>
           </>
         )}
-      </div>
+      </div>}
       <div className="flex flex-wrap justify-end gap-2 xl:min-w-44">
-        {customer.visible_status === 'AVAILABLE' && canRegister && (
+        {mineMode && <>
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onOpenDetail}
+            disabled={!onOpenDetail} title="Xem chi tiết trường" aria-label={`Xem chi tiết ${customer.display_name}`}><Eye className="size-4"/></Button>
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onActivity}
+            disabled={!canAddActivity || !customer.can_manage_approach || customer.visible_status !== 'APPROACHING'}
+            title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
+            title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
+        </>}
+        {!mineMode && customer.visible_status === 'AVAILABLE' && canRegister && (
           <Button onClick={onRegister} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800" title="Đăng ký tiếp cận" aria-label={`Đăng ký tiếp cận ${customer.display_name}`}>
             <Plus className="size-4" aria-hidden="true"/>
           </Button>
         )}
-        {customer.visible_status === 'APPROACHING' && (
+        {!mineMode && customer.visible_status === 'APPROACHING' && (
           <>
             {canAddActivity && customer.can_manage_approach && (
               <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
@@ -541,7 +563,7 @@ function CustomerRow({
             )}
           </>
         )}
-        {customer.visible_status === 'CONTRACTED' && (
+        {!mineMode && customer.visible_status === 'CONTRACTED' && (
           <>
             <Badge variant="outline" className="h-8 rounded-xl px-2.5">
               {customer.reconciliation_status === 'CONFIRMED'

@@ -86,7 +86,7 @@ test('Collaborator mobile navigation and logout work', async () => {
   await context.close();
 });
 
-test('Sales desktop uses 30% flat underline tabs and a table for proposals', async () => {
+test('Sales desktop retains underline tabs, shared lists and paging', async () => {
   const {context,page,navigation,errors} = await login('Nhân viên bán hàng');
   await navigation.getByRole('button',{name:'Trường của tôi',exact:true}).click();
   const tabs = page.getByRole('navigation',{name:'Nhóm công việc Sales'});
@@ -110,19 +110,16 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   assert.equal(style.activeUnderline, 'rgb(27, 94, 32)');
   assert.equal(style.activeWidth, '3px');
   await tabs.getByRole('button',{name:'Chờ nhận phân bổ'}).click();
-  await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
-  await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).waitFor();
+  await page.getByRole('textbox',{name:'Tìm trường chờ phân bổ'}).waitFor();
+  await page.getByRole('combobox',{name:'Lọc trạng thái phân bổ'}).waitFor();
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
-  await page.getByRole('navigation',{name:'Nhóm công việc Sales'})
-    .getByRole('button',{name:'Gia hạn tiếp cận'}).click();
-  await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
-  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  assert.equal(await tabs.getByRole('button',{name:'Gia hạn tiếp cận'}).count(),0);
   await navigation.getByRole('button',{name:'Đề xuất trường',exact:true}).click();
   await page.getByRole('table').waitFor();
   assert.ok(await page.getByRole('columnheader',{name:'Người đề xuất'}).isVisible());
   assert.ok(await page.getByRole('button',{name:'Đặt lại bộ lọc'}).isVisible());
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
-  assert.ok(await page.getByLabel('Cố định 100 dòng mỗi trang').isVisible());
+  assert.ok(await page.getByRole('combobox',{name:'Số dòng mỗi trang'}).isVisible());
   assert.deepEqual(errors,[]);
   await page.screenshot({path:resolve(artifacts,'sales-proposals-table.png')});
   await context.close();

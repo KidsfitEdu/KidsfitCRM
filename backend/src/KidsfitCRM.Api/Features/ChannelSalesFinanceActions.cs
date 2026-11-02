@@ -14,6 +14,13 @@ public sealed partial class ChannelSalesActions
         var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutCreate, ct);
         if (!access.CanManageOrganization(request.OrganizationId)) throw new KeyNotFoundException();
         var period = ChannelSalesValidation.Period(request.Period);
+        // Accounting can create a payout from a specific contract without collecting
+        // the beneficiary's unrelated contracts from the same period.
+        if (request.ContractId.HasValue
+            && !await access.Contracts(db).AnyAsync(c => c.Id == request.ContractId.Value
+                && c.OwnerOrganizationId == request.OrganizationId
+                && c.OwnerUserId == request.BeneficiaryUserId, ct))
+            throw new KeyNotFoundException();
         var key = Validation.Required(request.IdempotencyKey, "idempotency_key", "Thiếu khóa yêu cầu.", 120);
         var hash = ChannelSalesValidation.Fingerprint(request);
         ChannelSalesValidation.WholeDong(request.WithholdingAmount, "withholding_amount", false);
@@ -28,10 +35,11 @@ public sealed partial class ChannelSalesActions
             if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.CreatedByUserId, actorId, replay.RequestFingerprint, hash);
             var entries = await db.CommissionLedgerEntries.Where(x => x.BeneficiaryOrganizationId == request.OrganizationId
                 && x.BeneficiaryUserId == request.BeneficiaryUserId && x.Period == period
+                && (!request.ContractId.HasValue || x.ContractId == request.ContractId.Value)
                 && !db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id)
                 && db.ReconciliationCases.Any(r => r.ContractId == x.ContractId && r.Status == "CONFIRMED"))
                 .OrderBy(x => x.Id).ToListAsync(ct);
-            if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đã đối soát, chưa lập phiếu chi trong kỳ này.");
+            if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đủ điều kiện trong kỳ đã chọn. Kiểm tra kỳ phát sinh, trạng thái đối soát và phiếu chi trước đó.");
             var gross = entries.Sum(x => x.Amount);
             if (gross <= 0) throw new ApiConflictException("Tổng hoa hồng còn lại trong kỳ phải dương để lập phiếu chi.");
             if (request.WithholdingAmount > gross) throw ApiValidationException.For("withholding_amount", "Khấu trừ không được vượt tổng hoa hồng.");

@@ -374,7 +374,6 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         var existing = await db.RevenueReceipts.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
         if (existing is not null) return ChannelSalesValidation.Replay(existing.Id, existing.RecordedByUserId, actorId, existing.RequestFingerprint, hash);
         ChannelSalesValidation.WholeDong(request.Amount, "amount");
-        if (request.EvidenceId is null) throw ApiValidationException.For("evidence_id", "Bắt buộc upload ảnh chuyển khoản trước khi ghi nhận thực thu.");
         var referenceCode = Validation.Required(request.ReferenceCode, "reference_code", "Vui lòng nhập mã phiếu thu.", 64).ToUpperInvariant();
         var paymentMethod = Validation.Required(request.PaymentMethod ?? "BANK_TRANSFER", "payment_method", "Phương thức thu không hợp lệ.", 32).ToUpperInvariant();
         if (!new[] { "BANK_TRANSFER", "CASH", "CARD", "OTHER" }.Contains(paymentMethod)) throw ApiValidationException.For("payment_method", "Phương thức thu không được hỗ trợ.");
@@ -417,11 +416,15 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             var receivedAt = request.ReceivedAt?.ToUniversalTime() ?? now;
             if (receivedAt > now.AddMinutes(1) || ChannelSalesValidation.BusinessDate(receivedAt) < contract.SignedOn)
                 throw ApiValidationException.For("received_at", "Thời điểm thu phải từ ngày ký đến hiện tại.");
-            var receiptProof = await db.FinancialEvidences
-                .FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
-                .SingleOrDefaultAsync(cancellationToken);
-            if (receiptProof is null || receiptProof.Kind != "RECEIPT" || receiptProof.ContractId != contract.Id
-                || receiptProof.UploadedByUserId != actorId || receiptProof.AttachedAt.HasValue) throw new KeyNotFoundException();
+            FinancialEvidence? receiptProof = null;
+            if (request.EvidenceId.HasValue)
+            {
+                receiptProof = await db.FinancialEvidences
+                    .FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
+                    .SingleOrDefaultAsync(cancellationToken);
+                if (receiptProof is null || receiptProof.Kind != "RECEIPT" || receiptProof.ContractId != contract.Id
+                    || receiptProof.UploadedByUserId != actorId || receiptProof.AttachedAt.HasValue) throw new KeyNotFoundException();
+            }
             var receipt = new RevenueReceipt
             {
                 ContractId = contract.Id,
@@ -442,9 +445,12 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             schedule.Status = schedule.AmountReceived == schedule.AmountDue ? "PAID" : "PARTIAL";
             schedule.UpdatedAt = now;
             await db.SaveChangesAsync(cancellationToken);
-            receiptProof.RevenueReceiptId = receipt.Id;
-            receiptProof.AttachedAt = now;
-            receiptProof.UpdatedAt = now;
+            if (receiptProof is not null)
+            {
+                receiptProof.RevenueReceiptId = receipt.Id;
+                receiptProof.AttachedAt = now;
+                receiptProof.UpdatedAt = now;
+            }
 
             var receiptDate = ChannelSalesValidation.BusinessDate(receivedAt);
             var policy = await db.CommissionPolicyVersions

@@ -64,7 +64,7 @@ export function SalesFocusPage({section, ...props}: Props) {
     initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
     compactOperations embeddedSalesTable={section === 'proposals' || isInvitations || isExtensions}
     proposalActionRef={proposalActionRef} initialOperationsTab={tab}
-    customerView={onOpenCustomer => <ChannelSalesView mode={mode}
+    customerView={onOpenCustomer => <ChannelSalesView apiBase={apiBase} token={token} mode={mode}
       embedded={section === 'customers' || section === 'activities'} workspace={workspace}
       search={search} setSearch={setSearch} onOpenCustomer={onOpenCustomer}
       canRegister={can('channel_sales.approach.register')}

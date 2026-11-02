@@ -104,6 +104,7 @@ public sealed partial class ChannelSalesActions
             return;
         }
         if (payout.Status != "APPROVED") throw new ApiConflictException("Phải duyệt phiếu chi trước khi ghi nhận đã chi.");
+        if (request.Amount.HasValue && request.Amount.Value != payout.NetAmount) throw ApiValidationException.For("amount", "Số tiền chuyển phải khớp phiếu chi đã duyệt.");
         await EnsurePayoutReconciled(payout.Id, ct);
         if (request.EvidenceId.HasValue)
         {

@@ -108,7 +108,7 @@ public static class AccountingContractEndpoints
         var evidence = await db.FinancialEvidences.AsNoTracking().Where(x => x.ContractId == id && x.AttachedAt != null)
             .Select(x => new { id = x.Id, kind = x.Kind, file_name = x.FileName,
                 revenue_receipt_id = x.RevenueReceiptId, payout_id = x.PayoutId }).ToArrayAsync(ct);
-        var selectedUnitIds = System.Text.Json.JsonSerializer.Deserialize<long[]>(contract.SchoolUnitIdsJson ?? "[]") ?? [];
+        var selectedUnitIds = System.Text.Json.JsonSerializer.Deserialize<long[]>(contract.school_unit_ids_json ?? "[]") ?? [];
         var schoolUnits = await db.SchoolUnits.AsNoTracking().Where(x => selectedUnitIds.Contains(x.Id))
             .Select(x => new { id = x.Id, name = x.Name }).ToArrayAsync(ct);
         return Results.Ok(new { data = contract, schedules, receipts, ledger, payouts, evidence, school_units = schoolUnits });

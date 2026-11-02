@@ -54,7 +54,6 @@ export function SalesFocusPage({section, ...props}: Props) {
   const isInvitations = (section === 'customers' || section === 'activities') && subview === 'invitations';
   const isExtensions = (section === 'customers' || section === 'activities') && subview === 'extensions';
   const panel: Panel = section === 'schools' ? 'schools'
-    : section === 'income' ? 'finance'
     : section === 'proposals' || isInvitations || isExtensions ? 'operations' : 'customers';
   const tab = section === 'proposals' ? 'proposals'
     : isInvitations ? 'invitations' : isExtensions ? 'extensions' : undefined;
@@ -108,14 +107,7 @@ export function SalesFocusPage({section, ...props}: Props) {
         </div>
       </nav>}
       {table}
-    </section> : section === 'income' && (!apiBase || !can('channel_sales.commission.view')) ? (
-      <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
-        {apiBase ? 'Tài khoản chưa được cấp quyền xem thu nhập cá nhân.' : 'Chế độ xem thử chưa kết nối dữ liệu doanh thu và hoa hồng cá nhân.'}
-      </div>
-    ) : table}
-    {!apiBase && section === 'income' && <p className="text-sm text-muted-foreground">
-      Bản xem trước chỉ đọc; dữ liệu thu nhập thực tế cần kết nối API và quyền xem hoa hồng.
-    </p>}
+    </section> : table}
     {section === 'customers' && !apiBase && <p className="text-xs text-muted-foreground">
       Dữ liệu xem trước không đại diện cho quyền sở hữu trường thực tế.
     </p>}

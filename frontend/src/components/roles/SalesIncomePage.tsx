@@ -125,13 +125,13 @@ export function SalesIncomePage({apiBase,token,abilities}:{
           onReset={() => {setTerm('');setSearch('');setPage(1);}}/>}>
         {rows.map(row => <SalesListRow key={row.contract_id}
           template="minmax(240px,2fr) minmax(150px,1fr) minmax(150px,1fr) minmax(100px,auto)">
-          <div role="cell" className="min-w-0">
+          <div className="min-w-0">
             <p className="font-semibold">{row.school_name}</p>
             <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
           </div>
-          <div role="cell" className="tabular-nums">{channelMoney(row.commission)}</div>
-          <div role="cell" className="tabular-nums">{channelMoney(row.paid)}</div>
-          <div role="cell" className="flex justify-end">
+          <div className="tabular-nums">{channelMoney(row.commission)}</div>
+          <div className="tabular-nums">{channelMoney(row.paid)}</div>
+          <div className="flex justify-end">
             <AdminIconAction icon={Eye} label={`Xem hoa hồng ${row.school_name}`}
               onClick={() => setSelected(row)}/>
           </div>

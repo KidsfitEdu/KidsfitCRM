@@ -31,7 +31,10 @@ public sealed record ReportSalesContractRequest(
     DateOnly? FirstPaymentDueOn,
     string? EvidenceReference,
     long? EvidenceId = null,
-    ContractPaymentInstallment[]? Installments = null);
+    ContractPaymentInstallment[]? Installments = null,
+    string? ServicePlan = null,
+    int? StudentCount = null,
+    long[]? SchoolUnitIds = null);
 
 public sealed record ContractPaymentInstallment(DateOnly DueOn, decimal Amount);
 

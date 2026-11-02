@@ -215,6 +215,21 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 ?? throw ApiValidationException.For("product_package_id", "Gói CHECKEE không tồn tại hoặc đã ngừng áp dụng.");
 
             var schoolContract = await db.DirectorySchools.AnyAsync(x => x.CustomerId == customer.Id, cancellationToken);
+            if (request.StudentCount is <= 0 or > 100000) throw ApiValidationException.For("student_count", "Quy mô học sinh không hợp lệ.");
+            var servicePlan = request.ServicePlan?.Trim().ToUpperInvariant();
+            if (servicePlan is not null && servicePlan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
+                throw ApiValidationException.For("service_plan", "Chọn gói năm học hoặc gói thanh toán tháng.");
+            var unitIds = request.SchoolUnitIds ?? [];
+            if (unitIds.Length != unitIds.Distinct().Count())
+                throw ApiValidationException.For("school_unit_ids", "Trường điểm bị chọn trùng.");
+            if (unitIds.Length > 0)
+            {
+                var directory = await db.DirectorySchools.Where(x => x.CustomerId == customer.Id)
+                    .Select(x => (long?)x.Id).SingleOrDefaultAsync(cancellationToken);
+                if (!directory.HasValue || await db.SchoolUnits.CountAsync(x => x.DirectorySchoolId == directory.Value
+                    && x.UnitType == "BRANCH" && unitIds.Contains(x.Id), cancellationToken) != unitIds.Length)
+                    throw ApiValidationException.For("school_unit_ids", "Danh sách trường điểm không thuộc trường chính.");
+            }
             FinancialEvidence? contractProof = null;
             if (request.EvidenceId.HasValue)
             {
@@ -243,6 +258,9 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 SignedOn = signedOn,
                 EffectiveOn = request.EffectiveOn,
                 TotalValue = decimal.Round(request.TotalValue, 0),
+                ServicePlan = servicePlan,
+                StudentCount = request.StudentCount,
+                SchoolUnitIdsJson = System.Text.Json.JsonSerializer.Serialize(unitIds),
                 Status = schoolContract ? "PENDING_REVIEW" : "ACTIVE",
                 RequiresSchoolVerification = schoolContract,
                 ProtectionStartsAt = protectionStart,

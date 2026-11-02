@@ -113,6 +113,9 @@ public sealed class SalesContract : EntityBase
     public DateOnly SignedOn { get; set; }
     public DateOnly? EffectiveOn { get; set; }
     public decimal TotalValue { get; set; }
+    public string? ServicePlan { get; set; }
+    public int? StudentCount { get; set; }
+    public string? SchoolUnitIdsJson { get; set; }
     public string Currency { get; set; } = "VND";
     public string Status { get; set; } = "ACTIVE";
     public DateTime ProtectionStartsAt { get; set; }

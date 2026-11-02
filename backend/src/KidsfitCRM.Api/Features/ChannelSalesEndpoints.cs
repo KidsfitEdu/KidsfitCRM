@@ -35,6 +35,7 @@ public static class ChannelSalesEndpoints
     public static RouteGroupBuilder MapChannelSalesApi(this RouteGroupBuilder secured)
     {
         var channel = secured.MapGroup("/channel-sales");
+        channel.MapGet("/contract-school-units/{customerId:long}", AccountingContractEndpoints.SchoolUnits).RequireAuthorization(Permissions.ChannelSalesReportContract);
         channel.MapPost("/evidence", FinancialEvidenceEndpoints.Upload).RequireAuthorization(Permissions.ChannelSalesView).DisableAntiforgery();
         channel.MapGet("/evidence/{id:long}", FinancialEvidenceEndpoints.Download).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapGet("/workspace", Workspace).RequireAuthorization(Permissions.ChannelSalesView);

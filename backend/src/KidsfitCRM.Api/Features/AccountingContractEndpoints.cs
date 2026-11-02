@@ -7,6 +7,24 @@ namespace KidsfitCRM.Api.Features;
 /// <summary>Contract-oriented accounting read model. All queries are scoped in SQL, never only in UI.</summary>
 public static class AccountingContractEndpoints
 {
+    public static async Task<IResult> SchoolUnits(long customerId, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesReportContract)) return Results.Forbid();
+        var allowed = await db.ApproachRegistrations.AnyAsync(x => x.CustomerId == customerId
+            && x.Status == "ACTIVE" && x.ProtectedUntil > DateTime.UtcNow
+            && (x.OwnerUserId == access.UserId || (access.Organization
+                && access.OrganizationIds.Contains(x.OwnerOrganizationId))), ct);
+        if (!allowed) throw new KeyNotFoundException();
+        var directoryId = await db.DirectorySchools.Where(x => x.CustomerId == customerId)
+            .Select(x => (long?)x.Id).SingleOrDefaultAsync(ct);
+        if (!directoryId.HasValue) return Results.Ok(new { data = Array.Empty<object>() });
+        var units = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == directoryId.Value
+            && x.UnitType == "BRANCH").OrderBy(x => x.SourceRow)
+            .Select(x => new { id = x.Id, name = x.Name }).ToArrayAsync(ct);
+        return Results.Ok(new { data = units });
+    }
+
     public static async Task<IResult> List(
         HttpContext http, KidsfitDbContext db, string? search, string? personnel_type,
         int? page, int? page_size, CancellationToken ct)
@@ -62,7 +80,10 @@ public static class AccountingContractEndpoints
                                   owner_name = owner.Name, owner_user_id = c.OwnerUserId,
                                   personnel_type = c.OwnerPersonnelType, signed_on = c.SignedOn,
                                   effective_on = c.EffectiveOn, status = c.Status,
-                                  total_value = c.TotalValue, evidence_reference = c.EvidenceReference
+                                  total_value = c.TotalValue, evidence_reference = c.EvidenceReference,
+                                  service_plan = c.ServicePlan, student_count = c.StudentCount,
+                                  school_unit_ids_json = c.SchoolUnitIdsJson,
+                                  owner_organization_id = c.OwnerOrganizationId
                               }).SingleOrDefaultAsync(ct);
         if (contract is null) throw new KeyNotFoundException();
         var schedules = await db.RevenueSchedules.AsNoTracking().Where(x => x.ContractId == id)
@@ -84,6 +105,12 @@ public static class AccountingContractEndpoints
                 id = x.Id, code = x.Code, net_amount = x.NetAmount, status = x.Status,
                 paid_at = x.PaidAt, payment_reference = x.PaymentReference
             }).ToArrayAsync(ct);
-        return Results.Ok(new { data = contract, schedules, receipts, ledger, payouts });
+        var evidence = await db.FinancialEvidences.AsNoTracking().Where(x => x.ContractId == id && x.AttachedAt != null)
+            .Select(x => new { id = x.Id, kind = x.Kind, file_name = x.FileName,
+                revenue_receipt_id = x.RevenueReceiptId, payout_id = x.PayoutId }).ToArrayAsync(ct);
+        var selectedUnitIds = System.Text.Json.JsonSerializer.Deserialize<long[]>(contract.SchoolUnitIdsJson ?? "[]") ?? [];
+        var schoolUnits = await db.SchoolUnits.AsNoTracking().Where(x => selectedUnitIds.Contains(x.Id))
+            .Select(x => new { id = x.Id, name = x.Name }).ToArrayAsync(ct);
+        return Results.Ok(new { data = contract, schedules, receipts, ledger, payouts, evidence, school_units = schoolUnits });
     }
 }

@@ -78,7 +78,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
-  const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
+  const submitSearch = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPage(1);
     setAppliedSearch(search);
@@ -107,21 +107,24 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       if (entryMode === 'receipt') attachment.set('contract_id', String(selected));
       else attachment.set('payout_id', String(payoutId));
       const uploaded = await channelRequest<{data:{id:number}}>(apiBase, token, '/evidence', { method: 'POST', body: attachment });
-      const date = form.get('transaction_date')?.toString() ?? '';
+      const dateValue = form.get('transaction_date');
+      const date = typeof dateValue === 'string' ? dateValue : '';
+      const referenceValue = form.get('reference_code');
+      const reference = typeof referenceValue === 'string' ? referenceValue : '';
       const timestamp = new Date(date + 'T12:00:00+07:00').toISOString();
       if (entryMode === 'receipt') {
         await channelRequest(apiBase, token, `/contracts/${selected}/revenue-receipts`, {
           method: 'POST', body: JSON.stringify({
             idempotency_key: crypto.randomUUID(), revenue_schedule_id: Number(form.get('schedule_id')),
             received_at: timestamp, amount: Number(form.get('amount')),
-            reference_code: form.get('reference_code')?.toString() ?? '',
+            reference_code: reference,
             payment_method: 'BANK_TRANSFER', evidence_id: uploaded.data.id,
           }),
         });
       } else {
         await channelRequest(apiBase, token, `/payouts/${payoutId}/complete`, {
           method: 'POST', body: JSON.stringify({
-            paid_at: timestamp, payment_reference: form.get('reference_code')?.toString() ?? '',
+            paid_at: timestamp, payment_reference: reference,
             evidence_id: uploaded.data.id,
           }),
         });

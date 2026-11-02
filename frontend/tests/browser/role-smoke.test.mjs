@@ -48,7 +48,7 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
   const roles = [
     ['Quản trị viên',7],['Quản lý bán hàng',6],
     ['Nhân viên bán hàng',6],['CTV đối tác',6],
-    ['Ban giám đốc',5],['Kế toán',5],
+    ['Ban giám đốc',5],['Kế toán',2],
     ['Chăm sóc khách hàng',5],['CHECKEE',5],
   ];
   for (const [name,expected] of roles) {

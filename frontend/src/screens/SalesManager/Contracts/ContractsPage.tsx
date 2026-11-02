@@ -18,7 +18,7 @@ type ListResponse = {data:Contract[];total:number;page:number;page_size:number};
 type Detail = {
  data:{id:number;contract_code:string;school_name:string;school_address:string|null;school_province:string|null;
  sales_name:string;signed_on:string;total_value:number;status:string;service_plan:string|null;student_count:number|null;
- evidence_reference:string|null;can_review:boolean;can_resubmit:boolean};
+ evidence_reference:string|null;can_review:boolean;can_return:boolean;can_resubmit:boolean;reconciliation_status:string|null};
  evidence:{id:number;file_name:string;mime_type:string;created_at:string}[];
  installments:{due_on:string;amount:number;status:string}[];
  school_units:{id:number;name:string}[];
@@ -26,7 +26,7 @@ type Detail = {
 };
 const statuses:Record<string,string>={
  PENDING_REVIEW:'Chờ Quản lý',MANAGER_REVIEWED:'Chờ CHECKEE',NEEDS_REVISION:'Cần bổ sung',
- PENDING_KIDSFIT:'Chờ KIDSFIT',ACTIVE:'Đã xác minh',CANCELLED:'Đã hủy'
+ PENDING_KIDSFIT:'Chờ KIDSFIT',ACTIVE:'Đã xác minh',CANCELLED:'Đã hủy',DISPUTED:'CHECKEE yêu cầu bổ sung'
 };
 const canReview=(abilities:string[])=>abilities.includes('*')||abilities.includes('channel_sales.school.contract.review');
 
@@ -152,6 +152,8 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
      title="KIDSFIT CRM - CHI TIẾT HỢP ĐỒNG" description="Chi tiết hợp đồng Quản lý bán hàng"
      footer={<div className="flex flex-wrap justify-end gap-2">
        <AppButton tone="neutral" onClick={()=>setSelected(null)}>Đóng</AppButton>
+       {detail?.data.can_return&&<AppButton tone="outline" leadingIcon={<Undo2 className="size-4"/>}
+         onClick={()=>{setActionError('');setReason('');setRevision(detail.data.id);}}>Yêu cầu bổ sung</AppButton>}
        {detail?.data.can_review&&<AppButton leadingIcon={<Send className="size-4"/>}
          onClick={()=>{setActionError('');setConfirm(detail.data.id);}}>Duyệt & gửi CHECKEE</AppButton>}
      </div>}>
@@ -161,7 +163,8 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
            <h2 className="mt-1 text-xl font-bold">{detail.data.school_name}</h2>
            <p className="mt-2 text-muted-foreground">{[detail.data.school_address,detail.data.school_province].filter(Boolean).join(', ')}</p>
            <p className="mt-2">Sales phụ trách: <strong>{detail.data.sales_name}</strong></p>
-           <AdminStatusBadge status={detail.data.status} label={statuses[detail.data.status]??detail.data.status}/>
+           <AdminStatusBadge status={detail.data.reconciliation_status==="DISPUTED"?"DISPUTED":detail.data.status}
+             label={statuses[detail.data.reconciliation_status==="DISPUTED"?"DISPUTED":detail.data.status]??detail.data.status}/>
          </div>
          <div className="grid gap-3 sm:grid-cols-2">
            {[["Mã hợp đồng",detail.data.contract_code],["Ngày ký",channelDate(detail.data.signed_on)],

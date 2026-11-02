@@ -21,6 +21,7 @@ public static class ManagerContractEndpoints
         group.MapGet("/school-contracts/reviews", List).RequireAuthorization(Permissions.SchoolContractReview);
         group.MapGet("/school-contracts/my-revisions", MyRevisions).RequireAuthorization(Permissions.ChannelSalesReportContract);
         group.MapGet("/manager/team", Team).RequireAuthorization(Permissions.ChannelSalesTeamManage);
+        group.MapGet("/manager/overview", Overview).RequireAuthorization(Permissions.SchoolAllocationManage);
         group.MapGet("/school-contracts/{id:long}/review-detail", Detail).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/school-contracts/{id:long}/request-revision", ReturnForRevision)
             .RequireAuthorization(Permissions.SchoolContractReview);
@@ -31,6 +32,31 @@ public static class ManagerContractEndpoints
     private static IQueryable<SalesContract> ManagerScope(KidsfitDbContext db, ChannelSalesAccess access) =>
         db.SalesContracts.Where(c => c.RequiresSchoolVerification &&
             (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId))));
+
+    private static async Task<IResult> Overview(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.SchoolAllocationManage)) return Results.Forbid();
+        var actor = http.UserId();
+        var scopedOrganizations = access.OrganizationIds;
+        var contracts = ManagerScope(db, access).AsNoTracking();
+        var proposals = db.SchoolProposals.AsNoTracking()
+            .Where(x => access.All || (scopedOrganizations.Contains(x.OrganizationId) && x.ManagerUserId == actor));
+        var extensions = db.SchoolExtensionRequests.AsNoTracking()
+            .Where(x => access.All || (scopedOrganizations.Contains(x.OrganizationId) && x.ManagerUserId == actor));
+        var invitations = db.SchoolInvitations.AsNoTracking()
+            .Where(x => access.All || scopedOrganizations.Contains(x.OrganizationId));
+        return Results.Ok(new
+        {
+            pending_proposals = await proposals.CountAsync(x => x.Status == "PENDING_MANAGER", ct),
+            pending_invitations = await invitations.CountAsync(x => x.Status == "PENDING", ct),
+            pending_extensions = await extensions.CountAsync(x => x.Status == "PENDING", ct),
+            pending_contracts = await contracts.CountAsync(x => x.Status == "PENDING_REVIEW", ct),
+            awaiting_checkee = await contracts.CountAsync(x => x.Status == "MANAGER_REVIEWED", ct),
+            needs_revision = await contracts.CountAsync(x => x.Status == "NEEDS_REVISION", ct),
+            verified_contracts = await contracts.CountAsync(x => x.Status == "ACTIVE", ct),
+        });
+    }
 
     private static async Task<IResult> Team(HttpContext http, KidsfitDbContext db,
         string? search, string? status, int? page, int? page_size, CancellationToken ct)

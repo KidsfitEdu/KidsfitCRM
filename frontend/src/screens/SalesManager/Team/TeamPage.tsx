@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react';
-import { Eye, UsersRound, UserCheck, Building2, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Eye, UsersRound, UserCheck, Building2 } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';

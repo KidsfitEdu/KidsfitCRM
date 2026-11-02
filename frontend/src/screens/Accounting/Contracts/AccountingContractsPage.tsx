@@ -46,7 +46,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
-  const [preview, setPreview] = useState<{url:string; name:string}|null>(null);
+  const [preview, setPreview] = useState<{url:string; name:string; mime:string}|null>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -103,7 +103,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         // Blob URLs live for the tab session; revoke on the main window's unload.
         window.addEventListener('pagehide', () => URL.revokeObjectURL(url), {once:true});
       } else {
-        setPreview(old => { if (old) URL.revokeObjectURL(old.url); return {url, name}; });
+        setPreview(old => { if (old) URL.revokeObjectURL(old.url); return {url, name, mime}; });
       }
     } catch (cause) {
       if (tab) tab.close();
@@ -387,7 +387,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     </AppDialog>
     <AppDialog open={preview!==null} onOpenChange={open=>{if(!open)closePreview();}} title={preview?.name??'Ảnh chuyển khoản'}
       description="Chứng từ riêng tư – chỉ sử dụng để đối soát." contentClassName="sm:!max-w-4xl">
-      {preview && <object data={preview.url} type="image/png" aria-label={preview.name} className="mx-auto h-[min(68dvh,620px)] w-full object-contain">Không thể xem ảnh này trên trình duyệt.</object>}
+      {preview && <object data={preview.url} type={preview.mime} aria-label={preview.name} className="mx-auto h-[min(68dvh,620px)] w-full object-contain">Không thể xem ảnh này trên trình duyệt.</object>}
     </AppDialog>
   </div>;
 }

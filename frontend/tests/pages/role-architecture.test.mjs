@@ -83,3 +83,22 @@ test('src/app route tree and src/screens have no conflicting legacy directories'
   const config = read('components.json');
   assert.match(config, /src\/app\/globals\.css/);
 });
+
+test('Manager contract review reuses existing drawer, table, and mandatory confirmation', () => {
+  const page = read('src/screens/SalesManager/Contracts/ContractsPage.tsx');
+  const team = read('src/screens/SalesManager/Team/TeamPage.tsx');
+  const dashboard = read('src/screens/SalesManager/Dashboard/DashboardPage.tsx');
+  const sales = read('src/components/roles/SalesContractRevisions.tsx');
+  assert.match(page, /<AdminListPanel>/);
+  assert.match(page, /<AppDrawer/);
+  assert.match(page, /<ConfirmDialog/);
+  assert.match(page, /confirmLabel="Xác nhận chuyển"/);
+  assert.match(page, /Duyệt & gửi CHECKEE/);
+  assert.match(page, /<th className="px-5 py-4">SALES<\/th>/);
+  assert.doesNotMatch(page, /Hạn xử lý/);
+  assert.match(page, /\/school-contracts\/reviews/);
+  assert.match(team, /\/manager\/team/);
+  assert.doesNotMatch(team, /ChannelOperations/);
+  assert.match(dashboard, /\/manager\/overview/);
+  assert.match(sales, /\/school-contracts\/my-revisions/);
+});

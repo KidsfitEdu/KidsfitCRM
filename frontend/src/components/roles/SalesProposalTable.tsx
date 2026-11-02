@@ -58,16 +58,16 @@ export function SalesProposalTable({
       filters={statusFilter} onReset={reset}
       onSearch={() => {setApplied(term.trim());onSearch(term.trim());}}/>}>
     {items.map(item => <SalesListRow key={item.id} template={template}>
-      <div role="cell" className="min-w-0">
+      <div className="min-w-0">
         <p className="font-semibold">{item.name}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">
           {item.school_code.startsWith('SEED-SCH-') ? '' : item.school_code+' · '}{item.province} · {item.ward}
         </p>
       </div>
-      <div role="cell">{item.submitted_by}</div>
-      <div role="cell"><Badge variant="outline">{workflowLabels[item.status] ?? item.status}</Badge></div>
-      <div role="cell" className="tabular-nums">{workflowDate(item.review_due_at)}</div>
-      <div role="cell" className="flex justify-end gap-2">
+      <div>{item.submitted_by}</div>
+      <div><Badge variant="outline">{workflowLabels[item.status] ?? item.status}</Badge></div>
+      <div className="tabular-nums">{workflowDate(item.review_due_at)}</div>
+      <div className="flex justify-end gap-2">
         <AdminIconAction icon={Eye} label={`Xem đề xuất ${item.name}`} onClick={() => onOpen(item)}/>
         {!preview && <AdminIconAction icon={History} tone="neutral" label={`Lịch sử ${item.name}`} onClick={() => onHistory(item)}/>}
       </div>

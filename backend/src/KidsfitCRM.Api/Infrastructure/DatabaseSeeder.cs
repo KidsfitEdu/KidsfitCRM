@@ -36,6 +36,8 @@ public static class DatabaseSeeder
         await SeedChannelSalesAsync(services, password);
         await NormalizeDemoPasswordsAsync(db, hasher, password);
         await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+        if (config.GetValue<bool>("Seed:AccountingScenarios"))
+            await AccountingScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
     }
 
     private static async Task NormalizeDemoPasswordsAsync(KidsfitDbContext db, IPasswordHasher<User> hasher, string password)
@@ -147,7 +149,7 @@ public static class DatabaseSeeder
             ["ADMIN"] = permissionByCode.Keys.ToArray(),
             ["DIRECTOR"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesAllScope],
             ["ACCOUNTANT"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRecordRevenue, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesOrganizationScope, Permissions.ChannelSalesPayoutCreate, Permissions.ChannelSalesPayoutApprove, Permissions.ChannelSalesPayoutComplete, Permissions.ChannelSalesCommissionAdjust],
-            ["SALES_MANAGER"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRegister, Permissions.ChannelSalesActivity, Permissions.ChannelSalesReportContract, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesManage, Permissions.ChannelSalesOrganizationScope, Permissions.ChannelSalesTeamManage],
+            ["SALES_MANAGER"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRegister, Permissions.ChannelSalesActivity, Permissions.ChannelSalesReportContract, Permissions.ChannelSalesCommissionView, Permissions.ChannelSalesManage, Permissions.ChannelSalesOrganizationScope, Permissions.ChannelSalesTeamManage, Permissions.ChannelSalesCommissionAdjust],
             ["CUSTOMER_SERVICE"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesActivity, Permissions.ChannelSalesOrganizationScope],
             ["SALES"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesRegister, Permissions.ChannelSalesActivity, Permissions.ChannelSalesReportContract, Permissions.ChannelSalesCommissionView],
             ["CHECKEE"] = [Permissions.ChannelSalesView, Permissions.ChannelSalesReconcile, Permissions.ChannelSalesOrganizationScope],
@@ -289,6 +291,42 @@ public static class DatabaseSeeder
             });
         }
         await db.SaveChangesAsync();
+
+        // Optional accounting scenarios are restricted to disposable nonproduction databases.
+        // Base fixture remains stable for older integrity tests; opt in via Seed:AccountingScenarios=true.
+        if (services.GetRequiredService<IConfiguration>().GetValue<bool>("Seed:AccountingScenarios"))
+        {
+        // 30% is the approved rate for employees and collaborators, applied to actual receipts.
+        // Keep legacy DRAFT policies unchanged to preserve their historical meaning.
+        var demoRateEffective = new DateOnly(2026, 1, 1);
+        foreach (var (org, personnelType, code) in new[]
+        {
+            (kidsfit, "SALES", "DEMO-SALES-30-2026"),
+            (partner, "COLLABORATOR", "DEMO-CTV-30-2026"),
+        })
+        {
+            if (!await db.CommissionPolicyVersions.AnyAsync(x => x.Code == code))
+                db.CommissionPolicyVersions.Add(new CommissionPolicyVersion
+                {
+                    OrganizationId = org.Id,
+                    Code = code,
+                    Name = $"Hoa hồng thực thu 30% - {personnelType} - dữ liệu demo",
+                    PersonnelType = personnelType,
+                    RatePercent = 30m,
+                    EffectiveFrom = demoRateEffective,
+                    Status = "ACTIVE",
+                    CreatedByUserId = admin.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+            if (org.CommissionRateCeiling < 30m)
+            {
+                org.CommissionRateCeiling = 30m;
+                org.UpdatedAt = now;
+            }
+        }
+        await db.SaveChangesAsync();
+        }
 
         if (!await db.ChannelCustomers.AnyAsync(x => x.Code == "CUS-DEMO-AVAILABLE"))
         {

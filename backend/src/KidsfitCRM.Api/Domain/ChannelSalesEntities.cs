@@ -113,6 +113,9 @@ public sealed class SalesContract : EntityBase
     public DateOnly SignedOn { get; set; }
     public DateOnly? EffectiveOn { get; set; }
     public decimal TotalValue { get; set; }
+    public string? ServicePlan { get; set; }
+    public int? StudentCount { get; set; }
+    public string? SchoolUnitIdsJson { get; set; }
     public string Currency { get; set; } = "VND";
     public string Status { get; set; } = "ACTIVE";
     public DateTime ProtectionStartsAt { get; set; }
@@ -255,4 +258,19 @@ public sealed class ReconciliationEvent : EntityBase
     public long ActorUserId { get; set; }
     public string EventType { get; set; } = "OPENED";
     public string? Reason { get; set; }
+}
+
+/** Private, immutable proof bytes for a single contract, receipt or payout. Never expose in public URLs. */
+public sealed class FinancialEvidence : EntityBase
+{
+    public string Kind { get; set; } = "";
+    public long? ContractId { get; set; }
+    public long? RevenueReceiptId { get; set; }
+    public long? PayoutId { get; set; }
+    public long UploadedByUserId { get; set; }
+    public string FileName { get; set; } = "";
+    public string MimeType { get; set; } = "";
+    public string Sha256 { get; set; } = "";
+    public byte[] Bytes { get; set; } = [];
+    public DateTime? AttachedAt { get; set; }
 }

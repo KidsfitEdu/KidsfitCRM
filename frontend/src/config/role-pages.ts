@@ -12,10 +12,7 @@ export const rolePageSections = {
   },
   Accounting: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},
-    revenue: {label:"Doanh thu",panel:"finance",tab:""},
-    payments: {label:"Đối soát & phiếu chi",panel:"finance",tab:""},
-    refunds: {label:"Hủy & hoàn",panel:"operations",tab:"finance"},
-    reports: {label:"Báo cáo",panel:"finance",tab:""},
+    revenue: {label:"Hợp đồng & hoa hồng",panel:"finance",tab:""},
   },
   CustomerCare: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},

@@ -1009,6 +1009,85 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("directory_schools");
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.FinancialEvidence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AttachedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("attached_at");
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("longblob")
+                        .HasColumnName("bytes");
+
+                    b.Property<long?>("ContractId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(190)
+                        .HasColumnType("varchar(190)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("varchar(48)")
+                        .HasColumnName("mime_type");
+
+                    b.Property<long?>("PayoutId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payout_id");
+
+                    b.Property<long?>("RevenueReceiptId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revenue_receipt_id");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("sha256")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UploadedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("PayoutId");
+
+                    b.HasIndex("RevenueReceiptId")
+                        .IsUnique();
+
+                    b.HasIndex("UploadedByUserId", "CreatedAt");
+
+                    b.ToTable("financial_evidences");
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.Organization", b =>
                 {
                     b.Property<long>("Id")
@@ -1763,6 +1842,19 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("ServicePlan")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("service_plan");
+
+                    b.Property<int?>("StudentCount")
+                        .HasColumnType("int")
+                        .HasColumnName("student_count");
+
+                    b.Property<string>("SchoolUnitIdsJson")
+                        .HasColumnType("json")
+                        .HasColumnName("school_unit_ids_json");
 
                     b.Property<string>("Currency")
                         .IsRequired()

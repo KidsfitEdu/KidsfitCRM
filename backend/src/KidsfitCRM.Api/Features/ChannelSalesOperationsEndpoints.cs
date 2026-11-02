@@ -10,6 +10,8 @@ public static class ChannelSalesOperationsEndpoints
 {
     public static void MapChannelSalesOperations(this RouteGroupBuilder group)
     {
+        group.MapGet("/accounting/contracts", AccountingContractEndpoints.List).RequireAuthorization(Permissions.ChannelSalesCommissionView);
+        group.MapGet("/accounting/contracts/{id:long}", AccountingContractEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/finance", Finance).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/reconciliation-cases", Reconciliations).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/management", Management).RequireAuthorization(Permissions.ChannelSalesTeamManage);
@@ -28,6 +30,7 @@ public static class ChannelSalesOperationsEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesPayoutApprove);
         group.MapPost("/payouts/{id:long}/complete", async (long id, CompletePayoutRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
         {
+            if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Bắt buộc upload ảnh chuyển khoản trước khi ghi nhận đã chi.");
             await actions.CompletePayout(id, request, http.UserId(), http, ct);
             return Results.Ok(new { message = "Đã ghi nhận chi hoa hồng." });
         }).RequireAuthorization(Permissions.ChannelSalesPayoutComplete);

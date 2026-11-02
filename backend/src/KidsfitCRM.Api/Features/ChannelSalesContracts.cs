@@ -29,7 +29,14 @@ public sealed record ReportSalesContractRequest(
     long ProductPackageId,
     decimal TotalValue,
     DateOnly? FirstPaymentDueOn,
-    string? EvidenceReference);
+    string? EvidenceReference,
+    long? EvidenceId = null,
+    ContractPaymentInstallment[]? Installments = null,
+    string? ServicePlan = null,
+    int? StudentCount = null,
+    long[]? SchoolUnitIds = null);
+
+public sealed record ContractPaymentInstallment(DateOnly DueOn, decimal Amount);
 
 public sealed record RecordRevenueReceiptRequest(
     string? IdempotencyKey,
@@ -37,11 +44,12 @@ public sealed record RecordRevenueReceiptRequest(
     decimal Amount,
     DateTime? ReceivedAt,
     string? ReferenceCode,
-    string? PaymentMethod);
+    string? PaymentMethod,
+    long? EvidenceId = null);
 
 public sealed record ReconcileContractRequest(string? Reason);
-public sealed record CreatePayoutRequest(string? IdempotencyKey, long OrganizationId, long BeneficiaryUserId, string? Period, decimal WithholdingAmount, string? WithholdingReason);
-public sealed record CompletePayoutRequest(string? PaymentReference, string? Reason);
+public sealed record CreatePayoutRequest(string? IdempotencyKey, long OrganizationId, long BeneficiaryUserId, string? Period, decimal WithholdingAmount, string? WithholdingReason, long? ContractId = null);
+public sealed record CompletePayoutRequest(string? PaymentReference, string? Reason, long? EvidenceId = null, DateTime? PaidAt = null, decimal? Amount = null);
 public sealed record CreateCommissionPolicyRequest(long OrganizationId, string? Code, string? Name, decimal RatePercent, DateOnly EffectiveFrom, DateOnly? EffectiveUntil, string? PersonnelType = null);
 public sealed record CreateSalesAccountRequest(long OrganizationId, string? Name, string? Email, string? Password, string? RoleCode);
 public sealed record ChangeMembershipStatusRequest(string? Status, string? Reason = null, string? Summary = null, string? IdempotencyKey = null);

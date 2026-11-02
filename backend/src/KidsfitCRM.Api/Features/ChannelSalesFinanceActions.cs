@@ -14,6 +14,13 @@ public sealed partial class ChannelSalesActions
         var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutCreate, ct);
         if (!access.CanManageOrganization(request.OrganizationId)) throw new KeyNotFoundException();
         var period = ChannelSalesValidation.Period(request.Period);
+        // Accounting can create a payout from a specific contract without collecting
+        // the beneficiary's unrelated contracts from the same period.
+        if (request.ContractId.HasValue
+            && !await access.Contracts(db).AnyAsync(c => c.Id == request.ContractId.Value
+                && c.OwnerOrganizationId == request.OrganizationId
+                && c.OwnerUserId == request.BeneficiaryUserId, ct))
+            throw new KeyNotFoundException();
         var key = Validation.Required(request.IdempotencyKey, "idempotency_key", "Thiếu khóa yêu cầu.", 120);
         var hash = ChannelSalesValidation.Fingerprint(request);
         ChannelSalesValidation.WholeDong(request.WithholdingAmount, "withholding_amount", false);
@@ -28,10 +35,11 @@ public sealed partial class ChannelSalesActions
             if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.CreatedByUserId, actorId, replay.RequestFingerprint, hash);
             var entries = await db.CommissionLedgerEntries.Where(x => x.BeneficiaryOrganizationId == request.OrganizationId
                 && x.BeneficiaryUserId == request.BeneficiaryUserId && x.Period == period
+                && (!request.ContractId.HasValue || x.ContractId == request.ContractId.Value)
                 && !db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id)
                 && db.ReconciliationCases.Any(r => r.ContractId == x.ContractId && r.Status == "CONFIRMED"))
                 .OrderBy(x => x.Id).ToListAsync(ct);
-            if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đã đối soát, chưa lập phiếu chi trong kỳ này.");
+            if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đủ điều kiện trong kỳ đã chọn. Kiểm tra kỳ phát sinh, trạng thái đối soát và phiếu chi trước đó.");
             var gross = entries.Sum(x => x.Amount);
             if (gross <= 0) throw new ApiConflictException("Tổng hoa hồng còn lại trong kỳ phải dương để lập phiếu chi.");
             if (request.WithholdingAmount > gross) throw ApiValidationException.For("withholding_amount", "Khấu trừ không được vượt tổng hoa hồng.");
@@ -104,9 +112,22 @@ public sealed partial class ChannelSalesActions
             return;
         }
         if (payout.Status != "APPROVED") throw new ApiConflictException("Phải duyệt phiếu chi trước khi ghi nhận đã chi.");
+        if (request.Amount.HasValue && request.Amount.Value != payout.NetAmount) throw ApiValidationException.For("amount", "Số tiền chuyển phải khớp phiếu chi đã duyệt.");
         await EnsurePayoutReconciled(payout.Id, ct);
+        if (request.EvidenceId.HasValue)
+        {
+            var proof = await db.FinancialEvidences
+                .FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
+                .SingleOrDefaultAsync(ct);
+            if (proof is null || proof.Kind != "PAYOUT" || proof.PayoutId != id || proof.UploadedByUserId != actorId
+                || proof.AttachedAt.HasValue) throw new KeyNotFoundException();
+            proof.AttachedAt = DateTime.UtcNow;
+            proof.UpdatedAt = proof.AttachedAt.Value;
+        }
         payout.Status = "PAID";
-        payout.PaidAt = DateTime.UtcNow;
+        var paidAt = request.PaidAt?.ToUniversalTime() ?? DateTime.UtcNow;
+        if (paidAt > DateTime.UtcNow.AddMinutes(1)) throw ApiValidationException.For("paid_at", "Ngày chuyển tiền không được ở tương lai.");
+        payout.PaidAt = paidAt;
         payout.PaidByUserId = actorId;
         payout.PaymentReference = reference;
         payout.UpdatedAt = DateTime.UtcNow;
@@ -176,7 +197,7 @@ public sealed partial class ChannelSalesActions
         if (string.CompareOrdinal(period, ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow)) < 0) throw ApiValidationException.For("period", "Điều chỉnh chỉ được ghi vào kỳ hiện tại hoặc kỳ sau.");
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var original = await db.CommissionLedgerEntries.FromSqlInterpolated($"SELECT * FROM commission_ledger_entries WHERE id = {entryId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(original.BeneficiaryOrganizationId)) throw new KeyNotFoundException();
+        if (!await access.Commissions(db).AnyAsync(x => x.Id == original.Id, ct)) throw new KeyNotFoundException();
         if (original.EntryType != "ACCRUAL") throw new ApiConflictException("Chỉ điều chỉnh từ bút toán phát sinh gốc.");
         if (string.CompareOrdinal(period, original.Period) < 0) throw ApiValidationException.For("period", "Kỳ điều chỉnh không được trước kỳ phát sinh gốc.");
         var replay = await db.CommissionLedgerEntries.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);

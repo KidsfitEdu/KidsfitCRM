@@ -35,6 +35,9 @@ public static class ChannelSalesEndpoints
     public static RouteGroupBuilder MapChannelSalesApi(this RouteGroupBuilder secured)
     {
         var channel = secured.MapGroup("/channel-sales");
+        channel.MapGet("/contract-school-units/{customerId:long}", AccountingContractEndpoints.SchoolUnits).RequireAuthorization(Permissions.ChannelSalesReportContract);
+        channel.MapPost("/evidence", FinancialEvidenceEndpoints.Upload).RequireAuthorization(Permissions.ChannelSalesView).DisableAntiforgery();
+        channel.MapGet("/evidence/{id:long}", FinancialEvidenceEndpoints.Download).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapGet("/workspace", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapGet("/customers/search", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapPost("/approach-registrations", async (RegisterApproachRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>
@@ -49,11 +52,13 @@ public static class ChannelSalesEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesActivity);
         channel.MapPost("/approach-registrations/{id:long}/report-contract", async (long id, ReportSalesContractRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>
         {
+            if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Bắt buộc upload hợp đồng trước khi gửi xác minh.");
             var contractId = await actions.ReportSignedContract(id, request, http.UserId(), http, cancellationToken);
             return Results.Created($"/api/channel-sales/contracts/{contractId}", new { data = new { id = contractId } });
         }).RequireAuthorization(Permissions.ChannelSalesReportContract);
         channel.MapPost("/contracts/{id:long}/revenue-receipts", async (long id, RecordRevenueReceiptRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>
         {
+            if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Bắt buộc upload ảnh chứng từ nhận tiền.");
             var receiptId = await actions.RecordRevenueReceipt(id, request, http.UserId(), http, cancellationToken);
             return Results.Created($"/api/channel-sales/contracts/{id}/revenue-receipts/{receiptId}", new { data = new { id = receiptId } });
         }).RequireAuthorization(Permissions.ChannelSalesRecordRevenue);

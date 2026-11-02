@@ -29,6 +29,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<Payout> Payouts => Set<Payout>();
     public DbSet<PayoutItem> PayoutItems => Set<PayoutItem>();
     public DbSet<PayoutEvent> PayoutEvents => Set<PayoutEvent>();
+    public DbSet<FinancialEvidence> FinancialEvidences => Set<FinancialEvidence>();
     public DbSet<ReconciliationCase> ReconciliationCases => Set<ReconciliationCase>();
     public DbSet<ReconciliationEvent> ReconciliationEvents => Set<ReconciliationEvent>();
 
@@ -56,6 +57,17 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<AuditLog>().Property(x => x.NewValues).HasColumnType("json");
 
         ConfigureChannelSales(modelBuilder);
+        modelBuilder.Entity<SalesContract>().Property(x => x.ServicePlan).HasMaxLength(32);
+        modelBuilder.Entity<SalesContract>().Property(x => x.SchoolUnitIdsJson).HasColumnType("json");
+        modelBuilder.Entity<FinancialEvidence>().Property(x => x.Kind).HasMaxLength(16);
+        modelBuilder.Entity<FinancialEvidence>().Property(x => x.FileName).HasMaxLength(190);
+        modelBuilder.Entity<FinancialEvidence>().Property(x => x.MimeType).HasMaxLength(48);
+        modelBuilder.Entity<FinancialEvidence>().Property(x => x.Sha256).HasMaxLength(64).UseCollation("utf8mb4_bin");
+        modelBuilder.Entity<FinancialEvidence>().Property(x => x.Bytes).HasColumnType("longblob");
+        modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.RevenueReceiptId).IsUnique();
+        modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.PayoutId);
+        modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.ContractId);
+        modelBuilder.Entity<FinancialEvidence>().HasIndex(x => new { x.UploadedByUserId, x.CreatedAt });
         ConfigureSchools(modelBuilder);
         ConfigureSchoolOperations(modelBuilder);
 

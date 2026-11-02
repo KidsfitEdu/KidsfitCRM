@@ -405,7 +405,6 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           </div>}
         </section>
         {actionError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-red-700">{actionError}</p>}
-        <p className="text-xs text-muted-foreground">Kế toán xác nhận tiền đã thực sự vào tài khoản trước khi thêm khoản thu. Mỗi khoản thu và chi đều phải kèm ảnh chuyển khoản.</p>
       </div>}
     </AppDrawer>
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}

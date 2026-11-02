@@ -93,7 +93,7 @@ public static class SalesSchoolEndpoints
             var address = mainUnit is null ? null : !string.IsNullOrWhiteSpace(mainUnit.Address)
                 ? mainUnit.Address
                 : string.Join(", ", new[] { mainUnit.Ward, mainUnit.Province }.Where(x => !string.IsNullOrWhiteSpace(x)));
-            var requests = reg is null ? [] : extensionRequests.Where(x => x.ApproachRegistrationId == reg.Id).ToArray();
+            var requests = extensionRequests.Where(x => reg is not null && x.ApproachRegistrationId == reg.Id).ToArray();
             var extensionPending = requests.Any(x => x.Status == "PENDING");
             var approvedCount = requests.Count(x => x.Status == "APPROVED");
             var policy = reg is null ? null : policies.FirstOrDefault(x => x.OrganizationId == reg.OwnerOrganizationId);

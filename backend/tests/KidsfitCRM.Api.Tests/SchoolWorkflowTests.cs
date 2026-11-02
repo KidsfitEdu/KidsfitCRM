@@ -491,7 +491,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
                 CheckeeVerificationEndpoints.Detail(waiting, AsUser(checkee), db, Ct));
         var unauthorized = await CheckeeVerificationEndpoints.List(
             AsUser(manager), db, null, null, 1, 20, Ct);
-        Assert.Equal(403, ((IStatusCodeHttpResult)unauthorized).StatusCode);
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ForbidHttpResult>(unauthorized);
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             CheckeeVerificationEndpoints.List(AsUser(checkee), db, null, "INVALID", 1, 20, Ct));
     }

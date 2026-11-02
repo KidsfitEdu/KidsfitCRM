@@ -461,7 +461,7 @@ export function ChannelSalesView({
               <p className="font-medium">{c.contract_code} · {c.status}</p>
               <p className="mt-1 text-muted-foreground">Ngày ký: {channelDate(c.signed_on)}</p>
             </div>)}
-            {canReportContract && detailCustomer.can_manage_approach && detailCustomer.visible_status==='APPROACHING' &&
+            {canReportContract && detailCustomer.can_manage_approach && detailCustomer.visible_status==='APPROACHING' && !detailCustomer.contract_id &&
               <Button type="button" onClick={()=>{setDetailCustomer(null);setContractCustomer(detailCustomer);}}>Báo cáo hợp đồng đã ký</Button>}
           </section>
           <p className="border-t pt-3 text-xs text-muted-foreground">Tiến độ và lịch sử tư vấn được xem tại icon Lịch sử tiếp cận riêng trong bảng.</p>
@@ -546,7 +546,9 @@ function CustomerRow({
   onContract: () => void;
   onReceipt: () => void;
 }) {
-  const status = statusCopy[customer.visible_status];
+  const status = customer.contract_id && customer.visible_status === 'APPROACHING'
+    ? {label:'Chờ xác minh hợp đồng',compact:'Quản lý / CHECKEE đang xử lý',className:'border-blue-200 bg-blue-50 text-blue-800'}
+    : statusCopy[customer.visible_status];
   return (
     <div className={`grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:items-center ${mineMode ? 'xl:grid-cols-[minmax(230px,1.6fr)_minmax(150px,.9fr)_minmax(180px,.9fr)_auto]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
       <div className="flex min-w-0 gap-3">

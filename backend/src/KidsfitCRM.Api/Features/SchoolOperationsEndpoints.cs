@@ -86,7 +86,9 @@ public static class SchoolOperationsEndpoints
         var contractIds = a.Contracts(db).Select(x => x.Id);
         var canMoney = a.Has(Permissions.ChannelSalesCommissionView) || a.Has(Permissions.ChannelSalesRecordRevenue);
         var canTeam = a.Has(Permissions.SchoolAllocationManage) || a.Has(Permissions.SchoolHandoverManage) || a.Has(Permissions.SchoolCareAssign);
-        const int pageSize = 100;
+        // Optional page size for Sales lists; default remains 100 for existing clients.
+        var requestedSize = int.TryParse(http.Request.Query["page_size"], out var size) ? size : 100;
+        var pageSize = requestedSize is 10 or 20 or 50 or 100 ? requestedSize : 100;
         var selectedPage = Math.Clamp(page ?? 1, 1, 10000);
         var skip = (selectedPage - 1) * pageSize;
         var term = search?.Trim() ?? "";

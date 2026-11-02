@@ -49,7 +49,7 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
     ['Quản trị viên',7],['Quản lý bán hàng',7],
     ['Nhân viên bán hàng',5],['CTV đối tác',5],
     ['Ban giám đốc',5],['Kế toán',2],
-    ['Chăm sóc khách hàng',5],['CHECKEE',5],
+    ['Chăm sóc khách hàng',5],['CHECKEE',2],
   ];
   for (const [name,expected] of roles) {
     const {context,page,navigation,errors} = await login(name);
@@ -60,6 +60,17 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
     await page.screenshot({path:resolve(artifacts,name.replaceAll(' ','-')+'.png')});
     await context.close();
   }
+});
+
+test('CHECKEE uses a compact two-menu verification workspace', async () => {
+  const {context,page,navigation,errors} = await login('CHECKEE');
+  assert.equal(await navigation.locator('button').count(),2);
+  await navigation.getByRole('button',{name:'Xác minh hợp đồng',exact:true}).click();
+  await page.getByRole('heading',{name:'Xác minh hợp đồng'}).waitFor();
+  await page.getByRole('combobox',{name:'Lọc trạng thái xác minh'}).waitFor();
+  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  assert.deepEqual(errors,[]);
+  await context.close();
 });
 
 test('Admin can navigate seven screens without browser exceptions', async () => {

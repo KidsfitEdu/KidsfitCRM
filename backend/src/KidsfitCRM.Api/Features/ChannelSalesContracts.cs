@@ -19,7 +19,7 @@ public sealed record RegisterApproachRequest(
     string? Note);
 
 public sealed record AddCustomerActivityRequest(string? ActivityType, string? Content, DateTime? NextFollowUpAt,
-    DateTime? OccurredAt = null, string? ContactName = null, string? ContactPosition = null, string? Feedback = null, string? Commitment = null);
+    DateTime? OccurredAt = null, string? ContactName = null, string? ContactPosition = null, string? Feedback = null, string? Commitment = null, string? Outcome = null, string? EvidenceReference = null);
 
 public sealed record ReportSalesContractRequest(
     string? IdempotencyKey,

@@ -286,14 +286,14 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
                 <option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
             </select>
           </label>}
-          <label className="block space-y-1"><span>Ngày giao dịch *</span><Input type="date" name="transaction_date" required defaultValue={new Date().toLocaleDateString('en-CA')}/></label>
-          {entryMode === 'receipt' && <label className="block space-y-1"><span>Số tiền nhà trường thực trả (VNĐ) *</span>
-            <Input type="number" min={1} step={1} name="amount" required /></label>}
-          <label className="block space-y-1"><span>Mã giao dịch / tham chiếu *</span><Input name="reference_code" required maxLength={64}/></label>
-          <label className="block space-y-1"><span>Ảnh chuyển khoản *</span>
-            <Input type="file" name="proof" accept="image/jpeg,image/png,image/webp" required/>
+          <div className="block space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label><Input id="accounting-transaction-date" type="date" name="transaction_date" required defaultValue={new Date().toISOString().slice(0, 10)}/></div>
+          {entryMode === 'receipt' && <div className="block space-y-1"><label htmlFor="accounting-receipt-amount">Số tiền nhà trường thực trả (VNĐ) *</label>
+            <Input id="accounting-receipt-amount" type="number" min={1} step={1} name="amount" required /></div>}
+          <div className="block space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch / tham chiếu *</label><Input id="accounting-bank-reference" name="reference_code" required maxLength={64}/></div>
+          <div className="block space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chuyển khoản *</label>
+            <Input id="accounting-bank-proof" type="file" name="proof" accept="image/jpeg,image/png,image/webp" required/>
             <span className="block text-xs text-muted-foreground">JPG, PNG hoặc WEBP · Tối đa 5 MB · Chỉ người có quyền mới xem được</span>
-          </label>
+          </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu giao dịch và ảnh chứng từ'}</Button>
             <Button type="button" variant="outline" onClick={() => setEntryMode(null)} disabled={saving}>Hủy</Button>

@@ -48,7 +48,11 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
             : x.BeneficiaryUserId == UserId));
 
     public IQueryable<Payout> Payouts(KidsfitDbContext db) => All ? db.Payouts : db.Payouts.Where(x =>
-        OrganizationIds.Contains(x.OrganizationId) && (Organization || x.BeneficiaryUserId == UserId));
+        OrganizationIds.Contains(x.OrganizationId) && (Organization
+            ? (!Has(Permissions.ChannelSalesManage) || x.BeneficiaryUserId == UserId
+                || db.OrganizationMemberships.Any(m => m.OrganizationId == x.OrganizationId
+                    && m.UserId == x.BeneficiaryUserId && m.ManagerUserId == UserId && m.Status == "ACTIVE"))
+            : x.BeneficiaryUserId == UserId));
 
     public IQueryable<ChannelCustomer> Customers(KidsfitDbContext db)
     {

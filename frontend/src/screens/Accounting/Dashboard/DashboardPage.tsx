@@ -1,9 +1,53 @@
 'use client';
 
-import { RoleDashboard } from '@/components/roles/RoleDashboard';
+import { useQuery } from '@tanstack/react-query';
+import { AlertCircle, Banknote, CheckCircle2, HandCoins, Wallet } from 'lucide-react';
+import { AppPageHeader } from '@/components/common/app-page-header';
+import { AppStatCard } from '@/components/common/app-stat-card';
+import { channelMoney, channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
 import type { RolePageProps } from '@/types/role-pages';
 
-/** Accounting · Dashboard (shared domain view). */
-export function DashboardPage(props: RolePageProps) {
-  return <RoleDashboard profile="Accounting" {...props}/>;
+type FinanceSummary = {
+  period: string;
+  summary: {
+    net_collected_revenue: number;
+    accrued: number;
+    paid: number;
+    eligible: number;
+    take_home: number;
+  };
+};
+
+export function DashboardPage({apiBase, token, abilities}: RolePageProps) {
+  const canView = abilities.includes('*') || abilities.includes('channel_sales.commission.view');
+  const period = currentBusinessPeriod();
+  const connected = Boolean(apiBase && token && canView);
+  const finance = useQuery({
+    queryKey: ['accounting-overview', apiBase, token, period],
+    queryFn: () => channelRequest<FinanceSummary>(apiBase, token, `/finance?period=${period}`),
+    enabled: connected,
+  });
+  const summary = finance.data?.summary;
+  const tiles = [
+    {label: 'Nhà trường thực thu ròng', amount: summary?.net_collected_revenue, icon: Banknote},
+    {label: 'Hoa hồng phát sinh', amount: summary?.accrued, icon: HandCoins},
+    {label: 'Hoa hồng đã chuyển', amount: summary?.take_home, icon: CheckCircle2},
+    {label: 'Hoa hồng chờ đối soát / chi', amount: summary?.eligible, icon: Wallet},
+  ];
+  return <div className="space-y-5">
+    <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Tổng quan"
+      description={`Doanh thu thực thu và hoa hồng theo tháng ${period}. Chỉ hiển thị dữ liệu trong phạm vi được cấp.`}/>
+    {!connected && <p role="alert" className="rounded-xl border p-4 text-sm text-muted-foreground">
+      Vui lòng đăng nhập với tài khoản Kế toán có quyền xem hoa hồng.
+    </p>}
+    {finance.error && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-300 p-4 text-sm text-red-700">
+      <AlertCircle className="size-4" aria-hidden="true"/>{finance.error.message}
+    </p>}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {tiles.map(tile => <AppStatCard key={tile.label} label={tile.label}
+        value={connected && !finance.isPending && tile.amount !== undefined ? channelMoney(tile.amount) : '—'}
+        icon={tile.icon}/>)}
+    </div>
+    <p className="text-sm text-muted-foreground">Mở <strong>Hợp đồng & hoa hồng</strong> để xem từng trường chính, các đợt thanh toán, số tiền nhận và chứng từ chuyển khoản.</p>
+  </div>;
 }

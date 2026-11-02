@@ -332,7 +332,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 CustomerId = customer.Id,
                 ContractId = contract.Id,
                 CheckeeOrganizationId = checkeeOrganizationId,
-                Status = "PENDING",
+                Status = schoolContract ? "AWAITING_MANAGER" : "PENDING",
                 OpenedAt = now,
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -523,10 +523,12 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             return;
         }
         if (reconciliation.Status is "CONFIRMED" or "RESOLVED") throw new ApiConflictException("Hồ sơ đối soát đã kết thúc.");
+        if (reconciliation.Status == "AWAITING_MANAGER") throw new ApiConflictException("Hồ sơ chưa được Quản lý chuyển CHECKEE.");
         var previous = reconciliation.Status;
         if (schoolContract.RequiresSchoolVerification && schoolContract.Status != "CANCELLED")
         {
-            if (schoolContract.ManagerReviewedAt is null) throw new ApiConflictException("Cần quản lý kiểm tra trước khi CHECKEE xác minh.");
+            if (schoolContract.ManagerReviewedAt is null || schoolContract.Status is "NEEDS_REVISION" or "PENDING_REVIEW")
+                throw new ApiConflictException("Cần quản lý kiểm tra và chuyển hồ sơ trước khi CHECKEE xác minh.");
             if (confirm && schoolContract.VerifiedAt is null)
             {
                 schoolContract.VerifiedAt = now;

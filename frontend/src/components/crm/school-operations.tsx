@@ -120,7 +120,7 @@ export function SchoolOperations({
   const api = <T,>(path: string, options?: RequestInit) =>
     channelRequest<T>(apiBase, token, path, options);
   const workspace = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus, embeddedSalesTable ? salesPageSize : 100],
+    queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus, embeddedSalesTable ? salesPageSize : 100, embeddedSalesTable && tab === 'invitations' && pendingOnly],
     queryFn: () =>
       preview
         ? Promise.resolve(schoolOperationsPreview(abilities))
@@ -128,6 +128,7 @@ export function SchoolOperations({
             '/school-operations?page=' +
               page +
               (embeddedSalesTable ? '&page_size=' + salesPageSize : '') +
+              (embeddedSalesTable && tab === 'invitations' && pendingOnly ? '&pending_invitations=true' : '') +
               '&search=' +
               encodeURIComponent(searchTerm) +
               (proposalStatus === 'ALL' ? '' : '&status=' + encodeURIComponent(proposalStatus)),

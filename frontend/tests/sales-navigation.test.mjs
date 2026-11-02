@@ -106,7 +106,7 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(focus.includes("section === 'customers'"));
   assert.ok(focus.includes("min-w-0 bg-white dark:bg-card"));
   assert.ok(sales.includes('pageSizeOptions={[10,20,50,100]}'));
-  assert.ok(sales.includes('total={customers.length}'));
+  assert.ok(sales.includes('serverMine ? minePage?.total ?? 0 : customers.length'));
   assert.ok(sales.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
   assert.ok(sales.includes('aria-label={`Báo hợp đồng ${customer.display_name}`}'));
   assert.ok(dashboard.includes('aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}'));

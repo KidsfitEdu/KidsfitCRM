@@ -7,15 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { readSchoolDemo } from '@/lib/school-demo';
 import {
-  workflowDate,
-  workflowLabels,
-  type SchoolOperationsWorkspace,
-} from '@/lib/school-operations';
-import { SchoolActionForm, type SchoolAction } from '@/components/crm/schools/school-action-form';
-import { EvidenceReference } from './school-operations';
-import {
   Building2,
-  ShieldCheck,
   Eye,
   UsersRound,
   Search,
@@ -24,8 +16,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { AppWorkNoteEditor } from '@/components/common/forms/app-work-note';
-import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -35,12 +25,10 @@ import { AppEmptyState } from '@/components/common/app-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
+import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
-import {
-  channelDate,
-  channelRequest,
-  channelQueryKeys,
-} from '@/lib/channel-operations';
+import { channelDate, channelRequest, channelQueryKeys } from '@/lib/channel-operations';
 
 type Props = {
   apiBase: string;
@@ -178,6 +166,7 @@ export function SchoolDirectory({
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selected, setSelected] = useState<number | null>(null);
+  const [registerSchool, setRegisterSchool] = useState<School | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [importKey, setImportKey] = useState(key);
@@ -436,16 +425,7 @@ export function SchoolDirectory({
                             title={registrationIconOnly ? 'Đăng ký tiếp cận' : undefined}
                             aria-label={registrationIconOnly ? `Đăng ký tiếp cận ${s.display_name}` : undefined}
                             disabled={mutation.isPending}
-                            onClick={() =>
-                              run({
-                                path: '/approach-registrations',
-                                body: {
-                                  idempotency_key: key(),
-                                  customer_id: s.customer_id,
-                                  source: 'SCHOOL_DIRECTORY',
-                                },
-                              }).catch(() => undefined)
-                            }
+                            onClick={() => { mutation.reset(); setRegisterSchool(s); }}
                           >
                             {registrationIconOnly ? <UserRoundPlus className="size-4" aria-hidden="true"/> : 'Đăng ký tiếp cận'}
                           </Button>
@@ -466,6 +446,27 @@ export function SchoolDirectory({
           disabled={schools.isFetching} onPageChange={setPage}
           pageSizeOptions={SCHOOL_ROWS_PER_PAGE} onPageSizeChange={value => {setPageSize(value);setPage(1);}}/>
       </section>
+      <ConfirmDialog
+        open={registerSchool !== null}
+        onOpenChange={(open) => { if (!open && !mutation.isPending) { setRegisterSchool(null); mutation.reset(); } }}
+        title="Xác nhận đăng ký tiếp cận"
+        description={<>Bạn có chắc chắn muốn đăng ký tiếp cận <strong>{registerSchool?.display_name}</strong> không? Quyền bảo vệ ban đầu là 5 ngày và sẽ chiếm một suất trong hạn mức hiện hành.</>}
+        confirmLabel="Xác nhận tiếp cận"
+        busy={mutation.isPending}
+        onConfirm={() => {
+          if (!registerSchool || mutation.isPending) return;
+          void run({
+            path: '/approach-registrations',
+            body: { idempotency_key: key(), customer_id: registerSchool.customer_id, source: 'SCHOOL_DIRECTORY' },
+          }).then(() => {
+            setRegisterSchool(null);
+            appNotice.success('Đăng ký tiếp cận thành công.', 'Danh sách trường và hạn mức đã được cập nhật.');
+          }).catch(() => undefined);
+        }}
+      >
+        {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
+        <p className="text-xs text-muted-foreground">Hệ thống kiểm tra lại quyền đăng ký, trạng thái trường và hạn mức khi xác nhận. Nếu trường đã được người khác nhận, đăng ký sẽ bị từ chối.</p>
+      </ConfirmDialog>
       <AppDialog open={importOpen} onOpenChange={(open) => {if (!upload.isPending) setImportOpen(open);}} busy={upload.isPending} title="Nhập danh bạ trường học" description="File .xlsx tối đa 2 MB, sheet DANH_SACH_TRUONG, đúng 12 cột của mẫu. Xem trước không thay đổi dữ liệu.">
           <Input
             type="file"
@@ -530,20 +531,13 @@ export function SchoolDirectory({
             </>
           )}
         </AppDialog>
-      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={`${detail.data?.school_code ?? ''} · Bảo vệ theo trường chính, không đăng ký riêng từng phân hiệu.`}>
+      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={detail.data?.school_code ?? ''} wide>
           {detail.error && <ErrorText>{detail.error.message}</ErrorText>}
           {detail.isPending ? (
             <p>Đang tải hồ sơ…</p>
           ) : (
             detail.data && (
-              <SchoolDetail
-                apiBase={apiBase}
-                token={token}
-                data={detail.data}
-                run={run}
-                busy={mutation.isPending}
-                adminMode={adminMode}
-              />
+              <SchoolDetail data={detail.data} />
             )
           )}
           {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
@@ -569,593 +563,11 @@ export function SchoolDirectory({
   );
 }
 
-function SchoolDetail({
-  apiBase,
-  token,
-  data,
-  run,
-  busy,
-  adminMode = false,
-}: {
-  apiBase: string;
-  token: string;
-  data: Detail;
-  run: (command: Command) => Promise<unknown>;
-  busy: boolean;
-  adminMode?: boolean;
-}) {
-  const [action, setAction] = useState<SchoolAction | null>(null);
-  const [historyUnit, setHistoryUnit] = useState<number | null>(null);
-  const [showWorkLog, setShowWorkLog] = useState(false);
-  const [showRights, setShowRights] = useState(false);
-  const options = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-operations'],
-    queryFn: () =>
-      channelRequest<SchoolOperationsWorkspace>(
-        apiBase,
-        token,
-        '/school-operations',
-      ),
-    enabled: !!apiBase && !!data.can_allocate,
-  });
-  const revisions = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-unit-history', historyUnit],
-    queryFn: () =>
-      channelRequest<{
-        data: {
-          id: number;
-          version: number;
-          reason: string;
-          before_values: string;
-          after_values: string;
-          created_at: string;
-          actor_name: string;
-        }[];
-      }>(apiBase, token, '/school-units/' + historyUnit + '/history'),
-    enabled: !!apiBase && historyUnit !== null,
-  });
-  const rights = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-rights', data.id],
-    queryFn: () =>
-      channelRequest<{
-        data: {
-          id: number | null;
-          owner_name: string;
-          registered_at: string;
-          protected_until: string;
-          status: string;
-        }[];
-        allocations: {
-          id: number;
-          status: string;
-          reason: string;
-          response_reason: string | null;
-          assigned_by: string;
-          assignee_name: string;
-        }[];
-      }>(apiBase, token, '/schools/' + data.id + '/rights'),
-    enabled: !!apiBase && showRights,
-  });
-  const editUnit = (unit: Detail['units'][number]) =>
-    setAction({
-      title: 'Chỉnh dữ liệu đơn vị',
-      path: '/school-units/' + unit.id,
-      method: 'PATCH',
-      description:
-        'Lưu lý do và phiên bản trước/sau. Nếu có người sửa trước, hệ thống yêu cầu tải lại để đối chiếu.',
-      preset: { expected_version: unit.version },
-      fields: [
-        { name: 'name', label: 'Tên đơn vị', value: unit.name },
-        { name: 'province', label: 'Tỉnh / thành phố', value: unit.province },
-        { name: 'ward', label: 'Phường / xã', value: unit.ward },
-        {
-          name: 'address',
-          label: 'Địa chỉ',
-          optional: true,
-          value: unit.address ?? '',
-        },
-        {
-          name: 'contact_name',
-          label: 'Người liên hệ',
-          optional: true,
-          value: unit.contact_name ?? '',
-        },
-        {
-          name: 'contact_position',
-          label: 'Chức vụ',
-          optional: true,
-          value: unit.contact_position ?? '',
-        },
-        {
-          name: 'contact_phone',
-          label: 'Điện thoại liên hệ',
-          optional: true,
-          value: unit.contact_phone ?? '',
-        },
-        {
-          name: 'school_phone',
-          label: 'Điện thoại trường',
-          optional: true,
-          value: unit.school_phone ?? '',
-        },
-        {
-          name: 'email',
-          label: 'Email',
-          type: 'email',
-          optional: true,
-          value: unit.email ?? '',
-        },
-        {
-          name: 'note',
-          label: 'Ghi chú',
-          type: 'textarea',
-          optional: true,
-          value: unit.note ?? '',
-        },
-        { name: 'reason', label: 'Lý do chỉnh sửa', type: 'textarea' },
-      ],
-    });
-  if (action)
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => setAction(null)}>
-          ← Quay lại hồ sơ
-        </Button>
-        <SchoolActionForm
-          key={action.path + action.title}
-          action={action}
-          inline
-          save={async (command) => {
-            await run(command);
-            setAction(null);
-          }}
-        />
-      </div>
-    );
-  return (
-    <div className="space-y-5">
-      {!!apiBase && (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowRights((v) => !v)}
-          >
-            Lịch sử quyền & phân bổ
-          </Button>
-          {!adminMode && data.can_request_extension && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setAction({
-                  title: 'Xin gia hạn tiếp cận',
-                  path:
-                    '/approaches/' +
-                    data.registration_id +
-                    '/extension-requests',
-                  description:
-                    'Gửi trước khi hết hạn. Chờ duyệt không giữ chỗ; cần có tiến độ, bằng chứng và lịch hẹn.',
-                  fields: [
-                    {
-                      name: 'requested_until',
-                      label: 'Xin gia hạn đến',
-                      type: 'datetime-local',
-                    },
-                    {
-                      name: 'review_due_at',
-                      label: 'Đề nghị phản hồi trước',
-                      type: 'datetime-local',
-                    },
-                    {
-                      name: 'next_appointment_at',
-                      label: 'Lịch hẹn / giới thiệu sản phẩm',
-                      type: 'datetime-local',
-                    },
-                    {
-                      name: 'evidence_reference',
-                      label: 'Mã chứng từ / tham chiếu bằng chứng',
-                    },
-                    {
-                      name: 'progress',
-                      label: 'Tiến độ và lý do cần gia hạn',
-                      type: 'textarea',
-                    },
-                  ],
-                })
-              }
-            >
-              Xin gia hạn
-            </Button>
-          )}
-          {!adminMode && data.can_allocate && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!options.data}
-              onClick={() =>
-                setAction({
-                  title: 'Mời nhân sự nhận trường',
-                  path: '/school-invitations',
-                  description:
-                    'Lời mời chưa tạo quyền bảo vệ. Người nhận cần phản hồi và còn đủ hạn mức.',
-                  preset: { school_id: data.id },
-                  fields: [
-                    {
-                      name: 'assignee_member',
-                      label: 'Nhân sự nhận trường',
-                      type: 'number',
-                      options: options
-                        .data!.team.filter((m) => m.can_receive_school)
-                        .map((m) => ({
-                          value: String(m.id),
-                          label:
-                            m.name +
-                            ' · ' +
-                            (options.data!.organizations.find(
-                              (o) => o.id === m.organization_id,
-                            )?.name ?? ''),
-                        })),
-                    },
-                    {
-                      name: 'respond_by',
-                      label: 'Hạn phản hồi đề nghị',
-                      type: 'datetime-local',
-                    },
-                    {
-                      name: 'reason',
-                      label: 'Lý do phân bổ',
-                      type: 'textarea',
-                    },
-                  ],
-                  prepare: (body) => {
-                    const member = options.data!.team.find(
-                      (m) => m.id === body.assignee_member,
-                    );
-                    if (!member)
-                      throw new Error('Cần chọn nhân sự nhận trường.');
-                    return {
-                      ...body,
-                      assignee_user_id: member.user_id,
-                      organization_id: member.organization_id,
-                    };
-                  },
-                })
-              }
-            >
-              Phân bổ trường
-            </Button>
-          )}
-          {!adminMode && data.can_allocate && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!options.data}
-              onClick={() =>
-                setAction({
-                  title: 'Lên lịch rà soát trường',
-                  path: '/school-deferrals',
-                  description:
-                    'Dùng khi trường xa hoặc chưa có người nhận; không giữ quyền tiếp cận.',
-                  preset: { school_id: data.id },
-                  fields: [
-                    {
-                      name: 'organization_id',
-                      label: 'Tổ chức phụ trách',
-                      type: 'number',
-                      options: options.data!.organizations.map((o) => ({
-                        value: String(o.id),
-                        label: o.name,
-                      })),
-                    },
-                    {
-                      name: 'review_at',
-                      label: 'Rà soát lại vào',
-                      type: 'datetime-local',
-                    },
-                    {
-                      name: 'reason',
-                      label: 'Lý do / phương án tư vấn từ xa',
-                      type: 'textarea',
-                    },
-                  ],
-                })
-              }
-            >
-              Hẹn rà soát
-            </Button>
-          )}
-          {!adminMode && data.can_dispute && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                setAction({
-                  title: 'Phản ánh quyền / phân bổ',
-                  path: '/school-disputes',
-                  description:
-                    'Ban giám đốc xem lịch sử, bằng chứng và lưu kết luận. Gửi phản ánh không tự thay đổi quyền hiện tại.',
-                  preset: { customer_id: data.customer_id },
-                  fields: [
-                    {
-                      name: 'reason',
-                      label: 'Nội dung phản ánh',
-                      type: 'textarea',
-                    },
-                    {
-                      name: 'evidence_reference',
-                      label: 'Bằng chứng / hồ sơ tham chiếu',
-                    },
-                  ],
-                })
-              }
-            >
-              Gửi phản ánh
-            </Button>
-          )}
-        </div>
-      )}
-      {options.error && <ErrorText>{options.error.message}</ErrorText>}
-      {showRights && (
-        <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
-          <h3 className="font-semibold">Lịch sử quyền tiếp cận</h3>
-          {rights.isPending && <p>Đang tải…</p>}
-          {rights.error && <ErrorText>{rights.error.message}</ErrorText>}
-          {rights.data?.data.map((r, i) => (
-            <p key={r.id ?? i} className="text-sm">
-              {r.owner_name} · {workflowDate(r.registered_at)} →{' '}
-              {workflowDate(r.protected_until)} ·{' '}
-              {workflowLabels[r.status] ?? r.status}
-            </p>
-          ))}
-          {rights.data?.allocations.map((a) => (
-            <p key={a.id} className="border-t pt-2 text-sm">
-              {a.assigned_by} → {a.assignee_name} ·{' '}
-              {workflowLabels[a.status] ?? a.status}
-              <span className="block text-xs text-muted-foreground">
-                {a.reason}
-                {a.response_reason ? ' · ' + a.response_reason : ''}
-              </span>
-            </p>
-          ))}
-          {rights.data?.data.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Trường chưa có lượt tiếp cận.
-            </p>
-          )}
-        </section>
-      )}
-      <div className="space-y-2">
-        {data.units.map((unit) => (
-          <section key={unit.id} className="rounded-xl border p-4">
-            <p className="font-semibold">
-              {unit.name}{' '}
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                {unit.unit_type === 'MAIN' ? 'Trường chính' : 'Phân hiệu'}
-              </span>
-            </p>
-            {unit.can_edit && (
-              <div className="mt-3 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => editUnit(unit)}
-                >
-                  Chỉnh thông tin
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    setHistoryUnit(historyUnit === unit.id ? null : unit.id)
-                  }
-                >
-                  Lịch sử chỉnh sửa
-                </Button>
-              </div>
-            )}
-            <p className="mt-1 text-xs text-muted-foreground">
-              {unit.address ?? `${unit.ward}, ${unit.province}`}
-            </p>
-            {unit.contact_name && (
-              <p className="mt-2 text-sm">
-                {unit.contact_name} · {unit.contact_position}
-              </p>
-            )}
-            {(unit.contact_phone || unit.school_phone || unit.email) && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Liên hệ: {unit.contact_phone ?? 'Chưa có'} · SĐT trường:{' '}
-                {unit.school_phone ?? 'Chưa có'}
-                {unit.email && ` · ${unit.email}`}
-              </p>
-            )}
-          </section>
-        ))}
-      </div>
-      {historyUnit !== null && (
-        <section className="space-y-4 rounded-xl border p-4">
-          <h3 className="font-semibold">Lịch sử chỉnh dữ liệu</h3>
-          {revisions.isPending && <p>Đang tải…</p>}
-          {revisions.error && <ErrorText>{revisions.error.message}</ErrorText>}
-          {revisions.data?.data.map((r) => (
-            <Revision key={r.id} item={r} />
-          ))}
-          {revisions.data?.data.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Chưa có lần chỉnh sửa sau nhập.
-            </p>
-          )}
-        </section>
-      )}
-      {data.contracts.map((c) => (
-        <section
-          key={c.id}
-          className="rounded-xl border bg-violet-50/30 p-4 dark:bg-violet-950/20"
-        >
-          <h3 className="flex items-center gap-2 font-semibold">
-            <ShieldCheck className="size-4" /> {c.contract_code}
-          </h3>
-          <p className="mt-2 text-sm">{labels[c.status] ?? c.status}</p>
-          {c.evidence_reference && (
-            <div className="mt-2">
-              <EvidenceReference value={c.evidence_reference} />
-            </div>
-          )}
-          {c.protection_until ? (
-            <p className="mt-1 text-xs">
-              Bảo vệ đến {channelDate(c.protection_until)}
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Chưa ghi nhận quyền bảo vệ dài hạn.{' '}
-              {c.verified_at &&
-                `Đã xác minh ngày ${channelDate(c.verified_at)}.`}
-            </p>
-          )}
-          {c.can_review && (
-            <Button
-              className="mt-3"
-              disabled={busy}
-              onClick={() =>
-                run({ path: `/school-contracts/${c.id}/review` }).catch(
-                  () => undefined,
-                )
-              }
-            >
-              Quản lý xác nhận đã kiểm tra
-            </Button>
-          )}
-          {c.can_grant && (
-            <Button
-              className="mt-3"
-              disabled={busy}
-              onClick={() =>
-                run({
-                  path: `/school-contracts/${c.id}/grant-protection`,
-                }).catch(() => undefined)
-              }
-            >
-              KIDSFIT ghi nhận bảo vệ 5 năm
-            </Button>
-          )}
-        </section>
-      ))}
-      {!adminMode && data.can_activity && (
-        <ActivityForm
-          save={(body) =>
-            run({
-              path: `/approach-registrations/${data.registration_id}/activities`,
-              body,
-            })
-          }
-        />
-      )}
-      {!adminMode && data.can_report_contract && (
-        <ContractForm
-          data={data}
-          save={(body) =>
-            run({
-              path: `/approach-registrations/${data.registration_id}/report-contract`,
-              body,
-            })
-          }
-        />
-      )}
-      {!adminMode && (
-        <section className="rounded-xl border border-border bg-muted/20 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="font-semibold">Nhật ký làm việc với trường</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Đọc các lần liên hệ theo thời gian, mới nhất trước. Người quản lý và người được phân quyền có thể theo dõi.</p>
-            </div>
-            <AppButton tone="neutral" type="button" onClick={()=>setShowWorkLog(true)}>Xem lịch sử</AppButton>
-          </div>
-        </section>
-      )}
-      <SchoolWorkLogDrawer
-        open={showWorkLog}
-        onOpenChange={setShowWorkLog}
-        customerId={data.customer_id}
-        schoolName={data.display_name}
-        apiBase={apiBase}
-        token={token}
-      />
-    </div>
-  );
+/** Read-only profile used by the school directory. */
+function SchoolDetail({ data }: { data: Detail }) {
+  return <SchoolProfileDetails units={data.units} />;
 }
-function Revision({
-  item,
-}: {
-  item: {
-    version: number;
-    reason: string;
-    before_values: string;
-    after_values: string;
-    actor_name: string;
-    created_at: string;
-  };
-}) {
-  const display = (value: unknown) =>
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-      ? String(value)
-      : '—';
-  let before: Record<string, unknown> = {},
-    after: Record<string, unknown> = {};
-  try {
-    before = JSON.parse(item.before_values);
-    after = JSON.parse(item.after_values);
-  } catch {
-    return <p>Không đọc được phiên bản lịch sử này.</p>;
-  }
-  const labels: Record<string, string> = {
-    Name: 'Tên đơn vị',
-    Province: 'Tỉnh / thành phố',
-    Ward: 'Phường / xã',
-    Address: 'Địa chỉ',
-    ContactName: 'Người liên hệ',
-    ContactPosition: 'Chức vụ',
-    ContactPhone: 'Điện thoại liên hệ',
-    Email: 'Email',
-    SchoolPhone: 'Điện thoại trường',
-    Note: 'Ghi chú',
-  };
-  return (
-    <article className="space-y-2 border-t pt-3">
-      <p className="text-sm font-medium">
-        Phiên bản {item.version} · {item.actor_name}
-      </p>
-      <p className="text-xs text-muted-foreground">
-        {workflowDate(item.created_at)} · {item.reason}
-      </p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr>
-              <th className="p-2">Thông tin</th>
-              <th className="p-2">Trước</th>
-              <th className="p-2">Sau</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(after)
-              .filter((field) => before[field] !== after[field])
-              .map((field) => (
-                <tr key={field} className="border-t">
-                  <td className="p-2">{labels[field] ?? 'Thông tin'}</td>
-                  <td className="break-words p-2 text-muted-foreground">
-                    {display(before[field])}
-                  </td>
-                  <td className="break-words p-2">{display(after[field])}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </article>
-  );
-}
+
 const capacitySchema = z.object({
   limit: z.number().int().min(0).max(1000),
   reason: z.string().trim().min(3, 'Nhập lý do ít nhất 3 ký tự.').max(2000),
@@ -1200,143 +612,6 @@ function CapacityForm({
           {h.reason}
         </p>
       ))}
-    </form>
-  );
-}
-const activitySchema = z.object({
-  activity_type: z.enum(['CALL', 'MEETING', 'ZALO', 'DEMO']),
-  content: z.string().trim().min(3, 'Vui lòng nhập nội dung trao đổi.').max(4000, 'Tối đa 4000 ký tự.'),
-});
-
-function ActivityForm({ save }: { save: (body: unknown) => Promise<unknown> }) {
-  const form = useForm<z.infer<typeof activitySchema>>({
-    resolver: zodResolver(activitySchema),
-    defaultValues: { activity_type: 'CALL', content: '' },
-  });
-  return <form
-    className="space-y-4 rounded-xl border border-border bg-card p-4"
-    onSubmit={form.handleSubmit(async values => {
-      try {
-        // UserId and CreatedAt are taken from the authenticated request / server UTC time.
-        // No editable date or automatically inferred follow-up date is sent.
-        await save({ activity_type: values.activity_type, content: values.content.trim() });
-        form.reset();
-      } catch {
-        // The parent mutation exposes the API failure to the user.
-      }
-    })}
-  >
-    <div>
-      <h3 className="text-base font-semibold">Ghi nhận làm việc</h3>
-      <p className="mt-1 text-xs text-muted-foreground">Ghi chú ngắn sau khi liên hệ với trường. Hệ thống tự lưu người ghi nhận và thời điểm lưu.</p>
-    </div>
-    <Field label="Kênh liên hệ">
-      <AppNativeSelect containerClassName="w-full" {...form.register('activity_type')}>
-        <option value="CALL">Gọi điện</option>
-        <option value="MEETING">Gặp trực tiếp</option>
-        <option value="ZALO">Zalo tổ chức</option>
-        <option value="DEMO">Demo</option>
-      </AppNativeSelect>
-    </Field>
-    <Field label="Nội dung trao đổi *">
-      <AppWorkNoteEditor
-        value={form.watch('content')}
-        onChange={value=>form.setValue('content',value,{shouldValidate:true,shouldDirty:true})}
-        invalid={!!form.formState.errors.content}
-        disabled={form.formState.isSubmitting}
-      />
-    </Field>
-    <p className="text-xs text-muted-foreground">Có thể ghi người trao đổi, phản hồi, vướng mắc và ngày gọi lại ngay trong nội dung. Chọn phần chữ rồi bấm B/I/U hoặc dùng danh sách.</p>
-    <FormErrors errors={form.formState.errors}/>
-    <div className="flex justify-end">
-      <AppButton type="submit" tone="green" busy={form.formState.isSubmitting} disabled={form.formState.isSubmitting}>Lưu ghi chú</AppButton>
-    </div>
-  </form>;
-}
-
-const contractSchema = z.object({
-  contract_code: z.string().trim().min(1, 'Nhập mã hợp đồng.'),
-  signed_on: z.string().min(1, 'Chọn ngày ký.'),
-  product_package_id: z.number().positive(),
-  total_value: z.number().int().positive(),
-  evidence_reference: z
-    .string()
-    .trim()
-    .min(1, 'Nhập tham chiếu bằng chứng.')
-    .max(500),
-});
-function ContractForm({
-  data,
-  save,
-}: {
-  data: Detail;
-  save: (
-    body: z.infer<typeof contractSchema> & { idempotency_key: string },
-  ) => Promise<unknown>;
-}) {
-  const [requestKey] = useState(key);
-  const form = useForm({
-    resolver: zodResolver(contractSchema),
-    defaultValues: {
-      contract_code: '',
-      signed_on: '',
-      product_package_id: data.packages[0]?.id ?? 0,
-      total_value: data.packages[0]?.list_price ?? 0,
-      evidence_reference: '',
-    },
-  });
-  return (
-    <form
-      className="space-y-3 rounded-xl border p-4"
-      onSubmit={form.handleSubmit(async (values) => {
-        await save({ ...values, idempotency_key: requestKey }).catch(
-          () => undefined,
-        );
-      })}
-    >
-      <h3 className="font-semibold">Báo cáo hợp đồng để xác minh</h3>
-      <p className="text-xs text-muted-foreground">
-        Quản lý kiểm tra → CHECKEE xác minh → KIDSFIT ghi nhận. Báo cáo chưa tạo
-        bảo vệ 5 năm hoặc phiếu thu.
-      </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Mã hợp đồng">
-          <Input {...form.register('contract_code')} />
-        </Field>
-        <Field label="Ngày ký">
-          <Input type="date" {...form.register('signed_on')} />
-        </Field>
-        <Field label="Gói sản phẩm">
-          <select
-            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            {...form.register('product_package_id', { valueAsNumber: true })}
-          >
-            {data.packages.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Giá trị (VND)">
-          <Input
-            type="number"
-            min={1}
-            step={1}
-            {...form.register('total_value', { valueAsNumber: true })}
-          />
-        </Field>
-      </div>
-      <Field label="Tham chiếu bằng chứng hợp đồng">
-        <Input
-          {...form.register('evidence_reference')}
-          placeholder="Mã hồ sơ hoặc đường dẫn tài liệu được phép truy cập"
-        />
-      </Field>
-      <FormErrors errors={form.formState.errors} />
-      <Button type="submit" disabled={form.formState.isSubmitting}>
-        Gửi quản lý kiểm tra
-      </Button>
     </form>
   );
 }

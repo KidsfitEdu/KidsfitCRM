@@ -24,6 +24,7 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
+import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,7 +51,7 @@ type SalesSchoolProfile = {
     protection_until:string|null;total_value:number|null}[];
   school_units:{id:number;name:string;unit_type:string;address:string|null;
     province:string;ward:string;contact_name:string|null;contact_position:string|null;
-    contact_phone:string|null;email:string|null}[];
+    contact_phone:string|null;school_phone?:string|null;email:string|null;note?:string|null}[];
 };
 type StatusFilter = 'ALL' | ChannelCustomer['visible_status'];
 export type SalesCustomerMode = 'all' | 'mine' | 'activities';
@@ -61,6 +62,7 @@ type Props = {
   mode?: SalesCustomerMode;
   embedded?: boolean;
   onOpenCustomer?: (id: number) => void;
+  onExtensionSubmitted?: () => Promise<void>;
   workspace: ChannelSalesWorkspace;
   search: string;
   setSearch: (value: string) => void;
@@ -138,6 +140,7 @@ export function ChannelSalesView({
   mode = 'all',
   embedded = false,
   onOpenCustomer,
+  onExtensionSubmitted,
   workspace,
   search,
   setSearch,
@@ -166,6 +169,8 @@ export function ChannelSalesView({
   const [profileError,setProfileError] = useState('');
   const [activityCustomer, setActivityCustomer] =
     useState<ChannelCustomer | null>(null);
+  const [extensionCustomer, setExtensionCustomer] = useState<ChannelCustomer | null>(null);
+  const [extensionRefresh, setExtensionRefresh] = useState(0);
   const [contractCustomer, setContractCustomer] =
     useState<ChannelCustomer | null>(null);
   const [receiptCustomer, setReceiptCustomer] =
@@ -191,7 +196,7 @@ export function ChannelSalesView({
       .catch(err=>{if(active){setMinePage(null);setMineError(err instanceof Error?err.message:'Không tải được trường của tôi.');}})
       .finally(()=>{if(active)setMineLoading(false);});
     return()=>{active=false;};
-  },[serverMine,apiBase,token,listPage,listPageSize,filter,search,workspace]);
+  },[serverMine,apiBase,token,listPage,listPageSize,filter,search,workspace,extensionRefresh]);
   const scopedCustomers = useMemo(() => (serverMine ? (minePage?.data ?? []) : workspace.data).filter(customer =>
     mode === 'all' || (mode === 'activities'
       ? customer.visible_status === 'APPROACHING' && customer.can_manage_approach
@@ -338,13 +343,6 @@ export function ChannelSalesView({
               <option value="APPROACHING">Đang tiếp cận</option>
               <option value="CONTRACTED">Đã ký hợp đồng</option>
             </AppNativeSelect>}
-            {serverMine && <select aria-label="Lọc trạng thái trường của tôi" value={filter}
-              onChange={event=>{setFilter(event.target.value as StatusFilter);setListPage(1);}}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm">
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="APPROACHING">Đang tiếp cận</option>
-              <option value="CONTRACTED">Đã ký hợp đồng</option>
-            </select>}
             <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
             <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
               aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');setListPage(1);}}>
@@ -376,10 +374,10 @@ export function ChannelSalesView({
             </div>
           </div>}
 
-          <div className={`hidden gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid ${mode === 'mine' ? 'xl:grid-cols-[minmax(230px,1.6fr)_minmax(150px,.9fr)_minmax(180px,.9fr)_auto]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
-            <span>Khách hàng</span>
-            <span>Trạng thái</span>
-            <span>Quyền bảo vệ</span>
+          <div className={`hidden gap-4 border-b bg-[#1b5e20] px-5 py-3.5 text-[11px] font-bold uppercase tracking-[.06em] text-white xl:grid ${mode === 'mine' ? 'xl:grid-cols-[minmax(300px,1.8fr)_minmax(140px,.75fr)_minmax(165px,.85fr)_minmax(225px,1.1fr)]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
+            <span>{mode === 'mine' ? 'Trường học' : 'Khách hàng'}</span>
+            <span className={mode === 'mine' ? 'text-center' : ''}>Trạng thái</span>
+            <span className={mode === 'mine' ? 'text-center' : ''}>{mode === 'mine' ? 'Thời hạn bảo vệ' : 'Quyền bảo vệ'}</span>
             {mode !== 'mine' && <span>Tài chính</span>}
             <span className="text-right">Thao tác</span>
           </div>
@@ -394,6 +392,8 @@ export function ChannelSalesView({
                   : onOpenCustomer ? () => onOpenCustomer(customer.id) : undefined}
                 mineMode={mode === 'mine'}
                 onHistory={() => setHistoryCustomer(customer)}
+                onExtension={() => setExtensionCustomer(customer)}
+                canRequestExtension={Boolean(apiBase && token && customer.can_request_extension)}
                 canSeeRevenue={workspace.capabilities?.view_revenue !== false}
                 canRegister={mode === 'all' && canRegister}
                 canAddActivity={canAddActivity}
@@ -425,47 +425,12 @@ export function ChannelSalesView({
         </CardContent>
       </Card>
 
-      <AppDrawer open={detailCustomer!==null} onOpenChange={open=>{if(!open)setDetailCustomer(null);}}
-        title="CHI TIẾT NHÀ TRƯỜNG" description={detailCustomer?.display_name??''} wide>
-        {profileError&&<p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
-        {!schoolProfile&&!profileError&&<p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
-        {detailCustomer && schoolProfile && <div className="space-y-5 text-sm">
-          <section className="space-y-2">
-            <h3 className="text-lg font-semibold">{schoolProfile.data.display_name}</h3>
-            <p className="text-muted-foreground">{[schoolProfile.data.address,schoolProfile.data.district,schoolProfile.data.province].filter(Boolean).join(', ')||'Chưa cập nhật địa chỉ'}</p>
-            <p>Trạng thái: <strong>{statusCopy[detailCustomer.visible_status].label}</strong></p>
-            <p>Người phụ trách: {detailCustomer.owner_user_name??'—'}</p>
-            <p>Quyền bảo vệ đến: {detailCustomer.protected_until?channelDate(detailCustomer.protected_until):'Chưa có'}</p>
-          </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="font-semibold">1. Thông tin liên hệ</h3>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <p>Người liên hệ: {schoolProfile.data.contact_name??'—'}</p>
-              <p>Chức vụ: {schoolProfile.data.contact_position??'—'}</p>
-              <p>Điện thoại: {schoolProfile.data.phone??'—'}</p>
-              <p>Email: {schoolProfile.data.email??'—'}</p>
-            </div>
-          </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="font-semibold">2. Trường chính & phân hiệu</h3>
-            {schoolProfile.school_units.length===0?<p className="text-muted-foreground">Chưa có thông tin trường điểm.</p>
-              :schoolProfile.school_units.map(u=><div key={u.id} className="rounded-lg border p-3">
-                <p className="font-medium">{u.name} · {u.unit_type==='MAIN'?'Trường chính':'Phân hiệu'}</p>
-                <p className="mt-1 text-muted-foreground">{[u.address,u.ward,u.province].filter(Boolean).join(', ')||'Chưa có địa chỉ'}</p>
-              </div>)}
-          </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="font-semibold">3. Hợp đồng và quyền bảo vệ</h3>
-            {schoolProfile.contracts.length===0&&<p className="text-muted-foreground">Chưa có hợp đồng.</p>}
-            {schoolProfile.contracts.map(c=><div key={c.id} className="rounded-lg border p-3">
-              <p className="font-medium">{c.contract_code} · {c.status}</p>
-              <p className="mt-1 text-muted-foreground">Ngày ký: {channelDate(c.signed_on)}</p>
-            </div>)}
-            {canReportContract && detailCustomer.can_manage_approach && detailCustomer.visible_status==='APPROACHING' && !detailCustomer.contract_id &&
-              <Button type="button" onClick={()=>{setDetailCustomer(null);setContractCustomer(detailCustomer);}}>Báo cáo hợp đồng đã ký</Button>}
-          </section>
-          <p className="border-t pt-3 text-xs text-muted-foreground">Tiến độ và lịch sử tư vấn được xem tại icon Lịch sử tiếp cận riêng trong bảng.</p>
-        </div>}
+      <AppDrawer open={detailCustomer !== null} onOpenChange={open => { if (!open) setDetailCustomer(null); }}
+        title={detailCustomer?.display_name ?? 'Hồ sơ trường học'}
+        description={detailCustomer?.code ?? ''} wide>
+        {profileError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
+        {!schoolProfile && !profileError && <p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
+        {schoolProfile && <SchoolProfileDetails units={schoolProfile.school_units} />}
       </AppDrawer>
       {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
         onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}
@@ -489,6 +454,16 @@ export function ChannelSalesView({
             setActivityCustomer(null);
           }}
         />
+      )}
+      {extensionCustomer && apiBase && token && (
+        <ExtensionDialog key={extensionCustomer.approach_registration_id ?? extensionCustomer.id}
+          customer={extensionCustomer} apiBase={apiBase} token={token}
+          onClose={() => setExtensionCustomer(null)}
+          onSubmitted={async () => {
+            setExtensionCustomer(null);
+            setExtensionRefresh(value => value + 1);
+            await onExtensionSubmitted?.();
+          }} />
       )}
       {contractCustomer && (
         <ContractDialog
@@ -520,6 +495,8 @@ export function ChannelSalesView({
 function CustomerRow({
   mineMode,
   onHistory,
+  onExtension,
+  canRequestExtension,
   canSeeRevenue,
   onOpenDetail,
   customer,
@@ -534,6 +511,8 @@ function CustomerRow({
 }: {
   mineMode: boolean;
   onHistory: () => void;
+  onExtension: () => void;
+  canRequestExtension: boolean;
   canSeeRevenue: boolean;
   onOpenDetail?: () => void;
   customer: ChannelCustomer;
@@ -546,11 +525,13 @@ function CustomerRow({
   onContract: () => void;
   onReceipt: () => void;
 }) {
+  const urgency = mineMode && customer.visible_status === 'APPROACHING' && customer.protected_until
+    ? protectionUrgency(customer.protected_until) : null;
   const status = customer.contract_id && customer.visible_status === 'APPROACHING'
     ? {label:'Chờ xác minh hợp đồng',compact:'Quản lý / CHECKEE đang xử lý',className:'border-blue-200 bg-blue-50 text-blue-800'}
     : statusCopy[customer.visible_status];
   return (
-    <div className={`grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:items-center ${mineMode ? 'xl:grid-cols-[minmax(230px,1.6fr)_minmax(150px,.9fr)_minmax(180px,.9fr)_auto]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
+    <div className={`grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:items-center ${mineMode ? 'xl:grid-cols-[minmax(300px,1.8fr)_minmax(140px,.75fr)_minmax(165px,.85fr)_minmax(225px,1.1fr)]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
       <div className="flex min-w-0 gap-3">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#e8f5e9] text-[#1b5e20] dark:bg-[#1b5e20]/20">
           {customer.customer_type === 'ORGANIZATION' ? (
@@ -568,17 +549,25 @@ function CustomerRow({
           >
             {customer.display_name}
           </button>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {customer.tax_code ? `MST ${customer.tax_code}` : customer.code}
-            {customer.contact_name ? ` · ${customer.contact_name}` : ''}
-          </p>
-          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground xl:hidden">
-            <Phone className="size-3" />{' '}
-            {customer.phone ?? 'Chưa có số điện thoại'}
-          </p>
+          {mineMode ? (
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+              {customer.address || 'Chưa cập nhật địa chỉ'}
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                {customer.tax_code ? `MST ${customer.tax_code}` : customer.code}
+                {customer.contact_name ? ` · ${customer.contact_name}` : ''}
+              </p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground xl:hidden">
+                <Phone className="size-3" />{' '}
+                {customer.phone ?? 'Chưa có số điện thoại'}
+              </p>
+            </>
+          )}
         </div>
       </div>
-      <div>
+      <div className={mineMode ? 'text-center' : ''}>
         <Badge variant="outline" className={status.className}>
           {status.label}
         </Badge>
@@ -586,18 +575,22 @@ function CustomerRow({
           {status.compact}
         </p>
       </div>
-      <div className="text-sm">
+      <div className={mineMode ? 'text-center text-sm' : 'text-sm'}>
         {customer.protected_until ? (
           <>
-            <p className="flex items-center gap-1.5 font-medium">
-              <ShieldCheck className="size-4 text-[#1b5e20]" />
-              {customer.owner_user_name ?? 'Đã xác lập quyền'}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {customer.visible_status === 'APPROACHING'
-                ? timeRemaining(customer.protected_until)
-                : `Đến ${channelDate(customer.protected_until)}`}
-            </p>
+            <div className={mineMode ? 'flex items-center justify-center gap-1.5 font-medium' : 'flex items-center gap-1.5 font-medium'}>
+              <ShieldCheck className={`size-4 ${urgency === 'critical' ? 'text-red-600' : urgency === 'warning' ? 'text-amber-600' : 'text-[#1b5e20]'}`}/>
+              <span>{mineMode ? `Đến ${channelDate(customer.protected_until)}` : (customer.owner_user_name ?? 'Đã xác lập quyền')}</span>
+            </div>
+            {(!mineMode || customer.visible_status === 'APPROACHING') && (
+              <p className={`mt-1 text-xs ${urgency === 'critical' ? 'font-bold text-red-700 dark:text-red-400' : urgency === 'warning' ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                {customer.visible_status === 'APPROACHING'
+                  ? timeRemaining(customer.protected_until)
+                  : `Đến ${channelDate(customer.protected_until)}`}
+              </p>
+            )}
+            {urgency === 'critical' && <span className="mt-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800 dark:bg-red-950 dark:text-red-200">Khẩn cấp · sắp hết hạn</span>}
+            {urgency === 'warning' && <span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200">Sắp hết hạn</span>}
           </>
         ) : (
           <p className="text-sm text-muted-foreground">Chưa có quyền bảo vệ</p>
@@ -631,6 +624,24 @@ function CustomerRow({
             title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
+          {customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (canRequestExtension || customer.extension_pending) && (
+            <Button type="button" size="icon" variant="outline"
+              className={`size-9 rounded-lg ${customer.extension_pending ? 'border-slate-300 text-slate-500' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700'}`}
+              disabled={Boolean(customer.extension_pending)}
+              onClick={onExtension}
+              title={customer.extension_pending ? 'Đang chờ quản lý duyệt gia hạn' : 'Xin gia hạn tiếp cận'}
+              aria-label={customer.extension_pending ? `Gia hạn đang chờ duyệt cho ${customer.display_name}` : `Xin gia hạn tiếp cận ${customer.display_name}`}>
+              <CalendarClock className="size-4" aria-hidden="true"/>
+            </Button>
+          )}
+          {canReportContract && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (
+            <Button type="button" size="icon" variant="outline"
+              className="size-9 rounded-lg border-green-700 text-green-800"
+              onClick={onContract} title="Báo cáo hợp đồng đã ký"
+              aria-label={`Báo cáo hợp đồng đã ký cho ${customer.display_name}`}>
+              <FileCheck2 className="size-4" aria-hidden="true"/>
+            </Button>
+          )}
         </>}
         {!mineMode && customer.visible_status === 'AVAILABLE' && canRegister && (
           <Button onClick={onRegister} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800" title="Đăng ký tiếp cận" aria-label={`Đăng ký tiếp cận ${customer.display_name}`}>
@@ -673,6 +684,81 @@ function CustomerRow({
       </div>
     </div>
   );
+}
+
+/** Submit a school extension request to the assigned sales manager. No automatic extension. */
+function ExtensionDialog({
+  customer, apiBase, token, onClose, onSubmitted,
+}: {
+  customer: ChannelCustomer;
+  apiBase: string;
+  token: string;
+  onClose: () => void;
+  onSubmitted: () => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [requestKey] = useState(() => idempotencyKey('extension'));
+  const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!customer.approach_registration_id || saving) return;
+    const form = new FormData(event.currentTarget);
+    const requested = text(form, 'requested_until');
+    const review = text(form, 'review_due_at');
+    const appointment = text(form, 'next_appointment_at');
+    setSaving(true);
+    setError('');
+    try {
+      if (!requested || !appointment) throw new Error('Vui lòng nhập thời hạn xin gia hạn và lịch hẹn tiếp theo.');
+      const requestedDate = new Date(requested);
+      const appointmentDate = new Date(appointment);
+      const end = customer.protected_until ? new Date(customer.protected_until) : null;
+      if (Number.isNaN(requestedDate.getTime()) || Number.isNaN(appointmentDate.getTime()) || (review && Number.isNaN(new Date(review).getTime())))
+        throw new Error('Thời gian không hợp lệ.');
+      if (end && requestedDate <= end) throw new Error('Thời hạn xin gia hạn phải sau thời hạn bảo vệ hiện tại.');
+      if (appointmentDate <= new Date() || appointmentDate > requestedDate)
+        throw new Error('Lịch hẹn phải trong tương lai và không vượt thời hạn xin gia hạn.');
+      if (review && (new Date(review) <= new Date() || (end && new Date(review) > end)))
+        throw new Error('Hạn phản hồi phải trong tương lai và không vượt hạn bảo vệ hiện tại.');
+      await channelRequest(apiBase, token, `/approaches/${customer.approach_registration_id}/extension-requests`, {
+        method: 'POST',
+        body: JSON.stringify({
+          idempotency_key: requestKey,
+          requested_until: requestedDate.toISOString(),
+          review_due_at: review ? new Date(review).toISOString() : null,
+          next_appointment_at: appointmentDate.toISOString(),
+          progress: text(form, 'progress'),
+          evidence_reference: text(form, 'evidence_reference'),
+        }),
+      });
+      await onSubmitted();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Không gửi được yêu cầu gia hạn.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <AppDialog open onOpenChange={open => {if (!open && !saving) onClose();}}
+    busy={saving} title="Xin gia hạn tiếp cận"
+    description="Gửi yêu cầu đến Quản lý bán hàng để phê duyệt. Yêu cầu không tự gia hạn quyền bảo vệ.">
+    <form className="space-y-4" onSubmit={submit}>
+      <CustomerHighlight customer={customer}/>
+      <p className="text-sm text-muted-foreground">
+        Bảo vệ hiện tại đến: {customer.protected_until ? channelDate(customer.protected_until) : 'Chưa có'}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Xin gia hạn đến *"><Input type="datetime-local" name="requested_until" required/></Field>
+        <Field label="Hạn đề nghị quản lý phản hồi (tùy chọn)"><Input type="datetime-local" name="review_due_at"/></Field>
+        <Field label="Lịch hẹn tiếp theo *"><Input type="datetime-local" name="next_appointment_at" required/></Field>
+        <Field label="Minh chứng / mã tài liệu *"><Input name="evidence_reference" required maxLength={500}/></Field>
+      </div>
+      <Field label="Tiến độ và lý do xin gia hạn *">
+        <textarea name="progress" required maxLength={4000} rows={4} className={textareaClass}
+          placeholder="Nêu kết quả đã tư vấn, nhu cầu của trường và kế hoạch tiếp theo."/>
+      </Field>
+      <DialogFooter saving={saving} error={error} onClose={onClose} label="Gửi quản lý phê duyệt"/>
+    </form>
+  </AppDialog>;
 }
 
 function RegisterApproachDialog({
@@ -1353,6 +1439,13 @@ const text = (form: FormData, key: string) => {
   const value = form.get(key);
   return typeof value === 'string' ? value.trim() : '';
 };
+
+/** Visual urgency only. The server remains responsible for expiry and ownership. */
+function protectionUrgency(value: string): 'warning' | 'critical' | null {
+  const remaining = new Date(value).getTime() - Date.now();
+  if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 24 * 3600000) return null;
+  return remaining <= 6 * 3600000 ? 'critical' : 'warning';
+}
 
 function timeRemaining(value: string) {
   const milliseconds = new Date(value).getTime() - Date.now();

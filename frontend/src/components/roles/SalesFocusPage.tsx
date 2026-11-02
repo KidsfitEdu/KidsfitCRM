@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { CalendarClock, Plus, School, UsersRound } from 'lucide-react';
+import { Plus, School, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
@@ -42,32 +42,30 @@ type Props = RolePageProps & {section: SalesSection};
 export function SalesFocusPage({section, ...props}: Props) {
   const {apiBase, token, abilities, workspace, onChanged, search, setSearch, salesWorkflow} = props;
   const proposalActionRef = useRef<{open: () => void} | null>(null);
-  const [subview, setSubview] = useState<'main' | 'invitations' | 'extensions'>(() =>
-    salesWorkflow === 'invitations' ? 'invitations'
-      : salesWorkflow === 'extensions' ? 'extensions' : 'main'
+  const [subview, setSubview] = useState<'main' | 'invitations'>(() =>
+    salesWorkflow === 'invitations' ? 'invitations' : 'main'
   );
   useEffect(() => {
-    setSubview(salesWorkflow === 'invitations' ? 'invitations'
-      : salesWorkflow === 'extensions' ? 'extensions' : 'main');
+    setSubview(salesWorkflow === 'invitations' ? 'invitations' : 'main');
   }, [section, salesWorkflow]);
 
   const can = (permission: string) => abilities.includes('*') || abilities.includes(permission);
   const isInvitations = (section === 'customers' || section === 'activities') && subview === 'invitations';
-  const isExtensions = (section === 'customers' || section === 'activities') && subview === 'extensions';
   const panel: Panel = section === 'schools' ? 'schools'
-    : section === 'proposals' || isInvitations || isExtensions ? 'operations' : 'customers';
+    : section === 'proposals' || isInvitations ? 'operations' : 'customers';
   const tab = section === 'proposals' ? 'proposals'
-    : isInvitations ? 'invitations' : isExtensions ? 'extensions' : undefined;
+    : isInvitations ? 'invitations' : undefined;
   const mode: SalesCustomerMode = section === 'customers' || section === 'activities' ? 'mine' : 'all';
   const table = <ChannelOperations key={section + ':' + panel + ':' + (tab ?? 'main')}
     apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}
     initialPanel={panel} allowedPanels={[panel]} hideTabs hideOperationsTabs
     compactOperations hideCustomerActivityHistory={section === 'customers' || section === 'activities'}
-    embeddedSalesTable={section === 'proposals' || isInvitations || isExtensions}
+    embeddedSalesTable={section === 'proposals' || isInvitations}
     proposalActionRef={proposalActionRef} initialOperationsTab={tab}
     customerView={onOpenCustomer => <ChannelSalesView apiBase={apiBase} token={token} mode={mode}
       embedded={section === 'customers' || section === 'activities'} workspace={workspace}
       search={search} setSearch={setSearch} onOpenCustomer={onOpenCustomer}
+      onExtensionSubmitted={onChanged}
       canRegister={can('channel_sales.approach.register')}
       canAddActivity={can('channel_sales.activity.create')}
       canReportContract={can('channel_sales.contract.report')}
@@ -96,7 +94,6 @@ export function SalesFocusPage({section, ...props}: Props) {
           {[
             {id:'main',label:'Trường đang phụ trách',icon:UsersRound},
             {id:'invitations',label:'Chờ nhận phân bổ',icon:School},
-            {id:'extensions',label:'Gia hạn tiếp cận',icon:CalendarClock},
           ].map(item => <button key={item.id} type="button" title={item.label}
             onClick={() => setSubview(item.id as typeof subview)}
             aria-current={subview === item.id ? 'page' : undefined}

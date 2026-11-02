@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
 
-public sealed record UpdateAdminMemberRequest(string? Name, string? Phone, string? RoleCode, string? Reason);
+public sealed record UpdateAdminMemberRequest(string? Name, string? Phone, string? RoleCode, string? Reason, long? ManagerUserId = null);
 public sealed record CreateAdminPartnerRequest(string? Code, string? Name);
 public sealed record UpdateAdminPartnerRequest(string? Name, string? Status, string? Reason);
 
@@ -62,6 +62,9 @@ public static class AdminPersonnelEndpoints
         if ((code == "CHECKEE") != (organization.OrganizationType == "CHECKEE"))
             throw new ApiConflictException("Vai trò CHECKEE phải thuộc tổ chức CHECKEE; không cấp chéo phạm vi.");
         var oldRole = currentRoles[0].Code;
+        if (oldRole == "SALES_MANAGER" && code != oldRole &&
+            await db.OrganizationMemberships.AnyAsync(x => x.ManagerUserId == user.Id && x.Status == "ACTIVE", ct))
+            throw new ApiConflictException("Cần đổi Quản lý trực tiếp của các thành viên trong đội trước khi đổi vai trò.");
         if (oldRole != code)
         {
             if (await db.OrganizationMemberships.AnyAsync(x => x.UserId == user.Id && x.Id != id && x.Status == "ACTIVE", ct))
@@ -75,13 +78,27 @@ public static class AdminPersonnelEndpoints
             db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
             membership.MembershipType = code;
         }
+        if (code == "SALES")
+        {
+            if (request.ManagerUserId.HasValue)
+            {
+                if (request.ManagerUserId == user.Id || !await db.OrganizationMemberships.AnyAsync(x =>
+                    x.UserId == request.ManagerUserId.Value && x.OrganizationId == membership.OrganizationId &&
+                    x.Status == "ACTIVE" && x.MembershipType == "SALES_MANAGER", ct))
+                    throw ApiValidationException.For("manager_user_id", "Quản lý trực tiếp phải đang hoạt động trong cùng tổ chức.");
+                membership.ManagerUserId = request.ManagerUserId;
+            }
+            if (!membership.ManagerUserId.HasValue && organization.OrganizationType != "CHECKEE")
+                throw ApiValidationException.For("manager_user_id", "Sales cần được gán Quản lý bán hàng trực tiếp.");
+        }
+        else if (oldRole != code) membership.ManagerUserId = null;
         var old = new { user.Name, user.Phone, role = oldRole };
         user.Name = name;
         user.Phone = phone;
         user.UpdatedAt = DateTime.UtcNow;
         membership.UpdatedAt = user.UpdatedAt;
         Audit.Add(db, actor, "UPDATE_ADMIN_PERSONNEL", nameof(User), user.Id, old,
-            new { user.Name, user.Phone, role = code, reason, membership.Id }, http);
+            new { user.Name, user.Phone, role = code, reason, membership.Id, membership.ManagerUserId }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { message = "Đã cập nhật nhân sự." });

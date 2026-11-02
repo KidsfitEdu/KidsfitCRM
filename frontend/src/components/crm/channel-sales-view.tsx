@@ -143,6 +143,9 @@ export function ChannelSalesView({
   const [draftSearch, setDraftSearch] = useState(search);
   const [listPage, setListPage] = useState(1);
   const [listPageSize, setListPageSize] = useState(20);
+  const [minePage, setMinePage] = useState<{data:ChannelCustomer[];total:number}|null>(null);
+  const [mineLoading,setMineLoading] = useState(false);
+  const [mineError,setMineError] = useState('');
   const [registerCustomer, setRegisterCustomer] = useState<
     ChannelCustomer | null | undefined
   >(undefined);
@@ -154,17 +157,30 @@ export function ChannelSalesView({
   const [receiptCustomer, setReceiptCustomer] =
     useState<ChannelCustomer | null>(null);
 
-  const scopedCustomers = useMemo(() => workspace.data.filter(customer =>
+  const serverMine = mode === 'mine' && Boolean(apiBase && token);
+  useEffect(()=>{
+    if(!serverMine)return;
+    let active=true;
+    setMineLoading(true);setMineError('');
+    const params=new URLSearchParams({page:String(listPage),pageSize:String(listPageSize),status:filter});
+    if(search.trim())params.set('search',search.trim());
+    void channelRequest<{data:ChannelCustomer[];total:number}>(apiBase!,token!,`/schools/mine?${params}`)
+      .then(result=>{if(active)setMinePage(result);})
+      .catch(err=>{if(active){setMinePage(null);setMineError(err instanceof Error?err.message:'Không tải được trường của tôi.');}})
+      .finally(()=>{if(active)setMineLoading(false);});
+    return()=>{active=false;};
+  },[serverMine,apiBase,token,listPage,listPageSize,filter,search,workspace]);
+  const scopedCustomers = useMemo(() => (serverMine ? (minePage?.data ?? []) : workspace.data).filter(customer =>
     mode === 'all' || (mode === 'activities'
       ? customer.visible_status === 'APPROACHING' && customer.can_manage_approach
       : customer.can_manage_approach || (customer.visible_status === 'CONTRACTED' && customer.contract_id !== null))
-  ), [mode, workspace.data]);
+  ), [mode, workspace.data, minePage, serverMine]);
   const customers = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('vi');
     return scopedCustomers.filter(
       (customer) =>
-        (filter === 'ALL' || customer.visible_status === filter) &&
-        (!term ||
+        (serverMine || filter === 'ALL' || customer.visible_status === filter) &&
+        (serverMine || !term ||
           [
             customer.display_name,
             customer.code,
@@ -173,11 +189,11 @@ export function ChannelSalesView({
             customer.contact_name,
           ].some((value) => value?.toLocaleLowerCase('vi').includes(term))),
     );
-  }, [filter, search, scopedCustomers]);
+  }, [filter, search, scopedCustomers, serverMine]);
 
-  const totalPages = Math.max(1, Math.ceil(customers.length / listPageSize));
+  const totalPages = Math.max(1, Math.ceil((serverMine ? (minePage?.total ?? 0) : customers.length) / listPageSize));
   const currentPage = Math.min(listPage, totalPages);
-  const pageCustomers = customers.slice((currentPage - 1) * listPageSize, currentPage * listPageSize);
+  const pageCustomers = serverMine ? customers : customers.slice((currentPage - 1) * listPageSize, currentPage * listPageSize);
 
   const tabs: { id: StatusFilter; label: string; count: number }[] = [
     {
@@ -300,6 +316,13 @@ export function ChannelSalesView({
               <option value="APPROACHING">Đang tiếp cận</option>
               <option value="CONTRACTED">Đã ký hợp đồng</option>
             </AppNativeSelect>}
+            {serverMine && <select aria-label="Lọc trạng thái trường của tôi" value={filter}
+              onChange={event=>{setFilter(event.target.value as StatusFilter);setListPage(1);}}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-sm">
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="APPROACHING">Đang tiếp cận</option>
+              <option value="CONTRACTED">Đã ký hợp đồng</option>
+            </select>}
             <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
             <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
               aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');setListPage(1);}}>
@@ -338,6 +361,8 @@ export function ChannelSalesView({
             {mode !== 'mine' && <span>Tài chính</span>}
             <span className="text-right">Thao tác</span>
           </div>
+          {mineError && <p role="alert" className="px-4 py-3 text-sm text-red-700">{mineError}</p>}
+          {mineLoading && <p className="px-4 py-3 text-sm text-muted-foreground">Đang tải trường của tôi…</p>}
           <div className="divide-y divide-border/70">
             {pageCustomers.map((customer) => (
               <CustomerRow
@@ -373,7 +398,7 @@ export function ChannelSalesView({
               </div>
             )}
           </div>
-          {mode !== 'all' && <AppPagination page={currentPage} pageSize={listPageSize} total={customers.length}
+          {mode !== 'all' && <AppPagination page={currentPage} pageSize={listPageSize} total={serverMine ? minePage?.total ?? 0 : customers.length}
             disabled={false} showSummary={false} onPageChange={setListPage} pageSizeOptions={[10,20,50,100]}
             onPageSizeChange={size=>{setListPageSize(size);setListPage(1);}}/>}
         </CardContent>

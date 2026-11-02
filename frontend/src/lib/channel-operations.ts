@@ -99,11 +99,15 @@ export type ChannelManagement = {
     organization_name: string;
     name: string;
     email: string;
+    phone?: string | null;
+    account_status?: string;
+    manager_user_id?: number | null;
     membership_type: string;
     status: string;
+    can_edit?: boolean;
     can_change_status: boolean;
   }[];
-  organizations: { id: number; code: string; name: string }[];
+  organizations: { id: number; code: string; name: string; organization_type?: string; status?: string }[];
   roles: { code: string; name: string }[];
 };
 

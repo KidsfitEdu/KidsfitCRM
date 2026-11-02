@@ -232,27 +232,27 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
             <Input type={k==='password'?'password':'text'} className="mt-1.5" value={createForm[k]} aria-invalid={!!errors[k]}
               onChange={e=>setCreateForm(v=>({...v,[k]:e.target.value}))}/><FormError>{errors[k]}</FormError>
           </label>)}
-          <label className="text-sm font-medium">Tổ chức
-            <AppNativeSelect className="mt-1.5 w-full" value={createForm.organization_id}
+          <div className="text-sm font-medium"><span>Tổ chức</span>
+            <AppNativeSelect aria-label="Tổ chức" className="mt-1.5 w-full" value={createForm.organization_id}
               onChange={e=>setCreateForm(v=>({...v,organization_id:e.target.value,manager_user_id:''}))}>
               <option value="">Chọn tổ chức</option>
               {management?.organizations.filter(o=>o.status==='ACTIVE').map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
             </AppNativeSelect><FormError>{errors.organization_id}</FormError>
-          </label>
-          <label className="text-sm font-medium">Vai trò
-            <AppNativeSelect className="mt-1.5 w-full" value={createForm.role_code}
+          </div>
+          <div className="text-sm font-medium"><span>Vai trò</span>
+            <AppNativeSelect aria-label="Vai trò" className="mt-1.5 w-full" value={createForm.role_code}
               onChange={e=>setCreateForm(v=>({...v,role_code:e.target.value}))}>
               {management?.roles.filter(r=>editableRoles.includes(r.code) &&
                 (r.code==='CHECKEE')===(management.organizations.find(o=>String(o.id)===createForm.organization_id)?.organization_type==='CHECKEE'))
                 .map(r=><option key={r.code} value={r.code}>{roleText(r.code)}</option>)}
             </AppNativeSelect>
-          </label>
-          {createForm.role_code==='SALES' && <label className="text-sm font-medium">Quản lý bán hàng trực tiếp
-            <AppNativeSelect className="mt-1.5 w-full" value={createForm.manager_user_id}
+          </div>
+          {createForm.role_code==='SALES' && <div className="text-sm font-medium"><span>Quản lý bán hàng trực tiếp</span>
+            <AppNativeSelect aria-label="Quản lý bán hàng trực tiếp" className="mt-1.5 w-full" value={createForm.manager_user_id}
               onChange={e=>setCreateForm(v=>({...v,manager_user_id:e.target.value}))}>
               <option value="">Chọn Quản lý</option>{managers(createForm.organization_id).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}
             </AppNativeSelect><FormError>{errors.manager_user_id}</FormError>
-          </label>}
+          </div>}
         </div>
         <FormActions busy={busy} onCancel={()=>setCreateOpen(false)} onSave={submitCreate} saveLabel="Tạo tài khoản"/>
       </AppDialog>
@@ -268,11 +268,11 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
                 .map(r=><option key={r.code} value={r.code}>{roleText(r.code)}</option>)}
             </AppNativeSelect>
           </label>
-          {editForm.role_code==='SALES'&&<label className="text-sm font-medium">Quản lý trực tiếp
-            <AppNativeSelect className="mt-1.5 w-full" value={editForm.manager_user_id} onChange={e=>setEditForm(v=>({...v,manager_user_id:e.target.value}))}>
+          {editForm.role_code==='SALES'&&<div className="text-sm font-medium"><span>Quản lý trực tiếp</span>
+            <AppNativeSelect aria-label="Quản lý trực tiếp" className="mt-1.5 w-full" value={editForm.manager_user_id} onChange={e=>setEditForm(v=>({...v,manager_user_id:e.target.value}))}>
               <option value="">Chọn Quản lý</option>{managers(String(edit?.organization_id??'')).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}
             </AppNativeSelect><FormError>{errors.manager_user_id}</FormError>
-          </label>}
+          </div>}
           <label className="text-sm font-medium sm:col-span-2">Lý do thay đổi<Input className="mt-1.5" value={editForm.reason} onChange={e=>setEditForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></label>
         </div>
         <FormActions busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>
@@ -283,11 +283,11 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           {!partner&&<label className="block text-sm font-medium">Mã đối tác<Input className="mt-1.5" value={partnerForm.code} onChange={e=>setPartnerForm(v=>({...v,code:e.target.value}))}/><FormError>{errors.code}</FormError></label>}
           <label className="block text-sm font-medium">Tên đối tác<Input className="mt-1.5" value={partnerForm.name} onChange={e=>setPartnerForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></label>
           {partner&&<>
-            <label className="block text-sm font-medium">Trạng thái
-              <AppNativeSelect className="mt-1.5 w-full" value={partnerForm.status} onChange={e=>setPartnerForm(v=>({...v,status:e.target.value as 'ACTIVE'|'SUSPENDED'}))}>
+            <div className="block text-sm font-medium"><span>Trạng thái</span>
+              <AppNativeSelect aria-label="Trạng thái đối tác" className="mt-1.5 w-full" value={partnerForm.status} onChange={e=>setPartnerForm(v=>({...v,status:e.target.value as 'ACTIVE'|'SUSPENDED'}))}>
                 <option value="ACTIVE">Hoạt động</option><option value="SUSPENDED">Tạm khóa</option>
               </AppNativeSelect>
-            </label>
+            </div>
             <label className="block text-sm font-medium">Lý do<Input className="mt-1.5" value={partnerForm.reason} onChange={e=>setPartnerForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></label>
           </>}
         </div>

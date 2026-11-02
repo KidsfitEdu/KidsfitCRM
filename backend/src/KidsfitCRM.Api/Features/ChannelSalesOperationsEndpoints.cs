@@ -30,6 +30,7 @@ public static class ChannelSalesOperationsEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesPayoutApprove);
         group.MapPost("/payouts/{id:long}/complete", async (long id, CompletePayoutRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
         {
+            if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Bắt buộc upload ảnh chuyển khoản trước khi ghi nhận đã chi.");
             await actions.CompletePayout(id, request, http.UserId(), http, ct);
             return Results.Ok(new { message = "Đã ghi nhận chi hoa hồng." });
         }).RequireAuthorization(Permissions.ChannelSalesPayoutComplete);

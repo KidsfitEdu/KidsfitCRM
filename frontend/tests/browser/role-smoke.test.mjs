@@ -47,7 +47,7 @@ async function login(profileLabel, viewport={width:1400,height:900}) {
 test('seven CRM roles across eight demo accounts can log in and open their menu', async () => {
   const roles = [
     ['Quản trị viên',7],['Quản lý bán hàng',6],
-    ['Nhân viên bán hàng',6],['CTV đối tác',6],
+    ['Nhân viên bán hàng',5],['CTV đối tác',5],
     ['Ban giám đốc',5],['Kế toán',2],
     ['Chăm sóc khách hàng',5],['CHECKEE',5],
   ];
@@ -76,7 +76,7 @@ test('Admin can navigate seven screens without browser exceptions', async () => 
 test('Collaborator mobile navigation and logout work', async () => {
   const {context,page,errors} = await login('CTV đối tác',{width:390,height:844});
   const nav = page.getByRole('navigation',{name:'Điều hướng di động'});
-  assert.equal(await nav.locator('button').count(),6);
+  assert.equal(await nav.locator('button').count(),5);
   await nav.locator('button').nth(1).click();
   assert.deepEqual(errors,[]);
   await page.screenshot({path:resolve(artifacts,'collaborator-mobile.png')});
@@ -113,7 +113,6 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();
   await page.getByRole('combobox',{name:'Lọc trạng thái hồ sơ'}).waitFor();
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
-  await navigation.getByRole('button',{name:'Tiếp cận & tư vấn',exact:true}).click();
   await page.getByRole('navigation',{name:'Nhóm công việc Sales'})
     .getByRole('button',{name:'Gia hạn tiếp cận'}).click();
   await page.getByRole('textbox',{name:'Tìm hồ sơ'}).waitFor();

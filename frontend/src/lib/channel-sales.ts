@@ -76,8 +76,15 @@ export type RegisterApproachInput = {
 };
 
 export type CustomerActivityInput = {
-  activity_type: 'CALL' | 'MEETING' | 'PROPOSAL' | 'NOTE';
+  activity_type: 'CALL' | 'MEETING' | 'PROPOSAL' | 'NOTE' | 'ZALO' | 'DEMO';
   content: string;
+  occurred_at?: string;
+  contact_name?: string;
+  contact_position?: string;
+  feedback?: string;
+  commitment?: string;
+  outcome?: 'INTERESTED' | 'NEEDS_INFO' | 'DEMO_SCHEDULED' | 'WAITING' | 'DECLINED' | 'UNREACHABLE';
+  evidence_reference?: string;
   next_follow_up_at?: string;
 };
 

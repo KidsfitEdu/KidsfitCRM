@@ -17,13 +17,17 @@ type WorkLog = {
   contact_name?: string | null;
   contact_position?: string | null;
   feedback?: string | null;
+  outcome?: string | null;
+  evidence_reference?: string | null;
   commitment?: string | null;
   user_name: string;
 };
-type Response = { data: WorkLog[]; total: number; page: number; page_size: number };
+type Response = { data: WorkLog[]; total: number; page: number; page_size: number;
+  assignments:{id:number;registered_at:string;protected_until:string;status:string;user_name:string}[] };
+const outcomeNames:Record<string,string>={INTERESTED:'Quan tâm sản phẩm',NEEDS_INFO:'Cần tư vấn thêm',DEMO_SCHEDULED:'Đã hẹn demo',WAITING:'Chờ phản hồi',DECLINED:'Không có nhu cầu',UNREACHABLE:'Không liên hệ được'};
 const typeNames: Record<string, string> = {
   CALL: 'Gọi điện', MEETING: 'Gặp trực tiếp', ZALO: 'Zalo',
-  DEMO: 'Demo', NOTE: 'Ghi chú',
+  DEMO: 'Demo', NOTE: 'Ghi chú', PROPOSAL:'Gửi đề xuất / báo giá',
 };
 const PAGE_SIZE = 20;
 const vietnamDateTime = (date: string) =>
@@ -67,6 +71,14 @@ export function SchoolWorkLogDrawer({
       {logs.isPending && <output className="text-sm text-muted-foreground">Đang tải ghi chú…</output>}
       {logs.error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{logs.error instanceof Error ? logs.error.message : 'Không tải được lịch sử.'}</p>}
       {logs.data?.data.length === 0 && <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Chưa có lần làm việc nào phù hợp.</p>}
+      {logs.data?.assignments && logs.data.assignments.length>0 && <section className="space-y-2 rounded-xl border p-3">
+        <h3 className="font-semibold">Lịch sử các lượt tiếp cận</h3>
+        <p className="text-xs text-muted-foreground">Mỗi lượt thuộc nhân sự và thời hạn riêng; dữ liệu chỉ hiển thị trong phạm vi được cấp.</p>
+        {logs.data.assignments.map(a=><div key={a.id} className="flex flex-wrap justify-between gap-2 border-t pt-2 text-xs">
+          <span>{a.user_name} · {a.status}</span>
+          <span>{vietnamDateTime(a.registered_at)} – {vietnamDateTime(a.protected_until)}</span>
+        </div>)}
+      </section>}
       <ol className="space-y-3">
         {logs.data?.data.map(log=><li key={log.id} className="rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -79,8 +91,10 @@ export function SchoolWorkLogDrawer({
             Trao đổi với: {[log.contact_name,log.contact_position].filter(Boolean).join(' · ')}
           </p>}
           <AppWorkNoteContent content={log.content} compact/>
+          {log.outcome && <p className="mt-2 text-sm"><strong>Kết quả:</strong> {outcomeNames[log.outcome]??log.outcome}</p>}
           {log.feedback && <p className="mt-2 text-sm"><strong>Phản hồi:</strong> {log.feedback}</p>}
           {log.commitment && <p className="mt-2 text-sm"><strong>Cam kết:</strong> {log.commitment}</p>}
+          {log.evidence_reference && <p className="mt-2 break-words text-xs text-muted-foreground"><strong>Tham chiếu minh chứng:</strong> {log.evidence_reference}</p>}
         </li>)}
       </ol>
       {logs.data && logs.data.total > PAGE_SIZE && <div className="flex items-center justify-between border-t border-border pt-3">

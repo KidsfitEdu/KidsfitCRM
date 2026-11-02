@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, Eye, RefreshCw, Search } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ type ContractRow = {
 };
 type ContractList = { data: ContractRow[]; total: number; page: number; page_size: number };
 type Detail = {
-  data: { id: number; contract_code: string; school_name: string; owner_name: string; personnel_type: string | null;
+  data: { id: number; contract_code: string; school_name: string; school_address: string | null; school_district: string | null; school_province: string | null; owner_name: string; personnel_type: string | null;
     signed_on: string; effective_on: string | null; status: string; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
@@ -45,6 +46,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
+  const [preview, setPreview] = useState<{url:string; name:string}|null>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -80,26 +82,36 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
-  const downloadEvidence = async (id: number, name: string) => {
+  const viewEvidence = async (id: number, name: string, inNewTab = false) => {
     setActionError('');
+    // Open synchronously on click to avoid popup blockers, then load authenticated bytes.
+    const tab = inNewTab ? window.open('', '_blank') : null;
+    if (inNewTab && tab) tab.document.title = 'Đang mở hợp đồng...';
     try {
       const response = await fetch(`${apiBase}/channel-sales/evidence/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
       });
       if (!response.ok) throw new Error('Không có quyền xem chứng từ hoặc tệp không còn tồn tại.');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      const original = await response.blob();
+      const ext = name.toLowerCase().split('.').pop();
+      const mime = ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png'
+        : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      const url = URL.createObjectURL(new Blob([original], {type: mime}));
+      if (inNewTab) {
+        if (!tab) { URL.revokeObjectURL(url); throw new Error('Trình duyệt đang chặn tab mới. Vui lòng cho phép mở cửa sổ.'); }
+        tab.location.replace(url);
+        // Blob URLs live for the tab session; revoke on the main window's unload.
+        window.addEventListener('pagehide', () => URL.revokeObjectURL(url), {once:true});
+      } else {
+        setPreview(old => { if (old) URL.revokeObjectURL(old.url); return {url, name}; });
+      }
     } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : 'Không tải được chứng từ.');
+      if (tab) tab.close();
+      setActionError(cause instanceof Error ? cause.message : 'Không mở được chứng từ.');
     }
+  };
+  const closePreview = () => {
+    setPreview(old => { if (old) URL.revokeObjectURL(old.url); return null; });
   };
   const submitSearch = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -213,7 +225,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         <table className="w-full min-w-[930px] text-left text-sm">
           <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Trường chính / HĐ</th>
+              <th className="px-4 py-3">Nhà trường</th>
               <th className="px-4 py-3">Phụ trách</th>
               <th className="px-4 py-3 text-right">Giá trị hợp đồng</th>
               <th className="px-4 py-3 text-right">Thực thu</th>
@@ -246,103 +258,143 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         </div>
       </div>
     </section>
-    <AppDrawer open={selected !== null} onOpenChange={open => { if (!open) setSelected(null); }}
-      title={detail?.data.school_name ?? 'Chi tiết hợp đồng'}
-      description={detail?.data.contract_code ?? 'Đang tải hợp đồng'}>
+    <AppDrawer wide open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
+      title="Chi tiết hợp đồng" description={detail?.data.contract_code ?? 'Đang tải thông tin'}>
       {!detail ? <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p> : <div className="space-y-6 text-sm">
-        <div className="grid grid-cols-2 gap-3 rounded-xl border p-4">
-          <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>
-          <Metric label="Nhà trường đã trả" value={channelMoney(detail.receipts.reduce((sum, x) => sum + x.amount, 0))}/>
-          <Metric label="Hoa hồng phát sinh" value={channelMoney(detail.ledger.reduce((sum, x) => sum + x.amount, 0))}/>
-          <Metric label="Phiếu chi liên quan" value={String(detail.payouts.length)}/>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
+          <h2 className="text-xl font-bold">{detail.data.school_name}</h2>
+          <p className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
+            <span>{[detail.data.school_address, detail.data.school_district, detail.data.school_province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</span>
+          </p>
+          <p className="flex items-center gap-2 text-muted-foreground"><UserRound className="size-4" aria-hidden="true"/>
+            Phụ trách: {detail.data.owner_name} · {detail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
+          </p>
+          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status}</span>
         </div>
-        <section className="space-y-2">
-          <h3 className="font-semibold">Hồ sơ hợp đồng</h3>
-          <p>Mã: {detail.data.contract_code} · Người phụ trách: {detail.data.owner_name}</p>
-          <p>Ngày ký: {detail.data.signed_on} · Trạng thái: {detail.data.status}</p>
-          <p>Gói: {detail.data.service_plan === 'SCHOOL_YEAR' ? 'Năm học' : detail.data.service_plan === 'MONTHLY_9' ? 'Thanh toán tháng' : 'Chưa khai báo'}
-            {detail.data.student_count ? ` · ${detail.data.student_count} học sinh` : ''}</p>
-          <p>Trường điểm: {detail.school_units.length ? detail.school_units.map(x=>x.name).join(', ') : 'Chỉ trường chính / chưa khai báo'}</p>
-          <p>Tham chiếu hợp đồng: {detail.data.evidence_reference ?? 'Chưa có'}</p>
-          {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><Button key={x.id} variant="outline" size="sm"
-            onClick={() => void downloadEvidence(x.id,x.file_name)}>Xem hợp đồng · {x.file_name}</Button>)}
-        </section>
-        <section className="space-y-2">
-          <h3 className="font-semibold">Lịch thanh toán theo hợp đồng</h3>
-          {detail.schedules.map(x => <div key={x.id} className="flex justify-between border-b py-2">
-            <span>Hạn: {x.due_on}<span className="block text-xs text-muted-foreground">{x.status}</span></span>
-            <span className="text-right">{channelMoney(x.amount_due)}<span className="block text-xs text-muted-foreground">Đã thu {channelMoney(x.amount_received)}</span></span>
+        <div className="grid grid-cols-2 gap-3">
+          <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>
+          <Metric label="Nhà trường đã trả" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0))}/>
+          <Metric label="Hoa hồng" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
+          <Metric label="Hoa hồng đã chuyển" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
+        </div>
+        <section className="space-y-3 border-t pt-5">
+          <h3 className="flex items-center gap-2 text-base font-semibold"><FileText className="size-5 text-muted-foreground"/>1. Thông tin hợp đồng</h3>
+          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
+            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_plan==='SCHOOL_YEAR'?'Năm học':detail.data.service_plan==='MONTHLY_9'?'Thanh toán theo tháng':'Chưa khai báo'}</dd></div>
+            <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
+          </dl>
+          <div><p className="text-muted-foreground">Trường điểm triển khai</p><p className="mt-1">{detail.school_units.length ? detail.school_units.map(x=>x.name).join(', ') : 'Chỉ trường chính / chưa khai báo'}</p></div>
+          {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><button key={x.id} type="button"
+            className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/40"
+            onClick={()=>void viewEvidence(x.id,x.file_name,true)} title="Mở hợp đồng trong tab mới">
+              <span className="flex min-w-0 items-center gap-2"><FileText className="size-4 shrink-0"/><span className="truncate">{x.file_name}</span></span>
+              <ExternalLink className="size-4 shrink-0" aria-hidden="true"/>
+            </button>)}
+          {detail.evidence.every(x=>x.kind!=='CONTRACT') && <p className="text-muted-foreground">Chưa có file hợp đồng đính kèm. {detail.data.evidence_reference ?? ''}</p>}
+          <h4 className="pt-2 font-semibold">Lịch thanh toán theo hợp đồng</h4>
+          {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
+          {detail.schedules.map(x=><div key={x.id} className="flex items-center justify-between gap-3 border-b py-2">
+            <div><div>Hạn {channelDate(x.due_on)}</div><div className="text-xs text-muted-foreground">{x.status}</div></div>
+            <div className="text-right tabular-nums">{channelMoney(x.amount_due)}<div className="text-xs text-muted-foreground">Đã trả {channelMoney(x.amount_received)}</div></div>
           </div>)}
         </section>
-        <section className="space-y-2">
-          <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Nhà trường đã thanh toán</h3>{canRecordRevenue && detail.data.status === 'ACTIVE' && <Button size="sm" variant="outline" disabled={saving} onClick={() => {setActionError('');setEntryMode('receipt');}}>Ghi nhận thực thu</Button>}</div>
-          {detail.receipts.length === 0 && <p className="text-muted-foreground">Chưa ghi nhận khoản thu.</p>}
-          {detail.receipts.map(x => <div key={x.id} className="flex justify-between border-b py-2">
-            <span>{channelDate(x.received_at)}<span className="block text-xs text-muted-foreground">{x.reference_code}</span></span>
-            <span className="text-right font-medium">{channelMoney(x.amount)}{detail.evidence.filter(e=>e.revenue_receipt_id===x.id).map(e=><button key={e.id} className="block text-xs font-normal text-primary underline" onClick={()=>void downloadEvidence(e.id,e.file_name)}>Xem ảnh chứng từ</button>)}</span>
-          </div>)}
-        </section>
-        <section className="space-y-2">
-          <h3 className="font-semibold">Hoa hồng và điều chỉnh</h3>
-          {detail.ledger.length === 0 && <p className="text-muted-foreground">Chưa có bút toán hoa hồng.</p>}
-          {detail.ledger.map(x => <div key={x.id} className="flex justify-between border-b py-2">
-            <span>{x.entry_type === 'ACCRUAL' ? `Phát sinh ${x.rate_percent}%` : 'Điều chỉnh'}<span className="block text-xs text-muted-foreground">{x.reason ?? channelDate(x.occurred_at)}</span></span>
-            <span className="font-medium">{channelMoney(x.amount)}</span>
-          </div>)}
-        </section>
-        <section className="space-y-2">
-          <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Lịch sử chi hoa hồng</h3>{canCreatePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => void createPayout()}>Lập phiếu chi</Button>}</div>
-          {detail.payouts.length === 0 && <p className="text-muted-foreground">Chưa có phiếu chi.</p>}
-          {detail.payouts.map(x => <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2">
-            <span>{x.code}<span className="block text-xs text-muted-foreground">{x.paid_at ? channelDate(x.paid_at) : x.status}</span></span>
-            <span className="text-right font-medium">{channelMoney(x.net_amount)}{detail.evidence.filter(e=>e.payout_id===x.id).map(e=><button key={e.id} className="block text-xs font-normal text-primary underline" onClick={()=>void downloadEvidence(e.id,e.file_name)}>Xem ảnh chuyển khoản</button>)}</span>
-            {x.status === 'DRAFT' && canApprovePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approvePayout(x.id)}>Duyệt phiếu chi</Button>}
-            {x.status === 'APPROVED' && canCompletePayout && <Button size="sm" variant="outline" disabled={saving} onClick={() => {setActionError('');setEntryMode('payout');}}>Ghi nhận đã chuyển</Button>}
-          </div>)}
-        </section>
-        {actionError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{actionError}</p>}
-        {entryMode && <form className="space-y-3 rounded-lg border p-4" onSubmit={event => void sendRecord(event)}>
-          <h3 className="font-semibold">{entryMode === 'receipt' ? 'Ghi nhận tiền nhà trường' : 'Ghi nhận đã chuyển hoa hồng'}</h3>
-          {entryMode === 'receipt' ? <label className="block space-y-1">
-            <span>Đợt thanh toán *</span>
-            <select name="schedule_id" required className="w-full rounded-lg border bg-background p-2">
-              {detail.schedules.filter(x => x.amount_received < x.amount_due).map(x =>
-                <option key={x.id} value={x.id}>{x.due_on} · Còn {channelMoney(x.amount_due - x.amount_received)}</option>)}
-            </select>
-          </label> : <label className="block space-y-1">
-            <span>Phiếu chi đã duyệt *</span>
-            <select name="payout_id" required className="w-full rounded-lg border bg-background p-2">
-              {detail.payouts.filter(x => x.status === 'APPROVED').map(x =>
-                <option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
-            </select>
-          </label>}
-          <div className="block space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label><Input id="accounting-transaction-date" type="date" name="transaction_date" required defaultValue={new Date().toISOString().slice(0, 10)}/></div>
-          {entryMode === 'receipt' ? <div className="block space-y-1"><label htmlFor="accounting-receipt-amount">Số tiền nhà trường thực trả (VNĐ) *</label>
-            <Input id="accounting-receipt-amount" type="number" min={1} step={1} name="amount" required /></div>
-            : <div className="block space-y-1"><label htmlFor="accounting-payout-amount">Số tiền đã chuyển (VNĐ) *</label>
-              <Input id="accounting-payout-amount" type="number" min={1} step={1} name="amount" required
-                defaultValue={detail.payouts.find(x => x.status === 'APPROVED')?.net_amount ?? 0}/>
-              <p className="text-xs text-muted-foreground">Hiện tại số tiền chuyển phải khớp phiếu chi đã duyệt. Chưa hỗ trợ tách nhỏ một phiếu chi.</p>
-            </div>}
-          <div className="block space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch / tham chiếu *</label><Input id="accounting-bank-reference" name="reference_code" required maxLength={64}/></div>
-          <div className="block space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chuyển khoản *</label>
-            <Input id="accounting-bank-proof" type="file" name="proof" accept="image/jpeg,image/png,image/webp" required/>
-            <span className="block text-xs text-muted-foreground">JPG, PNG hoặc WEBP · Tối đa 5 MB · Chỉ người có quyền mới xem được</span>
+        <section className="space-y-3 border-t pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-base font-semibold"><ArrowDownToLine className="size-5 text-emerald-600"/>2. Nhà trường thanh toán</h3>
+            {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
+              onClick={()=>{setActionError('');setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu giao dịch và ảnh chứng từ'}</Button>
-            <Button type="button" variant="outline" onClick={() => setEntryMode(null)} disabled={saving}>Hủy</Button>
+          <div className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
+            <MetricLine label="Nhà trường đã trả" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0))}/>
+            <MetricLine label="Còn phải thanh toán" value={channelMoney(Math.max(0,detail.data.total_value-detail.receipts.reduce((sum,x)=>sum+x.amount,0)))}/>
           </div>
-        </form>}
-        <p className="rounded-lg border p-3 text-xs text-muted-foreground">
-          Kế toán xác nhận tiền đã vào tài khoản trước khi ghi thực thu. Mỗi giao dịch phải có ảnh chuyển khoản
-          và được lưu theo quyền truy cập nội bộ.
-        </p>
+          {detail.receipts.length===0 ? <p className="py-3 text-center text-muted-foreground">Chưa có khoản thu nào.</p> : <div className="space-y-1">
+            {detail.receipts.map(x=><div key={x.id} className="flex items-center justify-between gap-3 border-b py-3">
+              <div><div>{channelDate(x.received_at)}</div><div className="text-xs text-muted-foreground">{x.reference_code}</div></div>
+              <div className="flex items-center gap-3"><span className="font-medium tabular-nums">{channelMoney(x.amount)}</span>
+                {detail.evidence.filter(e=>e.revenue_receipt_id===x.id).map(e=><Button key={e.id} type="button" variant="ghost" size="icon"
+                  title="Xem ảnh nhà trường chuyển khoản" aria-label="Xem ảnh nhà trường chuyển khoản" onClick={()=>void viewEvidence(e.id,e.file_name)}>
+                  <ImageIcon className="size-4"/></Button>)}
+              </div>
+            </div>)}
+          </div>}
+        </section>
+        <section className="space-y-3 border-t pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-base font-semibold"><ArrowUpFromLine className="size-5 text-muted-foreground"/>3. Hoa hồng Sales/CTV</h3>
+            {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
+              onClick={()=>{setActionError('');setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
+            {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <Button size="sm" variant="outline" disabled={saving}
+              onClick={()=>void createPayout()}><Plus className="size-4"/> Lập phiếu chi</Button>}
+          </div>
+          <div className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-3">
+            <MetricLine label="Tổng hoa hồng" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
+            <MetricLine label="Đã chuyển" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
+            <MetricLine label="Chưa chuyển" value={channelMoney(Math.max(0,detail.ledger.reduce((sum,x)=>sum+x.amount,0)-detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0)))}/>
+          </div>
+          {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').length>0 && <div className="rounded-lg border p-3">
+            <p className="font-medium">Các khoản điều chỉnh hoa hồng</p>
+            {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').map(x=><div key={x.id} className="flex justify-between gap-2 py-1">
+              <span className="text-muted-foreground">{x.reason ?? 'Điều chỉnh'} </span><span>{channelMoney(x.amount)}</span>
+            </div>)}
+          </div>}
+          {detail.payouts.length===0 && <p className="py-3 text-center text-muted-foreground">Chưa có lịch sử chuyển hoa hồng.</p>}
+          {detail.payouts.map(x=><div key={x.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-3">
+            <div><div className="font-medium">{x.code}</div><div className="text-xs text-muted-foreground">{x.paid_at ? channelDate(x.paid_at) : x.status}</div></div>
+            <div className="flex items-center gap-2"><span className="tabular-nums">{channelMoney(x.net_amount)}</span>
+              {detail.evidence.filter(e=>e.payout_id===x.id).map(e=><Button key={e.id} variant="ghost" size="icon" title="Xem ảnh chuyển hoa hồng" aria-label="Xem ảnh chuyển hoa hồng"
+                onClick={()=>void viewEvidence(e.id,e.file_name)}><ImageIcon className="size-4"/></Button>)}
+              {x.status==='DRAFT' && canApprovePayout && <Button size="sm" variant="outline" disabled={saving} onClick={()=>void approvePayout(x.id)}>Duyệt phiếu chi</Button>}
+            </div>
+          </div>)}
+        </section>
+        {actionError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-red-700">{actionError}</p>}
+        <p className="text-xs text-muted-foreground">Kế toán xác nhận tiền đã thực sự vào tài khoản trước khi thêm khoản thu. Mỗi khoản thu và chi đều phải kèm ảnh chuyển khoản.</p>
       </div>}
     </AppDrawer>
+    <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
+      busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
+      description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
+      {detail && entryMode && <form className="space-y-4" onSubmit={event=>void sendRecord(event)}>
+        {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
+          <select name="schedule_id" required className="w-full rounded-lg border bg-background p-2">
+            {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
+              {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
+          </select></label> : <label className="block space-y-1"><span>Phiếu chi đã duyệt *</span>
+          <select name="payout_id" required className="w-full rounded-lg border bg-background p-2">
+            {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
+          </select></label>}
+        <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
+          <Input id="accounting-transaction-date" type="date" name="transaction_date" required defaultValue={new Date().toISOString().slice(0,10)}/></div>
+        <div className="space-y-1"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
+          <Input id="accounting-amount" name="amount" type="number" min={1} step={1} required
+            defaultValue={entryMode==='payout'?detail.payouts.find(x=>x.status==='APPROVED')?.net_amount:undefined}/></div>
+        {entryMode==='payout' && <p className="text-xs text-muted-foreground">Số tiền chi phải khớp phiếu chi đã duyệt; chưa hỗ trợ chia nhỏ một phiếu chi.</p>}
+        <div className="space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch ngân hàng *</label>
+          <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}/></div>
+        <div className="space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chứng từ chuyển khoản *</label>
+          <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required/>
+          <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
+        {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
+        <div className="flex flex-wrap justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</Button>
+          <Button type="submit" disabled={saving}>{saving?'Đang lưu...':'Lưu giao dịch'}</Button>
+        </div>
+      </form>}
+    </AppDialog>
+    <AppDialog open={preview!==null} onOpenChange={open=>{if(!open)closePreview();}} title={preview?.name??'Ảnh chuyển khoản'}
+      description="Chứng từ riêng tư – chỉ sử dụng để đối soát." contentClassName="sm:!max-w-4xl">
+      {preview && <img src={preview.url} alt={preview.name} className="mx-auto max-h-[68dvh] max-w-full object-contain"/>}
+    </AppDialog>
   </div>;
 }
 
-function Metric({ label, value }: {label: string; value: string}) {
-  return <div><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 font-semibold tabular-nums">{value}</div></div>;
+function Metric({ label, value }: {label:string;value:string}) {
+  return <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-lg font-bold tabular-nums">{value}</p></div>;
+}
+function MetricLine({label,value}:{label:string;value:string}) {
+  return <div><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold tabular-nums">{value}</p></div>;
 }

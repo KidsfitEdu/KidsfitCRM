@@ -8,7 +8,7 @@ namespace KidsfitCRM.Api.Features;
 public static class SalesIncomeEndpoints
 {
     public static async Task<IResult> Mine(HttpContext http, KidsfitDbContext db, string? period,
-        CancellationToken ct, int page = 1, int pageSize = 20)
+        CancellationToken ct, int page = 1, int pageSize = 20, string? search = null)
     {
         var actor = http.UserId();
         var access = await ChannelSalesAccess.Load(db, actor, ct);
@@ -35,6 +35,10 @@ public static class SalesIncomeEndpoints
                          commission = g.Sum(x => x.Amount),
                          entries = g.Count(),
                      };
+        if (!string.IsNullOrWhiteSpace(search)) {
+            var term = search.Trim();
+            groups = groups.Where(x => x.school_name.Contains(term) || x.contract_code.Contains(term));
+        }
         var total = await groups.CountAsync(ct);
         var selectedRows = await groups.OrderBy(x => x.school_name).ThenBy(x => x.contract_id)
             .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);

@@ -536,7 +536,7 @@ export function SchoolOperations({
           onSubmit={event => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
           <div className="relative min-w-[190px] flex-1">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-            <Input aria-label="Tìm hồ sơ" placeholder={active === 'invitations' ? 'Tên trường, nhân sự phân bổ...' : 'Tên trường, người yêu cầu...'}
+            <Input aria-label="Tìm hồ sơ" placeholder="Tên trường, người yêu cầu..."
               className="h-11 w-full rounded-xl pl-10" value={searchDraft} onChange={e => setSearchDraft(e.target.value)}/>
           </div>
           <AppNativeSelect aria-label="Lọc trạng thái hồ sơ" value={pendingOnly ? 'PENDING' : 'ALL'} containerClassName="w-full sm:w-48"

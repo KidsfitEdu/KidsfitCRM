@@ -27,7 +27,7 @@ public static class ManagerContractEndpoints
     }
 
     private static IQueryable<SalesContract> ManagerScope(KidsfitDbContext db, ChannelSalesAccess access) =>
-        access.Contracts(db).Where(c => c.RequiresSchoolVerification &&
+        db.SalesContracts.Where(c => c.RequiresSchoolVerification &&
             (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId))));
 
     private static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
@@ -77,7 +77,8 @@ public static class ManagerContractEndpoints
     private static async Task<IResult> Detail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        var contract = await (from c in access.Contracts(db).AsNoTracking().Where(x => x.Id == id && x.RequiresSchoolVerification)
+        var scoped = access.Has(Permissions.SchoolContractReview) ? ManagerScope(db, access) : access.Contracts(db);
+        var contract = await (from c in scoped.AsNoTracking().Where(x => x.Id == id && x.RequiresSchoolVerification)
                               join customer in db.ChannelCustomers.AsNoTracking() on c.CustomerId equals customer.Id
                               join owner in db.Users.AsNoTracking() on c.OwnerUserId equals owner.Id
                               select new {

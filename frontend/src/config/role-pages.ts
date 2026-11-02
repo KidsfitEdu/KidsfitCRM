@@ -53,8 +53,9 @@ export const managerPageSections = {
     proposals: {label:"Đề xuất",panel:"proposals",tab:""},
     allocations: {label:"Phân bổ",panel:"invitations",tab:""},
     progress: {label:"Tiến độ",panel:"report",tab:""},
+    contracts: {label:"Hợp đồng & xác minh",panel:"contracts",tab:""},
     extensions: {label:"Gia hạn",panel:"extensions",tab:""},
-    team: {label:"Đội ngũ",panel:"report",tab:""},
+    team: {label:"Đội ngũ bán hàng",panel:"team",tab:""},
   },
 } as const;
 

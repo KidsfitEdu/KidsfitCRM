@@ -187,9 +187,20 @@ public sealed partial class ChannelSalesActions
         if (!contract.RequiresSchoolVerification || !access.CanManageOrganization(contract.OwnerOrganizationId)) throw new KeyNotFoundException();
         if (contract.ManagerReviewedAt is not null) return;
         if (contract.Status != "PENDING_REVIEW") throw new ApiConflictException("Hợp đồng không ở bước quản lý kiểm tra.");
-        if (string.IsNullOrWhiteSpace(contract.EvidenceReference) || !await db.SalesContractItems.AnyAsync(x => x.ContractId == contract.Id && x.Quantity > 0 && x.Amount > 0, ct))
+        if ((!await db.FinancialEvidences.AnyAsync(x => x.ContractId == contract.Id && x.Kind == "CONTRACT" && x.AttachedAt != null, ct)
+                && string.IsNullOrWhiteSpace(contract.EvidenceReference))
+            || !await db.SalesContractItems.AnyAsync(x => x.ContractId == contract.Id && x.Quantity > 0 && x.Amount > 0, ct))
             throw new ApiConflictException("Hồ sơ cần đủ hợp đồng, gói sản phẩm và tham chiếu bằng chứng trước khi chuyển xác minh.");
         contract.Status = "MANAGER_REVIEWED";
+        var linkedCase = await db.ReconciliationCases.SingleOrDefaultAsync(x => x.ContractId == contract.Id, ct);
+        if (linkedCase is not null)
+        {
+            linkedCase.Status = "PENDING";
+            linkedCase.DisputeReason = null;
+            linkedCase.UpdatedAt = DateTime.UtcNow;
+            db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = linkedCase.Id, ActorUserId = actorId,
+                EventType = "MANAGER_FORWARDED", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+        }
         contract.ManagerReviewedAt = DateTime.UtcNow;
         contract.ManagerReviewedByUserId = actorId;
         contract.UpdatedAt = DateTime.UtcNow;

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using KidsfitCRM.Api.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +20,8 @@ internal static class CrmScenarioSeeder
         // The Admin policy table needs representative demo versions; drafts must never control live SLA behavior.
         var admin = await db.Users.SingleAsync(x => x.Code == "ADMIN001");
         await SeedDraftSchoolPoliciesAsync(db, kidsfit.Id, admin.Id, now);
+        await SeedManagerContractScenariosAsync(db, kidsfit.Id, checkeeOrganizationId: (await db.Organizations.SingleAsync(x => x.Code == "CHECKEE")).Id,
+            managerId: manager.Id, salesId: sales.Id, now);
 
         var proposals = new[]
         {
@@ -124,6 +128,147 @@ internal static class CrmScenarioSeeder
                 });
         }
         await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedManagerContractScenariosAsync(KidsfitDbContext db, long organizationId,
+        long checkeeOrganizationId, long managerId, long salesId, DateTime now)
+    {
+        // Synthetic-only data. Never copy imported school contacts or production documents into demo seed.
+        var package = await db.CheckeeProductPackages.Where(x => x.Status == "ACTIVE")
+            .OrderBy(x => x.Id).FirstAsync();
+        var scenarios = new[]
+        {
+            (Code: "SEED-MGR-REVIEW", Name: "Trường Mầm non Thảo Nguyên (demo)", Status: "PENDING_REVIEW"),
+            (Code: "SEED-MGR-RETURN", Name: "Trường Mầm non Gió Mới (demo)", Status: "NEEDS_REVISION"),
+            (Code: "SEED-MGR-CHECKEE", Name: "Trường Mầm non Cánh Diều (demo)", Status: "MANAGER_REVIEWED"),
+        };
+        var pdfBytes = SyntheticPdf();
+        foreach (var example in scenarios)
+        {
+            var customerCode = "CUS-" + example.Code;
+            var customer = await db.ChannelCustomers.SingleOrDefaultAsync(x => x.Code == customerCode);
+            if (customer is null)
+            {
+                customer = new ChannelCustomer
+                {
+                    Code = customerCode, CustomerType = "ORGANIZATION", DisplayName = example.Name,
+                    Province = "Địa bàn giả lập", Address = "Địa chỉ minh họa", OrganizationId = organizationId,
+                    CreatedByUserId = salesId, Source = "DEMO_MANAGER_CONTRACT",
+                    LifecycleStatus = "PROSPECT", VerificationStatus = "VERIFIED",
+                    CreatedAt = now.AddDays(-2), UpdatedAt = now,
+                };
+                db.ChannelCustomers.Add(customer); await db.SaveChangesAsync();
+            }
+            var school = await db.DirectorySchools.SingleOrDefaultAsync(x => x.SchoolCode == example.Code);
+            if (school is null)
+            {
+                school = new DirectorySchool { SchoolCode = example.Code, CustomerId = customer.Id,
+                    CreatedAt = now.AddDays(-2), UpdatedAt = now };
+                db.DirectorySchools.Add(school); await db.SaveChangesAsync();
+                db.SchoolUnits.Add(new SchoolUnit { DirectorySchoolId = school.Id, Version = 1, UnitType = "MAIN",
+                    Name = example.Name, Province = "Địa bàn giả lập", Ward = "Phường giả lập",
+                    ContentHash = "synthetic-" + example.Code, SourceRow = 1, CreatedAt = now.AddDays(-2), UpdatedAt = now });
+            }
+            var key = "scenario-manager-approach-" + example.Code;
+            var registration = await db.ApproachRegistrations.SingleOrDefaultAsync(x => x.IdempotencyKey == key);
+            if (registration is null)
+            {
+                registration = new ApproachRegistration { CustomerId = customer.Id, OwnerUserId = salesId,
+                    OwnerOrganizationId = organizationId, CreatedByUserId = salesId, Status = "ACTIVE",
+                    // Historic signed-contract scenarios must not consume today's Sales capacity.
+                    // The 5-day initial protection was valid when the sample contract was signed.
+                    RegisteredAt = now.AddDays(-7), ProtectedUntil = now.AddDays(-2),
+                    Source = "DEMO_MANAGER_CONTRACT", IdempotencyKey = key,
+                    CreatedAt = now.AddDays(-7), UpdatedAt = now };
+                db.ApproachRegistrations.Add(registration); await db.SaveChangesAsync();
+            }
+            var contractCode = "DEMO-" + example.Code;
+            var contract = await db.SalesContracts.SingleOrDefaultAsync(x => x.ContractCode == contractCode);
+            if (contract is null)
+            {
+                contract = new SalesContract
+                {
+                    CustomerId = customer.Id, ApproachRegistrationId = registration.Id,
+                    OwnerUserId = salesId, ReportedByUserId = salesId, OwnerOrganizationId = organizationId,
+                    ContractCode = contractCode, SignedOn = DateOnly.FromDateTime(now.AddDays(-3)),
+                    TotalValue = 12_000_000m, Status = example.Status, OwnerPersonnelType = "SALES",
+                    RequiresSchoolVerification = true, ServicePlan = "SCHOOL_YEAR", StudentCount = 280,
+                    SchoolUnitIdsJson = "[]", IdempotencyKey = "scenario-manager-contract-" + example.Code,
+                    ProtectionStartsAt = now, ProtectionUntil = now,
+                    ManagerReviewedAt = example.Status == "MANAGER_REVIEWED" ? now.AddHours(-2) : null,
+                    ManagerReviewedByUserId = example.Status == "MANAGER_REVIEWED" ? managerId : null,
+                    CreatedAt = now.AddDays(-3), UpdatedAt = now,
+                };
+                db.SalesContracts.Add(contract); await db.SaveChangesAsync();
+            }
+            if (!await db.SalesContractItems.AnyAsync(x => x.ContractId == contract.Id))
+                db.SalesContractItems.Add(new SalesContractItem { ContractId = contract.Id,
+                    ProductPackageId = package.Id, Description = package.Name, Quantity = 1,
+                    UnitPrice = contract.TotalValue, Amount = contract.TotalValue, CreatedAt = now, UpdatedAt = now });
+            if (!await db.RevenueSchedules.AnyAsync(x => x.ContractId == contract.Id))
+                db.RevenueSchedules.Add(new RevenueSchedule { ContractId = contract.Id,
+                    DueOn = DateOnly.FromDateTime(now.AddDays(30)), AmountDue = contract.TotalValue,
+                    AmountReceived = 0, Status = "PENDING", CreatedAt = now, UpdatedAt = now });
+            if (!await db.FinancialEvidences.AnyAsync(x => x.ContractId == contract.Id && x.Kind == "CONTRACT"))
+                db.FinancialEvidences.Add(new FinancialEvidence
+                {
+                    Kind = "CONTRACT", ContractId = contract.Id, UploadedByUserId = salesId,
+                    FileName = example.Code + ".pdf", MimeType = "application/pdf",
+                    Bytes = pdfBytes, Sha256 = Convert.ToHexString(SHA256.HashData(pdfBytes)),
+                    AttachedAt = now.AddDays(-1), CreatedAt = now.AddDays(-1), UpdatedAt = now,
+                });
+            var reconciliation = await db.ReconciliationCases.SingleOrDefaultAsync(x => x.ContractId == contract.Id);
+            if (reconciliation is null)
+            {
+                reconciliation = new ReconciliationCase { ContractId = contract.Id, CustomerId = customer.Id,
+                    CheckeeOrganizationId = checkeeOrganizationId,
+                    Status = example.Status == "MANAGER_REVIEWED" ? "PENDING" : "AWAITING_MANAGER",
+                    OpenedAt = now.AddDays(-1), CreatedAt = now.AddDays(-1), UpdatedAt = now };
+                db.ReconciliationCases.Add(reconciliation); await db.SaveChangesAsync();
+                db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
+                    ActorUserId = salesId, EventType = "OPENED", CreatedAt = now.AddDays(-1), UpdatedAt = now });
+                await db.SaveChangesAsync();
+                // Insert each distinct event separately: avoid multi-row INSERT parameter issues
+                // with the MySQL EF provider and preserve a deterministic event order.
+                if (example.Status == "NEEDS_REVISION")
+                {
+                    db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
+                        ActorUserId = managerId, EventType = "MANAGER_REVISION",
+                        Reason = "Cần bổ sung trang ký và đóng dấu (dữ liệu demo).", CreatedAt = now.AddHours(-3), UpdatedAt = now });
+                    await db.SaveChangesAsync();
+                }
+                if (example.Status == "MANAGER_REVIEWED")
+                {
+                    db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
+                        ActorUserId = managerId, EventType = "MANAGER_FORWARDED",
+                        CreatedAt = now.AddHours(-2), UpdatedAt = now });
+                    await db.SaveChangesAsync();
+                }
+            }
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static byte[] SyntheticPdf()
+    {
+        // Small valid PDF generated entirely from public-domain PDF primitives, without personal data.
+        const string content = "BT /F1 14 Tf 72 720 Td (KIDSFIT DEMO - NOT A REAL CONTRACT) Tj ET";
+        string[] objects =
+        [
+            "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+            "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+            $"4 0 obj\n<< /Length {Encoding.ASCII.GetByteCount(content)} >>\nstream\n{content}\nendstream\nendobj\n",
+            "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+        ];
+        var builder = new StringBuilder("%PDF-1.4\n");
+        var offsets = new List<int>();
+        foreach (var item in objects) { offsets.Add(Encoding.ASCII.GetByteCount(builder.ToString())); builder.Append(item); }
+        var xref = Encoding.ASCII.GetByteCount(builder.ToString());
+        builder.Append("xref\n0 6\n0000000000 65535 f \n");
+        foreach (var offset in offsets) builder.Append(offset.ToString("D10")).Append(" 00000 n \n");
+        builder.Append($"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
+        return Encoding.ASCII.GetBytes(builder.ToString());
     }
 
     private static async Task SeedDraftSchoolPoliciesAsync(KidsfitDbContext db, long organizationId, long adminId, DateTime now)

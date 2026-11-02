@@ -6,6 +6,7 @@ import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';
+import { SalesContractRevisions } from '@/components/roles/SalesContractRevisions';
 import { SalesIncomePage } from './SalesIncomePage';
 import type { RolePageProps } from '@/types/role-pages';
 
@@ -85,6 +86,7 @@ export function SalesFocusPage({section, ...props}: Props) {
         className="h-10 rounded-lg px-4"
         leadingIcon={<Plus className="size-4" aria-hidden="true"/>}
         onClick={() => proposalActionRef.current?.open()}>Thêm mới</AppButton> : undefined}/>
+    {section === 'customers' && <SalesContractRevisions apiBase={apiBase} token={token} abilities={abilities} onChanged={onChanged}/>}
     {contained ? <section className={section === 'customers'
       ? 'min-w-0 bg-white dark:bg-card'
       : 'min-w-0 bg-white dark:bg-card'}>

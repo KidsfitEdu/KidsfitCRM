@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CalendarDays, Phone, Circle } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CalendarDays, Phone, Circle, FileCheck2 } from 'lucide-react';
 
 // Stable view IDs and sidebar labels. Do not confuse display profiles with RBAC roles.
 export type View =
@@ -15,6 +15,7 @@ export type View =
   | 'manager-proposals'
   | 'manager-allocations'
   | 'manager-progress'
+  | 'manager-contracts'
   | 'manager-extensions'
   | 'manager-team'
   | 'role-board-dashboard'
@@ -93,8 +94,9 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'manager-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất', icon: BookOpenCheck },
   { id: 'manager-allocations', label: 'Phân bổ trường', shortLabel: 'Phân bổ', icon: UsersRound },
   { id: 'manager-progress', label: 'Theo dõi tiến độ', shortLabel: 'Tiến độ', icon: TrendingUp },
+  { id: 'manager-contracts', label: 'Hợp đồng & xác minh', shortLabel: 'Hợp đồng', icon: FileCheck2 },
   { id: 'manager-extensions', label: 'Duyệt gia hạn', shortLabel: 'Gia hạn', icon: CalendarDays },
-  { id: 'manager-team', label: 'Đội ngũ & báo cáo', shortLabel: 'Đội ngũ', icon: ShieldCheck },
+  { id: 'manager-team', label: 'Đội ngũ bán hàng', shortLabel: 'Đội ngũ', icon: ShieldCheck },
 ];
 
 export const viewCopy: Record<
@@ -155,8 +157,9 @@ export const viewCopy: Record<
   'manager-proposals': { eyebrow:'Quản lý bán hàng',title:'Đề xuất trường',description:'Tiếp nhận, kiểm tra và chuyển hồ sơ đề xuất đến Admin.' },
   'manager-allocations': { eyebrow:'Quản lý bán hàng',title:'Phân bổ trường',description:'Theo dõi lời mời và phản hồi nhận trường.' },
   'manager-progress': { eyebrow:'Quản lý bán hàng',title:'Theo dõi tiến độ',description:'Theo dõi tiến độ tiếp cận và hiệu quả phân bổ.' },
+  'manager-contracts': { eyebrow:'Quản lý bán hàng',title:'Hợp đồng & xác minh',description:'Kiểm tra hồ sơ do Sales báo cáo, chuyển CHECKEE xác minh và theo dõi kết quả.' },
   'manager-extensions': { eyebrow:'Quản lý bán hàng',title:'Duyệt gia hạn',description:'Xem tiến độ và bằng chứng, duyệt hoặc từ chối gia hạn.' },
-  'manager-team': { eyebrow:'Quản lý bán hàng',title:'Đội ngũ & báo cáo',description:'Theo dõi kết quả phân bổ và nhân sự được quản lý.' },
+  'manager-team': { eyebrow:'Quản lý bán hàng',title:'Đội ngũ bán hàng',description:'Quản lý nhân sự và kết quả phụ trách trường của đội ngũ.' },
 
 };
 

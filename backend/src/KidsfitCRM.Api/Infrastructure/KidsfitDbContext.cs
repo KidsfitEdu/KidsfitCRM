@@ -221,7 +221,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<ReconciliationCase>().Property(x => x.Status).HasMaxLength(24);
         b.Entity<ReconciliationCase>().HasIndex(x => x.ContractId).IsUnique();
         b.Entity<ReconciliationCase>().HasIndex(x => new { x.CheckeeOrganizationId, x.Status });
-        b.Entity<ReconciliationEvent>().Property(x => x.EventType).HasMaxLength(24);
+        b.Entity<ReconciliationEvent>().Property(x => x.EventType).HasMaxLength(64);
         b.Entity<ReconciliationEvent>().HasIndex(x => new { x.ReconciliationCaseId, x.CreatedAt });
     }
 

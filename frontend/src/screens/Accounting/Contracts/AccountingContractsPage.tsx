@@ -10,7 +10,7 @@ import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { channelDate, channelMoney, channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
+import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
 
 type ContractRow = {
   id: number;
@@ -30,7 +30,8 @@ type Detail = {
     signed_on: string; effective_on: string | null; status: string; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
-  ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string }[];
+  ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
+    period: string; beneficiary_user_id: number; beneficiary_organization_id: number; assigned_to_payout: boolean; reconciled: boolean }[];
   payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null }[];
   evidence: {id:number;kind:string;file_name:string;revenue_receipt_id:number|null;payout_id:number|null}[];
   school_units: {id:number;name:string}[];
@@ -49,6 +50,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
+  const [payoutPeriod, setPayoutPeriod] = useState('');
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
   const [preview, setPreview] = useState<{url:string; name:string; mime:string}|null>(null);
   const [saving, setSaving] = useState(false);
@@ -178,16 +180,24 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       setSaving(false);
     }
   };
+  const eligibleByPeriod = new Map<string, number>();
+  for (const entry of detail?.ledger ?? []) {
+    if (entry.reconciled && !entry.assigned_to_payout && entry.beneficiary_user_id === detail?.data.owner_user_id
+      && entry.beneficiary_organization_id === detail?.data.owner_organization_id) {
+      eligibleByPeriod.set(entry.period, (eligibleByPeriod.get(entry.period) ?? 0) + entry.amount);
+    }
+  }
+  const eligiblePeriods = [...eligibleByPeriod.entries()].filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
+  const chosenPeriod = eligiblePeriods.includes(payoutPeriod) ? payoutPeriod : (eligiblePeriods[0] ?? '');
   const createPayout = async () => {
-    if (!detail) return;
+    if (!detail || !chosenPeriod) return;
     setSaving(true);
     setActionError('');
     try {
-      const payoutPeriod = currentBusinessPeriod();
       await channelRequest(apiBase, token, '/payouts', {method:'POST',body:JSON.stringify({
         idempotency_key: crypto.randomUUID(), organization_id: detail.data.owner_organization_id,
-        beneficiary_user_id: detail.data.owner_user_id, period: payoutPeriod,
-        withholding_amount: 0,
+        beneficiary_user_id: detail.data.owner_user_id, period: chosenPeriod,
+        contract_id: detail.data.id, withholding_amount: 0,
       })});
       setDetailRevision(v => v+1);
       await load();
@@ -359,9 +369,22 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
             <h3 className="text-lg font-bold text-foreground">3. Hoa hồng Sales</h3>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
               onClick={()=>{setActionError('');setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
-            {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <Button size="sm" variant="outline" disabled={saving}
-              onClick={()=>void createPayout()}><Plus className="size-4"/> Lập phiếu chi</Button>}
+            {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <div className="flex flex-wrap items-center gap-2">
+              {eligiblePeriods.length>0 && <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
+                onChange={event=>setPayoutPeriod(event.target.value)}
+                className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
+                {eligiblePeriods.map(period=><option key={period} value={period}>Kỳ {period} · {channelMoney(eligibleByPeriod.get(period) ?? 0)}</option>)}
+              </select>}
+              <Button size="sm" variant="outline" disabled={saving || !chosenPeriod}
+                onClick={()=>void createPayout()}><Plus className="size-4"/> Lập phiếu chi</Button>
+            </div>}
           </div>
+          {canCreatePayout && eligiblePeriods.length===0 && !detail.payouts.some(x=>x.status==='APPROVED') && <p className="text-xs text-muted-foreground">
+            {detail.ledger.length===0 ? 'Chưa có hoa hồng phát sinh cho hợp đồng này.'
+              : detail.ledger.some(x=>!x.reconciled) ? 'Hoa hồng chưa có hồ sơ đối soát CHECKEE đã xác nhận.'
+              : detail.ledger.every(x=>x.assigned_to_payout) ? 'Hoa hồng đã được đưa vào phiếu chi. Xem trạng thái phiếu chi bên dưới.'
+              : 'Chưa có khoản hoa hồng dương đủ điều kiện lập phiếu chi.'}
+          </p>}
           {detail.ledger.some(x=>x.entry_type!=='ACCRUAL') && <div className="rounded-lg border border-border/80 px-3 py-2 text-xs text-muted-foreground">
             Có điều chỉnh hoa hồng. Chi tiết: {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').map(x=>`${x.reason || 'Điều chỉnh'} (${channelMoney(x.amount)})`).join('; ')}
           </div>}

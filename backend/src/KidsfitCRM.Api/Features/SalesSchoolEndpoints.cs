@@ -20,7 +20,7 @@ public static class SalesSchoolEndpoints
             .Where(r => r.OwnerUserId == actor && r.Status == "ACTIVE" && r.ProtectedUntil > now)
             .Select(r => r.CustomerId);
         var activeContractIds = db.SalesContracts.AsNoTracking()
-            .Where(c => c.OwnerUserId == actor && c.Status == "ACTIVE")
+            .Where(c => c.OwnerUserId == actor && c.Status != "CANCELLED")
             .Select(c => c.CustomerId);
         var query = access.Customers(db).AsNoTracking().Where(c =>
             activeApproachIds.Contains(c.Id) || activeContractIds.Contains(c.Id));
@@ -69,7 +69,7 @@ public static class SalesSchoolEndpoints
             var contract = contracts.FirstOrDefault(x => x.CustomerId == c.Id);
             var protection = protections.Where(x => x.CustomerId == c.Id)
                 .OrderByDescending(x => x.SourceType == "CONTRACT").FirstOrDefault();
-            var contracted = contract != null;
+            var contracted = contract?.Status == "ACTIVE";
             return new ChannelCustomerListItem(
                 c.Id, c.Code, c.DisplayName, c.CustomerType, c.TaxCode, c.Phone,
                 c.Email, c.ContactName, c.Source, contracted ? "CONTRACTED" : "APPROACHING",

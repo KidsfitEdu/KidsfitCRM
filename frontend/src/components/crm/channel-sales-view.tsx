@@ -24,6 +24,7 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
+import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,7 +51,7 @@ type SalesSchoolProfile = {
     protection_until:string|null;total_value:number|null}[];
   school_units:{id:number;name:string;unit_type:string;address:string|null;
     province:string;ward:string;contact_name:string|null;contact_position:string|null;
-    contact_phone:string|null;email:string|null}[];
+    contact_phone:string|null;school_phone?:string|null;email:string|null;note?:string|null}[];
 };
 type StatusFilter = 'ALL' | ChannelCustomer['visible_status'];
 export type SalesCustomerMode = 'all' | 'mine' | 'activities';
@@ -425,47 +426,12 @@ export function ChannelSalesView({
         </CardContent>
       </Card>
 
-      <AppDrawer open={detailCustomer!==null} onOpenChange={open=>{if(!open)setDetailCustomer(null);}}
-        title="CHI TIẾT NHÀ TRƯỜNG" description={detailCustomer?.display_name??''} wide>
-        {profileError&&<p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
-        {!schoolProfile&&!profileError&&<p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
-        {detailCustomer && schoolProfile && <div className="space-y-5 text-sm">
-          <section className="space-y-2">
-            <h3 className="text-lg font-semibold">{schoolProfile.data.display_name}</h3>
-            <p className="text-muted-foreground">{[schoolProfile.data.address,schoolProfile.data.district,schoolProfile.data.province].filter(Boolean).join(', ')||'Chưa cập nhật địa chỉ'}</p>
-            <p>Trạng thái: <strong>{statusCopy[detailCustomer.visible_status].label}</strong></p>
-            <p>Người phụ trách: {detailCustomer.owner_user_name??'—'}</p>
-            <p>Quyền bảo vệ đến: {detailCustomer.protected_until?channelDate(detailCustomer.protected_until):'Chưa có'}</p>
-          </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="font-semibold">1. Thông tin liên hệ</h3>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <p>Người liên hệ: {schoolProfile.data.contact_name??'—'}</p>
-              <p>Chức vụ: {schoolProfile.data.contact_position??'—'}</p>
-              <p>Điện thoại: {schoolProfile.data.phone??'—'}</p>
-              <p>Email: {schoolProfile.data.email??'—'}</p>
-            </div>
-          </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="font-semibold">2. Trường chính & phân hiệu</h3>
-            {schoolProfile.school_units.length===0?<p className="text-muted-foreground">Chưa có thông tin trường điểm.</p>
-              :schoolProfile.school_units.map(u=><div key={u.id} className="rounded-lg border p-3">
-                <p className="font-medium">{u.name} · {u.unit_type==='MAIN'?'Trường chính':'Phân hiệu'}</p>
-                <p className="mt-1 text-muted-foreground">{[u.address,u.ward,u.province].filter(Boolean).join(', ')||'Chưa có địa chỉ'}</p>
-              </div>)}
-          </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="font-semibold">3. Hợp đồng và quyền bảo vệ</h3>
-            {schoolProfile.contracts.length===0&&<p className="text-muted-foreground">Chưa có hợp đồng.</p>}
-            {schoolProfile.contracts.map(c=><div key={c.id} className="rounded-lg border p-3">
-              <p className="font-medium">{c.contract_code} · {c.status}</p>
-              <p className="mt-1 text-muted-foreground">Ngày ký: {channelDate(c.signed_on)}</p>
-            </div>)}
-            {canReportContract && detailCustomer.can_manage_approach && detailCustomer.visible_status==='APPROACHING' && !detailCustomer.contract_id &&
-              <Button type="button" onClick={()=>{setDetailCustomer(null);setContractCustomer(detailCustomer);}}>Báo cáo hợp đồng đã ký</Button>}
-          </section>
-          <p className="border-t pt-3 text-xs text-muted-foreground">Tiến độ và lịch sử tư vấn được xem tại icon Lịch sử tiếp cận riêng trong bảng.</p>
-        </div>}
+      <AppDrawer open={detailCustomer !== null} onOpenChange={open => { if (!open) setDetailCustomer(null); }}
+        title={detailCustomer?.display_name ?? 'Hồ sơ trường học'}
+        description={detailCustomer?.code ?? ''} wide>
+        {profileError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
+        {!schoolProfile && !profileError && <p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
+        {schoolProfile && <SchoolProfileDetails units={schoolProfile.school_units} />}
       </AppDrawer>
       {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
         onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}
@@ -631,6 +597,14 @@ function CustomerRow({
             title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
+          {canReportContract && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (
+            <Button type="button" size="icon" variant="outline"
+              className="size-9 rounded-lg border-green-700 text-green-800"
+              onClick={onContract} title="Báo cáo hợp đồng đã ký"
+              aria-label={`Báo cáo hợp đồng đã ký cho ${customer.display_name}`}>
+              <FileCheck2 className="size-4" aria-hidden="true"/>
+            </Button>
+          )}
         </>}
         {!mineMode && customer.visible_status === 'AVAILABLE' && canRegister && (
           <Button onClick={onRegister} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800" title="Đăng ký tiếp cận" aria-label={`Đăng ký tiếp cận ${customer.display_name}`}>

@@ -77,6 +77,8 @@ public sealed class CustomerActivity : EntityBase
     public string? ContactName { get; set; }
     public string? ContactPosition { get; set; }
     public string? Feedback { get; set; }
+    public string? Outcome { get; set; }
+    public string? EvidenceReference { get; set; }
     public string? Commitment { get; set; }
     public long CustomerId { get; set; }
     public long? ApproachRegistrationId { get; set; }

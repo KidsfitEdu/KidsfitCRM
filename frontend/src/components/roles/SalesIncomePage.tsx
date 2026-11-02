@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, RotateCcw, Search } from 'lucide-react';
+import { Eye, RotateCcw } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
-import { AppPagination } from '@/components/common/app-pagination';
+import { AdminIconAction } from '@/components/common/admin-list-ui';
+import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
+import { AppNativeSelect } from '@/components/common/app-native-select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
 
 type Row = { contract_id:number; contract_code:string; school_name:string;
@@ -87,15 +88,14 @@ export function SalesIncomePage({apiBase,token,abilities}:{
     {permitted && <>
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm font-medium">Kỳ hoa hồng
-          <select aria-label="Kỳ hoa hồng" value={period}
-            onChange={event=>{setPeriod(event.target.value);setPage(1);}}
-            className="ml-2 h-10 rounded-lg border border-input bg-background px-3 text-sm">
+          <AppNativeSelect aria-label="Kỳ hoa hồng" value={period} containerClassName="ml-2 inline-flex min-w-44"
+            onChange={event=>{setPeriod(event.target.value);setPage(1);}}>
             <option value="ALL">Tất cả các kỳ</option>
             {Array.from({length:24},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);
               const value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
               return <option key={value} value={value}>Tháng {String(d.getMonth()+1).padStart(2,'0')}/{d.getFullYear()}</option>;
             })}
-          </select>
+          </AppNativeSelect>
         </label>
         <Button variant="outline" size="icon" title="Tải lại" aria-label="Tải lại thu nhập" onClick={()=>void load()}><RotateCcw className="size-4"/></Button>
       </div>
@@ -112,39 +112,31 @@ export function SalesIncomePage({apiBase,token,abilities}:{
         </div>)}
       </div>
       <p className="text-xs text-muted-foreground">Chưa nhận có thể gồm khoản chưa đối soát, chờ duyệt hoặc chờ chuyển. Tiền đã nhận của phiếu chi nhiều hợp đồng được phân bổ theo tỷ trọng bút toán, sau khấu trừ.</p>
-      <section className="overflow-hidden rounded-xl border bg-card">
-        <form className="flex flex-wrap items-center gap-2 border-b p-4" onSubmit={e=>{e.preventDefault();setTerm(search.trim());setPage(1);}}>
-          <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-            <Input aria-label="Tìm tên trường hoặc hợp đồng" placeholder="Tên trường, mã hợp đồng..." value={search}
-              onChange={e=>setSearch(e.target.value)} className="pl-9"/></div>
-          <Button type="submit">Tìm kiếm</Button>
-          <Button type="button" variant="outline" onClick={()=>{setTerm('');setSearch('');setPage(1);}}>Đặt lại</Button>
-        </form>
-        <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-[#1b5e20] text-xs font-semibold uppercase text-white"><tr>
-            <th className="px-4 py-3">Nhà trường</th>
-            <th className="px-4 py-3 text-right">Hoa hồng</th>
-            <th className="px-4 py-3 text-right">Đã nhận</th>
-            <th className="px-4 py-3 text-center">Thao tác</th>
-          </tr></thead>
-          <tbody className="divide-y divide-border/70">
-            {rows.map(row=><tr key={row.contract_id}>
-              <td className="px-4 py-3"><p className="font-medium">{row.school_name}</p>
-                <p className="text-xs text-muted-foreground">{row.contract_code}</p></td>
-              <td className="px-4 py-3 text-right tabular-nums">{channelMoney(row.commission)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{channelMoney(row.paid)}</td>
-              <td className="px-4 py-3 text-center"><Button variant="outline" size="icon"
-                aria-label={`Xem hoa hồng ${row.school_name}`} title="Xem chi tiết"
-                onClick={()=>setSelected(row)}><Eye className="size-4"/></Button></td>
-            </tr>)}
-            {!loading&&rows.length===0&&<tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Chưa có hoa hồng phù hợp.</td></tr>}
-            {loading&&<tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Đang tải thu nhập…</td></tr>}
-          </tbody>
-        </table></div>
-        <AppPagination page={page} pageSize={pageSize} total={data?.total??0}
-          onPageChange={setPage} onPageSizeChange={v=>{setPageSize(v);setPage(1);}}
-          pageSizeOptions={[10,20,50,100]} disabled={loading}/>
-      </section>
+      <SalesListLayout
+        columns={['Trường học','Hoa hồng','Đã nhận','Thao tác']}
+        template="minmax(240px,2fr) minmax(150px,1fr) minmax(150px,1fr) minmax(100px,auto)"
+        minWidth={720} page={page} pageSize={pageSize} total={data?.total ?? 0}
+        loading={loading} onPageChange={setPage}
+        onPageSizeChange={size => {setPageSize(size);setPage(1);}}
+        empty="Chưa có hoa hồng phù hợp."
+        toolbar={<SalesListToolbar
+          search={search} onSearchChange={setSearch} searchLabel="Tìm tên trường hoặc hợp đồng"
+          placeholder="Tên trường, mã hợp đồng..." onSearch={() => {setTerm(search.trim());setPage(1);}}
+          onReset={() => {setTerm('');setSearch('');setPage(1);}}/>}>
+        {rows.map(row => <SalesListRow key={row.contract_id}
+          template="minmax(240px,2fr) minmax(150px,1fr) minmax(150px,1fr) minmax(100px,auto)">
+          <div role="cell" className="min-w-0">
+            <p className="font-semibold">{row.school_name}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
+          </div>
+          <div role="cell" className="tabular-nums">{channelMoney(row.commission)}</div>
+          <div role="cell" className="tabular-nums">{channelMoney(row.paid)}</div>
+          <div role="cell" className="flex justify-end">
+            <AdminIconAction icon={Eye} label={`Xem hoa hồng ${row.school_name}`}
+              onClick={() => setSelected(row)}/>
+          </div>
+        </SalesListRow>)}
+      </SalesListLayout>
       <section className="rounded-xl border bg-card p-4">
         <h3 className="mb-3 font-semibold">Lịch sử phiếu chi của tôi</h3>
         <div className="space-y-2">{(data?.payouts??[]).map(p=><div key={p.id} className="flex flex-wrap items-center justify-between gap-3 border-b py-2 text-sm">

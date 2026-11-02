@@ -48,7 +48,10 @@ test('Sales pages use focused customer subsets and retain original authorized ac
   assert.match(focus, /title: 'Trường của tôi'/);
   assert.match(focus, /title: 'Trường của tôi'/);
   assert.match(focus, /id:'invitations'/);
-  assert.match(focus, /id:'extensions'/);
+  // The extension tab was removed; requests are available from the active-school row.
+  assert.doesNotMatch(focus, /id:'extensions'/);
+  assert.match(view, /activeApproach &&/);
+  assert.match(view, /extensionBlocked/);
   assert.match(focus, /onRegister=\{props\.onRegister\}/);
   assert.match(focus, /onAddActivity=\{props\.onAddActivity\}/);
   assert.match(focus, /onReportContract=\{props\.onReportContract\}/);
@@ -80,7 +83,7 @@ test('Sales underline tabs and proposal table retain shared role layouts', () =>
   assert.match(focus, /min-w-0 bg-white dark:bg-card/);
   assert.doesNotMatch(focus, /rounded-t-\[24px\]/);
   assert.match(focus, /actions=\{canCreateProposal \?/);
-  assert.match(focus, /embeddedSalesTable=\{section === 'proposals' \|\| isInvitations \|\| isExtensions\}/);
+  assert.match(focus, /embeddedSalesTable=\{section === 'proposals' \|\| isInvitations\}/);
   assert.match(focus, /embedded=\{section === 'customers' \|\| section === 'activities'\}/);
   assert.match(operations, /!compactOperations && visiblePanel !== 'customers'/);
   assert.match(operations, /registrationIconOnly=\{compactOperations\}/);

@@ -21,10 +21,14 @@ type Props = {
 
 /** Shared read-only school / branch profile for Directory and My Schools. */
 export function SchoolProfileDetails({ units }: Props) {
+  // Show the main school first; preserve the original order within each unit type.
+  const orderedUnits = [...units].sort((a, b) =>
+    Number(b.unit_type === 'MAIN') - Number(a.unit_type === 'MAIN')
+  );
   return (
     <section className="space-y-3 text-sm">
       <h3 className="text-base font-semibold">Thông tin trường chính và trường điểm / phân hiệu</h3>
-      {units.map(unit => (
+      {orderedUnits.map(unit => (
         <section key={unit.id} className="rounded-xl border p-4">
           <p className="font-semibold">
             {unit.name}{' '}

@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
+import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { channelDate, channelRequest, channelQueryKeys } from '@/lib/channel-operations';
 
@@ -562,34 +563,9 @@ export function SchoolDirectory({
   );
 }
 
-/** Read-only profile used by the school directory. Operational actions live in their dedicated workflows. */
+/** Read-only profile used by the school directory. */
 function SchoolDetail({ data }: { data: Detail }) {
-  return (
-    <div className="space-y-5 text-sm">
-      <section className="space-y-3">
-        <h3 className="text-base font-semibold">Thông tin trường chính và trường điểm / phân hiệu</h3>
-        {data.units.map(unit => (
-          <section key={unit.id} className="rounded-xl border p-4">
-            <p className="font-semibold">
-              {unit.name}{' '}
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                {unit.unit_type === 'MAIN' ? 'Trường chính' : 'Trường điểm / Phân hiệu'}
-              </span>
-            </p>
-            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Địa chỉ</p><p>{[unit.address, unit.ward, unit.province].filter(Boolean).join(', ') || 'Chưa cập nhật'}</p></div>
-              <div><p className="text-xs text-muted-foreground">Người liên hệ / Chức vụ</p><p>{[unit.contact_name, unit.contact_position].filter(Boolean).join(' · ') || 'Chưa cập nhật'}</p></div>
-              <div><p className="text-xs text-muted-foreground">Điện thoại liên hệ</p><p>{unit.contact_phone || 'Chưa cập nhật'}</p></div>
-              <div><p className="text-xs text-muted-foreground">Điện thoại trường</p><p>{unit.school_phone || 'Chưa cập nhật'}</p></div>
-              <div><p className="text-xs text-muted-foreground">Email</p><p className="break-all">{unit.email || 'Chưa cập nhật'}</p></div>
-              {unit.note && <div><p className="text-xs text-muted-foreground">Ghi chú thông tin trường</p><p>{unit.note}</p></div>}
-            </div>
-          </section>
-        ))}
-        {data.units.length === 0 && <p className="text-muted-foreground">Chưa có thông tin đơn vị.</p>}
-      </section>
-    </div>
-  );
+  return <SchoolProfileDetails units={data.units} />;
 }
 
 const capacitySchema = z.object({

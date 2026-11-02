@@ -60,3 +60,19 @@ test('Shared school directory applies new notification behavior only to Admin', 
   assert.match(source, /preview\.warnings\.map/);
   assert.match(source, /setPreview\(result\)/);
 });
+
+test('Admin personnel separates account and membership states and reuses audited server operations', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const service = read('src/services/personnel.service.ts');
+  assert.match(page, /Đối tác \/ Tổ chức/);
+  assert.match(page, /account_status/);
+  assert.match(page, /can_edit/);
+  assert.match(page, /<ConfirmDialog/);
+  assert.match(page, /completeTeamHandover/);
+  assert.match(page, /reactivateTeam/);
+  assert.match(page, /role_code/);
+  assert.match(service, /\/school-handovers\//);
+  assert.match(service, /\/school-team\//);
+  assert.match(service, /\/admin\/partners/);
+  assert.doesNotMatch(service, /DELETE/);
+});

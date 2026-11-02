@@ -35,6 +35,7 @@ import { AppEmptyState } from '@/components/common/app-empty-state';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import {
   channelDate,
@@ -178,6 +179,7 @@ export function SchoolDirectory({
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selected, setSelected] = useState<number | null>(null);
+  const [registerSchool, setRegisterSchool] = useState<School | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [importKey, setImportKey] = useState(key);
@@ -436,16 +438,7 @@ export function SchoolDirectory({
                             title={registrationIconOnly ? 'Đăng ký tiếp cận' : undefined}
                             aria-label={registrationIconOnly ? `Đăng ký tiếp cận ${s.display_name}` : undefined}
                             disabled={mutation.isPending}
-                            onClick={() =>
-                              run({
-                                path: '/approach-registrations',
-                                body: {
-                                  idempotency_key: key(),
-                                  customer_id: s.customer_id,
-                                  source: 'SCHOOL_DIRECTORY',
-                                },
-                              }).catch(() => undefined)
-                            }
+                            onClick={() => { mutation.reset(); setRegisterSchool(s); }}
                           >
                             {registrationIconOnly ? <UserRoundPlus className="size-4" aria-hidden="true"/> : 'Đăng ký tiếp cận'}
                           </Button>
@@ -466,6 +459,27 @@ export function SchoolDirectory({
           disabled={schools.isFetching} onPageChange={setPage}
           pageSizeOptions={SCHOOL_ROWS_PER_PAGE} onPageSizeChange={value => {setPageSize(value);setPage(1);}}/>
       </section>
+      <ConfirmDialog
+        open={registerSchool !== null}
+        onOpenChange={(open) => { if (!open && !mutation.isPending) { setRegisterSchool(null); mutation.reset(); } }}
+        title="Xác nhận đăng ký tiếp cận"
+        description={<>Bạn có chắc chắn muốn đăng ký tiếp cận <strong>{registerSchool?.display_name}</strong> không? Quyền bảo vệ ban đầu là 5 ngày và sẽ chiếm một suất trong hạn mức hiện hành.</>}
+        confirmLabel="Xác nhận tiếp cận"
+        busy={mutation.isPending}
+        onConfirm={() => {
+          if (!registerSchool || mutation.isPending) return;
+          void run({
+            path: '/approach-registrations',
+            body: { idempotency_key: key(), customer_id: registerSchool.customer_id, source: 'SCHOOL_DIRECTORY' },
+          }).then(() => {
+            setRegisterSchool(null);
+            appNotice.success('Đăng ký tiếp cận thành công.', 'Danh sách trường và hạn mức đã được cập nhật.');
+          }).catch(() => undefined);
+        }}
+      >
+        {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
+        <p className="text-xs text-muted-foreground">Hệ thống kiểm tra lại quyền đăng ký, trạng thái trường và hạn mức khi xác nhận. Nếu trường đã được người khác nhận, đăng ký sẽ bị từ chối.</p>
+      </ConfirmDialog>
       <AppDialog open={importOpen} onOpenChange={(open) => {if (!upload.isPending) setImportOpen(open);}} busy={upload.isPending} title="Nhập danh bạ trường học" description="File .xlsx tối đa 2 MB, sheet DANH_SACH_TRUONG, đúng 12 cột của mẫu. Xem trước không thay đổi dữ liệu.">
           <Input
             type="file"
@@ -530,7 +544,7 @@ export function SchoolDirectory({
             </>
           )}
         </AppDialog>
-      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={`${detail.data?.school_code ?? ''} · Bảo vệ theo trường chính, không đăng ký riêng từng phân hiệu.`}>
+      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={`${detail.data?.school_code ?? ''} · Bảo vệ theo trường chính, không đăng ký riêng từng phân hiệu.`} wide>
           {detail.error && <ErrorText>{detail.error.message}</ErrorText>}
           {detail.isPending ? (
             <p>Đang tải hồ sơ…</p>
@@ -713,7 +727,15 @@ function SchoolDetail({
       </div>
     );
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 text-sm">
+      <section className="rounded-xl border bg-muted/30 p-4 sm:p-5">
+        <h3 className="text-lg font-semibold">{data.display_name}</h3>
+        <p className="mt-1 text-muted-foreground">{data.school_code} · Hồ sơ trường chính và các phân hiệu trực thuộc</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div><p className="text-xs text-muted-foreground">Số phân hiệu</p><p className="font-semibold">{data.units.filter(unit => unit.unit_type !== 'MAIN').length}</p></div>
+          <div><p className="text-xs text-muted-foreground">Quyền tiếp cận</p><p className="font-semibold">{data.protected_until ? `Bảo vệ đến ${channelDate(data.protected_until)}` : 'Chưa có thời hạn bảo vệ'}</p></div>
+        </div>
+      </section>
       {!!apiBase && (
         <div className="flex flex-wrap gap-2">
           <Button
@@ -925,7 +947,8 @@ function SchoolDetail({
           )}
         </section>
       )}
-      <div className="space-y-2">
+      <section className="space-y-3">
+        <h3 className="text-base font-semibold">Thông tin trường chính và phân hiệu</h3>
         {data.units.map((unit) => (
           <section key={unit.id} className="rounded-xl border p-4">
             <p className="font-semibold">
@@ -954,24 +977,18 @@ function SchoolDetail({
                 </Button>
               </div>
             )}
-            <p className="mt-1 text-xs text-muted-foreground">
-              {unit.address ?? `${unit.ward}, ${unit.province}`}
-            </p>
-            {unit.contact_name && (
-              <p className="mt-2 text-sm">
-                {unit.contact_name} · {unit.contact_position}
-              </p>
-            )}
-            {(unit.contact_phone || unit.school_phone || unit.email) && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Liên hệ: {unit.contact_phone ?? 'Chưa có'} · SĐT trường:{' '}
-                {unit.school_phone ?? 'Chưa có'}
-                {unit.email && ` · ${unit.email}`}
-              </p>
-            )}
+            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Địa chỉ</p><p>{[unit.address, unit.ward, unit.province].filter(Boolean).join(', ') || 'Chưa cập nhật'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Người liên hệ / Chức vụ</p><p>{[unit.contact_name, unit.contact_position].filter(Boolean).join(' · ') || 'Chưa cập nhật'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Điện thoại liên hệ</p><p>{unit.contact_phone || 'Chưa cập nhật'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Điện thoại trường</p><p>{unit.school_phone || 'Chưa cập nhật'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Email</p><p className="break-all">{unit.email || 'Chưa cập nhật'}</p></div>
+              {unit.note && <div><p className="text-xs text-muted-foreground">Ghi chú</p><p>{unit.note}</p></div>}
+            </div>
           </section>
         ))}
-      </div>
+      {data.units.length === 0 && <p className="text-muted-foreground">Chưa có thông tin đơn vị.</p>}
+      </section>
       {historyUnit !== null && (
         <section className="space-y-4 rounded-xl border p-4">
           <h3 className="font-semibold">Lịch sử chỉnh dữ liệu</h3>

@@ -77,6 +77,7 @@ public static class AccountingContractEndpoints
                               join owner in db.Users.AsNoTracking() on c.OwnerUserId equals owner.Id
                               select new {
                                   id = c.Id, contract_code = c.ContractCode, school_name = school.DisplayName,
+                                  school_address = school.Address, school_district = school.District, school_province = school.Province,
                                   owner_name = owner.Name, owner_user_id = c.OwnerUserId,
                                   personnel_type = c.OwnerPersonnelType, signed_on = c.SignedOn,
                                   effective_on = c.EffectiveOn, status = c.Status,

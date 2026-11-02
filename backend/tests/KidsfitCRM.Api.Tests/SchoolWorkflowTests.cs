@@ -360,4 +360,76 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
             CustomerWorkLogEndpoints.List(customerId, AsUser(unrelated.UserId), db, Ct));
     }
 
+    [MySqlFact] public async Task ManagerReturnResubmitAndCheckeeHandoffKeepFilesAndBlockEarlyVerification()
+    {
+        var customerId = (await Import(1))[0];
+        var seller = await Ctv();
+        var manager = await User("partner@kidsfit.vn");
+        var checkee = await User("checkee@kidsfit.vn");
+        var peer = await Ctv();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        HttpContext AsUser(long id) => new DefaultHttpContext {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id.ToString())], "test"))
+        };
+        JsonElement Json(IResult result) => JsonSerializer.SerializeToElement(((IValueHttpResult)result).Value,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+
+        var registration = await actions.RegisterCustomerApproach(Claim(customerId, Key()), seller.UserId, Http(), Ct);
+        var pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\\nSynthetic document");
+        var first = new FinancialEvidence {
+            Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "initial.pdf",
+            MimeType = "application/pdf", Bytes = pdf, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
+        };
+        db.FinancialEvidences.Add(first);
+        await db.SaveChangesAsync();
+        var contractId = await actions.ReportSignedContract(registration,
+            new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow),
+                null, await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(), 1_000_000m, null, null,
+                EvidenceId: first.Id), seller.UserId, Http(), Ct);
+        var caseId = await db.ReconciliationCases.Where(r => r.ContractId == contractId).Select(r => r.Id).SingleAsync();
+        Assert.Equal("AWAITING_MANAGER", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.Reconcile(caseId, true, new(null), checkee, Http(), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => FinancialEvidenceEndpoints.Download(first.Id, AsUser(checkee), db, Ct));
+
+        var list = Json(await ManagerContractEndpoints.List(AsUser(manager), db, null, "PENDING_REVIEW", 1, 20, Ct));
+        Assert.Contains(list.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contractId);
+        var details = Json(await ManagerContractEndpoints.Detail(contractId, AsUser(manager), db, Ct));
+        Assert.Single(details.GetProperty("evidence").EnumerateArray());
+        Assert.True(details.GetProperty("data").GetProperty("can_review").GetBoolean());
+
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            ManagerContractEndpoints.ReturnForRevision(contractId, new(""), AsUser(manager), db, Ct));
+        await ManagerContractEndpoints.ReturnForRevision(contractId,
+            new("Cần bổ sung dấu xác nhận và trang ký."), AsUser(manager), db, Ct);
+        Assert.Equal("NEEDS_REVISION", (await db.SalesContracts.FindAsync(contractId))!.Status);
+        var revisions = Json(await ManagerContractEndpoints.MyRevisions(AsUser(seller.UserId), db, Ct));
+        Assert.Contains(revisions.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contractId);
+        var hidden = Json(await ManagerContractEndpoints.MyRevisions(AsUser(peer.UserId), db, Ct));
+        Assert.DoesNotContain(hidden.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contractId);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ManagerContractEndpoints.Resubmit(contractId, new(first.Id), AsUser(peer.UserId), db, Ct));
+
+        var replacement = new FinancialEvidence {
+            Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "replacement.pdf",
+            MimeType = "application/pdf", Bytes = pdf, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
+        };
+        db.FinancialEvidences.Add(replacement);
+        await db.SaveChangesAsync();
+        await ManagerContractEndpoints.Resubmit(contractId, new(replacement.Id), AsUser(seller.UserId), db, Ct);
+        Assert.Equal("PENDING_REVIEW", (await db.SalesContracts.FindAsync(contractId))!.Status);
+        Assert.Equal(2, await db.FinancialEvidences.CountAsync(x => x.ContractId == contractId));
+        Assert.Contains(await db.ReconciliationEvents.Where(x => x.ReconciliationCaseId == caseId).Select(x => x.EventType).ToArrayAsync(),
+            x => x == "SALES_RESUBMITTED");
+
+        await actions.ReviewSchoolContract(contractId, manager, Http(), Ct);
+        Assert.Equal("MANAGER_REVIEWED", (await db.SalesContracts.FindAsync(contractId))!.Status);
+        Assert.Equal("PENDING", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
+        var permitted = await FinancialEvidenceEndpoints.Download(first.Id, AsUser(checkee), db, Ct);
+        Assert.NotNull(permitted);
+        await actions.Reconcile(caseId, true, new("CHECKEE xác minh hợp lệ"), checkee, Http(), Ct);
+        Assert.Equal("PENDING_KIDSFIT", (await db.SalesContracts.FindAsync(contractId))!.Status);
+        Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId));
+    }
+
 }

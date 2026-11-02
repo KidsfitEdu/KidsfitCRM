@@ -149,6 +149,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           method: 'POST', body: JSON.stringify({
             paid_at: timestamp, payment_reference: reference,
             evidence_id: uploaded.data.id,
+            amount: Number(form.get('amount')),
           }),
         });
       }
@@ -318,8 +319,13 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
             </select>
           </label>}
           <div className="block space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label><Input id="accounting-transaction-date" type="date" name="transaction_date" required defaultValue={new Date().toISOString().slice(0, 10)}/></div>
-          {entryMode === 'receipt' && <div className="block space-y-1"><label htmlFor="accounting-receipt-amount">Số tiền nhà trường thực trả (VNĐ) *</label>
-            <Input id="accounting-receipt-amount" type="number" min={1} step={1} name="amount" required /></div>}
+          {entryMode === 'receipt' ? <div className="block space-y-1"><label htmlFor="accounting-receipt-amount">Số tiền nhà trường thực trả (VNĐ) *</label>
+            <Input id="accounting-receipt-amount" type="number" min={1} step={1} name="amount" required /></div>
+            : <div className="block space-y-1"><label htmlFor="accounting-payout-amount">Số tiền đã chuyển (VNĐ) *</label>
+              <Input id="accounting-payout-amount" type="number" min={1} step={1} name="amount" required
+                defaultValue={detail.payouts.find(x => x.status === 'APPROVED')?.net_amount ?? 0}/>
+              <p className="text-xs text-muted-foreground">Hiện tại số tiền chuyển phải khớp phiếu chi đã duyệt. Chưa hỗ trợ tách nhỏ một phiếu chi.</p>
+            </div>}
           <div className="block space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch / tham chiếu *</label><Input id="accounting-bank-reference" name="reference_code" required maxLength={64}/></div>
           <div className="block space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chuyển khoản *</label>
             <Input id="accounting-bank-proof" type="file" name="proof" accept="image/jpeg,image/png,image/webp" required/>

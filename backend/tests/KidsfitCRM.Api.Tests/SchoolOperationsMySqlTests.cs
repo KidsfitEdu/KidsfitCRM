@@ -599,6 +599,75 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal("PAID", (await db.Payouts.FindAsync(payout))!.Status);
     }
 
+    [MySqlFact] public async Task ManagerDeparturePreviewRejectsOtherTeamAndReleasesOnlyUnsignedSchools()
+    {
+        var scenario = await Arrange();
+        var otherManager = await AddMember(scenario.OrgId, "SALES_MANAGER", "SALES_MANAGER");
+        var outsider = await AddMember(scenario.OrgId, "SALES", "SALES", otherManager.UserId);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Claim(scenario.OtherCustomerId),
+            scenario.Seller.UserId, Http(), Ct);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ManagerContractEndpoints.HandoverPreview(outsider.MembershipId, Http(scenario.Manager.UserId), db, Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            actions.CompleteSchoolHandover(outsider.MembershipId, new(Key(), "Sai đội ngũ", null, false),
+                scenario.Manager.UserId, Http(), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            actions.ChangeMembershipStatus(outsider.MembershipId,
+                new("SUSPENDED", "Sai đội ngũ", null, Key()), scenario.Manager.UserId,
+                Http(scenario.Manager.UserId), Ct));
+        var preview = Json(await ManagerContractEndpoints.HandoverPreview(scenario.Seller.MembershipId,
+            Http(scenario.Manager.UserId), db, Ct));
+        Assert.Equal(1, preview.GetProperty("summary").GetProperty("revoke_approaches").GetInt32());
+        Assert.Contains(preview.GetProperty("claims").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == registration);
+        await actions.CompleteSchoolHandover(scenario.Seller.MembershipId,
+            new(Key(), "Nghỉ việc", "Bàn giao trường chưa ký", false),
+            scenario.Manager.UserId, Http(scenario.Manager.UserId), Ct);
+        var released = Json(await ManagerContractEndpoints.ReleasedSchools(
+            Http(scenario.Manager.UserId), db, null, 1, 20, Ct));
+        Assert.Contains(released.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.OtherSchoolId);
+        Assert.Equal("REVOKED", await db.ApproachRegistrations
+            .Where(x => x.Id == registration).Select(x => x.Status).SingleAsync(Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.CompleteSchoolHandover(scenario.Seller.MembershipId,
+                new(Key(), "Trùng thao tác", null, false), scenario.Manager.UserId, Http(), Ct));
+        await actions.RegisterCustomerApproach(Claim(scenario.OtherCustomerId), scenario.Peer.UserId, Http(), Ct);
+        var nowUnavailable = Json(await ManagerContractEndpoints.ReleasedSchools(
+            Http(scenario.Manager.UserId), db, null, 1, 20, Ct));
+        Assert.DoesNotContain(nowUnavailable.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.OtherSchoolId);
+    }
+
+    [MySqlFact] public async Task ResignedOwnerContractKeepsManagerAccessAndFinancialBeneficiary()
+    {
+        var s = await Arrange();
+        var contract = await ActiveContract(s);
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        await actions.RecordRevenueReceipt(contract, new(Key(), null, 500_000m, null,
+            "RC-" + Key(), "BANK_TRANSFER"), admin, Http(admin), Ct);
+        var before = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract)
+            .Select(x => new { x.BeneficiaryUserId, x.RatePercent, x.Amount }).SingleAsync(Ct);
+        await actions.CompleteSchoolHandover(s.Seller.MembershipId,
+            new(Key(), "Nghỉ việc", "Tiếp tục đối soát hợp đồng", false),
+            s.Manager.UserId, Http(s.Manager.UserId), Ct);
+        var access = await ChannelSalesAccess.Load(db, s.Manager.UserId, Ct);
+        Assert.True(await access.Contracts(db).AnyAsync(x => x.Id == contract, Ct));
+        Assert.True(await access.Commissions(db).AnyAsync(x => x.ContractId == contract, Ct));
+        var after = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract)
+            .Select(x => new { x.BeneficiaryUserId, x.RatePercent, x.Amount }).SingleAsync(Ct);
+        Assert.Equal(before, after);
+        Assert.Equal(s.Seller.UserId, after.BeneficiaryUserId);
+        var another = await AddMember(s.OrgId, "SALES_MANAGER", "SALES_MANAGER");
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ManagerContractEndpoints.HandoverPreview(s.Seller.MembershipId,
+                Http(another.UserId), db, Ct));
+    }
+
     [MySqlFact] public async Task UnitCorrectionChecksVersionKeepsPrivateRevisionAndDoesNotOverwriteOnReimport()
     {
         var s = await Arrange(); var admin = await User("admin@kidsfit.vn");

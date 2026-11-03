@@ -12,10 +12,11 @@ import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { channelRequest } from '@/lib/channel-operations';
-import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
+import type { SchoolOperationsWorkspace, WorkflowPolicy } from '@/lib/school-operations';
 import type { RolePageProps } from '@/types/role-pages';
 
 const EMPTY_ORGANIZATIONS: SchoolOperationsWorkspace['organizations'] = [];
+type PolicyListResult = {items:WorkflowPolicy[];pagination:{page:number;page_size:number;total:number}};
 
 export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const [organization,setOrganization]=useState('ALL');
@@ -38,21 +39,28 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     enabled:connected,
   });
   const data=query.data;
-  const policies=(data?.policies??[]).filter(p=>p.status!=='CANCELLED' && (organization==='ALL'||String(p.organization_id)===organization)
-      && [data?.organizations.find(o=>o.id===p.organization_id)?.name??'',String(p.version)]
-        .some(value=>value.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'))))
-    .sort((a,b)=>a.organization_id-b.organization_id||b.version-a.version);
+  const policyQuery=useQuery({
+    queryKey:['board','policy-versions',apiBase,page,pageSize,search,organization],
+    queryFn:()=>channelRequest<PolicyListResult>(apiBase,token,
+      '/school-workflow-policies?page='+page+'&page_size='+pageSize
+        +'&search='+encodeURIComponent(search)
+        +(organization==='ALL'?'':'&organization_id='+encodeURIComponent(organization))),
+    enabled:connected,
+  });
+  const policies=policyQuery.data?.items??[];
   const orgName=(id:number)=>data?.organizations.find(x=>x.id===id)?.name??String(id);
-  const visiblePolicies=policies.slice((page-1)*pageSize,page*pageSize);
-  const detail=(data?.policies??[]).find(p=>p.id===detailId);
-  const confirmingPolicy=(data?.policies??[]).find(p=>p.id===confirm?.id);
-  const editing=(data?.policies??[]).find(p=>p.id===editingId)??null;
+  const visiblePolicies=policies;
+  const detail=policies.find(p=>p.id===detailId);
+  const confirmingPolicy=policies.find(p=>p.id===confirm?.id);
+  const editing=policies.find(p=>p.id===editingId)??null;
   const write=async (path:string,method:'POST'|'PATCH',body:unknown)=>{
     setActionError('');setBusy(true);
     try{
       await channelRequest(apiBase,token,path,{method,body:JSON.stringify(body)});
       setEditorOpen(false);setEditingId(null);setConfirm(null);
+      setPage(1);
       await query.refetch();
+      await policyQuery.refetch();
     }catch(error){setActionError(error instanceof Error?error.message:'Không thể cập nhật chính sách.');}
     finally{setBusy(false);}
   };
@@ -83,7 +91,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         onClick={()=>{setEditingId(null);setActionError('');setEditorOpen(true);}}>Thêm mới</AppButton>}/>
     {!connected&&<p className="rounded-xl border p-4 text-sm text-muted-foreground">Chưa kết nối API hoặc chưa đủ quyền xem chính sách.</p>}
     {actionError&&<p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
-    {query.error&&<p className="rounded-xl border border-red-300 p-4 text-sm text-red-600" role="alert">{query.error instanceof Error?query.error.message:'Không tải được chính sách.'}</p>}
+    {(query.error||policyQuery.error)&&<p className="rounded-xl border border-red-300 p-4 text-sm text-red-600" role="alert">{(policyQuery.error??query.error) instanceof Error?(policyQuery.error??query.error as Error).message:'Không tải được chính sách.'}</p>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}
@@ -120,12 +128,12 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
               </div></td>
           </tr>)}</tbody>
         </table>
-        {connected&&!query.isFetching&&!policies.length&&<p className="p-7 text-center text-sm text-muted-foreground">Không có phiên bản chính sách phù hợp trong trang này.</p>}
+        {connected&&!policyQuery.isFetching&&!policies.length&&<p className="p-7 text-center text-sm text-muted-foreground">Không có phiên bản chính sách phù hợp trong trang này.</p>}
       </div>
-      <AppPagination page={page} pageSize={pageSize} total={policies.length}
+      <AppPagination page={page} pageSize={pageSize} total={policyQuery.data?.pagination.total??0}
         onPageChange={setPage} pageSizeOptions={[10,20,50,100]}
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}
-        disabled={query.isFetching} showSummary={false}/>
+        disabled={policyQuery.isFetching} showSummary={false}/>
     </AdminListPanel>
     <AppDrawer open={detailId!==null} onOpenChange={open=>{if(!open)setDetailId(null);}} title="Chi tiết chính sách">
       {detail&&<div className="space-y-4 text-sm">

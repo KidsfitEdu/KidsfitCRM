@@ -16,6 +16,8 @@ import { channelRequest } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
 import type { RolePageProps } from '@/types/role-pages';
 
+const EMPTY_ORGANIZATIONS: SchoolOperationsWorkspace['organizations'] = [];
+
 export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const [organization,setOrganization]=useState('ALL');
   const [page,setPage]=useState(1);
@@ -138,7 +140,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
       </div>}
     </AppDrawer>
     <PolicyEditorDialog open={editorOpen} onClose={()=>{if(!busy)setEditorOpen(false);}}
-      busy={busy} policy={editing} organizations={data?.organizations??[]} onSave={save}/>
+      busy={busy} policy={editing} organizations={data?.organizations??EMPTY_ORGANIZATIONS} onSave={save}/>
     <ConfirmDialog open={confirm!==null} onOpenChange={v=>{if(!v&&!busy)setConfirm(null);}}
       busy={busy} destructive={confirm?.action==='cancel'}
       title={confirm?.action==='activate'?'Xác nhận kích hoạt chính sách':'Xác nhận hủy bản nháp'}

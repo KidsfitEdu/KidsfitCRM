@@ -134,7 +134,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     const err:Record<string,string>={};
     if(!partner && !/^[A-Z0-9_-]{2,32}$/.test(partnerForm.code.trim().toUpperCase()))err.code='Mã từ 2–32 ký tự: A–Z, 0–9, - hoặc _.';
     if(!partnerForm.name.trim())err.name='Cần tên đối tác.';
-    if(partner && partnerForm.status==='SUSPENDED' && !partnerForm.reason.trim())err.reason='Cần lý do thay đổi.';
+
     setErrors(err);if(Object.keys(err).length)return;
     const task=partner
       ?()=>updateAdminPartner(apiBase,token,partner.id,{name:partnerForm.name.trim(),status:partnerForm.status,reason:partnerForm.reason.trim()})
@@ -307,15 +307,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
         <div className="space-y-3">
           {!partner&&<div className="block text-sm font-medium">Mã đối tác<Input aria-label="Mã đối tác" className="mt-1.5" value={partnerForm.code} onChange={e=>setPartnerForm(v=>({...v,code:e.target.value}))}/><FormError>{errors.code}</FormError></div>}
           <div className="block text-sm font-medium">Tên đối tác<Input aria-label="Tên đối tác" className="mt-1.5" value={partnerForm.name} onChange={e=>setPartnerForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></div>
-          {partner&&<>
-            <div className="block text-sm font-medium"><span>Trạng thái</span>
-              <AppNativeSelect aria-label="Trạng thái đối tác" className="mt-1.5 w-full" value={partnerForm.status} onChange={e=>setPartnerForm(v=>({...v,status:e.target.value as 'ACTIVE'|'SUSPENDED'}))}>
-                <option value="ACTIVE">Hoạt động</option><option value="SUSPENDED">Tạm khóa</option>
-              </AppNativeSelect>
-            </div>
-            <div className="block text-sm font-medium">Lý do<Input aria-label="Lý do cập nhật đối tác" className="mt-1.5" value={partnerForm.reason} onChange={e=>setPartnerForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></div>
-          </>}
-        </div>
+       </div>
         <FormActions busy={busy} onCancel={()=>setPartnerOpen(false)} onSave={submitPartner} saveLabel={partner?'Lưu đối tác':'Tạo đối tác'}/>
       </AppDialog>
       <AppDrawer open={detail!==null} onOpenChange={open=>{if(!open)setDetail(null);}}
@@ -334,20 +326,22 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       </AppDrawer>
       <ConfirmDialog open={statusAction!==null} onOpenChange={open=>{if(!busy&&!open)setStatusAction(null);}}
         busy={busy} destructive={Boolean(statusAction?.suspend)}
-        title={statusAction?.suspend?'Xác nhận khóa truy cập':'Xác nhận mở quyền'}
-        description={statusAction?.account
-          ?'Tác động đến toàn tài khoản. Cần hoàn tất bàn giao ở mọi tổ chức trước khi khóa.'
-          :'Chỉ tác động tư cách thành viên ở tổ chức hiện tại. Trường đang tiếp cận và yêu cầu chờ được xử lý theo quy trình bàn giao.'}
-        confirmLabel={statusAction?.suspend?'Khóa và bàn giao':'Mở quyền'} onConfirm={submitStatus}>
-        <div className="block text-sm font-medium">Lý do *
-          <Input aria-label="Lý do khóa hoặc mở quyền" className="mt-1.5" value={reason} onChange={e=>setReason(e.target.value)}/>
+        title={statusAction?.suspend?'Xác nhận khóa truy cập':'Xác nhận mở khóa'}
+        confirmLabel={statusAction?.suspend?'Khóa truy cập':'Mở khóa'} onConfirm={submitStatus}>
+        {statusAction?.suspend&&<div className="block text-sm font-medium">Lý do *
+          <Input aria-label="Lý do khóa truy cập" className="mt-1.5" value={reason}
+            onChange={e=>setReason(e.target.value)}/>
           <FormError>{errors.reason}</FormError>
-        </div>
-        {statusAction?.suspend&&<div className="block text-sm font-medium">Nội dung bàn giao *
-          <textarea aria-label="Nội dung bàn giao" className="mt-1.5 min-h-24 w-full rounded-lg border bg-background p-3"
-            value={summary} onChange={e=>setSummary(e.target.value)}
-            placeholder="Tình trạng các trường, lịch hẹn, người nhận bàn giao và cam kết còn lại"/>
-          <FormError>{errors.summary}</FormError>
+        </div>}
+      </ConfirmDialog>
+      <ConfirmDialog open={partnerStatusAction!==null} onOpenChange={open=>{if(!busy&&!open)setPartnerStatusAction(null);}}
+        busy={busy} destructive={Boolean(partnerStatusAction?.suspend)}
+        title={partnerStatusAction?.suspend?'Xác nhận khóa tổ chức':'Xác nhận mở khóa tổ chức'}
+        confirmLabel={partnerStatusAction?.suspend?'Khóa tổ chức':'Mở khóa'} onConfirm={submitPartnerStatus}>
+        {partnerStatusAction?.suspend&&<div className="block text-sm font-medium">Lý do *
+          <Input aria-label="Lý do khóa tổ chức" className="mt-1.5" value={reason}
+            onChange={e=>setReason(e.target.value)}/>
+          <FormError>{errors.reason}</FormError>
         </div>}
       </ConfirmDialog>
     </div>

@@ -13,7 +13,8 @@ public sealed partial class ChannelSalesActions
         if (!access.CanManageOrganization(request.OrganizationId)) throw new KeyNotFoundException();
         var key = SchoolKey(request.IdempotencyKey); var hash = ChannelSalesValidation.Fingerprint(request);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        await ActiveSchoolMembership(request.AssigneeUserId, request.OrganizationId, ct);
+        var membership = await ActiveSchoolMembership(request.AssigneeUserId, request.OrganizationId, ct);
+        if (!access.All && membership.ManagerUserId != actorId) throw new KeyNotFoundException();
         var assignee = await ChannelSalesAccess.Load(db, request.AssigneeUserId, ct);
         if (!assignee.Has(Permissions.ChannelSalesRegister)) throw ApiValidationException.For("assignee_user_id", "Nhân sự chưa có quyền tiếp cận trường.");
         var school = await db.DirectorySchools.SingleOrDefaultAsync(x => x.Id == request.SchoolId, ct) ?? throw new KeyNotFoundException();

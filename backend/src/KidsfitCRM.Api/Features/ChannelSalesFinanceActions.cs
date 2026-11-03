@@ -327,7 +327,8 @@ public sealed partial class ChannelSalesActions
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesTeamManage, ct);
         var membership = await db.OrganizationMemberships.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(membership.OrganizationId) || membership.UserId == actorId) throw new KeyNotFoundException();
+        if (!access.CanManageOrganization(membership.OrganizationId) || membership.UserId == actorId
+            || (!access.All && membership.ManagerUserId != actorId)) throw new KeyNotFoundException();
         if (!access.Has(Permissions.ChannelSalesIdentityManage) && membership.MembershipType is not ("SALES" or "COLLABORATOR" or "PARTNER_COLLABORATOR")) throw new KeyNotFoundException();
         var status = request.Status?.ToUpperInvariant();
         if (status is not ("ACTIVE" or "SUSPENDED")) throw ApiValidationException.For("status", "Trạng thái không hợp lệ.");

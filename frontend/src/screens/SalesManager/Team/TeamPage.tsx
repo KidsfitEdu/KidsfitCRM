@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, UsersRound, UserCheck, Building2 } from 'lucide-react';
+import { Eye, UsersRound, UserCheck, Building2, UserRoundX } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AppButton } from '@/components/common/buttons/app-button';
+import { SalesHandoverDrawer } from './SalesHandoverDrawer';
 import { channelRequest } from '@/lib/channel-operations';
 import type { ManagerPageProps } from '@/types/manager-pages';
 
@@ -18,7 +20,7 @@ type Member={
 };
 type TeamResult={data:Member[];total:number;page:number;page_size:number;summary:{members:number;active:number;organizations:number}};
 
-export function TeamPage({apiBase,token,abilities}:ManagerPageProps){
+export function TeamPage({apiBase,token,abilities,onChanged,onSalesNavigate}:ManagerPageProps){
  const allowed=abilities.includes('*')||abilities.includes('channel_sales.team.manage');
  const connected=!!apiBase&&!!token&&allowed;
  const [team,setTeam]=useState<Member[]>([]);
@@ -32,6 +34,8 @@ export function TeamPage({apiBase,token,abilities}:ManagerPageProps){
  const [selected,setSelected]=useState<Member|null>(null);
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');
+ const [handoverId,setHandoverId]=useState<number|null>(null);
+ const canHandover=abilities.includes('*')||abilities.includes('channel_sales.school.handover.manage');
  const load=useCallback(async()=>{
   if(!connected)return;
   setLoading(true);setError('');
@@ -84,6 +88,7 @@ export function TeamPage({apiBase,token,abilities}:ManagerPageProps){
      <td className={adminTableCellClass}><AdminStatusBadge status={item.status} label={item.status==='ACTIVE'?'Hoạt động':item.status==='SUSPENDED'?'Tạm dừng':item.status}/></td>
      <td className={adminTableCellClass}><div className="flex justify-center">
       <AdminIconAction icon={Eye} label={`Xem nhân sự ${item.name}`} onClick={()=>setSelected(item)}/>
+      {connected&&canHandover&&item.status==='ACTIVE'&&<AdminIconAction icon={UserRoundX} tone="red" label={`Bàn giao khi nghỉ việc: ${item.name}`} onClick={()=>setHandoverId(item.id)}/>}
      </div></td>
     </tr>)}</tbody>
    </table></div>
@@ -104,8 +109,12 @@ export function TeamPage({apiBase,token,abilities}:ManagerPageProps){
      <p><strong>Sắp hết hạn:</strong> {selected.expiring_schools} trường</p>
      <p><strong>Hợp đồng đã báo cáo:</strong> {selected.contracts_reported}</p>
      <p><strong>Trạng thái:</strong> {selected.status}</p>
+     {connected&&canHandover&&selected.status==='ACTIVE'&&<AppButton tone="danger" onClick={()=>{setHandoverId(selected.id);setSelected(null);}}>Bàn giao khi nghỉ việc</AppButton>}
      <p className="border-t pt-3 text-muted-foreground">Thao tác phân bổ, gia hạn và xác minh hợp đồng được xử lý tại các màn nghiệp vụ tương ứng.</p>
    </div>}
   </AppDrawer>
+  <SalesHandoverDrawer apiBase={apiBase} token={token} membershipId={handoverId}
+    onClose={()=>setHandoverId(null)} onChanged={async()=>{await load();await onChanged();}}
+    onAllocate={()=>{setHandoverId(null);onSalesNavigate?.('manager-allocations');}}/>
  </div>;
 }

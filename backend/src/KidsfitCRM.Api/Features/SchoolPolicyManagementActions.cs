@@ -29,14 +29,34 @@ public sealed partial class ChannelSalesActions
         ValidateWorkflowPolicyDraft(request.ManagerReviewHours, request.AdminReviewHours, request.InvitationHours,
             request.MaxExtensionDays, request.MaxExtensionCount, request.MaxTotalExtensionDays);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        var targetOrg = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == id)
+        var originalOrg = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == id)
             .Select(x => (long?)x.OrganizationId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(targetOrg)) throw new KeyNotFoundException();
-        await LockSchoolOrganization(targetOrg, ct);
+        var destinationOrg = request.OrganizationId ?? originalOrg;
+        if (destinationOrg <= 0 || !access.CanManageOrganization(originalOrg)
+            || !access.CanManageOrganization(destinationOrg)) throw new KeyNotFoundException();
+        // Always lock both organizations in ID order to avoid cross-organization move deadlocks.
+        foreach (var orgId in new[] { originalOrg, destinationOrg }.Distinct().OrderBy(x => x))
+        {
+            var organization = await LockSchoolOrganization(orgId, ct);
+            if (organization.Status != "ACTIVE")
+                throw ApiValidationException.For("organization_id", "Tổ chức phải đang hoạt động.");
+        }
         var policy = await db.SchoolWorkflowPolicies.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
         if (policy.Status != "DRAFT") throw new ApiConflictException("Chỉ được sửa bản nháp chưa kích hoạt.");
-        var before = new { policy.ManagerReviewHours, policy.AdminReviewHours, policy.InvitationHours,
+        if (policy.OrganizationId != originalOrg)
+            throw new ApiConflictException("Tổ chức của chính sách vừa thay đổi. Vui lòng tải lại.");
+        var before = new { policy.OrganizationId, policy.Version, policy.ManagerReviewHours, policy.AdminReviewHours, policy.InvitationHours,
             policy.MaxExtensionDays, policy.MaxExtensionCount, policy.MaxTotalExtensionDays, policy.DecisionReference };
+        if (destinationOrg != originalOrg)
+        {
+            if (await db.SchoolWorkflowPolicies.AnyAsync(x => x.OrganizationId == destinationOrg
+                && x.DecisionReference == policy.DecisionReference && x.Id != id, ct))
+                throw new ApiConflictException("Tổ chức đích đã có chính sách dùng cùng mã tham chiếu.");
+            policy.OrganizationId = destinationOrg;
+            // Versions are sequential per organization. Retain the policy ID and its audit reference.
+            policy.Version = (await db.SchoolWorkflowPolicies.Where(x => x.OrganizationId == destinationOrg)
+                .MaxAsync(x => (int?)x.Version, ct) ?? 0) + 1;
+        }
         policy.ManagerReviewHours = request.ManagerReviewHours;
         policy.AdminReviewHours = request.AdminReviewHours;
         policy.InvitationHours = request.InvitationHours;
@@ -48,7 +68,7 @@ public sealed partial class ChannelSalesActions
             policy.DecisionReference = Validation.Required(request.DecisionReference, "decision_reference", "Mã tham chiếu không hợp lệ.", 120);
         policy.UpdatedAt = DateTime.UtcNow;
         Audit.Add(db, actorId, "UPDATE_SCHOOL_WORKFLOW_POLICY_DRAFT", nameof(SchoolWorkflowPolicyVersion),
-            id, before, new { policy.ManagerReviewHours, policy.AdminReviewHours, policy.InvitationHours,
+            id, before, new { policy.OrganizationId, policy.Version, policy.ManagerReviewHours, policy.AdminReviewHours, policy.InvitationHours,
                 policy.MaxExtensionDays, policy.MaxExtensionCount, policy.MaxTotalExtensionDays, policy.DecisionReference }, http);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;

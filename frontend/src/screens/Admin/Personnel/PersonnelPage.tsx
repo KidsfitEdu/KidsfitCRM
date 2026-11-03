@@ -34,6 +34,12 @@ const roleNames: Record<string,string> = {
 };
 const editableRoles = ['SALES','SALES_MANAGER','ACCOUNTANT','CUSTOMER_SERVICE','CHECKEE'];
 const statusName = (status:string) => status === 'ACTIVE' ? 'Hoạt động' : status === 'SUSPENDED' ? 'Tạm khóa' : status;
+const effectiveStatus = (person:Person,organizations:Partner[]) => {
+  if(person.account_status==='SUSPENDED') return {status:'SUSPENDED',label:'Tài khoản bị khóa'};
+  if(person.status==='SUSPENDED') return {status:'SUSPENDED',label:'Thành viên bị khóa'};
+  if(organizations.find(o=>o.id===person.organization_id)?.status==='SUSPENDED') return {status:'SUSPENDED',label:'Tổ chức bị khóa'};
+  return {status:'ACTIVE',label:'Hoạt động'};
+};
 
 export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const [management,setManagement] = useState<ChannelManagement|null>(null);
@@ -50,7 +56,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const [partnerOpen,setPartnerOpen] = useState(false);
   const [partnerForm,setPartnerForm] = useState(blankPartner);
   const [statusAction,setStatusAction] = useState<StatusAction|null>(null);
-  const [reason,setReason] = useState('');const [summary,setSummary] = useState('');
+  const [reason,setReason] = useState('');
+  const [partnerStatusAction,setPartnerStatusAction] = useState<{partner:Partner;suspend:boolean}|null>(null);
   const [errors,setErrors] = useState<Record<string,string>>({});
   const [busy,setBusy] = useState(false);
   const preview = !apiBase;
@@ -68,7 +75,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   useEffect(() => {void reload();},[reload]);
 
   const people = useMemo(() => management?.team.filter(p =>
-    (filter==='ALL' || p.status===filter || p.account_status===filter) &&
+    (filter==='ALL' || effectiveStatus(p,management?.organizations??[]).status===filter) &&
     [p.name,p.email,p.organization_name].some(v=>v.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')))) ?? [],
     [management,filter,search]);
   const partners = useMemo(() => management?.organizations.filter(p =>
@@ -127,7 +134,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     const err:Record<string,string>={};
     if(!partner && !/^[A-Z0-9_-]{2,32}$/.test(partnerForm.code.trim().toUpperCase()))err.code='Mã từ 2–32 ký tự: A–Z, 0–9, - hoặc _.';
     if(!partnerForm.name.trim())err.name='Cần tên đối tác.';
-    if(partner && !partnerForm.reason.trim())err.reason='Cần lý do thay đổi.';
+    if(partner && partnerForm.status==='SUSPENDED' && !partnerForm.reason.trim())err.reason='Cần lý do thay đổi.';
     setErrors(err);if(Object.keys(err).length)return;
     const task=partner
       ?()=>updateAdminPartner(apiBase,token,partner.id,{name:partnerForm.name.trim(),status:partnerForm.status,reason:partnerForm.reason.trim()})
@@ -135,19 +142,29 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     void run(task,partner?'Đã cập nhật đối tác.':'Đã tạo đối tác.',()=>setPartnerOpen(false));
   };
   const submitStatus=()=>{
-    if(!statusAction || !reason.trim() || (statusAction.suspend && !summary.trim())){
-      setErrors({reason:!reason.trim()?'Cần lý do.':'',summary:statusAction?.suspend&&!summary.trim()?'Cần nội dung bàn giao.':''});return;
-    }
+    if(!statusAction)return;
+    if(statusAction.suspend && !reason.trim()){setErrors({reason:'Cần lý do.'});return;}
     const {person,suspend,account}=statusAction;
     const task=suspend
       ?()=>completeTeamHandover(apiBase,token,person.id,{
-          idempotency_key:crypto.randomUUID(),reason:reason.trim(),summary:summary.trim(),suspend_account:account,
+          idempotency_key:crypto.randomUUID(),reason:reason.trim(),summary:'',suspend_account:false,
         })
-      :()=>reactivateTeam(apiBase,token,person.id,{reason:reason.trim(),reactivate_account:account});
-    void run(task,suspend?'Đã khóa và lưu bàn giao.':'Đã mở lại quyền truy cập.',()=>{setStatusAction(null);setReason('');setSummary('');});
+      :()=>reactivateTeam(apiBase,token,person.id,{reason:'',reactivate_account:account});
+    void run(task,suspend?'Đã khóa thành viên.':'Đã mở khóa thành viên.',()=>{setStatusAction(null);setReason('');});
   };
-  const chooseStatus=(person:Person,suspend:boolean,account:boolean)=>{
-    setStatusAction({person,suspend,account});setReason('');setSummary('');setErrors({});
+  const chooseStatus=(person:Person,suspend:boolean)=>{
+    setStatusAction({person,suspend,account:!suspend&&person.account_status==='SUSPENDED'});
+    setReason('');setErrors({});
+  };
+  const submitPartnerStatus=()=>{
+    if(!partnerStatusAction)return;
+    const {partner,suspend}=partnerStatusAction;
+    if(suspend&&!reason.trim()){setErrors({reason:'Cần lý do.'});return;}
+    void run(()=>updateAdminPartner(apiBase,token,partner.id,{
+      name:partner.name,status:suspend?'SUSPENDED':'ACTIVE',reason:suspend?reason.trim():'',
+    }),suspend?'Đã khóa tổ chức.':'Đã mở khóa tổ chức.',()=>{
+      setPartnerStatusAction(null);setReason('');
+    });
   };
   const reset=()=>{setDraft('');setSearch('');setFilter('ALL');setPage(1);};
   return <AdminPageStatus apiBase={apiBase}>
@@ -181,8 +198,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           <table className={adminTableClass}>
             <thead className={adminTableHeadClass}>
               {tab==='people'?<tr>
-                <th className="px-5 py-4">Nhân sự</th><th className="px-5 py-4">Tổ chức / Vai trò</th>
-                <th className="px-5 py-4 text-center">Thành viên</th><th className="px-5 py-4 text-center">Tài khoản</th>
+                <th className="px-5 py-4">Nhân sự</th><th className="px-5 py-4">Tổ chức</th>
+                <th className="px-5 py-4">Vai trò</th><th className="px-5 py-4 text-center">Trạng thái</th>
                 <th className="px-5 py-4 text-right">Thao tác</th>
               </tr>:<tr><th className="px-5 py-4">Đối tác / Tổ chức</th>
                 <th className="px-5 py-4">Loại hình</th><th className="px-5 py-4 text-center">Trạng thái</th>
@@ -191,19 +208,19 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
             <tbody>
               {tab==='people' && people.slice((page-1)*pageSize,page*pageSize).map(p=><tr key={p.id} className="border-t even:bg-muted/20 hover:bg-accent">
                 <td className="px-5 py-4"><p className="font-semibold">{p.name}</p><p className="mt-1 text-xs text-muted-foreground">{p.email}</p></td>
-                <td className="px-5 py-4">{p.organization_name}<p className="mt-1 text-xs text-muted-foreground">{roleText(p.membership_type)}</p></td>
-                <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status} label={statusName(p.status)}/></td>
-                <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.account_status??'ACTIVE'} label={statusName(p.account_status??'ACTIVE')}/></td>
+                <td className="px-5 py-4">{p.organization_name}</td>
+                <td className="px-5 py-4">{roleText(p.membership_type)}</td>
+                <td className="px-5 py-4 text-center"><AdminStatusBadge {...effectiveStatus(p,management?.organizations??[])}/></td>
                 <td className="px-5 py-4"><div className="flex flex-wrap justify-end gap-2">
                   <AdminIconAction icon={Eye} label={`Xem ${p.name}`} onClick={()=>setDetail(p)}/>
                   {identity && p.can_edit && <AdminIconAction icon={Pencil} tone="blue" label={`Sửa ${p.name}`} onClick={()=>openEdit(p)}/>}
-                  {p.can_change_status && canHandover && (p.status==='ACTIVE'
-                    ?<AdminIconAction icon={LockKeyhole} tone="red" label={`Khóa quyền tại tổ chức: ${p.name}`} onClick={()=>chooseStatus(p,true,false)}/>
-                    :<AdminIconAction icon={LockKeyholeOpen} label={`Mở quyền tại tổ chức: ${p.name}`} onClick={()=>chooseStatus(p,false,false)} disabled={p.account_status==='SUSPENDED'}/>)}
-                  {identity && p.can_edit && canHandover && p.status==='ACTIVE' && p.account_status!=='SUSPENDED' &&
-                    <AdminIconAction icon={LockKeyhole} tone="red" label={`Khóa toàn tài khoản ${p.name}`} onClick={()=>chooseStatus(p,true,true)}/>}
-                  {identity && p.can_edit && canHandover && p.account_status==='SUSPENDED' &&
-                    <AdminIconAction icon={LockKeyholeOpen} tone="green" label={`Mở toàn tài khoản ${p.name}`} onClick={()=>chooseStatus(p,false,true)}/>}
+                  {p.can_change_status && canHandover &&
+                    (p.status==='ACTIVE' && p.account_status!=='SUSPENDED'
+                    ?<AdminIconAction icon={LockKeyhole} tone="red" label={`Khóa thành viên ${p.name}`}
+                        onClick={()=>chooseStatus(p,true)}/>
+                    :<AdminIconAction icon={LockKeyholeOpen} tone="green" label={`Mở khóa thành viên ${p.name}`}
+                        disabled={management?.organizations.find(o=>o.id===p.organization_id)?.status==='SUSPENDED'}
+                        onClick={()=>chooseStatus(p,false)}/>)}
                 </div></td>
               </tr>)}
               {tab==='partners'&&partners.slice((page-1)*pageSize,page*pageSize).map(p=><tr key={p.id} className="border-t even:bg-muted/20 hover:bg-accent">
@@ -211,7 +228,13 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
                 <td className="px-5 py-4">{p.organization_type??'PARTNER'}</td>
                 <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status??'ACTIVE'} label={statusName(p.status??'ACTIVE')}/></td>
                 <td className="px-5 py-4"><div className="flex justify-end">
-                  {identity && p.organization_type==='PARTNER'&&<AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>openPartner(p)}/>}
+                  {identity && p.organization_type==='PARTNER'&&<>
+                    <AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>openPartner(p)}/>
+                    <AdminIconAction icon={p.status==='SUSPENDED'?LockKeyholeOpen:LockKeyhole}
+                      tone={p.status==='SUSPENDED'?'green':'red'}
+                      label={p.status==='SUSPENDED'?`Mở khóa tổ chức ${p.name}`:`Khóa tổ chức ${p.name}`}
+                      onClick={()=>{setPartnerStatusAction({partner:p,suspend:p.status!=='SUSPENDED'});setReason('');setErrors({});}}/>
+                  </>}}
                 </div></td>
               </tr>)}
             </tbody>

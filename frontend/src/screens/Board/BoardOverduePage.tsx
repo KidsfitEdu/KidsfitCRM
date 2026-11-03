@@ -30,7 +30,7 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
   const connected=Boolean(apiBase&&token&&permitted);
   const query=useQuery({
     queryKey:['board','overdue',apiBase,page],
-    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page='+page),
+    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?overdue_only=true&page='+page),
     enabled:connected,
   });
   const data=query.data;
@@ -93,7 +93,7 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
       </div>
       <AppPagination page={page} pageSize={data?.pagination?.page_size??100} total={total} disabled={query.isFetching} onPageChange={setPage} showSummary={false}/>
     </AdminListPanel>
-    <p className="text-xs text-muted-foreground">Danh sách hiển thị các hồ sơ quá hạn trong trang API hiện tại; tổng phân trang dựa trên số hồ sơ tất cả trạng thái. Hệ thống không suy đoán tổng hồ sơ quá hạn toàn hệ thống.</p>
+    <p className="text-xs text-muted-foreground">Danh sách và phân trang sử dụng số hồ sơ quá hạn đã được lọc tại máy chủ.</p>
     <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open)setSelected(null);}} title="Chi tiết hồ sơ quá hạn">
       {selected&&<div className="space-y-4 text-sm">
         <p className="text-lg font-semibold">{selected.kind==='proposal'?selected.record.name:selected.record.school_name}</p>

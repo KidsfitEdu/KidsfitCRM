@@ -12,6 +12,7 @@ import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { nav, type View } from '@/config/navigation';
 import { canonicalSalesView, legacySalesWorkflowTab, salesMenuIds } from '@/config/sales-navigation';
 import { canonicalCheckeeView, viewToPath, pathToView } from '@/config/routes';
+import { canonicalBoardView } from '@/config/routes';
 import { createApiClient } from '@/services/api.client';
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
 import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
@@ -34,7 +35,7 @@ export function CrmApp({ initialView }: { initialView?: View } = {}) {
 }
 
 function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?: View; demoAccount?: DemoAccount; onDemoLogout?: () => void }) {
-  const [view, setView] = useState<View>(canonicalCheckeeView(canonicalSalesView(initialView ?? 'dashboard')));
+  const [view, setView] = useState<View>(canonicalBoardView(canonicalCheckeeView(canonicalSalesView(initialView ?? 'dashboard'))));
   const [salesWorkflow, setSalesWorkflow] = useState<'invitations' | 'extensions' | undefined>(() => legacySalesWorkflowTab(initialView ?? 'dashboard'));
   const [token, setToken] = useState('');
   const [ready, setReady] = useState(!apiBase);
@@ -153,7 +154,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     const onPop=()=>{
       const requested=pathToView(window.location.pathname);
       if (!requested) return;
-      const next = canonicalCheckeeView(isSales ? canonicalSalesView(requested) : requested);
+      const next = canonicalBoardView(canonicalCheckeeView(isSales ? canonicalSalesView(requested) : requested));
       if (visibleNav.some(item=>item.id===next)) {
         setSalesWorkflow(isSales ? legacySalesWorkflowTab(requested) : undefined);
         setView(next);

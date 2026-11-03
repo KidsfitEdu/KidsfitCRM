@@ -181,7 +181,13 @@ public sealed partial class ChannelSalesActions
         if (request.ManagerReviewHours is < 1 or > 8760 || request.AdminReviewHours is < 1 or > 8760 || request.InvitationHours is < 1 or > 8760
             || request.MaxExtensionDays is < 1 or > 365 || request.MaxExtensionCount is < 1 or > 100 || request.MaxTotalExtensionDays < request.MaxExtensionDays || request.MaxTotalExtensionDays > 3650)
             throw ApiValidationException.For("policy", "Thời hạn và số lần phải là số dương; tổng ngày phải lớn hơn hoặc bằng số ngày mỗi lần.");
-        var reference = Validation.Required(request.DecisionReference, "decision_reference", "Cần căn cứ phê duyệt chính sách.", 120);
+        if (request.Activate && (request.MaxExtensionDays != 7 || request.MaxExtensionCount != 3 || request.MaxTotalExtensionDays != 21))
+            throw ApiValidationException.For("policy", "Gia hạn được phê duyệt là 7 ngày/lần, tối đa 3 lần và tổng 21 ngày.");
+        // UI does not ask the Director to enter approval text. Keep an internal reference
+        // without requiring a user-authored document; existing explicit references still work.
+        var reference = string.IsNullOrWhiteSpace(request.DecisionReference)
+            ? "POLICY-CREATE-" + Guid.NewGuid().ToString("N")
+            : Validation.Required(request.DecisionReference, "decision_reference", "Mã tham chiếu không hợp lệ.", 120);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await LockSchoolOrganization(request.OrganizationId, ct);
         var policyHash = ChannelSalesValidation.Fingerprint(request);

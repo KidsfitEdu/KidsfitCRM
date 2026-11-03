@@ -1,9 +1,8 @@
 'use client';
 
-import { RoleDashboard } from '@/components/roles/RoleDashboard';
+import { BoardDashboardPage } from '../BoardDashboardPage';
 import type { RolePageProps } from '@/types/role-pages';
 
-/** Board · Dashboard (shared domain view). */
-export function DashboardPage(props: RolePageProps) {
-  return <RoleDashboard profile="Board" {...props}/>;
+export function DashboardPage (props: RolePageProps) {
+  return <BoardDashboardPage {...props}/>;
 }

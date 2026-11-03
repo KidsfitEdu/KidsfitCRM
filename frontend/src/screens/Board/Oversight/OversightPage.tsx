@@ -1,9 +1,8 @@
 'use client';
 
-import { RoleOperationsPage } from '@/components/roles/RoleOperationsPage';
+import { BoardReportsPage } from '../BoardReportsPage';
 import type { RolePageProps } from '@/types/role-pages';
 
-/** Board · Oversight (shared domain view). */
-export function OversightPage(props: RolePageProps) {
-  return <RoleOperationsPage profile="Board" section="oversight" {...props}/>;
+export function OversightPage (props: RolePageProps) {
+  return <BoardReportsPage {...props}/>;
 }

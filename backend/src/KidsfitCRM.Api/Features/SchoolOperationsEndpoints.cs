@@ -11,6 +11,7 @@ public static class SchoolOperationsEndpoints
     {
         group.MapGet("/school-operations", WorkspacePage).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/report", Report).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/school-workflow-policies", PolicyListPage).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/{kind}/{id:long}/history", History).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-proposals/{id:long}/revisions", ProposalRevisions).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/school-units/{id:long}/history", UnitHistory).RequireAuthorization(Permissions.SchoolDirectoryManage);
@@ -49,6 +50,14 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/school-workflow-policies", async (CreateSchoolWorkflowPolicyRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CreateSchoolWorkflowPolicy(request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPatch("/school-workflow-policies/{id:long}/draft", async (long id, UpdateSchoolWorkflowPolicyDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.UpdateSchoolWorkflowPolicyDraft(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPost("/school-workflow-policies/{id:long}/activate", async (long id, ActivateSchoolWorkflowPolicyRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ActivateSchoolWorkflowPolicy(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPost("/school-workflow-policies/{id:long}/reapply", async (long id, ActivateSchoolWorkflowPolicyRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReapplySchoolWorkflowPolicy(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPost("/school-workflow-policies/{id:long}/cancel", async (long id, CancelSchoolWorkflowPolicyDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CancelSchoolWorkflowPolicyDraft(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
         group.MapPost("/contracts/{id:long}/care-handover", async (long id, AssignContractCareRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.AssignContractCare(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolCareAssign);
         group.MapPost("/customer-support-cases", async (CreateCustomerSupportCaseRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CreateCustomerSupportCase(request, h.UserId(), h, ct)))
@@ -62,6 +71,41 @@ public static class SchoolOperationsEndpoints
     }
 
     private static IResult Saved(long id) => Results.Ok(new { data = new { id }, message = "Đã ghi nhận thay đổi." });
+
+    // Dedicated policy list avoids the 100-row snapshot cap in the general workspace API.
+    public static async Task<IResult> PolicyListPage(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (access.OrganizationIds.Length == 0) throw new KeyNotFoundException();
+        var query = db.SchoolWorkflowPolicies.AsNoTracking().Where(x =>
+            x.Status != "CANCELLED" && (access.All || access.OrganizationIds.Contains(x.OrganizationId)));
+        var organizationValue = http.Request.Query["organization_id"].ToString();
+        if (!string.IsNullOrWhiteSpace(organizationValue))
+        {
+            if (!long.TryParse(organizationValue, out var organizationId) || organizationId <= 0)
+                throw ApiValidationException.For("organization_id", "Tổ chức không hợp lệ.");
+            if (!access.CanManageOrganization(organizationId)) throw new KeyNotFoundException();
+            query = query.Where(x => x.OrganizationId == organizationId);
+        }
+        var term = http.Request.Query["search"].ToString().Trim();
+        if (term.Length > 190) throw ApiValidationException.For("search", "Từ khóa tối đa 190 ký tự.");
+        if (term.Length > 0)
+        {
+            var numeric = int.TryParse(term, out var version) ? version : -1;
+            query = query.Where(x => x.Version == numeric
+                || db.Organizations.Any(o => o.Id == x.OrganizationId && o.Name.Contains(term)));
+        }
+        var page = int.TryParse(http.Request.Query["page"], out var p) ? Math.Clamp(p, 1, 10000) : 1;
+        var requestedSize = int.TryParse(http.Request.Query["page_size"], out var size) ? size : 20;
+        var pageSize = requestedSize is 10 or 20 or 50 or 100 ? requestedSize : 20;
+        var count = await query.CountAsync(ct);
+        var items = await query.OrderBy(x => x.OrganizationId).ThenByDescending(x => x.Version)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(x => new { x.Id, x.OrganizationId, x.Version, x.Status, x.ManagerReviewHours,
+                x.AdminReviewHours, x.InvitationHours, x.MaxExtensionDays, x.MaxExtensionCount,
+                x.MaxTotalExtensionDays, x.DecisionReference }).ToArrayAsync(ct);
+        return Results.Ok(new { items, pagination = new { page, page_size = pageSize, total = count } });
+    }
 
     private static IQueryable<SchoolProposal> Proposals(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolProposals.Where(x => a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.SubmittedByUserId == a.UserId || (a.Has(Permissions.SchoolProposalReview) && x.ManagerUserId == a.UserId))));
@@ -98,13 +142,27 @@ public static class SchoolOperationsEndpoints
         var matchingCustomers = db.ChannelCustomers.Where(c => c.DisplayName.Contains(term) || db.DirectorySchools.Any(s => s.CustomerId == c.Id && matchingSchools.Contains(s.Id))).Select(c => c.Id);
         var allowedProposalStatuses = new[] { "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
         if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
-        var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status) && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)));
+        var overdueOnly = string.Equals(http.Request.Query["overdue_only"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        var disputeStatus = http.Request.Query["dispute_status"].ToString().ToUpperInvariant();
+        if (disputeStatus is not ("" or "OPEN" or "RESOLVED"))
+            throw ApiValidationException.For("dispute_status", "Trạng thái tranh chấp không hợp lệ.");
+        var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status)
+            && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)
+                || db.Users.Any(u => (u.Id == x.ManagerUserId || u.Id == x.SubmittedByUserId) && u.Name.Contains(term))));
+        if (overdueOnly)
+            proposalQuery = proposalQuery.Where(x =>
+                (x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN") && x.ReviewDueAt <= now);
         var invitationQuery = Invitations(db, a).AsNoTracking().Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
         // Optional Sales-only pending filter, applied before counting/paging.
         if (string.Equals(http.Request.Query["pending_invitations"].ToString(), "true", StringComparison.OrdinalIgnoreCase))
             invitationQuery = invitationQuery.Where(x => x.Status == "PENDING" && x.RespondBy > now);
-        var extensionQuery = Extensions(db, a).AsNoTracking().Where(x => term == "" || x.Progress.Contains(term) || db.ApproachRegistrations.Any(r => r.Id == x.ApproachRegistrationId && matchingCustomers.Contains(r.CustomerId)));
+        var extensionQuery = Extensions(db, a).AsNoTracking().Where(x => term == "" || x.Progress.Contains(term)
+            || db.ApproachRegistrations.Any(r => r.Id == x.ApproachRegistrationId && matchingCustomers.Contains(r.CustomerId))
+            || db.Users.Any(u => (u.Id == x.RequestedByUserId || u.Id == x.ManagerUserId) && u.Name.Contains(term)));
+        if (overdueOnly)
+            extensionQuery = extensionQuery.Where(x => x.Status == "PENDING" && x.ReviewDueAt <= now);
         var disputeQuery = Disputes(db, a).AsNoTracking().Where(x => term == "" || matchingCustomers.Contains(x.CustomerId) || x.Reason.Contains(term));
+        if (disputeStatus != "") disputeQuery = disputeQuery.Where(x => x.Status == disputeStatus);
         var deferralQuery = db.SchoolDeferrals.AsNoTracking().Where(x => a.All || (a.Has(Permissions.SchoolAllocationManage) && a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))
             .Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
         var handoverQuery = db.SchoolHandovers.AsNoTracking().Where(x => a.All || (a.Has(Permissions.SchoolHandoverManage) && a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))
@@ -201,7 +259,7 @@ public static class SchoolOperationsEndpoints
                 can_assign_care = (x.Status == "ACTIVE" || (x.Status == "CANCELLED" && db.ContractCancellations.Any(c => c.ContractId == x.Id && c.PreviousStatus == "ACTIVE")))
                     && (!x.RequiresSchoolVerification || x.VerifiedAt != null) && a.Has(Permissions.SchoolCareAssign) && (a.All || (a.Organization && (a.OrganizationIds.Contains(x.OwnerOrganizationId) || (x.CareOrganizationId.HasValue && a.OrganizationIds.Contains(x.CareOrganizationId.Value))))),
                 can_cancel = x.Status != "CANCELLED" && x.Status != "REJECTED" && a.Has(Permissions.ChannelSalesContractCancel) && (a.All || (a.Organization && a.OrganizationIds.Contains(x.OwnerOrganizationId))) }).ToArrayAsync(ct),
-            policies = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => a.All || a.OrganizationIds.Contains(x.OrganizationId)).OrderByDescending(x => x.CreatedAt).Take(100)
+            policies = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Status != "CANCELLED" && (a.All || a.OrganizationIds.Contains(x.OrganizationId))).OrderByDescending(x => x.CreatedAt).Take(100)
                 .Select(x => new { x.Id, x.OrganizationId, x.Version, x.Status, x.ManagerReviewHours, x.AdminReviewHours, x.InvitationHours, x.MaxExtensionDays, x.MaxExtensionCount, x.MaxTotalExtensionDays, x.DecisionReference }).ToArrayAsync(ct),
             receipts = await receiptQuery.OrderByDescending(x => x.ReceivedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize)
                 .Select(x => new { x.Id, x.ContractId, x.ReferenceCode, x.Amount, x.ReceivedAt,

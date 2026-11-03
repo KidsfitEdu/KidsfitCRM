@@ -11,13 +11,13 @@ const profileSections = {
   SalesManager: ['Dashboard','Proposals','Allocations','Progress','Contracts','Extensions','Team'],
   SalesStaff: ['Dashboard','Schools','Customers','Activities','Proposals','Income'],
   Collaborator: ['Dashboard','Schools','Proposals','Invitations','Approaches','Extensions','Income'],
-  Board: ['Dashboard','Oversight','Overdue','Disputes','Policies'],
+  Board: ['Dashboard','Overdue','Disputes','Policies'],
   Accounting: ['Dashboard','Revenue'],
   CustomerCare: ['Dashboard','Handover','Cases','Customers','Followup'],
   Checkee: ['Dashboard','Verification'],
 };
 
-test('All 41 active role menu pages exist and are compiled from src/screens', () => {
+test('All 40 active role menu pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
@@ -28,14 +28,14 @@ test('All 41 active role menu pages exist and are compiled from src/screens', ()
       total += 1;
     }
   }
-  assert.equal(total, 41);
+  assert.equal(total, 40);
 });
 
 test('Active navigation targets match role page registry and preserve aliases', () => {
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
-  assert.equal(known.length, 41, 'Expected 41 active role navigation entries');
+  assert.equal(known.length, 40, 'Expected 40 active role navigation entries');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;
@@ -116,4 +116,15 @@ test('Manager contract review reuses existing drawer, table, and mandatory confi
   assert.doesNotMatch(team, /ChannelOperations/);
   assert.match(dashboard, /\/manager\/overview/);
   assert.match(sales, /\/school-contracts\/my-revisions/);
+});
+
+test('Board legacy reports route remains an alias, not an active fifth menu item', () => {
+  const routes = read('src/config/routes.ts');
+  const nav = read('src/config/navigation.ts');
+  const app = read('src/components/crm/crm-app.tsx');
+  assert.match(routes, /canonicalBoardView/);
+  assert.match(routes, /role-board-oversight/);
+  assert.doesNotMatch(nav, /\{ id: 'role-board-oversight', label:/);
+  assert.match(app, /canonicalBoardView/);
+  assert.ok(existsSync(file('src/screens/Board/Oversight/OversightPage.tsx')));
 });

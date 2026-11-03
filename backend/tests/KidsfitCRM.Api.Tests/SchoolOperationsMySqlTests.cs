@@ -51,7 +51,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     private async Task<long> Policy(long orgId, bool activate = true)
     {
         await using var db = fixture.Open();
-        return await new ChannelSalesActions(db).CreateSchoolWorkflowPolicy(new(orgId, 24, 48, 24, 7, 2, 14, activate, "TEST-APPROVAL-" + Key()), await User("admin@kidsfit.vn"), Http(), Ct);
+        return await new ChannelSalesActions(db).CreateSchoolWorkflowPolicy(new(orgId, 24, 48, 24, 7, 3, 21, activate, "TEST-APPROVAL-" + Key()), await User("admin@kidsfit.vn"), Http(), Ct);
     }
     private async Task<long> ActiveContract(Scenario s)
     {
@@ -377,6 +377,140 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.False(await db.SalesContracts.AnyAsync(x => x.CustomerId == s.CustomerId));
     }
 
+    [MySqlFact] public async Task DirectorCanEditActivateAndCancelDraftWithoutErasingPolicyHistory()
+    {
+        var scenario = await Arrange();
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var first = await actions.CreateSchoolWorkflowPolicy(
+            new(scenario.OrgId, 24, 48, 24, 7, 3, 21, false, "BOARD-DRAFT-" + Key()),
+            board, Http(board), Ct);
+        await actions.UpdateSchoolWorkflowPolicyDraft(first,
+            new(48, 48, 24, 7, 3, 21, "BOARD-EDIT-" + Key()), board, Http(board), Ct);
+        Assert.Equal(48, await db.SchoolWorkflowPolicies.Where(p => p.Id == first).Select(p => p.ManagerReviewHours).SingleAsync(Ct));
+
+        var second = await actions.CreateSchoolWorkflowPolicy(
+            new(scenario.OrgId, 72, 72, 24, 7, 3, 21, false, "BOARD-DRAFT-" + Key()),
+            board, Http(board), Ct);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.ActivateSchoolWorkflowPolicy(
+            first, new(null), board, Http(board), Ct));
+        await actions.ActivateSchoolWorkflowPolicy(first, new("DIRECTOR-APPROVED-" + Key()), board, Http(board), Ct);
+        Assert.Equal("ACTIVE", await db.SchoolWorkflowPolicies.Where(p => p.Id == first).Select(p => p.Status).SingleAsync(Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.UpdateSchoolWorkflowPolicyDraft(
+            first, new(24, 48, 24, 7, 3, 21, "NOT-ALLOWED"), board, Http(board), Ct));
+        await actions.CancelSchoolWorkflowPolicyDraft(second, new("Không còn phù hợp"), board, Http(board), Ct);
+        Assert.Equal("CANCELLED", await db.SchoolWorkflowPolicies.Where(p => p.Id == second).Select(p => p.Status).SingleAsync(Ct));
+        Assert.True(await db.SchoolWorkflowPolicies.AnyAsync(p => p.Id == second, Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.CancelSchoolWorkflowPolicyDraft(
+            first, new("Không được hủy bản hiệu lực"), board, Http(board), Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.Action == "ACTIVATE_SCHOOL_WORKFLOW_POLICY", Ct));
+    }
+
+    [MySqlFact] public async Task BoardCanMoveOnlyDraftPolicyToAnotherOrganizationWithNextVersionAndAudit()
+    {
+        var source = await Arrange();
+        var destination = await Arrange();
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var existing = await actions.CreateSchoolWorkflowPolicy(
+            new(destination.OrgId, 24, 48, 24, 7, 3, 21, false, "DEST-" + Key()), board, Http(board), Ct);
+        var draft = await actions.CreateSchoolWorkflowPolicy(
+            new(source.OrgId, 24, 48, 24, 7, 3, 21, false, "MOVE-" + Key()), board, Http(board), Ct);
+        var original = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == draft, Ct);
+        var destinationVersion = await db.SchoolWorkflowPolicies.Where(x => x.OrganizationId == destination.OrgId)
+            .MaxAsync(x => x.Version, Ct);
+        await actions.UpdateSchoolWorkflowPolicyDraft(draft,
+            new(48, 72, 24, 7, 3, 21, null, destination.OrgId), board, Http(board), Ct);
+        db.ChangeTracker.Clear();
+        var moved = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == draft, Ct);
+        Assert.Equal(destination.OrgId, moved.OrganizationId);
+        Assert.Equal(destinationVersion + 1, moved.Version);
+        Assert.Equal(original.DecisionReference, moved.DecisionReference);
+        Assert.Equal("DRAFT", moved.Status);
+        Assert.Equal(48, moved.ManagerReviewHours);
+        Assert.Equal(72, moved.AdminReviewHours);
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityId == draft
+            && x.EntityType == nameof(SchoolWorkflowPolicyVersion)
+            && x.Action == "UPDATE_SCHOOL_WORKFLOW_POLICY_DRAFT", Ct));
+        Assert.Equal(destination.OrgId, await db.SchoolWorkflowPolicies.Where(x => x.Id == existing)
+            .Select(x => x.OrganizationId).SingleAsync(Ct));
+        await actions.ActivateSchoolWorkflowPolicy(draft,
+            new("MOVE-APPROVED-" + Key()), board, Http(board), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.UpdateSchoolWorkflowPolicyDraft(draft,
+            new(24, 48, 24, 7, 3, 21, null, source.OrgId), board, Http(board), Ct));
+        Assert.Equal(destination.OrgId, await db.SchoolWorkflowPolicies.Where(x => x.Id == draft)
+            .Select(x => x.OrganizationId).SingleAsync(Ct));
+    }
+
+    [MySqlFact] public async Task BoardCannotMoveDraftToOrganizationWithDuplicateReference()
+    {
+        var source = await Arrange();
+        var destination = await Arrange();
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var reference = "DUPLICATE-" + Key();
+        await actions.CreateSchoolWorkflowPolicy(new(destination.OrgId, 24, 48, 24, 7, 3, 21, false, reference),
+            board, Http(board), Ct);
+        var draft = await actions.CreateSchoolWorkflowPolicy(new(source.OrgId, 24, 48, 24, 7, 3, 21, false, reference),
+            board, Http(board), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.UpdateSchoolWorkflowPolicyDraft(draft,
+            new(48, 72, 24, 7, 3, 21, null, destination.OrgId), board, Http(board), Ct));
+        db.ChangeTracker.Clear();
+        Assert.Equal(source.OrgId, await db.SchoolWorkflowPolicies.Where(x => x.Id == draft)
+            .Select(x => x.OrganizationId).SingleAsync(Ct));
+    }
+
+    [MySqlFact] public async Task BoardCanReapplySupersededPolicyInPlaceWithoutCreatingAnotherVersion()
+    {
+        var scenario = await Arrange();
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var first = await actions.CreateSchoolWorkflowPolicy(
+            new(scenario.OrgId, 24, 48, 24, 7, 3, 21, true, "FIRST-" + Key()),
+            board, Http(board), Ct);
+        var second = await actions.CreateSchoolWorkflowPolicy(
+            new(scenario.OrgId, 48, 72, 24, 7, 3, 21, true, "SECOND-" + Key()),
+            board, Http(board), Ct);
+        var firstBefore = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == first, Ct);
+        var firstVersion = firstBefore.Version;
+        var firstReference = firstBefore.DecisionReference;
+        var policyCount = await db.SchoolWorkflowPolicies.CountAsync(x => x.OrganizationId == scenario.OrgId, Ct);
+        Assert.Equal("SUPERSEDED", firstBefore.Status);
+        var restored = await actions.ReapplySchoolWorkflowPolicy(first,
+            new("REAPPLY-" + Key()), board, Http(board), Ct);
+        db.ChangeTracker.Clear();
+        Assert.Equal(first, restored);
+        var firstAfter = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == first, Ct);
+        Assert.Equal("ACTIVE", firstAfter.Status);
+        Assert.Equal(firstVersion, firstAfter.Version);
+        Assert.Equal(firstReference, firstAfter.DecisionReference);
+        Assert.Equal(24, firstAfter.ManagerReviewHours);
+        Assert.Equal("SUPERSEDED", await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.Id == second).Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal(policyCount, await db.SchoolWorkflowPolicies.CountAsync(x => x.OrganizationId == scenario.OrgId, Ct));
+        Assert.Equal(1, await db.SchoolWorkflowPolicies.CountAsync(
+            x => x.OrganizationId == scenario.OrgId && x.Status == "ACTIVE", Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityType == nameof(SchoolWorkflowPolicyVersion)
+            && x.EntityId == first && x.Action == "REAPPLY_SCHOOL_WORKFLOW_POLICY", Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.ReapplySchoolWorkflowPolicy(
+            first, new("REAPPLY-DUP-" + Key()), board, Http(board), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.ReapplySchoolWorkflowPolicy(
+            second, new("REAPPLY-UNAUTHORIZED-" + Key()), scenario.Manager.UserId,
+            Http(scenario.Manager.UserId), Ct));
+        var restoredSecond = await actions.ReapplySchoolWorkflowPolicy(second,
+            new("REAPPLY-SECOND-" + Key()), board, Http(board), Ct);
+        Assert.Equal(second, restoredSecond);
+        db.ChangeTracker.Clear();
+        Assert.Equal("SUPERSEDED", await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.Id == first).Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("ACTIVE", await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.Id == second).Select(x => x.Status).SingleAsync(Ct));
+    }
+
     [MySqlFact] public async Task DraftPolicyCannotApproveExtensionAndActivePolicyEnforcesBoundsAndRetries()
     {
         var s = await Arrange(); await Policy(s.OrgId, false);
@@ -419,6 +553,27 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal("PENDING_ADMIN", (await db.SchoolProposals.FindAsync(own))!.Status);
         var report = Json(await SchoolOperationsEndpoints.Report(Http(board), db, null, Ct));
         Assert.True(report.GetProperty("available_schools").GetInt32() >= 2);
+    }
+
+    [MySqlFact] public async Task BoardOverdueFilterAppliesBeforeCountAndPaging()
+    {
+        var scenario = await Arrange();
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var request = Proposal();
+        var overdue = await actions.SubmitSchoolProposal(request, scenario.Seller.UserId, Http(), Ct);
+        var onTime = await actions.SubmitSchoolProposal(Proposal(), scenario.Peer.UserId, Http(), Ct);
+        await db.SchoolProposals.Where(x => x.Id == overdue)
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.ReviewDueAt, DateTime.UtcNow.AddMinutes(-5)), Ct);
+        await db.SchoolProposals.Where(x => x.Id == onTime)
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.ReviewDueAt, DateTime.UtcNow.AddDays(1)), Ct);
+        db.ChangeTracker.Clear();
+        var http = Http(board);
+        http.Request.QueryString = new QueryString("?overdue_only=true&page_size=10");
+        var result = Json(await SchoolOperationsEndpoints.WorkspacePage(http, db, 1, request.Name, null, Ct));
+        Assert.Equal(1, result.GetProperty("pagination").GetProperty("totals").GetProperty("proposals").GetInt32());
+        Assert.Equal(overdue, result.GetProperty("proposals").EnumerateArray().Single().GetProperty("id").GetInt64());
     }
 
     [MySqlFact] public async Task HandoverRevokesUnsignedClaimsButPreservesSignedProtectionAndEarnedPayout()
@@ -598,7 +753,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var registration = await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
         var until = await db.ApproachRegistrations.Where(x => x.Id == registration).Select(x => x.ProtectedUntil).SingleAsync();
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 3; i++)
         {
             until = until.AddDays(7);
             var id = await a.RequestSchoolExtension(registration, Extension(until), s.Seller.UserId, Http(), Ct);
@@ -607,7 +762,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<ApiConflictException>(() =>
             a.RequestSchoolExtension(registration, Extension(until.AddDays(1)), s.Seller.UserId, Http(), Ct));
         Assert.Equal(until, await db.ApproachRegistrations.Where(x => x.Id == registration).Select(x => x.ProtectedUntil).SingleAsync());
-        Assert.Equal(2, await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration && x.Status == "APPROVED"));
+        Assert.Equal(3, await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration && x.Status == "APPROVED"));
     }
 
     [MySqlFact] public async Task CrossOrganizationCareIsExplicitAndFormerCaretakerLosesPartnerContacts()

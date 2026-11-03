@@ -48,7 +48,7 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
   const roles = [
     ['Quản trị viên',7],['Quản lý bán hàng',7],
     ['Nhân viên bán hàng',5],['CTV đối tác',5],
-    ['Ban giám đốc',5],['Kế toán',2],
+    ['Ban giám đốc',4],['Kế toán',2],
     ['Chăm sóc khách hàng',5],['CHECKEE',2],
   ];
   for (const [name,expected] of roles) {
@@ -135,5 +135,20 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   assert.ok(await page.getByRole('combobox',{name:'Số dòng mỗi trang'}).isVisible());
   assert.deepEqual(errors,[]);
   await page.screenshot({path:resolve(artifacts,'sales-proposals-table.png')});
+  await context.close();
+});
+
+test('Board navigation merges reports and keeps styled exception queues', async () => {
+  const {context,page,navigation,errors} = await login('Ban giám đốc');
+  assert.equal(await navigation.locator('button').count(),4);
+  await navigation.getByRole('button',{name:'Hồ sơ quá hạn',exact:true}).click();
+  await page.getByRole('textbox',{name:'Tìm hồ sơ quá hạn'}).waitFor();
+  await page.getByRole('combobox',{name:'Lọc loại hồ sơ'}).waitFor();
+  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  await navigation.getByRole('button',{name:'Tranh chấp',exact:true}).click();
+  await page.getByRole('textbox',{name:'Tìm tranh chấp'}).waitFor();
+  await navigation.getByRole('button',{name:'Chính sách',exact:true}).click();
+  await page.getByRole('textbox',{name:'Tìm chính sách'}).waitFor();
+  assert.deepEqual(errors,[]);
   await context.close();
 });

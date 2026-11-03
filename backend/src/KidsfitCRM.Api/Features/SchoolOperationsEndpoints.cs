@@ -98,13 +98,23 @@ public static class SchoolOperationsEndpoints
         var matchingCustomers = db.ChannelCustomers.Where(c => c.DisplayName.Contains(term) || db.DirectorySchools.Any(s => s.CustomerId == c.Id && matchingSchools.Contains(s.Id))).Select(c => c.Id);
         var allowedProposalStatuses = new[] { "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
         if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
+        var overdueOnly = string.Equals(http.Request.Query["overdue_only"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        var disputeStatus = http.Request.Query["dispute_status"].ToString().ToUpperInvariant();
+        if (disputeStatus is not ("" or "OPEN" or "RESOLVED"))
+            throw ApiValidationException.For("dispute_status", "Trạng thái tranh chấp không hợp lệ.");
         var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status) && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)));
+        if (overdueOnly)
+            proposalQuery = proposalQuery.Where(x =>
+                (x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN") && x.ReviewDueAt <= now);
         var invitationQuery = Invitations(db, a).AsNoTracking().Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
         // Optional Sales-only pending filter, applied before counting/paging.
         if (string.Equals(http.Request.Query["pending_invitations"].ToString(), "true", StringComparison.OrdinalIgnoreCase))
             invitationQuery = invitationQuery.Where(x => x.Status == "PENDING" && x.RespondBy > now);
         var extensionQuery = Extensions(db, a).AsNoTracking().Where(x => term == "" || x.Progress.Contains(term) || db.ApproachRegistrations.Any(r => r.Id == x.ApproachRegistrationId && matchingCustomers.Contains(r.CustomerId)));
+        if (overdueOnly)
+            extensionQuery = extensionQuery.Where(x => x.Status == "PENDING" && x.ReviewDueAt <= now);
         var disputeQuery = Disputes(db, a).AsNoTracking().Where(x => term == "" || matchingCustomers.Contains(x.CustomerId) || x.Reason.Contains(term));
+        if (disputeStatus != "") disputeQuery = disputeQuery.Where(x => x.Status == disputeStatus);
         var deferralQuery = db.SchoolDeferrals.AsNoTracking().Where(x => a.All || (a.Has(Permissions.SchoolAllocationManage) && a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))
             .Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
         var handoverQuery = db.SchoolHandovers.AsNoTracking().Where(x => a.All || (a.Has(Permissions.SchoolHandoverManage) && a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))

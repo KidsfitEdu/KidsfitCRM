@@ -116,12 +116,17 @@ public sealed partial class KidsfitDbContext
         Restrict<ContractCareHandover, User>(b, x => x.PreviousUserId);
         Restrict<ContractCareHandover, User>(b, x => x.AssignedUserId);
         Restrict<ContractCareHandover, User>(b, x => x.ActorUserId);
+        Restrict<ContractCareHandover, User>(b, x => x.AcceptedByUserId);
+        b.Entity<ContractCareHandover>().Property(x => x.AcceptanceNote).HasColumnType("text");
         Restrict<ContractCareHandover, Organization>(b, x => x.CareOrganizationId);
         Restrict<CustomerSupportCase, SalesContract>(b, x => x.ContractId);
         Restrict<CustomerSupportCase, ChannelCustomer>(b, x => x.CustomerId);
         Restrict<CustomerSupportCase, Organization>(b, x => x.OrganizationId);
         Restrict<CustomerSupportCase, User>(b, x => x.AssignedUserId);
         Restrict<CustomerSupportCase, User>(b, x => x.CreatedByUserId);
+        Restrict<CustomerSupportCase, User>(b, x => x.ForwardedByUserId);
+        Restrict<CustomerSupportCase, Organization>(b, x => x.CheckeeOrganizationId);
+        b.Entity<CustomerSupportCase>().HasIndex(x => new { x.CheckeeOrganizationId, x.Status, x.CreatedAt });
         Restrict<ContractCancellation, SalesContract>(b, x => x.ContractId);
         Restrict<ContractCancellation, User>(b, x => x.ActorUserId);
         Restrict<RevenueRefund, RevenueReceipt>(b, x => x.RevenueReceiptId);

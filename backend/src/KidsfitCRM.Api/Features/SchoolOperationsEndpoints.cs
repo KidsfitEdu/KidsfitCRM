@@ -51,6 +51,8 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
         group.MapPost("/contracts/{id:long}/care-handover", async (long id, AssignContractCareRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.AssignContractCare(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolCareAssign);
+        group.MapPost("/contracts/{id:long}/care-handover/respond", async (long id, RespondContractCareHandoverRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.RespondContractCareHandover(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolSupportManage);
         group.MapPost("/customer-support-cases", async (CreateCustomerSupportCaseRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CreateCustomerSupportCase(request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolSupportManage);
         group.MapPost("/customer-support-cases/{id:long}/progress", async (long id, UpdateCustomerSupportCaseRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.UpdateCustomerSupportCase(id, request, h.UserId(), h, ct)))
@@ -71,6 +73,12 @@ public static class SchoolOperationsEndpoints
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.RequestedByUserId == a.UserId || (a.Has(Permissions.SchoolExtensionReview) && x.ManagerUserId == a.UserId))));
     private static IQueryable<SchoolDispute> Disputes(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolDisputes.Where(x => a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.OpenedByUserId == a.UserId || (a.Organization && a.Has(Permissions.SchoolAllocationManage)))));
+    private static IQueryable<ContractCareHandover> CareHandovers(KidsfitDbContext db, ChannelSalesAccess a) =>
+        db.ContractCareHandovers.Where(x => a.All
+            || (a.Has(Permissions.SchoolSupportManage) && x.AssignedUserId == a.UserId && a.OrganizationIds.Contains(x.CareOrganizationId)
+                && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId))
+            || (a.Has(Permissions.SchoolCareAssign) && a.Organization && a.OrganizationIds.Contains(x.CareOrganizationId)));
+
     private static IQueryable<CustomerSupportCase> SupportCases(KidsfitDbContext db, ChannelSalesAccess a) => db.CustomerSupportCases.Where(x => a.All
         || (a.Has(Permissions.SchoolSupportManage) && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId && c.CareOrganizationId.HasValue && a.OrganizationIds.Contains(c.CareOrganizationId.Value)))
         || (a.Has(Permissions.SchoolCareAssign) && a.Organization && (a.OrganizationIds.Contains(x.OrganizationId) || db.SalesContracts.Any(c => c.Id == x.ContractId && a.OrganizationIds.Contains(c.OwnerOrganizationId)))));
@@ -174,13 +182,19 @@ public static class SchoolOperationsEndpoints
                     can_complete = x.Status == "OPEN" && a.Has(Permissions.SchoolAllocationManage) }).ToArrayAsync(ct),
             handovers = await handoverQuery.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new { x.Id, x.MembershipId, x.UserId, x.Reason, x.Summary, x.RevokedRegistrations, x.AccountSuspended, x.CreatedAt,
                     user_name = db.Users.Where(u => u.Id == x.UserId).Select(u => u.Name).First() }).ToArrayAsync(ct),
+            care_handovers = await CareHandovers(db, a).AsNoTracking().OrderByDescending(x => x.Id).Take(100)
+                .Select(x => new { x.Id, x.ContractId, x.AssignedUserId, x.Reason, x.AcceptanceStatus, x.AcceptedAt,
+                    x.AcceptanceNote, x.CreatedAt,
+                    contract_code = db.SalesContracts.Where(c => c.Id == x.ContractId).Select(c => c.ContractCode).First(),
+                    customer_name = db.ChannelCustomers.Where(c => db.SalesContracts.Any(k => k.Id == x.ContractId && k.CustomerId == c.Id)).Select(c => c.DisplayName).First() }).ToArrayAsync(ct),
             support_cases = await supportQuery.OrderByDescending(x => x.Status != "RESOLVED").ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new
             {
                 x.Id, x.ContractId, x.CustomerId, x.AssignedUserId, x.Subject, x.Description, x.Status, x.Outcome, x.ResolvedAt,
+                x.TicketType, x.ForwardedAt, x.CheckeeRespondedAt,
                 customer_name = db.ChannelCustomers.Where(c => c.Id == x.CustomerId).Select(c => c.DisplayName).First(),
                 assigned_name = db.Users.Where(u => u.Id == x.AssignedUserId).Select(u => u.Name).First(),
                 can_update = x.Status != "RESOLVED" && a.Has(Permissions.SchoolSupportManage) && (a.All || db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId && c.CareOrganizationId.HasValue && a.OrganizationIds.Contains(c.CareOrganizationId.Value))),
-                activities = db.CustomerActivities.Where(t => t.SupportCaseId == x.Id).OrderBy(t => t.CreatedAt).Select(t => new { t.Id, t.Content, t.OccurredAt, t.NextFollowUpAt }).ToArray(),
+                activities = db.CustomerActivities.Where(t => t.SupportCaseId == x.Id).OrderBy(t => t.CreatedAt).Select(t => new { t.Id, t.Content, t.OccurredAt, t.NextFollowUpAt, t.ActivityType, author_name = db.Users.Where(u => u.Id == t.UserId).Select(u => u.Name).First() }).ToArray(),
             }).ToArrayAsync(ct),
             team = await (from m in db.OrganizationMemberships join u in db.Users on m.UserId equals u.Id
                           where canTeam && (a.All || (a.Organization && a.OrganizationIds.Contains(m.OrganizationId)))

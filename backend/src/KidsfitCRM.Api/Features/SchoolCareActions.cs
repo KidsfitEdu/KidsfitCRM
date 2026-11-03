@@ -30,6 +30,7 @@ public sealed partial class ChannelSalesActions
         {
             ContractId = contract.Id, PreviousUserId = contract.CareUserId, AssignedUserId = request.UserId,
             CareOrganizationId = request.CareOrganizationId, ActorUserId = actorId, Reason = reason,
+            AcceptanceStatus = "PENDING",
             IdempotencyKey = key, RequestFingerprint = hash, CreatedAt = now, UpdatedAt = now,
         };
         contract.CareUserId = request.UserId; contract.CareOrganizationId = request.CareOrganizationId; contract.UpdatedAt = now;
@@ -57,18 +58,31 @@ public sealed partial class ChannelSalesActions
             || !await db.Users.AnyAsync(x => x.Id == contract.CareUserId && x.Status == "ACTIVE", ct)) throw new ApiConflictException("Người CSKH đã ngưng hoạt động; cần bàn giao lại.");
         var caretaker = await ChannelSalesAccess.Load(db, contract.CareUserId.Value, ct);
         if (!caretaker.Has(Permissions.SchoolSupportManage)) throw new ApiConflictException("Người phụ trách không còn quyền CSKH; cần bàn giao lại.");
+        var ticketType = string.IsNullOrWhiteSpace(request.TicketType) ? "USAGE_GUIDANCE" : request.TicketType.Trim().ToUpperInvariant();
+        if (ticketType is not ("USAGE_GUIDANCE" or "SYSTEM_ERROR"))
+            throw ApiValidationException.For("ticket_type", "Loại yêu cầu chỉ được là hướng dẫn sử dụng hoặc lỗi hệ thống.");
+        long? checkeeOrganizationId = null;
+        if (ticketType == "SYSTEM_ERROR")
+        {
+            checkeeOrganizationId = await db.Organizations.Where(x => x.Code == "CHECKEE" && x.Status == "ACTIVE")
+                .Select(x => (long?)x.Id).SingleOrDefaultAsync(ct);
+            if (!checkeeOrganizationId.HasValue) throw new ApiConflictException("Chưa cấu hình đơn vị CHECKEE tiếp nhận lỗi hệ thống.");
+        }
         var now = DateTime.UtcNow;
         var item = new CustomerSupportCase
         {
             ContractId = contract.Id, CustomerId = contract.CustomerId, OrganizationId = contract.CareOrganizationId.Value,
             AssignedUserId = contract.CareUserId.Value, CreatedByUserId = actorId,
+            TicketType = ticketType, CheckeeOrganizationId = checkeeOrganizationId,
+            ForwardedAt = checkeeOrganizationId.HasValue ? now : null,
+            ForwardedByUserId = checkeeOrganizationId.HasValue ? actorId : null,
             Subject = Validation.Required(request.Subject, "subject", "Cần tiêu đề yêu cầu.", 190),
             Description = Validation.Required(request.Description, "description", "Cần nội dung yêu cầu.", 4000),
             IdempotencyKey = key, RequestFingerprint = hash, CreatedAt = now, UpdatedAt = now,
         };
         db.CustomerSupportCases.Add(item); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "CREATE_CUSTOMER_SUPPORT_CASE", nameof(CustomerSupportCase), item.Id, null,
-            new { item.ContractId, item.AssignedUserId, item.OrganizationId, item.Status }, http);
+            new { item.ContractId, item.AssignedUserId, item.OrganizationId, item.Status, item.TicketType, item.CheckeeOrganizationId }, http);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return item.Id;
     }, ct);
 
@@ -84,6 +98,8 @@ public sealed partial class ChannelSalesActions
         EnsureContractCareAccess(access, contract);
         var item = await db.CustomerSupportCases.FromSqlInterpolated($"SELECT * FROM customer_support_cases WHERE id = {id} FOR UPDATE").SingleAsync(ct);
         if (item.Status == "RESOLVED") throw new ApiConflictException("Yêu cầu đã kết thúc; cần mở yêu cầu mới để tiếp tục hỗ trợ.");
+        if (status == "RESOLVED" && item.TicketType == "SYSTEM_ERROR" && !item.CheckeeRespondedAt.HasValue)
+            throw new ApiConflictException("Cần CHECKEE xác nhận đã xử lý lỗi hệ thống trước khi CSKH đóng ticket.");
         if (item.Status == "IN_PROGRESS" && status == "OPEN") throw new ApiConflictException("Không chuyển ngược yêu cầu đang xử lý về mới nhận.");
         var now = DateTime.UtcNow; var previous = item.Status;
         item.Status = status; item.UpdatedAt = now;
@@ -95,6 +111,38 @@ public sealed partial class ChannelSalesActions
         });
         Audit.Add(db, actorId, "UPDATE_CUSTOMER_SUPPORT_CASE", nameof(CustomerSupportCase), item.Id, new { status = previous }, new { item.Status, item.ResolvedAt }, http);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return id;
+    }, ct);
+
+    public Task<long> RespondContractCareHandover(long contractId, RespondContractCareHandoverRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
+    {
+        var access = await RequirePermission(actorId, Permissions.SchoolSupportManage, ct);
+        var note = request.Accept ? request.Note?.Trim() : Validation.Required(request.Note, "note", "Cần nêu thông tin bàn giao còn thiếu.", 4000);
+        if (note?.Length > 4000) throw ApiValidationException.For("note", "Ghi chú tối đa 4000 ký tự.");
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {contractId} FOR UPDATE")
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        if (contract.CareUserId != actorId || !contract.CareOrganizationId.HasValue || !access.InOrganization(contract.CareOrganizationId.Value))
+            throw new KeyNotFoundException();
+        var handover = await db.ContractCareHandovers.Where(x => x.ContractId == contractId)
+            .OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        if (handover.AssignedUserId != actorId || handover.CareOrganizationId != contract.CareOrganizationId.Value)
+            throw new KeyNotFoundException();
+        if (handover.AcceptanceStatus == "ACCEPTED")
+        {
+            if (request.Accept) return handover.Id;
+            throw new ApiConflictException("Hồ sơ đã được xác nhận bàn giao.");
+        }
+        var now = DateTime.UtcNow;
+        handover.AcceptanceStatus = request.Accept ? "ACCEPTED" : "NEEDS_INFO";
+        handover.AcceptedByUserId = request.Accept ? actorId : null;
+        handover.AcceptedAt = request.Accept ? now : null;
+        handover.AcceptanceNote = note;
+        handover.UpdatedAt = now;
+        Audit.Add(db, actorId, "RESPOND_CONTRACT_CARE_HANDOVER", nameof(ContractCareHandover), handover.Id,
+            null, new { handover.ContractId, handover.AcceptanceStatus }, http);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return handover.Id;
     }, ct);
 
     private static void EnsureContractCareAccess(ChannelSalesAccess access, SalesContract contract)

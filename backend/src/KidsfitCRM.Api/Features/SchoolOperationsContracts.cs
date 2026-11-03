@@ -24,7 +24,9 @@ public sealed record UpdateSchoolUnitRequest(int ExpectedVersion, string? Name, 
 public sealed record CreateSchoolWorkflowPolicyRequest(long OrganizationId, int ManagerReviewHours, int AdminReviewHours,
     int InvitationHours, int MaxExtensionDays, int MaxExtensionCount, int MaxTotalExtensionDays, bool Activate, string? DecisionReference);
 public sealed record AssignContractCareRequest(string? IdempotencyKey, long UserId, long CareOrganizationId, string? Reason);
-public sealed record CreateCustomerSupportCaseRequest(string? IdempotencyKey, long ContractId, string? Subject, string? Description);
+public sealed record CreateCustomerSupportCaseRequest(string? IdempotencyKey, long ContractId, string? Subject, string? Description, string? TicketType = null);
+public sealed record RespondContractCareHandoverRequest(bool Accept, string? Note);
+public sealed record UpdateCheckeeSupportCaseRequest(string? Content, bool Completed);
 public sealed record UpdateCustomerSupportCaseRequest(string? Status, string? Content, DateTime? NextFollowUpAt);
 public sealed record CancelSalesContractRequest(string? IdempotencyKey, string? Reason, string? DecisionReference);
 public sealed record RecordRevenueRefundRequest(string? IdempotencyKey, decimal Amount, DateTime? RefundedAt,

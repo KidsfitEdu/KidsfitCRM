@@ -147,6 +147,10 @@ public sealed class SchoolUnitRevision : EntityBase
 
 public sealed class ContractCareHandover : EntityBase
 {
+    public string AcceptanceStatus { get; set; } = "PENDING";
+    public DateTime? AcceptedAt { get; set; }
+    public long? AcceptedByUserId { get; set; }
+    public string? AcceptanceNote { get; set; }
     public long ContractId { get; set; }
     public long? PreviousUserId { get; set; }
     public long AssignedUserId { get; set; }
@@ -169,6 +173,11 @@ public sealed class CustomerSupportCase : EntityBase
     public string Status { get; set; } = "OPEN";
     public string? Outcome { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    public string TicketType { get; set; } = "USAGE_GUIDANCE";
+    public long? CheckeeOrganizationId { get; set; }
+    public DateTime? ForwardedAt { get; set; }
+    public long? ForwardedByUserId { get; set; }
+    public DateTime? CheckeeRespondedAt { get; set; }
     public string IdempotencyKey { get; set; } = "";
     public string RequestFingerprint { get; set; } = "";
 }

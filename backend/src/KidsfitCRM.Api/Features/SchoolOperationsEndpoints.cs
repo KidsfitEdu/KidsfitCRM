@@ -49,6 +49,12 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/school-workflow-policies", async (CreateSchoolWorkflowPolicyRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CreateSchoolWorkflowPolicy(request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPatch("/school-workflow-policies/{id:long}/draft", async (long id, UpdateSchoolWorkflowPolicyDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.UpdateSchoolWorkflowPolicyDraft(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPost("/school-workflow-policies/{id:long}/activate", async (long id, ActivateSchoolWorkflowPolicyRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ActivateSchoolWorkflowPolicy(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPost("/school-workflow-policies/{id:long}/cancel", async (long id, CancelSchoolWorkflowPolicyDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CancelSchoolWorkflowPolicyDraft(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
         group.MapPost("/contracts/{id:long}/care-handover", async (long id, AssignContractCareRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.AssignContractCare(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolCareAssign);
         group.MapPost("/customer-support-cases", async (CreateCustomerSupportCaseRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CreateCustomerSupportCase(request, h.UserId(), h, ct)))

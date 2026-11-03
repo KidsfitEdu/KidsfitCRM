@@ -14,28 +14,30 @@ const profileSections = {
   Board: ['Dashboard','Oversight','Overdue','Disputes','Policies'],
   Accounting: ['Dashboard','Revenue'],
   CustomerCare: ['Dashboard','Handover','Cases','Customers','Followup'],
-  Checkee: ['Dashboard','Verification'],
+  Checkee: ['Dashboard','Verification','Support'],
 };
 
-test('All 41 active role menu pages exist and are compiled from src/screens', () => {
+test('All 42 active role menu pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
-      const source = 'src/screens/' + profile + '/' + screen + '/' + screen + 'Page.tsx';
+      const source = profile === 'Checkee' && screen === 'Support'
+        ? 'src/screens/Checkee/Support/SupportCasesPage.tsx'
+        : 'src/screens/' + profile + '/' + screen + '/' + screen + 'Page.tsx';
       assert.ok(existsSync(file(source)), 'Missing role page: ' + source);
       const text = read(source);
-      assert.match(text, new RegExp('export function ' + screen + 'Page\\b'));
+      assert.match(text, new RegExp('export function ' + (profile === 'Checkee' && screen === 'Support' ? 'SupportCases' : screen) + 'Page\\b'));
       total += 1;
     }
   }
-  assert.equal(total, 41);
+  assert.equal(total, 42);
 });
 
 test('Active navigation targets match role page registry and preserve aliases', () => {
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
-  assert.equal(known.length, 41, 'Expected 41 active role navigation entries');
+  assert.equal(known.length, 42, 'Expected 42 active role navigation entries');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;
@@ -49,12 +51,12 @@ test('Active navigation targets match role page registry and preserve aliases', 
   }
 });
 
-test('CHECKEE has two active menus and legacy bookmarks are redirected', () => {
+test('CHECKEE has three active menus and legacy bookmarks are redirected', () => {
   const navigation = read('src/config/navigation.ts');
   const routes = read('src/config/routes.ts');
   const page = read('src/screens/Checkee/Verification/VerificationPage.tsx');
   const dashboard = read('src/screens/Checkee/Dashboard/DashboardPage.tsx');
-  assert.equal((navigation.match(/\{ id: 'role-checkee-(dashboard|verification)', label:/g) ?? []).length, 2);
+  assert.equal((navigation.match(/\{ id: 'role-checkee-(dashboard|verification|support)', label:/g) ?? []).length, 3);
   assert.match(routes, /canonicalCheckeeView/);
   assert.match(page, /<AdminListPanel>/);
   assert.match(page, /<AppDrawer/);

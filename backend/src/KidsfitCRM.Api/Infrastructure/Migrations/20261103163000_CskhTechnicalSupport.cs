@@ -32,6 +32,30 @@ public sealed class CskhTechnicalSupport : Migration
         migrationBuilder.AddForeignKey(name: "fk_support_forwarded_user", table: "customer_support_cases",
             column: "forwarded_by_user_id", principalTable: "users", principalColumn: "id",
             onDelete: ReferentialAction.Restrict);
+        // Production RBAC: do not depend on --seed-demo. Preserve users and roles.
+        migrationBuilder.Sql("""
+            INSERT INTO `permissions` (`code`, `name`, `group`, `created_at`, `updated_at`)
+            SELECT 'channel_sales.school.technical_support.handle', 'CHECKEE xử lý lỗi phần mềm',
+                   'CHECKEE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+            WHERE NOT EXISTS (SELECT 1 FROM `permissions`
+                WHERE `code` = 'channel_sales.school.technical_support.handle');
+            """);
+        migrationBuilder.Sql("""
+            INSERT INTO `permission_role` (`permission_id`, `role_id`)
+            SELECT p.id, r.id FROM `permissions` p CROSS JOIN `roles` r
+            WHERE p.code = 'channel_sales.school.technical_support.handle'
+              AND r.code IN ('CHECKEE', 'ADMIN')
+              AND NOT EXISTS (SELECT 1 FROM `permission_role` existing
+                WHERE existing.permission_id = p.id AND existing.role_id = r.id);
+            """);
+        // Explicitly approved: Sales Managers can no longer allocate CSKH.
+        // Action-level Admin-only checks remain in place for legacy tokens/grants.
+        migrationBuilder.Sql("""
+            DELETE pr FROM `permission_role` pr
+            INNER JOIN `roles` r ON pr.role_id = r.id
+            INNER JOIN `permissions` p ON pr.permission_id = p.id
+            WHERE r.code = 'SALES_MANAGER' AND p.code = 'channel_sales.school.care.assign';
+            """);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

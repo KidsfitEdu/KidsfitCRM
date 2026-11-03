@@ -7,7 +7,6 @@ import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { Input } from '@/components/ui/input';
 import { PolicyEditorDialog, type PolicyForm } from './PolicyEditorDialog';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -28,7 +27,6 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const [editingId,setEditingId]=useState<number|null>(null);
   const [editorOpen,setEditorOpen]=useState(false);
   const [confirm,setConfirm]=useState<{id:number;action:'activate'|'cancel'|'reapply'}|null>(null);
-  const [decision,setDecision]=useState('');
   const [busy,setBusy]=useState(false);
   const [actionError,setActionError]=useState('');
   const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.escalation.resolve')||abilities.includes('channel_sales.school.dispute.resolve');
@@ -47,12 +45,13 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const orgName=(id:number)=>data?.organizations.find(x=>x.id===id)?.name??String(id);
   const visiblePolicies=policies.slice((page-1)*pageSize,page*pageSize);
   const detail=(data?.policies??[]).find(p=>p.id===detailId);
+  const confirmingPolicy=(data?.policies??[]).find(p=>p.id===confirm?.id);
   const editing=(data?.policies??[]).find(p=>p.id===editingId)??null;
   const write=async (path:string,method:'POST'|'PATCH',body:unknown)=>{
     setActionError('');setBusy(true);
     try{
       await channelRequest(apiBase,token,path,{method,body:JSON.stringify(body)});
-      setEditorOpen(false);setEditingId(null);setConfirm(null);setDecision('');
+      setEditorOpen(false);setEditingId(null);setConfirm(null);
       await query.refetch();
     }catch(error){setActionError(error instanceof Error?error.message:'Không thể cập nhật chính sách.');}
     finally{setBusy(false);}
@@ -69,9 +68,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   };
   const confirmAction=()=>{
     if(!confirm)return;
-    if(!decision.trim()){setActionError('Vui lòng nhập căn cứ hoặc lý do.');return;}
-    void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',
-      confirm.action==='cancel'?{reason:decision.trim()}:{decision_reference:decision.trim()});
+    void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',{});
   };
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"
@@ -105,15 +102,15 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
               <AdminIconAction icon={Eye} label="Xem chi tiết chính sách" onClick={()=>setDetailId(p.id)}/>
               {canManage&&p.status==='SUPERSEDED'&&<AdminIconAction icon={RotateCcw} tone="blue"
                 label="Áp dụng lại phiên bản chính sách" onClick={()=>{
-                  setConfirm({id:p.id,action:'reapply'});setDecision('');setActionError('');
+                  setConfirm({id:p.id,action:'reapply'});setActionError('');
                 }}/>}
               {canManage&&p.status==='DRAFT'&&<>
                 <AdminIconAction icon={Pencil} tone="blue" label="Sửa bản nháp chính sách"
                   onClick={()=>{setEditingId(p.id);setActionError('');setEditorOpen(true);}}/>
                 <AdminIconAction icon={CheckCircle2} label="Kích hoạt chính sách"
-                  onClick={()=>{setConfirm({id:p.id,action:'activate'});setDecision(p.decision_reference??'');setActionError('');}}/>
+                  onClick={()=>{setConfirm({id:p.id,action:'activate'});setActionError('');}}/>
                 <AdminIconAction icon={Trash2} tone="red" label="Hủy bản nháp chính sách"
-                  onClick={()=>{setConfirm({id:p.id,action:'cancel'});setDecision('');setActionError('');}}/>
+                  onClick={()=>{setConfirm({id:p.id,action:'cancel'});setActionError('');}}/>
               </>}
               </div></td>
           </tr>)}</tbody>
@@ -145,18 +142,16 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     </AppDrawer>
     <PolicyEditorDialog open={editorOpen} onClose={()=>{if(!busy)setEditorOpen(false);}}
       busy={busy} policy={editing} organizations={data?.organizations??EMPTY_ORGANIZATIONS} onSave={save}/>
-    <ConfirmDialog open={confirm!==null} onOpenChange={v=>{if(!v&&!busy)setConfirm(null);}}
+    <ConfirmDialog open={confirm!==null} onOpenChange={v=>{if(!v&&!busy){setConfirm(null);setActionError('');}}}
       busy={busy} destructive={confirm?.action==='cancel'}
-      title={confirm?.action==='activate'?'Xác nhận kích hoạt chính sách':confirm?.action==='reapply'?'Áp dụng lại phiên bản chính sách':'Xác nhận hủy bản nháp'}
+      title={confirm?.action==='cancel'?'Xác nhận xóa bản nháp':confirm?.action==='reapply'?'Xác nhận áp dụng lại chính sách':'Xác nhận áp dụng chính sách'}
+      description={confirm?.action==='cancel'
+        ? `Bạn có chắc chắn muốn xóa bản nháp chính sách phiên bản ${confirmingPolicy?.version??'—'}?`
+        : confirm?.action==='reapply'
+          ? `Bạn có chắc chắn muốn áp dụng lại chính sách phiên bản ${confirmingPolicy?.version??'—'}?`
+          : `Bạn có chắc chắn muốn áp dụng chính sách phiên bản ${confirmingPolicy?.version??'—'}?`}
       confirmLabel="Xác nhận" onConfirm={confirmAction}>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="board-policy-action-reason">
-          {confirm?.action==='cancel'?'Lý do hủy *':'Căn cứ áp dụng *'}
-        </label>
-        <Input id="board-policy-action-reason" value={decision} maxLength={confirm?.action==='cancel'?2000:120}
-          onChange={e=>setDecision(e.target.value)}/>
-        {actionError&&<p role="alert" className="text-sm text-red-600">{actionError}</p>}
-      </div>
+      {actionError&&<p role="alert" className="text-sm text-red-600">{actionError}</p>}
     </ConfirmDialog>
   </div>;
 }

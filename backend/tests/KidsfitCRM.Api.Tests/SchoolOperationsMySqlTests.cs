@@ -51,7 +51,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     private async Task<long> Policy(long orgId, bool activate = true)
     {
         await using var db = fixture.Open();
-        return await new ChannelSalesActions(db).CreateSchoolWorkflowPolicy(new(orgId, 24, 48, 24, 7, 2, 14, activate, "TEST-APPROVAL-" + Key()), await User("admin@kidsfit.vn"), Http(), Ct);
+        return await new ChannelSalesActions(db).CreateSchoolWorkflowPolicy(new(orgId, 24, 48, 24, 7, 3, 21, activate, "TEST-APPROVAL-" + Key()), await User("admin@kidsfit.vn"), Http(), Ct);
     }
     private async Task<long> ActiveContract(Scenario s)
     {
@@ -619,7 +619,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var registration = await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
         var until = await db.ApproachRegistrations.Where(x => x.Id == registration).Select(x => x.ProtectedUntil).SingleAsync();
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 3; i++)
         {
             until = until.AddDays(7);
             var id = await a.RequestSchoolExtension(registration, Extension(until), s.Seller.UserId, Http(), Ct);
@@ -628,7 +628,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<ApiConflictException>(() =>
             a.RequestSchoolExtension(registration, Extension(until.AddDays(1)), s.Seller.UserId, Http(), Ct));
         Assert.Equal(until, await db.ApproachRegistrations.Where(x => x.Id == registration).Select(x => x.ProtectedUntil).SingleAsync());
-        Assert.Equal(2, await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration && x.Status == "APPROVED"));
+        Assert.Equal(3, await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration && x.Status == "APPROVED"));
     }
 
     [MySqlFact] public async Task CrossOrganizationCareIsExplicitAndFormerCaretakerLosesPartnerContacts()

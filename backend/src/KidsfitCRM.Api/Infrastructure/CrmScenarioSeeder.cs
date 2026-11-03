@@ -136,11 +136,15 @@ internal static class CrmScenarioSeeder
         // Synthetic-only data. Never copy imported school contacts or production documents into demo seed.
         var package = await db.CheckeeProductPackages.Where(x => x.Status == "ACTIVE")
             .OrderBy(x => x.Id).FirstAsync();
+        var checkeeUserId = await db.Users.Where(u => u.Code == "CHECKEE001").Select(u => u.Id).SingleAsync();
         var scenarios = new[]
         {
-            (Code: "SEED-MGR-REVIEW", Name: "Trường Mầm non Thảo Nguyên (demo)", Status: "PENDING_REVIEW"),
-            (Code: "SEED-MGR-RETURN", Name: "Trường Mầm non Gió Mới (demo)", Status: "NEEDS_REVISION"),
-            (Code: "SEED-MGR-CHECKEE", Name: "Trường Mầm non Cánh Diều (demo)", Status: "MANAGER_REVIEWED"),
+            (Code: "SEED-MGR-REVIEW", Name: "Trường Mầm non Thảo Nguyên (demo)", Status: "PENDING_REVIEW", CaseStatus: "AWAITING_MANAGER"),
+            (Code: "SEED-MGR-RETURN", Name: "Trường Mầm non Gió Mới (demo)", Status: "NEEDS_REVISION", CaseStatus: "AWAITING_MANAGER"),
+            (Code: "SEED-MGR-CHECKEE", Name: "Trường Mầm non Cánh Diều (demo)", Status: "MANAGER_REVIEWED", CaseStatus: "PENDING"),
+            // CHECKEE-specific synthetic fixtures for verified and feedback history.
+            (Code: "SEED-CHK-CONFIRMED", Name: "Trường Mầm non Hạt Nắng (demo)", Status: "PENDING_KIDSFIT", CaseStatus: "CONFIRMED"),
+            (Code: "SEED-CHK-FEEDBACK", Name: "Trường Mầm non Vườn Mây (demo)", Status: "MANAGER_REVIEWED", CaseStatus: "DISPUTED"),
         };
         var pdfBytes = SyntheticPdf();
         foreach (var example in scenarios)
@@ -195,8 +199,9 @@ internal static class CrmScenarioSeeder
                     RequiresSchoolVerification = true, ServicePlan = "SCHOOL_YEAR", StudentCount = 280,
                     SchoolUnitIdsJson = "[]", IdempotencyKey = "scenario-manager-contract-" + example.Code,
                     ProtectionStartsAt = now, ProtectionUntil = now,
-                    ManagerReviewedAt = example.Status == "MANAGER_REVIEWED" ? now.AddHours(-2) : null,
-                    ManagerReviewedByUserId = example.Status == "MANAGER_REVIEWED" ? managerId : null,
+                    ManagerReviewedAt = example.Status is "MANAGER_REVIEWED" or "PENDING_KIDSFIT" ? now.AddHours(-2) : null,
+                    ManagerReviewedByUserId = example.Status is "MANAGER_REVIEWED" or "PENDING_KIDSFIT" ? managerId : null,
+                    VerifiedAt = example.CaseStatus == "CONFIRMED" ? now.AddHours(-1) : null,
                     CreatedAt = now.AddDays(-3), UpdatedAt = now,
                 };
                 db.SalesContracts.Add(contract); await db.SaveChangesAsync();
@@ -222,7 +227,9 @@ internal static class CrmScenarioSeeder
             {
                 reconciliation = new ReconciliationCase { ContractId = contract.Id, CustomerId = customer.Id,
                     CheckeeOrganizationId = checkeeOrganizationId,
-                    Status = example.Status == "MANAGER_REVIEWED" ? "PENDING" : "AWAITING_MANAGER",
+                    Status = example.CaseStatus,
+                    DisputeReason = example.CaseStatus == "DISPUTED" ? "Cần bổ sung bản hợp đồng có chữ ký (demo)." : null,
+                    ResolvedAt = example.CaseStatus == "CONFIRMED" ? now.AddHours(-1) : null,
                     OpenedAt = now.AddDays(-1), CreatedAt = now.AddDays(-1), UpdatedAt = now };
                 db.ReconciliationCases.Add(reconciliation); await db.SaveChangesAsync();
                 db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
@@ -237,11 +244,19 @@ internal static class CrmScenarioSeeder
                         Reason = "Cần bổ sung trang ký và đóng dấu (dữ liệu demo).", CreatedAt = now.AddHours(-3), UpdatedAt = now });
                     await db.SaveChangesAsync();
                 }
-                if (example.Status == "MANAGER_REVIEWED")
+                if (example.CaseStatus is "PENDING" or "CONFIRMED" or "DISPUTED")
                 {
                     db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
                         ActorUserId = managerId, EventType = "MANAGER_FORWARDED",
                         CreatedAt = now.AddHours(-2), UpdatedAt = now });
+                    await db.SaveChangesAsync();
+                }
+                if (example.CaseStatus is "CONFIRMED" or "DISPUTED")
+                {
+                    db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
+                        ActorUserId = checkeeUserId, EventType = example.CaseStatus,
+                        Reason = example.CaseStatus == "DISPUTED" ? reconciliation.DisputeReason : "CHECKEE đã kiểm tra hợp đồng demo.",
+                        CreatedAt = now.AddHours(-1), UpdatedAt = now });
                     await db.SaveChangesAsync();
                 }
             }

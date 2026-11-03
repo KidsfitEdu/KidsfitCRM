@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CalendarDays, Phone, Circle, FileCheck2 } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CalendarDays, Phone, FileCheck2 } from 'lucide-react';
 
 // Stable view IDs and sidebar labels. Do not confuse display profiles with RBAC roles.
 export type View =
@@ -79,10 +79,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'role-sales-staff-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất trường', icon: BookOpenCheck },
   { id: 'role-sales-staff-income', label: 'Thu nhập', shortLabel: 'Thu nhập', icon: WalletCards },
   { id: 'role-checkee-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
-  { id: 'role-checkee-verification', label: 'Xác minh hợp đồng', shortLabel: 'Xác minh hợp đồng', icon: ShieldCheck },
-  { id: 'role-checkee-reconciliation', label: 'Đối soát', shortLabel: 'Đối soát', icon: BookOpenCheck },
-  { id: 'role-checkee-disputes', label: 'Tranh chấp', shortLabel: 'Tranh chấp', icon: Circle },
-  { id: 'role-checkee-history', label: 'Lịch sử', shortLabel: 'Lịch sử', icon: Clock3 },
+  { id: 'role-checkee-verification', label: 'Xác minh hợp đồng', shortLabel: 'Xác minh hợp đồng', icon: FileCheck2 },
   { id: 'role-collaborator-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-collaborator-schools', label: 'Đăng ký trường', shortLabel: 'Đăng ký trường', icon: GraduationCap },
   { id: 'role-collaborator-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất trường', icon: BookOpenCheck },
@@ -141,8 +138,8 @@ export const viewCopy: Record<
   'role-sales-staff-activities': {eyebrow:'Nhân viên bán hàng',title:'Tiếp cận & tư vấn',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
   'role-sales-staff-proposals': {eyebrow:'Nhân viên bán hàng',title:'Đề xuất trường',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
   'role-sales-staff-income': {eyebrow:'Nhân viên bán hàng',title:'Thu nhập',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
-  'role-checkee-dashboard': {eyebrow:'CHECKEE',title:'Tổng quan',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
-  'role-checkee-verification': {eyebrow:'CHECKEE',title:'Xác minh hợp đồng',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
+  'role-checkee-dashboard': {eyebrow:'CHECKEE',title:'Tổng quan',description:'Theo dõi hợp đồng chờ xác minh, đã phản hồi và đã xác minh.'},
+  'role-checkee-verification': {eyebrow:'CHECKEE',title:'Xác minh hợp đồng',description:'Tiếp nhận, xem file hợp đồng, xác minh và theo dõi lịch sử.'},
   'role-checkee-reconciliation': {eyebrow:'CHECKEE',title:'Đối soát',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
   'role-checkee-disputes': {eyebrow:'CHECKEE',title:'Tranh chấp',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
   'role-checkee-history': {eyebrow:'CHECKEE',title:'Lịch sử',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},

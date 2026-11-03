@@ -17,6 +17,7 @@ public static class ChannelSalesOperationsEndpoints
         group.MapGet("/income/me/contracts/{contractId:long}", SalesIncomeEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/schools/mine", SalesSchoolEndpoints.Mine).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/reconciliation-cases", Reconciliations).RequireAuthorization(Permissions.ChannelSalesView);
+        CheckeeVerificationEndpoints.Map(group);
         group.MapGet("/management", Management).RequireAuthorization(Permissions.ChannelSalesTeamManage);
         group.MapAdminPersonnel();
         group.MapGet("/customers/{id:long}", CustomerDetail).RequireAuthorization(Permissions.ChannelSalesView);

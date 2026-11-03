@@ -49,7 +49,7 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
     ['Quản trị viên',7],['Quản lý bán hàng',7],
     ['Nhân viên bán hàng',5],['CTV đối tác',5],
     ['Ban giám đốc',5],['Kế toán',2],
-    ['Chăm sóc khách hàng',5],['CHECKEE',5],
+    ['Chăm sóc khách hàng',5],['CHECKEE',2],
   ];
   for (const [name,expected] of roles) {
     const {context,page,navigation,errors} = await login(name);
@@ -60,6 +60,17 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
     await page.screenshot({path:resolve(artifacts,name.replaceAll(' ','-')+'.png')});
     await context.close();
   }
+});
+
+test('CHECKEE uses a compact two-menu verification workspace', async () => {
+  const {context,page,navigation,errors} = await login('CHECKEE');
+  assert.equal(await navigation.locator('button').count(),2);
+  await navigation.getByRole('button',{name:'Xác minh hợp đồng',exact:true}).click();
+  await page.getByRole('heading',{name:'Xác minh hợp đồng'}).waitFor();
+  await page.getByRole('combobox',{name:'Lọc trạng thái xác minh'}).waitFor();
+  await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  assert.deepEqual(errors,[]);
+  await context.close();
 });
 
 test('Admin can navigate seven screens without browser exceptions', async () => {
@@ -86,7 +97,7 @@ test('Collaborator mobile navigation and logout work', async () => {
   await context.close();
 });
 
-test('Sales desktop retains underline tabs, shared lists and paging', async () => {
+test('Sales desktop uses 30% flat underline tabs and a table for proposals', async () => {
   const {context,page,navigation,errors} = await login('Nhân viên bán hàng');
   await navigation.getByRole('button',{name:'Trường của tôi',exact:true}).click();
   const tabs = page.getByRole('navigation',{name:'Nhóm công việc Sales'});
@@ -113,6 +124,8 @@ test('Sales desktop retains underline tabs, shared lists and paging', async () =
   await page.getByRole('textbox',{name:'Tìm trường chờ phân bổ'}).waitFor();
   await page.getByRole('combobox',{name:'Lọc trạng thái phân bổ'}).waitFor();
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  // Sales now uses the five-entry menu; consultation and extension actions live
+  // inside "Trường của tôi", so there is no separate activity sidebar entry.
   assert.equal(await tabs.getByRole('button',{name:'Gia hạn tiếp cận'}).count(),0);
   await navigation.getByRole('button',{name:'Đề xuất trường',exact:true}).click();
   await page.getByRole('table').waitFor();

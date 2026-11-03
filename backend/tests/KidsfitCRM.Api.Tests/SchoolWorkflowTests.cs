@@ -456,4 +456,52 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId));
     }
 
+    [MySqlFact] public async Task CheckeeVerificationReadModelHasScopedDetailHistoryAndRealPageCounts()
+    {
+        var checkee = await User("checkee@kidsfit.vn");
+        var manager = await User("manager@kidsfit.vn");
+        await using var db = fixture.Open();
+        HttpContext AsUser(long id) => new DefaultHttpContext {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, id.ToString())], "test"))
+        };
+        JsonElement Json(IResult result) => JsonSerializer.SerializeToElement(
+            ((IValueHttpResult)result).Value,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+
+        var page = Json(await CheckeeVerificationEndpoints.List(
+            AsUser(checkee), db, null, "PENDING", 1, 1, Ct));
+        Assert.Equal(1, page.GetProperty("page_size").GetInt32());
+        Assert.True(page.GetProperty("summary").GetProperty("pending").GetInt32() >= 1);
+        Assert.True(page.GetProperty("summary").GetProperty("feedback").GetInt32() >= 1);
+        Assert.True(page.GetProperty("summary").GetProperty("confirmed").GetInt32() >= 1);
+        Assert.True(page.GetProperty("total").GetInt32() >= 1);
+        var feedback = Json(await CheckeeVerificationEndpoints.List(
+            AsUser(checkee), db, null, "DISPUTED", 1, 20, Ct));
+        Assert.True(feedback.GetProperty("total").GetInt32() >= 1);
+        var confirmed = Json(await CheckeeVerificationEndpoints.List(
+            AsUser(checkee), db, null, "CONFIRMED", 1, 20, Ct));
+        Assert.True(confirmed.GetProperty("total").GetInt32() >= 1);
+        var row = page.GetProperty("data").EnumerateArray().First();
+        var caseId = row.GetProperty("id").GetInt64();
+        var detail = Json(await CheckeeVerificationEndpoints.Detail(caseId, AsUser(checkee), db, Ct));
+        Assert.Equal(row.GetProperty("contract_code").GetString(),
+            detail.GetProperty("data").GetProperty("contract_code").GetString());
+        Assert.True(detail.GetProperty("data").GetProperty("can_verify").GetBoolean());
+        Assert.NotEmpty(detail.GetProperty("evidence").EnumerateArray());
+        Assert.NotEmpty(detail.GetProperty("history").EnumerateArray());
+
+        var waiting = await db.ReconciliationCases
+            .Where(x => x.Status == "AWAITING_MANAGER")
+            .Select(x => x.Id).FirstOrDefaultAsync();
+        if (waiting > 0)
+            await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+                CheckeeVerificationEndpoints.Detail(waiting, AsUser(checkee), db, Ct));
+        var unauthorized = await CheckeeVerificationEndpoints.List(
+            AsUser(manager), db, null, null, 1, 20, Ct);
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ForbidHttpResult>(unauthorized);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            CheckeeVerificationEndpoints.List(AsUser(checkee), db, null, "INVALID", 1, 20, Ct));
+    }
+
 }

@@ -122,6 +122,11 @@ public sealed partial class KidsfitDbContext
         Restrict<CustomerSupportCase, Organization>(b, x => x.OrganizationId);
         Restrict<CustomerSupportCase, User>(b, x => x.AssignedUserId);
         Restrict<CustomerSupportCase, User>(b, x => x.CreatedByUserId);
+        Restrict<CustomerSupportCase, Organization>(b, x => x.CheckeeOrganizationId);
+        Restrict<CustomerSupportCase, User>(b, x => x.ForwardedByUserId);
+        b.Entity<CustomerSupportCase>().HasIndex(x => new { x.CheckeeOrganizationId, x.Status, x.CreatedAt })
+            .HasDatabaseName("ix_support_checkee_status_created");
+        b.Entity<CustomerSupportCase>().HasIndex(x => x.ForwardedByUserId).HasDatabaseName("ix_support_forwarded_by");
         Restrict<ContractCancellation, SalesContract>(b, x => x.ContractId);
         Restrict<ContractCancellation, User>(b, x => x.ActorUserId);
         Restrict<RevenueRefund, RevenueReceipt>(b, x => x.RevenueReceiptId);

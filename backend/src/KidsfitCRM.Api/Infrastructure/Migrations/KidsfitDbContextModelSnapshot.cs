@@ -891,6 +891,14 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("assigned_user_id");
 
+                    b.Property<long?>("CheckeeOrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("checkee_organization_id");
+
+                    b.Property<DateTime?>("CheckeeRespondedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("checkee_responded_at");
+
                     b.Property<long>("ContractId")
                         .HasColumnType("bigint")
                         .HasColumnName("contract_id");
@@ -911,6 +919,14 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("description");
+
+                    b.Property<DateTime?>("ForwardedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("forwarded_at");
+
+                    b.Property<long?>("ForwardedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("forwarded_by_user_id");
 
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
@@ -950,6 +966,12 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("varchar(190)")
                         .HasColumnName("subject");
 
+                    b.Property<string>("TicketType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("ticket_type");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("updated_at");
@@ -958,11 +980,17 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.HasIndex("AssignedUserId");
 
+                    b.HasIndex("CheckeeOrganizationId", "Status", "CreatedAt")
+                        .HasDatabaseName("ix_support_checkee_status_created");
+
                     b.HasIndex("ContractId");
 
                     b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("ForwardedByUserId")
+                        .HasDatabaseName("ix_support_forwarded_by");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
@@ -3386,6 +3414,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.CustomerSupportCase", b =>
                 {
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("CheckeeOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("KidsfitCRM.Api.Domain.User", null)
                         .WithMany()
                         .HasForeignKey("AssignedUserId")
@@ -3415,6 +3448,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ForwardedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.DirectorySchool", b =>

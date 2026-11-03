@@ -80,6 +80,8 @@ public static class ChannelSalesEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesReconcile);
         channel.MapGet("/commissions/me", MyCommissions).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         channel.MapChannelSalesOperations();
+        CustomerCareEndpoints.Map(channel);
+        CheckeeSupportEndpoints.Map(channel);
         channel.MapSchoolDirectory();
         return secured;
     }

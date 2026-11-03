@@ -235,6 +235,7 @@ public static class SchoolOperationsEndpoints
             support_cases = await supportQuery.OrderByDescending(x => x.Status != "RESOLVED").ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new
             {
                 x.Id, x.ContractId, x.CustomerId, x.AssignedUserId, x.Subject, x.Description, x.Status, x.Outcome, x.ResolvedAt,
+                x.TicketType, x.ForwardedAt, x.CheckeeRespondedAt,
                 customer_name = db.ChannelCustomers.Where(c => c.Id == x.CustomerId).Select(c => c.DisplayName).First(),
                 assigned_name = db.Users.Where(u => u.Id == x.AssignedUserId).Select(u => u.Name).First(),
                 can_update = x.Status != "RESOLVED" && a.Has(Permissions.SchoolSupportManage) && (a.All || db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId && c.CareOrganizationId.HasValue && a.OrganizationIds.Contains(c.CareOrganizationId.Value))),
@@ -253,11 +254,11 @@ public static class SchoolOperationsEndpoints
                               can_handover = m.UserId != a.UserId && a.Has(Permissions.SchoolHandoverManage) && (a.Has(Permissions.ChannelSalesIdentityManage) || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR") }).Take(200).ToArrayAsync(ct),
             contracts = await contractQuery.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new { x.Id, x.ContractCode, x.CustomerId, x.Status, x.CareUserId, x.CareOrganizationId, x.VerifiedAt,
                 care_name = db.Users.Where(u => u.Id == x.CareUserId).Select(u => u.Name).FirstOrDefault(),
-                can_create_support = x.Status == "ACTIVE" && x.CareUserId.HasValue && x.CareOrganizationId.HasValue && a.Has(Permissions.SchoolSupportManage)
+                can_create_support = x.Status == "ACTIVE" && x.VerifiedAt != null && x.CareUserId.HasValue && x.CareOrganizationId.HasValue && a.Has(Permissions.SchoolSupportManage)
                     && (a.All || (x.CareUserId == a.UserId && a.OrganizationIds.Contains(x.CareOrganizationId.Value))),
                 customer_name = db.ChannelCustomers.Where(c => c.Id == x.CustomerId).Select(c => c.DisplayName).First(),
                 can_assign_care = (x.Status == "ACTIVE" || (x.Status == "CANCELLED" && db.ContractCancellations.Any(c => c.ContractId == x.Id && c.PreviousStatus == "ACTIVE")))
-                    && (!x.RequiresSchoolVerification || x.VerifiedAt != null) && a.Has(Permissions.SchoolCareAssign) && (a.All || (a.Organization && (a.OrganizationIds.Contains(x.OwnerOrganizationId) || (x.CareOrganizationId.HasValue && a.OrganizationIds.Contains(x.CareOrganizationId.Value))))),
+                    && x.VerifiedAt != null && a.Has(Permissions.SchoolCareAssign) && a.All && a.Has(Permissions.ChannelSalesIdentityManage),
                 can_cancel = x.Status != "CANCELLED" && x.Status != "REJECTED" && a.Has(Permissions.ChannelSalesContractCancel) && (a.All || (a.Organization && a.OrganizationIds.Contains(x.OwnerOrganizationId))) }).ToArrayAsync(ct),
             policies = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Status != "CANCELLED" && (a.All || a.OrganizationIds.Contains(x.OrganizationId))).OrderByDescending(x => x.CreatedAt).Take(100)
                 .Select(x => new { x.Id, x.OrganizationId, x.Version, x.Status, x.ManagerReviewHours, x.AdminReviewHours, x.InvitationHours, x.MaxExtensionDays, x.MaxExtensionCount, x.MaxTotalExtensionDays, x.DecisionReference }).ToArrayAsync(ct),

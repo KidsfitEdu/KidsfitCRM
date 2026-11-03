@@ -349,7 +349,9 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       <ConfirmDialog open={statusAction!==null} onOpenChange={open=>{if(!busy&&!open)setStatusAction(null);}}
         busy={busy} destructive={Boolean(statusAction?.suspend)}
         title={statusAction?.suspend?'Xác nhận khóa truy cập':'Xác nhận mở khóa'}
-        confirmLabel={statusAction?.suspend?'Khóa truy cập':'Mở khóa'} onConfirm={submitStatus}>
+        compactHeader={!statusAction?.suspend}
+        confirmLabel={statusAction?.suspend?'Khóa truy cập':'Xác nhận'} onConfirm={submitStatus}>
+        {!statusAction?.suspend && <p>Bạn có chắc chắn muốn mở khóa thành viên này không?</p>}
         {statusAction?.suspend&&<div className="block text-sm font-medium">Lý do *
           <Input aria-label="Lý do khóa truy cập" className="mt-1.5" value={reason}
             onChange={e=>setReason(e.target.value)}/>
@@ -359,7 +361,9 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       <ConfirmDialog open={partnerStatusAction!==null} onOpenChange={open=>{if(!busy&&!open)setPartnerStatusAction(null);}}
         busy={busy} destructive={Boolean(partnerStatusAction?.suspend)}
         title={partnerStatusAction?.suspend?'Xác nhận khóa tổ chức':'Xác nhận mở khóa tổ chức'}
-        confirmLabel={partnerStatusAction?.suspend?'Khóa tổ chức':'Mở khóa'} onConfirm={submitPartnerStatus}>
+        compactHeader={!partnerStatusAction?.suspend}
+        confirmLabel={partnerStatusAction?.suspend?'Khóa tổ chức':'Xác nhận'} onConfirm={submitPartnerStatus}>
+        {!partnerStatusAction?.suspend && <p>Bạn có chắc chắn muốn mở khóa tổ chức này không?</p>}
         {partnerStatusAction?.suspend&&<div className="block text-sm font-medium">Lý do *
           <Input aria-label="Lý do khóa tổ chức" className="mt-1.5" value={reason}
             onChange={e=>setReason(e.target.value)}/>

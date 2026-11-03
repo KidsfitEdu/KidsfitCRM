@@ -92,7 +92,11 @@ public sealed partial class ChannelSalesActions
         var reason = Validation.Required(reasonValue, "reason", "Cần lý do hủy hoặc đổi nhân sự nhận trường.", 2000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var invitation = await db.SchoolInvitations.FromSqlInterpolated($"SELECT * FROM school_invitations WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(invitation.OrganizationId)) throw new KeyNotFoundException();
+        if (!access.CanManageOrganization(invitation.OrganizationId)
+            || (!access.All && !await db.OrganizationMemberships.AnyAsync(m =>
+                m.UserId == invitation.AssigneeUserId && m.OrganizationId == invitation.OrganizationId
+                && m.ManagerUserId == actorId, ct)))
+            throw new KeyNotFoundException();
         if (invitation.Status == "CANCELLED" && invitation.ResponseReason == reason) return id;
         if (invitation.Status != "PENDING") throw new ApiConflictException("Chỉ hủy được lời mời chưa được nhận hoặc từ chối.");
         invitation.Status = "CANCELLED"; invitation.ResponseReason = reason; invitation.RespondedAt = DateTime.UtcNow; invitation.UpdatedAt = DateTime.UtcNow;

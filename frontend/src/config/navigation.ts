@@ -41,6 +41,7 @@ export type View =
   | 'role-sales-staff-income'
   | 'role-checkee-dashboard'
   | 'role-checkee-verification'
+  | 'role-checkee-support'
   | 'role-checkee-reconciliation'
   | 'role-checkee-disputes'
   | 'role-checkee-history'
@@ -80,6 +81,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'role-sales-staff-income', label: 'Thu nhập', shortLabel: 'Thu nhập', icon: WalletCards },
   { id: 'role-checkee-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-checkee-verification', label: 'Xác minh hợp đồng', shortLabel: 'Xác minh hợp đồng', icon: FileCheck2 },
+  { id: 'role-checkee-support', label: 'Lỗi hệ thống', shortLabel: 'Hỗ trợ kỹ thuật', icon: BookOpenCheck },
   { id: 'role-collaborator-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-collaborator-schools', label: 'Đăng ký trường', shortLabel: 'Đăng ký trường', icon: GraduationCap },
   { id: 'role-collaborator-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất trường', icon: BookOpenCheck },
@@ -140,6 +142,7 @@ export const viewCopy: Record<
   'role-sales-staff-income': {eyebrow:'Nhân viên bán hàng',title:'Thu nhập',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
   'role-checkee-dashboard': {eyebrow:'CHECKEE',title:'Tổng quan',description:'Theo dõi hợp đồng chờ xác minh, đã phản hồi và đã xác minh.'},
   'role-checkee-verification': {eyebrow:'CHECKEE',title:'Xác minh hợp đồng',description:'Tiếp nhận, xem file hợp đồng, xác minh và theo dõi lịch sử.'},
+  'role-checkee-support': {eyebrow:'CHECKEE',title:'Lỗi hệ thống',description:'Xử lý ticket lỗi kỹ thuật do CSKH chuyển, trả kết quả để CSKH xác nhận với trường.'},
   'role-checkee-reconciliation': {eyebrow:'CHECKEE',title:'Đối soát',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
   'role-checkee-disputes': {eyebrow:'CHECKEE',title:'Tranh chấp',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
   'role-checkee-history': {eyebrow:'CHECKEE',title:'Lịch sử',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},

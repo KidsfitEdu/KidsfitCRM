@@ -1017,6 +1017,17 @@ export function SchoolOperations({
                               label: c.contract_code + ' · ' + c.customer_name,
                             })),
                         },
+                        {
+                          name: 'ticket_type',
+                          label: 'Phân loại yêu cầu',
+                          type: 'select',
+                          value: 'USAGE_GUIDANCE',
+                          options: [
+                            {value:'USAGE_GUIDANCE',label:'Hướng dẫn sử dụng (CSKH xử lý)'},
+                            {value:'SYSTEM_ERROR',label:'Lỗi hệ thống (gửi CHECKEE)'},
+                          ],
+                          hint: 'Chỉ chọn lỗi hệ thống sau khi CSKH kiểm tra sơ bộ.',
+                        },
                         { name: 'subject', label: 'Nội dung cần hỗ trợ' },
                         {
                           name: 'description',
@@ -1044,13 +1055,20 @@ export function SchoolOperations({
                   subtitle={x.customer_name + ' · ' + x.assigned_name}
                   status={x.status}
                 >
-                  <p>{x.description}</p>
+                  <div className="space-y-2">
+                    <p>{x.description}</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {x.ticket_type === 'SYSTEM_ERROR' ? 'Lỗi hệ thống · CHECKEE xử lý kỹ thuật' : 'Hướng dẫn sử dụng · CSKH xử lý'}
+                      {x.ticket_type === 'SYSTEM_ERROR' && x.checkee_responded_at ? ' · CHECKEE đã phản hồi hoàn tất' : ''}
+                      {x.ticket_type === 'SYSTEM_ERROR' && !x.checkee_responded_at ? ' · Chờ kết quả kỹ thuật' : ''}
+                    </p>
+                  </div>
                   {x.activities.map((a) => (
                     <div
                       key={a.id}
                       className="border-l-2 border-violet-200 pl-3 text-sm"
                     >
-                      <p>{a.content}</p>
+                      <p>{a.activity_type === 'CHECKEE_SUPPORT' ? 'CHECKEE: ' : ''}{a.content}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {workflowDate(a.occurred_at)}
                         {a.next_follow_up_at
@@ -1072,7 +1090,7 @@ export function SchoolOperations({
                           setAction({
                             title: 'Cập nhật xử lý hỗ trợ',
                             description:
-                              'Ghi tiến độ hoặc kết quả; lịch sử trước đó được giữ nguyên.',
+                              'CSKH ghi tiến độ và chỉ đóng khi trường xác nhận. Với lỗi hệ thống cần CHECKEE phản hồi hoàn tất trước.',
                             path:
                               '/customer-support-cases/' + x.id + '/progress',
                             fields: [

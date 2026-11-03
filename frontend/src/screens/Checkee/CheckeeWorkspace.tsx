@@ -4,12 +4,14 @@ import type { RolePageProps } from '@/types/role-pages';
 import { rolePageSections } from '@/config/role-pages';
 import { DashboardPage } from './Dashboard/DashboardPage';
 import { VerificationPage } from './Verification/VerificationPage';
+import { SupportCasesPage } from './Support/SupportCasesPage';
 
 export type RoleSection = keyof typeof rolePageSections.Checkee;
 type Props = RolePageProps & {section: RoleSection};
 const pages = {
   dashboard: DashboardPage,
   verification: VerificationPage,
+  support: SupportCasesPage,
 };
 
 /** Existing view IDs are preserved; each page owns its UI entrypoint. */

@@ -32,6 +32,7 @@ export const rolePageSections = {
   Checkee: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},
     verification: {label:"Xác minh hợp đồng",panel:"reconciliation",tab:""},
+    support: {label:"Lỗi hệ thống",panel:"operations",tab:"care"},
   },
   Collaborator: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},

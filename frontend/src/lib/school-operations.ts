@@ -113,6 +113,12 @@ export type SchoolOperationsWorkspace = {
     account_suspended: boolean;
     created_at: string;
   }[];
+  care_handovers?: {
+    id: number; contract_id: number; assigned_user_id: number;
+    contract_code: string; customer_name: string; reason: string;
+    acceptance_status: 'PENDING' | 'ACCEPTED' | 'NEEDS_INFO';
+    accepted_at: string | null; acceptance_note: string | null; created_at: string;
+  }[];
   support_cases: {
     id: number;
     contract_id: number;
@@ -124,12 +130,17 @@ export type SchoolOperationsWorkspace = {
     assigned_name: string;
     status: string;
     outcome: string | null;
+    ticket_type?: 'USAGE_GUIDANCE' | 'SYSTEM_ERROR';
+    forwarded_at?: string | null;
+    checkee_responded_at?: string | null;
     can_update: boolean;
     activities: {
       id: number;
       content: string;
       occurred_at: string;
       next_follow_up_at: string | null;
+      activity_type?: string;
+      author_name?: string;
     }[];
   }[];
   team: {

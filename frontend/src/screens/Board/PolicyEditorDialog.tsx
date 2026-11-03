@@ -81,7 +81,6 @@ export function PolicyEditorDialog({open,onClose,busy,policy,organizations,onSav
             onChange={e=>setForm(v=>({...v,[key]:Number(e.target.value)}))}/>
         </div>)}
       </div>
-      <p className="text-xs text-muted-foreground">Theo chính sách đã chốt: gia hạn 7 ngày/lần, tối đa 3 lần (tổng 21 ngày). Khi kích hoạt, máy chủ sẽ kiểm tra lại các giới hạn.</p>
       {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}
     </div>
   </AppDialog>;

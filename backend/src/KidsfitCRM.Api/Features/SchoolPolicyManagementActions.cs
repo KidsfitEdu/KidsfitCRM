@@ -64,7 +64,11 @@ public sealed partial class ChannelSalesActions
         var policy = await db.SchoolWorkflowPolicies.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
         if (policy.Status != "DRAFT") throw new ApiConflictException("Chỉ được kích hoạt bản nháp.");
         ValidateApprovedExtensionLimits(policy);
-        var reference = Validation.Required(request.DecisionReference, "decision_reference", "Cần căn cứ kích hoạt.", 120);
+        // The user confirms the action without entering a reason. A system reference ensures
+        // that the audit still identifies this activation; it is not a human approval document.
+        var reference = string.IsNullOrWhiteSpace(request.DecisionReference)
+            ? $"SYSTEM-POLICY-ACTIVATE-{id}-{Guid.NewGuid():N}"
+            : Validation.Required(request.DecisionReference, "decision_reference", "Căn cứ kích hoạt không hợp lệ.", 120);
         var now = DateTime.UtcNow;
         await db.SchoolWorkflowPolicies.Where(x => x.OrganizationId == orgId && x.Status == "ACTIVE")
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "SUPERSEDED")
@@ -83,7 +87,10 @@ public sealed partial class ChannelSalesActions
         long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await RequirePermission(actorId, Permissions.SchoolWorkflowPolicyManage, ct);
-        var reference = Validation.Required(request.DecisionReference, "decision_reference", "Cần căn cứ áp dụng lại.", 120);
+        // Preserve an auditable machine-generated reference when the confirmation has no input.
+        var reference = string.IsNullOrWhiteSpace(request.DecisionReference)
+            ? $"SYSTEM-POLICY-REAPPLY-{sourceId}-{Guid.NewGuid():N}"
+            : Validation.Required(request.DecisionReference, "decision_reference", "Căn cứ áp dụng không hợp lệ.", 120);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var orgId = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == sourceId)
             .Select(x => (long?)x.OrganizationId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
@@ -126,7 +133,9 @@ public sealed partial class ChannelSalesActions
         long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await RequirePermission(actorId, Permissions.SchoolWorkflowPolicyManage, ct);
-        var reason = Validation.Required(request.Reason, "reason", "Cần lý do hủy bản nháp.", 2000);
+        var reason = string.IsNullOrWhiteSpace(request.Reason)
+            ? "BGĐ xác nhận xóa bản nháp chính sách."
+            : Validation.Required(request.Reason, "reason", "Lý do hủy không hợp lệ.", 2000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var orgId = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == id)
             .Select(x => (long?)x.OrganizationId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();

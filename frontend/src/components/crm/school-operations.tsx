@@ -23,7 +23,7 @@ import { SalesProposalTable } from '@/components/roles/SalesProposalTable';
 import { SalesInvitationList } from '@/components/roles/SalesInvitationList';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppStatusFilter } from '@/components/common/app-status-filter';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
@@ -547,11 +547,7 @@ export function SchoolOperations({
             <Input aria-label="Tìm hồ sơ" placeholder="Tên trường, người yêu cầu..."
               className="h-11 w-full rounded-xl pl-10" value={searchDraft} onChange={e => setSearchDraft(e.target.value)}/>
           </div>
-          <AppNativeSelect aria-label="Lọc trạng thái hồ sơ" value={pendingOnly ? 'PENDING' : 'ALL'} containerClassName="w-full sm:w-48"
-            onChange={e => {setPendingOnly(e.target.value === 'PENDING');setPage(1);}}>
-            <option value="PENDING">Cần xử lý</option>
-            <option value="ALL">Tất cả trạng thái</option>
-          </AppNativeSelect>
+          <AppStatusFilter ariaLabel="Lọc trạng thái hồ sơ" value={pendingOnly ? 'PENDING' : 'ALL'} className="w-full sm:w-48" onValueChange={(next) => {setPendingOnly(next === 'PENDING');setPage(1);}} options={[{value:"PENDING",label:"Cần xử lý"},{value:"ALL",label:"Tất cả trạng thái"}]} />
           <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
             aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc"

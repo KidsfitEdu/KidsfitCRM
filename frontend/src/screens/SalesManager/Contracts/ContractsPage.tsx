@@ -5,7 +5,7 @@ import { Eye, FileCheck2, FileText, Send, Undo2, ExternalLink } from 'lucide-rea
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppStatusFilter } from '@/components/common/app-status-filter';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
@@ -110,11 +110,7 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
        onReset={()=>{setDraft('');setSearch('');setStatus('ALL');setPage(1);}}
        searchLabel="Tìm hợp đồng theo trường, mã hợp đồng hoặc Sales"
        placeholder="Tên trường, mã hợp đồng, Sales..."
-       filters={<AppNativeSelect aria-label="Lọc trạng thái hợp đồng" value={status} containerClassName="w-full sm:w-52"
-          onChange={e=>{setStatus(e.target.value);setPage(1);}}>
-         <option value="ALL">Tất cả trạng thái</option>
-         {Object.entries(statuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-       </AppNativeSelect>}/>
+       filters={<AppStatusFilter ariaLabel="Lọc trạng thái hợp đồng" value={status} className="w-full sm:w-52" onValueChange={(next) =>{setStatus(next);setPage(1);}} options={[{value:'ALL',label:'Tất cả trạng thái'},...Object.entries(statuses).map(([value,label])=>({value,label}))]} />}/>
      <div className="overflow-x-auto">
        <table className={adminTableClass}>
          <thead className={adminTableHeadClass}><tr>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Eye, History } from 'lucide-react';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppStatusFilter } from '@/components/common/app-status-filter';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
 import { Badge } from '@/components/ui/badge';
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace } from '@/lib/school-operations';
@@ -39,15 +39,7 @@ export function SalesProposalTable({
     (!preview || status === 'ALL' || x.status === status) &&
     (!preview || !applied || normalize([x.name,x.school_code,x.submitted_by,x.province,x.ward].join(' ')).includes(normalize(applied))));
   const reset = () => {setTerm('');setApplied('');setStatus('ALL');onSearch('');onStatusChange?.('ALL');};
-  const statusFilter = <AppNativeSelect aria-label="Trạng thái đề xuất"
-    value={status} containerClassName="w-full sm:w-48"
-    onChange={event => {setStatus(event.target.value);onStatusChange?.(event.target.value);}}>
-    <option value="ALL">Tất cả trạng thái</option>
-    <option value="PENDING_MANAGER">Chờ Quản lý</option>
-    <option value="PENDING_ADMIN">Chờ Admin</option>
-    <option value="APPROVED">Đã duyệt</option>
-    <option value="REJECTED">Từ chối</option>
-  </AppNativeSelect>;
+  const statusFilter = <AppStatusFilter ariaLabel="Trạng thái đề xuất" value={status} className="w-full sm:w-48" onValueChange={(next) => {setStatus(next);onStatusChange?.(next);}} options={[{value:"ALL",label:"Tất cả trạng thái"},{value:"PENDING_MANAGER",label:"Chờ Quản lý"},{value:"PENDING_ADMIN",label:"Chờ Admin"},{value:"APPROVED",label:"Đã duyệt"},{value:"REJECTED",label:"Từ chối"}]} />;
   return <SalesListLayout columns={['Trường học','Người đề xuất','Trạng thái','Hạn xử lý','Thao tác']}
     template={template} page={preview ? 1 : page} pageSize={pageSize}
     total={preview ? items.length : total} loading={loading} minWidth={850}

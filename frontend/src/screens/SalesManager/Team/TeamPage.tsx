@@ -5,7 +5,7 @@ import { Eye, UsersRound, UserCheck, Building2 } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppStatusFilter } from '@/components/common/app-status-filter';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { channelRequest } from '@/lib/channel-operations';
@@ -60,13 +60,7 @@ export function TeamPage({apiBase,token,abilities}:ManagerPageProps){
     onSearch={()=>{setSearch(draft.trim());setPage(1);}}
     onReset={()=>{setDraft('');setSearch('');setStatus('ALL');setPage(1);}}
     searchLabel="Tìm nhân sự" placeholder="Tên nhân sự, đơn vị, email..."
-    filters={<AppNativeSelect aria-label="Lọc trạng thái nhân sự" containerClassName="w-full sm:w-44"
-      value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}>
-      <option value="ALL">Tất cả trạng thái</option>
-      <option value="ACTIVE">Đang hoạt động</option>
-      <option value="SUSPENDED">Tạm dừng</option>
-      <option value="INACTIVE">Không hoạt động</option>
-    </AppNativeSelect>}/>
+    filters={<AppStatusFilter ariaLabel="Lọc trạng thái nhân sự" value={status} className="w-full sm:w-44" onValueChange={(next) =>{setStatus(next);setPage(1);}} options={[{value:"ALL",label:"Tất cả trạng thái"},{value:"ACTIVE",label:"Đang hoạt động"},{value:"SUSPENDED",label:"Tạm dừng"},{value:"INACTIVE",label:"Không hoạt động"}]} />}/>
    <div className="overflow-x-auto"><table className={adminTableClass}>
     <thead className={adminTableHeadClass}><tr>
      <th className="px-5 py-4">Nhân sự</th><th className="px-5 py-4">Đơn vị</th>

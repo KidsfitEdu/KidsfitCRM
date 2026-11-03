@@ -31,7 +31,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppStatusFilter } from '@/components/common/app-status-filter';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { channelDate, channelRequest } from '@/lib/channel-operations';
 import type {
@@ -343,12 +343,7 @@ export function ChannelSalesView({
               <Input aria-label="Tìm trường đang phụ trách" placeholder="Tên trường, mã trường, điện thoại..."
                 className="h-11 w-full rounded-xl pl-10" value={draftSearch} onChange={event=>setDraftSearch(event.target.value)}/>
             </div>
-            {mode === 'mine' && <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full sm:w-48"
-              value={filter} onChange={event=>{setFilter(event.target.value as StatusFilter);setListPage(1);}}>
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="APPROACHING">Đang tiếp cận</option>
-              <option value="CONTRACTED">Đã ký hợp đồng</option>
-            </AppNativeSelect>}
+            {mode === 'mine' && <AppStatusFilter ariaLabel="Lọc trạng thái trường" value={filter} className="w-full sm:w-48" onValueChange={(next) =>{setFilter(next as StatusFilter);setListPage(1);}} options={[{value:"ALL",label:"Tất cả trạng thái"},{value:"APPROACHING",label:"Đang tiếp cận"},{value:"CONTRACTED",label:"Đã ký hợp đồng"}]} />}
             <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
             <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
               aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setDraftSearch('');setSearch('');setFilter('ALL');setListPage(1);}}>

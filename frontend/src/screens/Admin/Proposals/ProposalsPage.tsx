@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, History, Check } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppStatusFilter } from '@/components/common/app-status-filter';
 import { AppPagination } from '@/components/common/app-pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,10 +68,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
     <AdminListToolbar search={proposalDraft} onSearchChange={setProposalDraft} onSearch={()=>{setPage(1);setSearch(proposalDraft.trim());}}
       onReset={()=>{setProposalDraft('');setSearch('');setStatusFilter('ALL');setPage(1);}}
       placeholder="Tên trường, mã trường..." searchLabel="Tìm đề xuất trường"
-      filters={<AppNativeSelect aria-label="Lọc trạng thái đề xuất" value={statusFilter} containerClassName="h-11 w-full sm:w-[200px]" onChange={e=>{setStatusFilter(e.target.value);setPage(1);}}>
-        <option value="ALL">Tất cả trạng thái</option><option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option>
-        <option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option>
-      </AppNativeSelect>}/>
+      filters={<AppStatusFilter ariaLabel="Lọc trạng thái đề xuất" value={statusFilter} className="h-11 w-full sm:w-[200px]" onValueChange={(next) =>{setStatusFilter(next);setPage(1);}} options={[{value:"ALL",label:"Tất cả trạng thái"},{value:"PENDING_MANAGER",label:"Chờ Quản lý"},{value:"PENDING_ADMIN",label:"Chờ Admin"},{value:"APPROVED",label:"Đã duyệt"},{value:"REJECTED",label:"Từ chối"}]} />}/>
     {busy && <p className="px-6 py-3 text-sm text-muted-foreground">Đang tải đề xuất…</p>}
     <div className="overflow-x-auto">
       <table className={adminTableClass}>

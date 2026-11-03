@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppStatusFilter } from '@/components/common/app-status-filter';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { SCHOOL_ROWS_PER_PAGE } from '@/lib/school-page-window';
@@ -333,13 +333,7 @@ export function SchoolDirectory({
             <Input aria-label="Tìm tên trường, mã hoặc khu vực" className="h-11 w-full rounded-xl pl-10"
               placeholder="Tên trường, mã trường, phường/xã..." value={term} onChange={event => setTerm(event.target.value)}/>
           </div>
-          <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full"
-            value={statusFilter} onChange={event => {setStatusFilter(event.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="AVAILABLE">Chưa đăng ký</option>
-            <option value="APPROACHING">Đang tiếp cận</option>
-            <option value="CONTRACTED">Đã xác minh hợp đồng</option>
-          </AppNativeSelect>
+          <AppStatusFilter ariaLabel="Lọc trạng thái trường" value={statusFilter} className="w-full" onValueChange={(next) => {setStatusFilter(next);setPage(1);}} options={[{value:"ALL",label:"Tất cả trạng thái"},{value:"AVAILABLE",label:"Chưa đăng ký"},{value:"APPROACHING",label:"Đang tiếp cận"},{value:"CONTRACTED",label:"Đã xác minh hợp đồng"}]} />
           <AppButton type="submit" tone="orange" premium className="h-10 min-w-0 justify-center gap-2 rounded-lg bg-[#d97706] px-4 font-bold text-white shadow-[0_6px_16px_rgba(217,119,6,.18)] hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" size="icon-lg"
             className="h-11 w-11 min-w-11 rounded-lg border border-[#a5d6a7] bg-white p-0 text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-[#17341f] dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white" aria-label="Đặt lại bộ lọc"

@@ -1,10 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, RefreshCw } from 'lucide-react';
+import { Eye, Pencil, CheckCircle2, Trash2, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
+import { AppButton } from '@/components/common/buttons/app-button';
+import { Input } from '@/components/ui/input';
+import { PolicyEditorDialog, type PolicyForm } from './PolicyEditorDialog';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
@@ -19,8 +23,15 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const [draft,setDraft]=useState('');
   const [search,setSearch]=useState('');
   const [detailId,setDetailId]=useState<number|null>(null);
+  const [editingId,setEditingId]=useState<number|null>(null);
+  const [editorOpen,setEditorOpen]=useState(false);
+  const [confirm,setConfirm]=useState<{id:number;action:'activate'|'cancel'}|null>(null);
+  const [decision,setDecision]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [actionError,setActionError]=useState('');
   const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.escalation.resolve')||abilities.includes('channel_sales.school.dispute.resolve');
   const connected=Boolean(apiBase&&token&&allowed);
+  const canManage=abilities.includes('*')||abilities.includes('channel_sales.school.workflow.policy.manage');
   const query=useQuery({
     queryKey:['board','policies',apiBase],
     queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page=1'),
@@ -32,32 +43,42 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         .some(value=>value.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'))))
     .sort((a,b)=>a.organization_id-b.organization_id||b.version-a.version);
   const orgName=(id:number)=>data?.organizations.find(x=>x.id===id)?.name??String(id);
-  const active=policies.filter(p=>p.status==='ACTIVE');
   const visiblePolicies=policies.slice((page-1)*pageSize,page*pageSize);
   const detail=(data?.policies??[]).find(p=>p.id===detailId);
+  const editing=(data?.policies??[]).find(p=>p.id===editingId)??null;
+  const write=async (path:string,method:'POST'|'PATCH',body:unknown)=>{
+    setActionError('');setBusy(true);
+    try{
+      await channelRequest(apiBase,token,path,{method,body:JSON.stringify(body)});
+      setEditorOpen(false);setEditingId(null);setConfirm(null);setDecision('');
+      await query.refetch();
+    }catch(error){setActionError(error instanceof Error?error.message:'Không thể cập nhật chính sách.');}
+    finally{setBusy(false);}
+  };
+  const save=(form:PolicyForm)=>{
+    const payload={
+      manager_review_hours:form.manager_review_hours,admin_review_hours:form.admin_review_hours,
+      invitation_hours:form.invitation_hours,max_extension_days:form.max_extension_days,
+      max_extension_count:form.max_extension_count,max_total_extension_days:form.max_total_extension_days,
+      decision_reference:form.decision_reference.trim(),
+    };
+    if(editingId!==null)void write('/school-workflow-policies/'+editingId+'/draft','PATCH',payload);
+    else void write('/school-workflow-policies','POST',{...payload,organization_id:form.organization_id,activate:false});
+  };
+  const confirmAction=()=>{
+    if(!confirm)return;
+    if(!decision.trim()){setActionError('Vui lòng nhập căn cứ hoặc lý do.');return;}
+    void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',
+      confirm.action==='activate'?{decision_reference:decision.trim()}:{reason:decision.trim()});
+  };
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"
-      description="Theo dõi phiên bản chính sách và thời hạn áp dụng."
-      actions={<AdminIconAction icon={RefreshCw} label="Làm mới danh sách chính sách"
-        disabled={!connected||query.isFetching} onClick={()=>void query.refetch()}/>}/>
+      description="Quản lý phiên bản chính sách và thời hạn áp dụng."
+      actions={canManage&&<AppButton leadingIcon={<Plus className="size-4"/>}
+        onClick={()=>{setEditingId(null);setActionError('');setEditorOpen(true);}}>Thêm mới</AppButton>}/>
     {!connected&&<p className="rounded-xl border p-4 text-sm text-muted-foreground">Chưa kết nối API hoặc chưa đủ quyền xem chính sách.</p>}
+    {actionError&&<p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
     {query.error&&<p className="rounded-xl border border-red-300 p-4 text-sm text-red-600" role="alert">{query.error instanceof Error?query.error.message:'Không tải được chính sách.'}</p>}
-    <div className="rounded-2xl border bg-card p-5">
-      <h3 className="font-semibold">Chính sách đang áp dụng</h3>
-      {active.length===0&&<p className="mt-2 text-sm text-muted-foreground">Chưa có chính sách đang áp dụng trong trang dữ liệu này.</p>}
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {active.map(p=><section key={p.id} className="rounded-xl border p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="font-semibold">{orgName(p.organization_id)} · Phiên bản {p.version}</h4><AdminStatusBadge status={p.status} label="Đang áp dụng"/></div>
-          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div><p className="text-xs text-muted-foreground">Duyệt của Quản lý</p><p className="font-medium">{p.manager_review_hours} giờ</p></div>
-            <div><p className="text-xs text-muted-foreground">Duyệt của Admin</p><p className="font-medium">{p.admin_review_hours} giờ</p></div>
-            <div><p className="text-xs text-muted-foreground">Thời hạn phân bổ</p><p className="font-medium">{p.invitation_hours} giờ</p></div>
-            <div><p className="text-xs text-muted-foreground">Gia hạn tiếp cận</p><p className="font-medium">Tối đa {p.max_extension_count} lần, {p.max_extension_days} ngày/lần</p></div>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">Tổng thời gian cộng thêm tối đa: {p.max_total_extension_days} ngày</p>
-        </section>)}
-      </div>
-    </div>
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}
@@ -76,10 +97,19 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
             <td className="px-5 py-4">{p.version}</td>
             <td className="px-5 py-4">Quản lý {p.manager_review_hours}h · Admin {p.admin_review_hours}h · Phân bổ {p.invitation_hours}h</td>
             <td className="px-5 py-4">{p.max_extension_days} ngày/lần · {p.max_extension_count} lần</td>
-            <td className="px-5 py-4"><AdminStatusBadge status={p.status} label={p.status==='ACTIVE'?'Đang áp dụng':p.status==='DRAFT'?'Bản nháp':'Đã thay phiên bản'}/></td>
+            <td className="px-5 py-4"><AdminStatusBadge status={p.status} label={p.status==='ACTIVE'?'Đang áp dụng':p.status==='DRAFT'?'Bản nháp':p.status==='CANCELLED'?'Đã hủy':'Đã thay phiên bản'}/></td>
             <td className="break-words px-5 py-4">{p.decision_reference||'Chưa cập nhật'}</td>
-            <td className="px-5 py-4 text-right"><AdminIconAction icon={Eye} label="Xem chi tiết chính sách"
-              onClick={()=>setDetailId(p.id)}/></td>
+            <td className="px-5 py-4 text-right"><div className="flex items-center justify-end gap-2">
+              <AdminIconAction icon={Eye} label="Xem chi tiết chính sách" onClick={()=>setDetailId(p.id)}/>
+              {canManage&&p.status==='DRAFT'&&<>
+                <AdminIconAction icon={Pencil} tone="blue" label="Sửa bản nháp chính sách"
+                  onClick={()=>{setEditingId(p.id);setActionError('');setEditorOpen(true);}}/>
+                <AdminIconAction icon={CheckCircle2} label="Kích hoạt chính sách"
+                  onClick={()=>{setConfirm({id:p.id,action:'activate'});setDecision(p.decision_reference??'');setActionError('');}}/>
+                <AdminIconAction icon={Trash2} tone="red" label="Hủy bản nháp chính sách"
+                  onClick={()=>{setConfirm({id:p.id,action:'cancel'});setDecision('');setActionError('');}}/>
+              </>}
+              </div></td>
           </tr>)}</tbody>
         </table>
         {connected&&!query.isFetching&&!policies.length&&<p className="p-7 text-center text-sm text-muted-foreground">Không có phiên bản chính sách phù hợp trong trang này.</p>}
@@ -93,7 +123,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     <AppDrawer open={detailId!==null} onOpenChange={open=>{if(!open)setDetailId(null);}} title="Chi tiết chính sách">
       {detail&&<div className="space-y-4 text-sm">
         <h3 className="text-lg font-semibold">{orgName(detail.organization_id)} · Phiên bản {detail.version}</h3>
-        <AdminStatusBadge status={detail.status} label={detail.status==='ACTIVE'?'Đang áp dụng':detail.status==='DRAFT'?'Bản nháp':'Đã thay phiên bản'}/>
+        <AdminStatusBadge status={detail.status} label={detail.status==='ACTIVE'?'Đang áp dụng':detail.status==='DRAFT'?'Bản nháp':detail.status==='CANCELLED'?'Đã hủy':'Đã thay phiên bản'}/>
         <dl className="grid grid-cols-2 gap-4 rounded-xl border p-4">
           <div><dt className="text-muted-foreground">Quản lý phản hồi</dt><dd className="font-semibold">{detail.manager_review_hours} giờ</dd></div>
           <div><dt className="text-muted-foreground">Admin phản hồi</dt><dd className="font-semibold">{detail.admin_review_hours} giờ</dd></div>
@@ -107,5 +137,20 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         </section>
       </div>}
     </AppDrawer>
+    <PolicyEditorDialog open={editorOpen} onClose={()=>{if(!busy)setEditorOpen(false);}}
+      busy={busy} policy={editing} organizations={data?.organizations??[]} onSave={save}/>
+    <ConfirmDialog open={confirm!==null} onOpenChange={v=>{if(!v&&!busy)setConfirm(null);}}
+      busy={busy} destructive={confirm?.action==='cancel'}
+      title={confirm?.action==='activate'?'Xác nhận kích hoạt chính sách':'Xác nhận hủy bản nháp'}
+      confirmLabel="Xác nhận" onConfirm={confirmAction}>
+      <div className="space-y-2">
+        <label className="text-sm font-medium" htmlFor="board-policy-action-reason">
+          {confirm?.action==='activate'?'Căn cứ kích hoạt *':'Lý do hủy *'}
+        </label>
+        <Input id="board-policy-action-reason" value={decision} maxLength={confirm?.action==='activate'?120:2000}
+          onChange={e=>setDecision(e.target.value)}/>
+        {actionError&&<p role="alert" className="text-sm text-red-600">{actionError}</p>}
+      </div>
+    </ConfirmDialog>
   </div>;
 }

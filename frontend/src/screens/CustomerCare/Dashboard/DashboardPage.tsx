@@ -24,7 +24,7 @@ export function DashboardPage({apiBase,token,abilities,onSalesNavigate}:RolePage
     {query.error&&<p role="alert" className="rounded-xl border p-4 text-sm text-destructive">{query.error.message}</p>}
     {query.isLoading&&<p className="text-sm text-muted-foreground">Đang tải số liệu…</p>}
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <AppStatCard icon={Building2} label="Hợp đồng phụ trách" value={d?.schools??'—'}/>
+      <AppStatCard icon={Building2} label="Trường phụ trách" value={d?.schools??'—'}/>
       <AppStatCard icon={ClipboardList} label="Ticket đang mở" value={d?.open_tickets??'—'}/>
       <AppStatCard icon={ShieldAlert} label="Lỗi chờ CHECKEE" value={d?.waiting_checkee??'—'}/>
       <AppStatCard icon={Clock3} label="Lịch hẹn đến hạn" value={d?.due_calls??'—'}/>

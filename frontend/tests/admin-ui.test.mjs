@@ -118,3 +118,17 @@ test('Admin personnel and partner forms align native selects and place actions i
   assert.match(page, /<label htmlFor="admin-partner-name">Tên đối tác \*/);
   assert.match(actions, /inDialogFooter \? "flex w-full items-center justify-end gap-2"/);
 });
+
+test('Personnel detail reuses the shared drawer and shows grouped profile without duplicate close button', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const detail = read('src/screens/Admin/Personnel/PersonnelDetailDrawer.tsx');
+  assert.match(page, /<PersonnelDetailDrawer person=\{detail\}/);
+  assert.match(detail, /<AppDrawer/);
+  assert.match(detail, /Thông tin cá nhân/);
+  assert.match(detail, /Thông tin tổ chức & phân quyền/);
+  assert.match(detail, /Trạng thái truy cập/);
+  assert.match(detail, /effectiveLabel/);
+  assert.match(detail, /hasManager &&/);
+  assert.match(detail, /Chưa cập nhật/);
+  assert.doesNotMatch(detail, /<AppButton[^>]*>Đóng<\/AppButton>/);
+});

@@ -1000,7 +1000,8 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.HasIndex("AssignedUserId");
 
-                    b.HasIndex("CheckeeOrganizationId", "Status", "CreatedAt");
+                    b.HasIndex("CheckeeOrganizationId", "Status", "CreatedAt")
+                        .HasDatabaseName("ix_support_checkee_status_created");
 
                     b.HasIndex("ContractId");
 

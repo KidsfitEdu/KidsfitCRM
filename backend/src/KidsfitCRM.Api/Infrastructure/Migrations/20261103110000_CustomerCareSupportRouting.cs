@@ -33,11 +33,11 @@ public sealed class CustomerCareSupportRouting : Migration
             "contract_care_handovers", "accepted_by_user_id");
 
         migrationBuilder.AddForeignKey("FK_customer_support_cases_organizations_checkee_organization_id",
-            "customer_support_cases", "checkee_organization_id", "organizations", "id", onDelete: ReferentialAction.Restrict);
+            "customer_support_cases", "checkee_organization_id", "organizations", principalColumn: "id", onDelete: ReferentialAction.Restrict);
         migrationBuilder.AddForeignKey("FK_customer_support_cases_users_forwarded_by_user_id",
-            "customer_support_cases", "forwarded_by_user_id", "users", "id", onDelete: ReferentialAction.Restrict);
+            "customer_support_cases", "forwarded_by_user_id", "users", principalColumn: "id", onDelete: ReferentialAction.Restrict);
         migrationBuilder.AddForeignKey("FK_contract_care_handovers_users_accepted_by_user_id",
-            "contract_care_handovers", "accepted_by_user_id", "users", "id", onDelete: ReferentialAction.Restrict);
+            "contract_care_handovers", "accepted_by_user_id", "users", principalColumn: "id", onDelete: ReferentialAction.Restrict);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

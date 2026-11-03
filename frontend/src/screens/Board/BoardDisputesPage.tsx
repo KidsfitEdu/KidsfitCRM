@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, RefreshCw } from 'lucide-react';
+import { Eye, Scale, CheckCircle2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { AppPageHeader } from '@/components/common/app-page-header';
-import { AppButton } from '@/components/common/buttons/app-button';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
-import { AdminIconAction, AdminListPanel, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
+import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
@@ -19,14 +18,18 @@ type Dispute = SchoolOperationsWorkspace['disputes'][number];
 
 export function BoardDisputesPage({apiBase,token,abilities,onChanged}:RolePageProps) {
   const [page,setPage]=useState(1);
+  const [pageSize,setPageSize]=useState(20);
+  const [draft,setDraft]=useState('');
+  const [search,setSearch]=useState('');
   const [status,setStatus]=useState<'OPEN'|'ALL'|'RESOLVED'>('OPEN');
   const [selected,setSelected]=useState<Dispute|null>(null);
   const [action,setAction]=useState<SchoolAction|null>(null);
   const permitted=abilities.includes('*')||abilities.includes('channel_sales.school.dispute.resolve');
   const connected=Boolean(apiBase&&token&&permitted);
   const query=useQuery({
-    queryKey:['board','disputes',apiBase,page,status],
-    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page='+page+(status==='ALL'?'':'&dispute_status='+status)),
+    queryKey:['board','disputes',apiBase,page,pageSize,status,search],
+    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,
+      '/school-operations?page='+page+'&page_size='+pageSize+'&search='+encodeURIComponent(search)+(status==='ALL'?'':'&dispute_status='+status)),
     enabled:connected,
   });
   const data=query.data;
@@ -51,15 +54,18 @@ export function BoardDisputesPage({apiBase,token,abilities,onChanged}:RolePagePr
   };
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Tranh chấp"
-      description="Theo dõi hồ sơ có bằng chứng, ghi nhận kết luận trong đúng phạm vi được phân quyền."
-      actions={<AppButton tone="outline" disabled={!connected||query.isFetching} leadingIcon={<RefreshCw className="size-4"/>} onClick={()=>void query.refetch()}>Làm mới</AppButton>}/>
+      description="Theo dõi hồ sơ, bằng chứng và ghi kết luận trong phạm vi được phân quyền."/>
     <AdminListPanel>
-      <div className="border-b p-5">
-        <label htmlFor="board-disputes-filter" className="mb-2 block text-sm font-medium">Trạng thái</label>
-        <AppNativeSelect id="board-disputes-filter" containerClassName="w-full sm:w-56" value={status} onChange={e=>{setStatus(e.target.value as typeof status);setPage(1);}}>
-          <option value="OPEN">Đang mở</option><option value="RESOLVED">Đã xử lý</option><option value="ALL">Tất cả trạng thái</option>
-        </AppNativeSelect>
-      </div>
+      <AdminListToolbar search={draft} onSearchChange={setDraft}
+        onSearch={()=>{setSearch(draft.trim());setPage(1);}}
+        onReset={()=>{setDraft('');setSearch('');setStatus('OPEN');setPage(1);}}
+        placeholder="Tên trường, nội dung tranh chấp..." searchLabel="Tìm tranh chấp"
+        filters={<AppNativeSelect aria-label="Lọc trạng thái tranh chấp" containerClassName="w-full sm:w-48" value={status}
+          onChange={e=>{setStatus(e.target.value as typeof status);setPage(1);}}>
+          <option value="OPEN">Đang mở</option>
+          <option value="RESOLVED">Đã xử lý</option>
+          <option value="ALL">Tất cả trạng thái</option>
+        </AppNativeSelect>}/>
       {query.error&&<p role="alert" className="p-4 text-sm text-red-600">{query.error instanceof Error?query.error.message:'Không tải được tranh chấp.'}</p>}
       {!connected&&<p className="p-5 text-sm text-muted-foreground">Chưa kết nối API hoặc chưa có quyền xem tranh chấp.</p>}
       <div className="overflow-x-auto">
@@ -73,15 +79,15 @@ export function BoardDisputesPage({apiBase,token,abilities,onChanged}:RolePagePr
             <td className="px-5 py-4"><AdminStatusBadge status={x.status} label={workflowLabels[x.status]??x.status}/></td>
             <td className="px-5 py-4"><div className="flex justify-end gap-2">
               <AdminIconAction icon={Eye} label="Xem chi tiết tranh chấp" onClick={()=>setSelected(x)}/>
-              {x.can_resolve&&<AppButton tone="green" size="sm" onClick={()=>openDecision(x)}>Kết luận</AppButton>}
+              {x.can_resolve&&<AdminIconAction icon={Scale} tone="blue" label="Ghi kết luận tranh chấp" onClick={()=>openDecision(x)}/>}
             </div></td>
           </tr>)}</tbody>
         </table>
         {connected&&!query.isFetching&&!rows.length&&<p className="p-8 text-center text-sm text-muted-foreground">Không có hồ sơ phù hợp trong trang dữ liệu này.</p>}
       </div>
-      <AppPagination page={page} pageSize={data?.pagination?.page_size??100}
-        total={data?.pagination?.totals.disputes??0} showSummary={false}
-        disabled={query.isFetching} onPageChange={setPage}/>
+      <AppPagination page={page} pageSize={pageSize} total={data?.pagination?.totals.disputes??0}
+        pageSizeOptions={[10,20,50,100]} onPageSizeChange={size=>{setPageSize(size);setPage(1);}}
+        showSummary={false} disabled={query.isFetching} onPageChange={setPage}/>
     </AdminListPanel>
     <p className="text-xs text-muted-foreground">Trạng thái được lọc trên máy chủ; phân trang phản ánh số hồ sơ thuộc trạng thái đã chọn.</p>
     <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open)setSelected(null);}} title="Chi tiết tranh chấp">
@@ -92,7 +98,7 @@ export function BoardDisputesPage({apiBase,token,abilities,onChanged}:RolePagePr
         <div className="space-y-1 rounded-xl border p-4"><p className="font-semibold">Nội dung tranh chấp</p><p className="whitespace-pre-wrap">{selected.reason}</p></div>
         <div className="space-y-1 rounded-xl border p-4"><p className="font-semibold">Tham chiếu bằng chứng</p><p className="break-all">{selected.evidence_reference||'Chưa cập nhật'}</p></div>
         {selected.decision&&<div className="space-y-1 rounded-xl border p-4"><p className="font-semibold">Kết luận</p><p>{workflowLabels[selected.decision]??selected.decision}</p><p>{selected.decision_reason}</p></div>}
-        {selected.can_resolve&&<AppButton tone="green" onClick={()=>{openDecision(selected);setSelected(null);}}>Ghi kết luận</AppButton>}
+        {selected.can_resolve&&<AdminIconAction icon={CheckCircle2} tone="blue" label="Ghi kết luận tranh chấp" onClick={()=>{openDecision(selected);setSelected(null);}}/>}
       </div>}
     </AppDrawer>
     <SchoolActionDialog action={action} onClose={()=>setAction(null)} save={save}/>

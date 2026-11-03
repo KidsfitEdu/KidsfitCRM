@@ -25,8 +25,8 @@ export function BoardDisputesPage({apiBase,token,abilities,onChanged}:RolePagePr
   const permitted=abilities.includes('*')||abilities.includes('channel_sales.school.dispute.resolve');
   const connected=Boolean(apiBase&&token&&permitted);
   const query=useQuery({
-    queryKey:['board','disputes',apiBase,page],
-    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page='+page),
+    queryKey:['board','disputes',apiBase,page,status],
+    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page='+page+(status==='ALL'?'':'&dispute_status='+status)),
     enabled:connected,
   });
   const data=query.data;
@@ -83,7 +83,7 @@ export function BoardDisputesPage({apiBase,token,abilities,onChanged}:RolePagePr
         total={data?.pagination?.totals.disputes??0} showSummary={false}
         disabled={query.isFetching} onPageChange={setPage}/>
     </AdminListPanel>
-    <p className="text-xs text-muted-foreground">Danh sách lọc theo trạng thái trên trang kết quả API; phân trang sử dụng tổng tất cả trạng thái từ máy chủ.</p>
+    <p className="text-xs text-muted-foreground">Trạng thái được lọc trên máy chủ; phân trang phản ánh số hồ sơ thuộc trạng thái đã chọn.</p>
     <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open)setSelected(null);}} title="Chi tiết tranh chấp">
       {selected&&<div className="space-y-4 text-sm">
         <h3 className="text-lg font-semibold">{selected.school_name}</h3>

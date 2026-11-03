@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppPagination } from '@/components/common/app-pagination';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { channelRequest } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
@@ -13,6 +14,8 @@ import type { RolePageProps } from '@/types/role-pages';
 
 export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const [organization,setOrganization]=useState('ALL');
+  const [page,setPage]=useState(1);
+  const [pageSize,setPageSize]=useState(20);
   const [draft,setDraft]=useState('');
   const [search,setSearch]=useState('');
   const [detailId,setDetailId]=useState<number|null>(null);
@@ -29,7 +32,8 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         .some(value=>value.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'))))
     .sort((a,b)=>a.organization_id-b.organization_id||b.version-a.version);
   const orgName=(id:number)=>data?.organizations.find(x=>x.id===id)?.name??String(id);
-  const active=(data?.policies??[]).filter(p=>p.status==='ACTIVE');
+  const active=policies.filter(p=>p.status==='ACTIVE');
+  const visiblePolicies=policies.slice((page-1)*pageSize,page*pageSize);
   const detail=(data?.policies??[]).find(p=>p.id===detailId);
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"
@@ -56,18 +60,18 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     </div>
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
-        onSearch={()=>setSearch(draft.trim())}
-        onReset={()=>{setDraft('');setSearch('');setOrganization('ALL');}}
+        onSearch={()=>{setSearch(draft.trim());setPage(1);}}
+        onReset={()=>{setDraft('');setSearch('');setOrganization('ALL');setPage(1);}}
         searchLabel="Tìm chính sách" placeholder="Tên tổ chức, phiên bản, căn cứ..."
         filters={<AppNativeSelect aria-label="Lọc tổ chức" containerClassName="w-full sm:w-56"
-          value={organization} onChange={e=>setOrganization(e.target.value)}>
+          value={organization} onChange={e=>{setOrganization(e.target.value);setPage(1);}}>
           <option value="ALL">Tất cả tổ chức</option>
           {(data?.organizations??[]).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
         </AppNativeSelect>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass}>
           <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Tổ chức</th><th className="px-5 py-4">Phiên bản</th><th className="px-5 py-4">Thời hạn xử lý</th><th className="px-5 py-4">Gia hạn</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4">Căn cứ quyết định</th><th className="px-5 py-4 text-right">Thao tác</th></tr></thead>
-          <tbody>{policies.map(p=><tr className="border-b" key={p.id}>
+          <tbody>{visiblePolicies.map(p=><tr className="border-b" key={p.id}>
             <td className="px-5 py-4 font-medium">{orgName(p.organization_id)}</td>
             <td className="px-5 py-4">{p.version}</td>
             <td className="px-5 py-4">Quản lý {p.manager_review_hours}h · Admin {p.admin_review_hours}h · Phân bổ {p.invitation_hours}h</td>
@@ -80,8 +84,12 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         </table>
         {connected&&!query.isFetching&&!policies.length&&<p className="p-7 text-center text-sm text-muted-foreground">Không có phiên bản chính sách phù hợp trong trang này.</p>}
       </div>
+      <AppPagination page={page} pageSize={pageSize} total={policies.length}
+        onPageChange={setPage} pageSizeOptions={[10,20,50,100]}
+        onPageSizeChange={size=>{setPageSize(size);setPage(1);}}
+        disabled={query.isFetching} showSummary={false}/>
     </AdminListPanel>
-    <p className="text-xs text-muted-foreground">Tìm kiếm hiện áp dụng trên tối đa 100 phiên bản chính sách API trả về, không phải toàn bộ lịch sử. Các giới hạn được lấy từ phiên bản lưu trên máy chủ.</p>
+    <p className="text-xs text-muted-foreground">Tìm kiếm và phân trang áp dụng trên tối đa 100 phiên bản mới nhất do API cung cấp, không phải toàn bộ lịch sử.</p>
     <AppDrawer open={detailId!==null} onOpenChange={open=>{if(!open)setDetailId(null);}} title="Chi tiết chính sách">
       {detail&&<div className="space-y-4 text-sm">
         <h3 className="text-lg font-semibold">{orgName(detail.organization_id)} · Phiên bản {detail.version}</h3>

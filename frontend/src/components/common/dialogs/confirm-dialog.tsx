@@ -8,7 +8,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description: ReactNode;
+  description?: ReactNode;
   confirmLabel?: string;
   busy?: boolean;
   destructive?: boolean;
@@ -32,7 +32,7 @@ export function ConfirmDialog({
       </AppButton>
     </>}>
     <div className="space-y-4">
-      <p className="text-[15px] leading-7 text-foreground/90 sm:text-base">{description}</p>
+      {description && <p className="text-[15px] leading-7 text-foreground/90 sm:text-base">{description}</p>}
       {children}
     </div>
   </AppDialog>;

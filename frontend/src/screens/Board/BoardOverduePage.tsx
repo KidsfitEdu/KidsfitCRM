@@ -38,7 +38,10 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
   const extensions=(data?.extensions??[]).filter(x=>x.is_overdue&&x.status==='PENDING').map(record=>({kind:'extension' as const,record}));
   const rows=[...(kind!=='extension'?proposals:[]),...(kind!=='proposal'?extensions:[])]
     .sort((a,b)=>new Date(a.record.review_due_at).getTime()-new Date(b.record.review_due_at).getTime());
-  const total=(kind!=='extension'?(data?.pagination?.totals.proposals??0):0)+(kind!=='proposal'?(data?.pagination?.totals.extensions??0):0);
+  const proposalTotal = data?.pagination?.totals.proposals ?? 0;
+  const extensionTotal = data?.pagination?.totals.extensions ?? 0;
+  // The workspace paginates each queue independently using the same page index.
+  const total = kind==='proposal' ? proposalTotal : kind==='extension' ? extensionTotal : Math.max(proposalTotal,extensionTotal);
   const openProposal=(r:Proposal,approve:boolean)=>setAction({
     title:approve?'Chuyển tiếp đề xuất quá hạn':'Từ chối đề xuất quá hạn',
     description:'Thao tác ngoại lệ được kiểm tra trên máy chủ và ghi lịch sử.',

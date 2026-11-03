@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Activity, AlertTriangle, Building2, FileCheck2, Handshake, Wallet, RefreshCw } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
-import { AppButton } from '@/components/common/buttons/app-button';
+import { AdminIconAction, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { Input } from '@/components/ui/input';
 import { useBoardData, currentBusinessPeriod, boardMoney, boardNumber } from './board-data';
 import type { RolePageProps } from '@/types/role-pages';
@@ -31,8 +31,9 @@ export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
       actions={<div className="flex flex-wrap items-center gap-2">
         <label htmlFor="board-dashboard-period" className="text-sm font-medium">Kỳ báo cáo</label>
         <Input id="board-dashboard-period" type="month" className="w-44" value={period} onChange={e=>setPeriod(e.target.value)}/>
-        <AppButton type="button" tone="outline" disabled={!connected||report.isFetching||operations.isFetching}
-          onClick={()=>{void report.refetch();void operations.refetch();}} leadingIcon={<RefreshCw className="size-4"/>}>Làm mới</AppButton>
+        <AdminIconAction icon={RefreshCw} label="Làm mới tổng quan điều hành"
+          disabled={!connected||report.isFetching||operations.isFetching}
+          onClick={()=>{void report.refetch();void operations.refetch();}}/>
       </div>}/>
     {!connected && <output className="block rounded-xl border p-4 text-sm text-muted-foreground">
       {!apiBase?'Đang xem giao diện mẫu. Kết nối API để tải dữ liệu thực tế.':'Tài khoản không có quyền xem báo cáo điều hành.'}
@@ -50,13 +51,13 @@ export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
         <p className="rounded-xl border p-4 text-sm">Gia hạn quá hạn: <strong>{boardNumber(metrics.overdue_extensions)}</strong></p>
       </div>}
       {!metrics && <p className="mt-2 text-sm text-muted-foreground">{report.isPending&&connected?'Đang tải báo cáo…':'Chưa có dữ liệu báo cáo.'}</p>}
-      <p className="mt-3 text-xs text-muted-foreground">Số tranh chấp là số hồ sơ đang mở trên trang dữ liệu hiện tại, không phải tổng toàn hệ thống. Các chỉ số theo kỳ phụ thuộc định nghĩa từ API báo cáo.</p>
+
     </section>
     <section className="rounded-2xl border border-border bg-card p-5">
       <h3 className="mb-3 font-semibold">Hiệu suất phân bổ theo Quản lý và Sales</h3>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[660px] text-left text-sm">
-          <thead className="border-b bg-muted/50"><tr>{['Quản lý','Nhân sự','Đã mời','Đã nhận','Từ chối','Đã hủy'].map(h=><th key={h} scope="col" className="px-3 py-3">{h}</th>)}</tr></thead>
+          <thead className={adminTableHeadClass}><tr>{['Quản lý','Nhân sự','Đã mời','Đã nhận','Từ chối','Đã hủy'].map(h=><th key={h} scope="col" className="px-3 py-4">{h}</th>)}</tr></thead>
           <tbody>{(metrics?.allocation_performance??[]).map((r,i)=><tr key={r.assigned_by_user_id+'-'+r.assignee_user_id+'-'+i} className="border-b">
             <td className="px-3 py-3">{r.manager_name}</td><td className="px-3 py-3">{r.assignee_name}</td>
             <td className="px-3 py-3">{r.invited}</td><td className="px-3 py-3">{r.accepted}</td>

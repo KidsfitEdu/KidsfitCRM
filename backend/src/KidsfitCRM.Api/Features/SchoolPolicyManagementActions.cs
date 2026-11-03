@@ -78,48 +78,41 @@ public sealed partial class ChannelSalesActions
         return id;
     }, ct);
 
-    // Reuse a previous policy without rewriting any historical policy record.
+    // Restore the original policy version directly. Each activation is recorded in audit,
+    // while the original settings, identifier and approval reference remain unchanged.
     public Task<long> ReapplySchoolWorkflowPolicy(long sourceId, ActivateSchoolWorkflowPolicyRequest request,
         long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await RequirePermission(actorId, Permissions.SchoolWorkflowPolicyManage, ct);
-        var reference = Validation.Required(request.DecisionReference, "decision_reference", "Cần căn cứ áp dụng lại.", 120);
+        var reference = Validation.Required(request.DecisionReference, "decision_reference", "Cần mã tham chiếu thao tác.", 120);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var orgId = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == sourceId)
             .Select(x => (long?)x.OrganizationId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(orgId)) throw new KeyNotFoundException();
         await LockSchoolOrganization(orgId, ct);
-        var source = await db.SchoolWorkflowPolicies.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == sourceId && x.OrganizationId == orgId, ct) ?? throw new KeyNotFoundException();
+        var source = await db.SchoolWorkflowPolicies.SingleOrDefaultAsync(
+            x => x.Id == sourceId && x.OrganizationId == orgId, ct) ?? throw new KeyNotFoundException();
         if (source.Status != "SUPERSEDED")
             throw new ApiConflictException("Chỉ có thể áp dụng lại phiên bản đã được thay thế.");
         ValidateApprovedExtensionLimits(source);
-        if (await db.SchoolWorkflowPolicies.AnyAsync(x => x.OrganizationId == orgId && x.DecisionReference == reference, ct))
-            throw new ApiConflictException("Căn cứ áp dụng đã tồn tại; vui lòng dùng căn cứ mới.");
+        var previousActive = await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.OrganizationId == orgId && x.Status == "ACTIVE")
+            .Select(x => new { x.Id, x.Version }).ToArrayAsync(ct);
         var now = DateTime.UtcNow;
-        var nextVersion = (await db.SchoolWorkflowPolicies.Where(x => x.OrganizationId == orgId)
-            .MaxAsync(x => (int?)x.Version, ct) ?? 0) + 1;
         await db.SchoolWorkflowPolicies.Where(x => x.OrganizationId == orgId && x.Status == "ACTIVE")
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "SUPERSEDED")
                 .SetProperty(x => x.UpdatedAt, now), ct);
-        var created = new SchoolWorkflowPolicyVersion
-        {
-            OrganizationId = orgId, Version = nextVersion, Status = "ACTIVE",
-            ManagerReviewHours = source.ManagerReviewHours, AdminReviewHours = source.AdminReviewHours,
-            InvitationHours = source.InvitationHours, MaxExtensionDays = source.MaxExtensionDays,
-            MaxExtensionCount = source.MaxExtensionCount, MaxTotalExtensionDays = source.MaxTotalExtensionDays,
-            DecisionReference = reference,
-            RequestFingerprint = ChannelSalesValidation.Fingerprint(new { sourceId, reference }),
-            CreatedByUserId = actorId, CreatedAt = now, UpdatedAt = now,
-        };
-        db.SchoolWorkflowPolicies.Add(created);
-        await db.SaveChangesAsync(ct);
+        // No new SchoolWorkflowPolicyVersion is inserted. This preserves policy_version_id
+        // references belonging to prior business records and preserves the version number.
+        source.Status = "ACTIVE";
+        source.UpdatedAt = now;
         Audit.Add(db, actorId, "REAPPLY_SCHOOL_WORKFLOW_POLICY", nameof(SchoolWorkflowPolicyVersion),
-            created.Id, new { sourcePolicyId = source.Id, sourceVersion = source.Version, sourceStatus = source.Status },
-            new { created.OrganizationId, created.Version, created.Status, created.DecisionReference }, http);
+            source.Id,
+            new { source.OrganizationId, source.Version, previousStatus = "SUPERSEDED", previousActive },
+            new { source.Status, source.Version, reference, effectiveAt = now }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return created.Id;
+        return source.Id;
     }, ct);
 
     public Task<long> CancelSchoolWorkflowPolicyDraft(long id, CancelSchoolWorkflowPolicyDraftRequest request,

@@ -649,6 +649,52 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Empty(workspace.GetProperty("refunds").EnumerateArray());
     }
 
+    [MySqlFact] public async Task CskhScreensShowOnlyAssignedSchoolsAndRouteOnlySoftwareErrors()
+    {
+        var scenario = await Arrange();
+        var contract = await ActiveContract(scenario);
+        var admin = await User("admin@kidsfit.vn");
+        var care = await User("care@kidsfit.vn");
+        var checkee = await User("checkee@kidsfit.vn");
+        await using var db = fixture.Open();
+        var careOrg = await db.Organizations.Where(o => o.Code == "KIDSFIT").Select(o => o.Id).SingleAsync();
+        var other = await AddMember(careOrg, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        var actions = new ChannelSalesActions(db);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.Assignments(
+            Http(scenario.Manager.UserId), db, null, 1, 20, Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.LogCall(
+            contract, new("Không được ghi khi chưa phân công", null), Http(care), db, Ct));
+
+        await actions.AssignContractCare(contract, new(Key(), care, careOrg, "Admin phân công hỗ trợ trường"),
+            admin, Http(admin), Ct);
+        var mine = Json(await CustomerCareEndpoints.Schools(Http(care), db, null, 1, 20, Ct));
+        Assert.Contains(mine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
+        var notMine = Json(await CustomerCareEndpoints.Schools(Http(other.UserId), db, null, 1, 20, Ct));
+        Assert.DoesNotContain(notMine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.SchoolDetail(
+            contract, Http(other.UserId), db, Ct));
+        var adminPage = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, Ct));
+        Assert.Contains(adminPage.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
+
+        await CustomerCareEndpoints.LogCall(contract, new("Đã hướng dẫn cách đăng nhập qua điện thoại", null),
+            Http(care), db, Ct);
+        var detail = Json(await CustomerCareEndpoints.SchoolDetail(contract, Http(care), db, Ct));
+        Assert.Contains(detail.GetProperty("calls").EnumerateArray(),
+            x => x.GetProperty("content").GetString() == "Đã hướng dẫn cách đăng nhập qua điện thoại");
+        Assert.Empty(Json(await CheckeeSupportEndpoints.List(Http(checkee), db, "ALL",
+            "Đã hướng dẫn cách đăng nhập qua điện thoại", 1, 20, Ct)).GetProperty("data").EnumerateArray());
+
+        var ticketId = await actions.CreateCustomerSupportCase(new(Key(), contract,
+            "Lỗi máy chủ đăng nhập", "Phát sinh 500 từ hệ thống"), care, Http(care), Ct);
+        Assert.Equal("SYSTEM_ERROR", (await db.CustomerSupportCases.FindAsync(ticketId))!.TicketType);
+        var checkeeQueue = Json(await CheckeeSupportEndpoints.List(Http(checkee), db, "ALL", "Lỗi máy chủ", 1, 20, Ct));
+        Assert.Contains(checkeeQueue.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == ticketId);
+        Assert.DoesNotContain(Json(await CustomerCareEndpoints.Tickets(Http(other.UserId), db,
+            null, null, 1, 20, Ct)).GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == ticketId);
+        var summary = Json(await CustomerCareEndpoints.Summary(Http(care), db, Ct));
+        Assert.True(summary.GetProperty("data").GetProperty("open_tickets").GetInt32() > 0);
+    }
+
     [MySqlFact] public async Task ConcurrentRefundsCannotExceedReceiptAndCancellationNeverDeletesLedgerOrReactivatesContract()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s); var admin = await User("admin@kidsfit.vn");

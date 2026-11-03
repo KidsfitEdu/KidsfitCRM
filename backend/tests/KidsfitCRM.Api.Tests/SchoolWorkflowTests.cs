@@ -91,8 +91,9 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         db.Users.Add(user); await db.SaveChangesAsync();
         var role = await db.Roles.Where(x => x.Code == "SALES").Select(x => x.Id).SingleAsync();
         var org = await db.Organizations.Where(x => x.Code == "PARTNER_AN_PHAT").Select(x => x.Id).SingleAsync();
+        var manager = await db.Users.Where(u => u.Email == "partner@kidsfit.vn").Select(u => u.Id).SingleAsync();
         db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role });
-        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = org, MembershipType = "COLLABORATOR", IsPrimary = true, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = org, ManagerUserId = manager, MembershipType = "COLLABORATOR", IsPrimary = true, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.OrganizationMemberships.Add(membership); await db.SaveChangesAsync();
         return (user.Id, membership.Id);
     }

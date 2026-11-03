@@ -9,6 +9,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { Input } from '@/components/ui/input';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { PersonnelDetailDrawer } from './PersonnelDetailDrawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { FormActions } from '@/components/common/form-actions';
 import { FormError } from '@/components/common/form-error';
@@ -381,20 +382,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
             <p className="text-muted-foreground">Chưa có thành viên.</p>}
         </div>}
       </AppDrawer>
-      <AppDrawer open={detail!==null} onOpenChange={open=>{if(!open)setDetail(null);}}
-        title="Thông tin nhân sự" description="Trạng thái tài khoản và tư cách thành viên được quản lý riêng.">
-        {detail&&<dl className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-3 text-sm">
-          <dt className="text-muted-foreground">Họ tên</dt><dd>{detail.name}</dd>
-          <dt className="text-muted-foreground">Email</dt><dd className="break-all">{detail.email}</dd>
-          <dt className="text-muted-foreground">Số điện thoại</dt><dd>{detail.phone||'Chưa cập nhật'}</dd>
-          <dt className="text-muted-foreground">Tổ chức</dt><dd>{detail.organization_name}</dd>
-          <dt className="text-muted-foreground">Vai trò</dt><dd>{roleText(detail.membership_type)}</dd>
-          <dt className="text-muted-foreground">Quản lý trực tiếp</dt><dd>{management?.team.find(p=>p.user_id===detail.manager_user_id)?.name||'Chưa phân công'}</dd>
-          <dt className="text-muted-foreground">Thành viên</dt><dd>{statusName(detail.status)}</dd>
-          <dt className="text-muted-foreground">Tài khoản</dt><dd>{statusName(detail.account_status??'ACTIVE')}</dd>
-        </dl>}
-        <div className="mt-5 flex justify-end"><AppButton tone="outline" onClick={()=>setDetail(null)}>Đóng</AppButton></div>
-      </AppDrawer>
+      <PersonnelDetailDrawer person={detail} onClose={()=>setDetail(null)}
+        team={management?.team??[]} organizations={management?.organizations??[]} roleName={roleText}/>
       <ConfirmDialog open={statusAction!==null} onOpenChange={open=>{if(!busy&&!open)setStatusAction(null);}}
         busy={busy} destructive={Boolean(statusAction?.suspend)}
         title={statusAction?.suspend?'Xác nhận khóa truy cập':'Xác nhận mở khóa'}

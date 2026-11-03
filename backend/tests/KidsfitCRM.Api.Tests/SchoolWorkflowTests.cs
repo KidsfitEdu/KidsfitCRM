@@ -387,6 +387,9 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
             new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow),
                 null, await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(), 1_000_000m, null, null,
                 EvidenceId: first.Id), seller.UserId, Http(), Ct);
+        // Manager permissions are now scoped to direct reports, not merely shared organization.
+        await db.OrganizationMemberships.Where(m => m.Id == seller.MembershipId)
+            .ExecuteUpdateAsync(x => x.SetProperty(m => m.ManagerUserId, (long?)manager), Ct);
         var caseId = await db.ReconciliationCases.Where(r => r.ContractId == contractId).Select(r => r.Id).SingleAsync();
         Assert.Equal("AWAITING_MANAGER", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.Reconcile(caseId, true, new(null), checkee, Http(), Ct));

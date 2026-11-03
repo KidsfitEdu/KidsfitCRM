@@ -1,8 +1,6 @@
 name: Frontend refactor validation
 
 on:
-  push:
-    branches: ['feat/cskh']
   pull_request:
     branches: [develop]
     paths:

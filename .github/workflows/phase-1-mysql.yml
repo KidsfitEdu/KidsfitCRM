@@ -1,8 +1,6 @@
 name: Phase 1 isolated MySQL integrity
 
 on:
-  push:
-    branches: ['feat/cskh']
   pull_request:
     branches: [develop]
     paths:
@@ -42,7 +40,7 @@ jobs:
           sudo apt-get install -y -qq default-mysql-client
           mysql --protocol=TCP -h127.0.0.1 -uroot -p'ephemeral-ci-only' --skip-column-names -e "SELECT VERSION();" | tee /tmp/kidsfit-mysql-version.txt
           grep -E '^8\.4\.' /tmp/kidsfit-mysql-version.txt
-          test "$GITHUB_EVENT_NAME" = "pull_request" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch" -o "$GITHUB_EVENT_NAME" = "push"
+          test "$GITHUB_EVENT_NAME" = "pull_request" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch"
       - name: Full EF migrations, seed replay, transaction and concurrency tests
         run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
       - name: Separate synthetic backup and restore smoke test

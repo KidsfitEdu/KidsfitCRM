@@ -134,15 +134,17 @@ public static class AdminPersonnelEndpoints
         await Admin(db, actor, ct);
         var name = Validation.Required(request.Name, "name", "Cần tên đối tác.", 190);
         var status = Validation.Required(request.Status, "status", "Cần trạng thái.", 24).ToUpperInvariant();
-        var reason = status == "SUSPENDED"
-            ? Validation.Required(request.Reason, "reason", "Cần lý do khóa tổ chức.", 2000)
-            : "Admin xác nhận mở khóa tổ chức.";
         if (status is not ("ACTIVE" or "SUSPENDED")) throw ApiValidationException.For("status", "Trạng thái không hợp lệ.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var org = await db.Organizations.FromSqlInterpolated($"SELECT * FROM organizations WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (org.OrganizationType != "PARTNER")
             throw new ApiConflictException("Không sửa tổ chức hệ thống KIDSFIT/CHECKEE tại đây.");
+        var reason = status == "SUSPENDED" && org.Status != "SUSPENDED"
+            ? Validation.Required(request.Reason, "reason", "Cần lý do khóa tổ chức.", 2000)
+            : status == "ACTIVE" && org.Status == "SUSPENDED"
+                ? "Admin xác nhận mở khóa tổ chức."
+                : "Admin cập nhật hồ sơ tổ chức.";
         // Suspension is inherited by every member without changing individual membership status.
         // Reopening a partner therefore never silently reactivates separately suspended members.
         var old = new { org.Name, org.Status };

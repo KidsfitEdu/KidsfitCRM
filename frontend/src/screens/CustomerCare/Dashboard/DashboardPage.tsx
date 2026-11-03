@@ -10,7 +10,7 @@ import type {RolePageProps} from '@/types/role-pages';
 
 type Summary={data:{schools:number;open_tickets:number;waiting_checkee:number;resolved_tickets:number;due_calls:number}};
 export function DashboardPage({apiBase,token,abilities,onSalesNavigate}:RolePageProps){
-  const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
+  const allowed=!apiBase||abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
   const query=useQuery({queryKey:['care-summary',token],
     queryFn:()=>channelRequest<Summary>(apiBase,token,'/care/summary'),
     enabled:!!apiBase&&!!token&&allowed});

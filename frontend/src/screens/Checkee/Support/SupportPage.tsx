@@ -17,7 +17,7 @@ type Ticket={id:number;school_name:string;subject:string;description:string;stat
 type List={data:Ticket[];total:number;page:number;page_size:number};
 
 export function SupportPage({apiBase,token,abilities,onChanged}:RolePageProps){
-  const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.technical_support.handle');
+  const allowed=!apiBase||abilities.includes('*')||abilities.includes('channel_sales.school.technical_support.handle');
   const [draft,setDraft]=useState('');const [search,setSearch]=useState('');
   const [status,setStatus]=useState('ALL');const [page,setPage]=useState(1);const [pageSize,setPageSize]=useState(20);
   const [selected,setSelected]=useState<Ticket|null>(null);

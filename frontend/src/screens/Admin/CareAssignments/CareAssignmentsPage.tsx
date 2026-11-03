@@ -29,7 +29,7 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const queryClient=useQueryClient();
-  const allowed=abilities.includes('*') || (abilities.includes('channel_sales.school.care.assign')
+  const allowed=!apiBase || abilities.includes('*') || (abilities.includes('channel_sales.school.care.assign')
     && abilities.includes('channel_sales.scope.all') && abilities.includes('channel_sales.identity.manage'));
   const query=useQuery({
     queryKey:['admin-care-assignments',apiBase,token,page,pageSize,search],

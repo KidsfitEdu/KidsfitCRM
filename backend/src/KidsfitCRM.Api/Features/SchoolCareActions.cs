@@ -52,7 +52,7 @@ public sealed partial class ChannelSalesActions
         EnsureContractCareAccess(access, contract);
         var replay = await db.CustomerSupportCases.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.CreatedByUserId, actorId, replay.RequestFingerprint, hash);
-        if (contract.Status != "ACTIVE" || (contract.RequiresSchoolVerification && contract.VerifiedAt is null)) throw new ApiConflictException("Hợp đồng chưa đủ điều kiện tiếp nhận CSKH.");
+        if (contract.Status != "ACTIVE" || contract.VerifiedAt is null) throw new ApiConflictException("Hợp đồng chưa được CHECKEE xác minh để hỗ trợ CSKH.");
         if (!contract.CareUserId.HasValue || !contract.CareOrganizationId.HasValue) throw new ApiConflictException("Cần phân công người CSKH trước khi mở hồ sơ hỗ trợ.");
         // Contract lock serializes assignment changes; membership is read here to avoid reversing its lock order.
         if (!await db.OrganizationMemberships.AnyAsync(x => x.UserId == contract.CareUserId && x.OrganizationId == contract.CareOrganizationId && x.Status == "ACTIVE", ct)

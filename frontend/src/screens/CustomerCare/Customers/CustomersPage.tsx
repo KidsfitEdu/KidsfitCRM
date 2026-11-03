@@ -20,7 +20,7 @@ type Detail={data:School&{address:string|null;contact_position:string|null};
   handovers:{id:number;reason:string;created_at:string;assigned_name:string|null;assigned_by:string|null}[]};
 
 export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate}:RolePageProps){
-  const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
+  const allowed=!apiBase||abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
   const [searchDraft,setSearchDraft]=useState('');const [search,setSearch]=useState('');
   const [page,setPage]=useState(1);const [pageSize,setPageSize]=useState(20);
   const [selected,setSelected]=useState<School|null>(null);

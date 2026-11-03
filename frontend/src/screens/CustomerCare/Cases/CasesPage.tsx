@@ -19,7 +19,7 @@ type TicketList={data:Ticket[];total:number;page:number;page_size:number};
 type School={id:number;school_name:string;contract_code:string};
 type SchoolList={data:School[];total:number};
 export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
-  const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
+  const allowed=!apiBase||abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
   const [draft,setDraft]=useState('');const [search,setSearch]=useState('');
   const [status,setStatus]=useState('ALL');const [page,setPage]=useState(1);const [pageSize,setPageSize]=useState(20);
   const [creating,setCreating]=useState(false);const [schoolSearch,setSchoolSearch]=useState('');

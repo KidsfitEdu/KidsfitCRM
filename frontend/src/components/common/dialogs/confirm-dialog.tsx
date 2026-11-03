@@ -14,15 +14,17 @@ type Props = {
   destructive?: boolean;
   onConfirm: () => void;
   children?: ReactNode;
+  compactHeader?: boolean;
 };
 
 /** Shared KIDSFIT confirmation shell, with no icon on the primary action. */
 export function ConfirmDialog({
   open, onOpenChange, title, description, confirmLabel = 'Xác nhận',
-  busy = false, destructive = false, onConfirm, children,
+  busy = false, destructive = false, onConfirm, children, compactHeader = false,
 }: Props) {
   return <AppDialog open={open} onOpenChange={onOpenChange} title={title} footerAlign="center"
     busy={busy} contentClassName="sm:max-w-md"
+    headerClassName={compactHeader ? "py-2 sm:py-3" : undefined}
     footer={<>
       <AppButton type="button" tone="neutral" disabled={busy} className="h-11 w-full sm:w-40"
         onClick={() => onOpenChange(false)}>Hủy</AppButton>

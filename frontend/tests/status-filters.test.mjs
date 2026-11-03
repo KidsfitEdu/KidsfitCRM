@@ -27,7 +27,7 @@ test('shared status filters use the branded popup instead of native browser opti
   assert.match(component, /<SelectItem/);
   assert.match(component, /aria-label=\{ariaLabel\}/);
   assert.match(component, /onValueChange/);
-  assert.doesNotMatch(component, /<select\b/i);
+  assert.doesNotMatch(component, /<select\b/);
 
   for (const path of statusFilters) {
     const screen = read(path);

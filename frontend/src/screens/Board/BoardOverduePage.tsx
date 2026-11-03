@@ -104,7 +104,6 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
       <AppPagination page={page} pageSize={pageSize} total={total} disabled={query.isFetching} onPageChange={setPage}
         pageSizeOptions={[10,20,50,100]} onPageSizeChange={size=>{setPageSize(size);setPage(1);}} showSummary={false}/>
     </AdminListPanel>
-    <p className="text-xs text-muted-foreground">Danh sách và phân trang sử dụng số hồ sơ quá hạn đã được lọc tại máy chủ.</p>
     <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open)setSelected(null);}} title="Chi tiết hồ sơ quá hạn">
       {selected&&<div className="space-y-4 text-sm">
         <p className="text-lg font-semibold">{selected.kind==='proposal'?selected.record.name:selected.record.school_name}</p>

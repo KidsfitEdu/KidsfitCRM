@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, Pencil, CheckCircle2, Trash2, Plus } from 'lucide-react';
+import { Eye, Pencil, CheckCircle2, Trash2, Plus, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
@@ -27,7 +27,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const [detailId,setDetailId]=useState<number|null>(null);
   const [editingId,setEditingId]=useState<number|null>(null);
   const [editorOpen,setEditorOpen]=useState(false);
-  const [confirm,setConfirm]=useState<{id:number;action:'activate'|'cancel'}|null>(null);
+  const [confirm,setConfirm]=useState<{id:number;action:'activate'|'cancel'|'reapply'}|null>(null);
   const [decision,setDecision]=useState('');
   const [busy,setBusy]=useState(false);
   const [actionError,setActionError]=useState('');
@@ -40,7 +40,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     enabled:connected,
   });
   const data=query.data;
-  const policies=(data?.policies??[]).filter(p=>(organization==='ALL'||String(p.organization_id)===organization)
+  const policies=(data?.policies??[]).filter(p=>p.status!=='CANCELLED' && (organization==='ALL'||String(p.organization_id)===organization)
       && [data?.organizations.find(o=>o.id===p.organization_id)?.name??'',String(p.version),p.decision_reference??'']
         .some(value=>value.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'))))
     .sort((a,b)=>a.organization_id-b.organization_id||b.version-a.version);
@@ -71,7 +71,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     if(!confirm)return;
     if(!decision.trim()){setActionError('Vui lòng nhập căn cứ hoặc lý do.');return;}
     void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',
-      confirm.action==='activate'?{decision_reference:decision.trim()}:{reason:decision.trim()});
+      confirm.action==='cancel'?{reason:decision.trim()}:{decision_reference:decision.trim()});
   };
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"
@@ -103,6 +103,10 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
             <td className="break-words px-5 py-4">{p.decision_reference||'Chưa cập nhật'}</td>
             <td className="px-5 py-4 text-right"><div className="flex items-center justify-end gap-2">
               <AdminIconAction icon={Eye} label="Xem chi tiết chính sách" onClick={()=>setDetailId(p.id)}/>
+              {canManage&&p.status==='SUPERSEDED'&&<AdminIconAction icon={RotateCcw} tone="blue"
+                label="Áp dụng lại phiên bản chính sách" onClick={()=>{
+                  setConfirm({id:p.id,action:'reapply'});setDecision('');setActionError('');
+                }}/>}
               {canManage&&p.status==='DRAFT'&&<>
                 <AdminIconAction icon={Pencil} tone="blue" label="Sửa bản nháp chính sách"
                   onClick={()=>{setEditingId(p.id);setActionError('');setEditorOpen(true);}}/>
@@ -143,13 +147,13 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
       busy={busy} policy={editing} organizations={data?.organizations??EMPTY_ORGANIZATIONS} onSave={save}/>
     <ConfirmDialog open={confirm!==null} onOpenChange={v=>{if(!v&&!busy)setConfirm(null);}}
       busy={busy} destructive={confirm?.action==='cancel'}
-      title={confirm?.action==='activate'?'Xác nhận kích hoạt chính sách':'Xác nhận hủy bản nháp'}
+      title={confirm?.action==='activate'?'Xác nhận kích hoạt chính sách':confirm?.action==='reapply'?'Áp dụng lại phiên bản chính sách':'Xác nhận hủy bản nháp'}
       confirmLabel="Xác nhận" onConfirm={confirmAction}>
       <div className="space-y-2">
         <label className="text-sm font-medium" htmlFor="board-policy-action-reason">
-          {confirm?.action==='activate'?'Căn cứ kích hoạt *':'Lý do hủy *'}
+          {confirm?.action==='cancel'?'Lý do hủy *':'Căn cứ áp dụng *'}
         </label>
-        <Input id="board-policy-action-reason" value={decision} maxLength={confirm?.action==='activate'?120:2000}
+        <Input id="board-policy-action-reason" value={decision} maxLength={confirm?.action==='cancel'?2000:120}
           onChange={e=>setDecision(e.target.value)}/>
         {actionError&&<p role="alert" className="text-sm text-red-600">{actionError}</p>}
       </div>

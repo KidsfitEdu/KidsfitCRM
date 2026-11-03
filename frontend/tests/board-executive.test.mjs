@@ -76,7 +76,8 @@ test('Board queues share Sales search toolbar, icon actions and real server pagi
     assert.doesNotMatch(source, /<AppButton[^>]*>Xử lý<\/AppButton>/);
   }
   assert.match(policies, /Chi tiết chính sách/);
-  assert.match(policies, /Tìm kiếm và phân trang áp dụng trên tối đa 100 phiên bản/);
+  assert.match(policies, /policyQuery\.data\?\.pagination\.total/);
+  assert.doesNotMatch(policies, /Tìm kiếm và phân trang áp dụng trên tối đa 100 phiên bản/);
   assert.match(policies, /<AppPagination/);
 });
 
@@ -100,9 +101,21 @@ test('Policy reapply preserves historical versions and organization dropdown off
   assert.match(screen, /p\.status==='SUPERSEDED'/);
   assert.match(screen, /action:'reapply'/);
   assert.match(screen, /RotateCcw/);
-  assert.match(screen, /p\.status!=='CANCELLED'/);
+  assert.match(screen, /\/school-workflow-policies\?page=/);
   assert.match(editor, /<option value=\{0\}>Chọn tổ chức<\/option>/);
   assert.match(editor, /organizations\.map\(o=>/);
   assert.doesNotMatch(editor, /organizations\.filter\(o=>o\.status/);
   assert.match(editor, /if\(!form\.organization_id\)/);
+});
+
+test('Policy edit form omits decision references while API remains audited', () => {
+  const screen = read('screens/Board/BoardPoliciesPage.tsx');
+  const editor = read('screens/Board/PolicyEditorDialog.tsx');
+  assert.doesNotMatch(screen, /<th[^>]*>Căn cứ quyết định<\/th>/);
+  assert.doesNotMatch(screen, /<h4[^>]*>Căn cứ quyết định<\/h4>/);
+  assert.doesNotMatch(editor, /board-policy-reference/);
+  assert.doesNotMatch(editor, /form\.decision_reference/);
+  assert.match(screen, /\/school-workflow-policies\?page=/);
+  assert.match(screen, /page_size=/);
+  assert.match(screen, /policyQuery\.data\?\.pagination\.total/);
 });

@@ -99,7 +99,7 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
         <p className="text-lg font-semibold">{selected.kind==='proposal'?selected.record.name:selected.record.school_name}</p>
         <p>Loại: {selected.kind==='proposal'?'Đề xuất trường':'Gia hạn tiếp cận'}</p>
         <p>Hạn xử lý: {workflowDate(selected.record.review_due_at)}</p>
-        <p className="whitespace-pre-wrap rounded-xl border p-4">{selected.record.reason??(selected.kind==='extension'?selected.record.progress:'Chưa có nội dung')}</p>
+        <p className="whitespace-pre-wrap rounded-xl border p-4">{selected.kind==='proposal'?selected.record.reason:selected.record.progress}</p>
         {selected.kind==='proposal'&&selected.record.can_manager_review&&<div className="flex flex-wrap gap-2">
           <AppButton tone="green" onClick={()=>{openProposal(selected.record as Proposal,true);setSelected(null);}}>Chuyển tiếp</AppButton>
           <AppButton tone="danger" onClick={()=>{openProposal(selected.record as Proposal,false);setSelected(null);}}>Từ chối</AppButton>

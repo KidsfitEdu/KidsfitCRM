@@ -166,7 +166,9 @@ public static class CustomerCareEndpoints
         string? search, int? page, int? page_size, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        if (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage) || !access.Has(Permissions.SchoolCareAssign))
+        if (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage) || !access.Has(Permissions.SchoolCareAssign)
+            || !await db.Organizations.AnyAsync(o => o.Code == "KIDSFIT" && o.Status == "ACTIVE"
+                && access.OrganizationIds.Contains(o.Id), ct))
             throw new KeyNotFoundException();
         var (p, size) = Pagination(page, page_size);
         var term = search?.Trim() ?? "";

@@ -12,7 +12,10 @@ public sealed partial class ChannelSalesActions
         var access = await RequirePermission(actorId, Permissions.SchoolCareAssign, ct);
         // Only a central Admin may assign across partner-owned contracts.
         // Old permission rows granted to Sales Managers must not authorize this action.
-        if (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage)) throw new KeyNotFoundException();
+        if (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage)
+            || !await db.Organizations.AnyAsync(o => o.Code == "KIDSFIT" && o.Status == "ACTIVE"
+                && access.OrganizationIds.Contains(o.Id), ct))
+            throw new KeyNotFoundException();
         var key = SchoolKey(request.IdempotencyKey); var hash = ChannelSalesValidation.Fingerprint(request, contractId);
         var reason = Validation.Required(request.Reason, "reason", "Cần nội dung bàn giao CSKH.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);

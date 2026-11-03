@@ -62,9 +62,9 @@ export function SalesHandoverDrawer({apiBase,token,membershipId,onClose,onChange
             leadingIcon={<UserRoundX className="size-4"/>} onClick={()=>setConfirm(true)}>Bàn giao và ngưng</AppButton>}
       </div>}>
       <div className="space-y-5 text-sm">
-        {loading&&<p role="status" className="text-muted-foreground">Đang kiểm tra trường, hợp đồng và lịch hẹn…</p>}
+        {loading&&<output className="block text-muted-foreground">Đang kiểm tra trường, hợp đồng và lịch hẹn…</output>}
         {error&&<p role="alert" className="rounded-xl border border-red-300 p-3 text-red-700">{error}</p>}
-        {success&&<p role="status" className="rounded-xl border border-green-300 bg-green-50 p-3 text-green-800">{success}</p>}
+        {success&&<output className="block rounded-xl border border-green-300 bg-green-50 p-3 text-green-800">{success}</output>}
         {preview&&<>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {[

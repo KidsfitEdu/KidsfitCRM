@@ -94,7 +94,10 @@ public sealed partial class ChannelSalesActions
         var access = await RequirePermission(actorId, Permissions.SchoolHandoverManage, ct);
         var key = SchoolKey(request.IdempotencyKey); var hash = ChannelSalesValidation.Fingerprint(request, membershipId);
         var reason = Validation.Required(request.Reason, "reason", "Cần lý do ngưng hoạt động.", 2000);
-        var summary = Validation.Required(request.Summary, "summary", "Cần nội dung bàn giao, lịch hẹn và cam kết còn lại.", 4000);
+        // The UI only requires a reason; audit the automatic revocation and handover details below.
+        var summary = string.IsNullOrWhiteSpace(request.Summary)
+            ? "Hệ thống thu hồi lượt tiếp cận và hủy các yêu cầu đang chờ theo quy trình khóa thành viên."
+            : Validation.Required(request.Summary, "summary", "Nội dung bàn giao không hợp lệ.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var member = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {membershipId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId) throw new KeyNotFoundException();
@@ -182,12 +185,16 @@ public sealed partial class ChannelSalesActions
     public Task<long> ReactivateSchoolMembership(long id, ReactivateSchoolMembershipRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await RequirePermission(actorId, Permissions.SchoolHandoverManage, ct);
-        var reason = Validation.Required(request.Reason, "reason", "Cần lý do khôi phục quyền truy cập.", 2000);
+        var reason = string.IsNullOrWhiteSpace(request.Reason)
+            ? "Admin xác nhận mở khóa quyền truy cập."
+            : Validation.Required(request.Reason, "reason", "Lý do khôi phục không hợp lệ.", 2000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var member = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId
             || (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsSchoolSales(member))) throw new KeyNotFoundException();
         if (request.ReactivateAccount && (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage))) throw new KeyNotFoundException();
+        if (!await db.Organizations.AnyAsync(x => x.Id == member.OrganizationId && x.Status == "ACTIVE", ct))
+            throw new ApiConflictException("Không thể mở khóa thành viên khi tổ chức vẫn đang bị khóa.");
         var user = await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {member.UserId} FOR UPDATE").SingleAsync(ct);
         if (user.Status == "SUSPENDED" && !request.ReactivateAccount) throw new ApiConflictException("Tài khoản đã bị khóa toàn bộ. Admin cần khôi phục tài khoản tại Vận hành → Bàn giao.");
         if (user.Status is not ("ACTIVE" or "SUSPENDED")) throw new ApiConflictException("Trạng thái tài khoản chưa cho phép khôi phục qua thao tác này.");

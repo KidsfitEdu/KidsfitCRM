@@ -68,7 +68,14 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   };
   const confirmAction=()=>{
     if(!confirm)return;
-    void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',{});
+    // No manual reason is required in the popup. Keep a unique traceable reference
+    // for the existing backend approval and audit contracts.
+    const reference = 'POLICY-'+confirm.action.toUpperCase()+'-'+confirm.id+'-'+Date.now().toString(36)
+      +'-'+Math.random().toString(36).slice(2,10);
+    const body = confirm.action==='cancel'
+      ? {reason:'BGĐ xác nhận xóa bản nháp chính sách.'}
+      : {decision_reference:reference};
+    void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',body);
   };
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"

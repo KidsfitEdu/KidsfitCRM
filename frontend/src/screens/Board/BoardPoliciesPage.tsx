@@ -61,7 +61,6 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
       manager_review_hours:form.manager_review_hours,admin_review_hours:form.admin_review_hours,
       invitation_hours:form.invitation_hours,max_extension_days:form.max_extension_days,
       max_extension_count:form.max_extension_count,max_total_extension_days:form.max_total_extension_days,
-      decision_reference:'POLICY-SAVE-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),
     };
     if(editingId!==null)void write('/school-workflow-policies/'+editingId+'/draft','PATCH',payload);
     else void write('/school-workflow-policies','POST',{...payload,organization_id:form.organization_id,activate:false});

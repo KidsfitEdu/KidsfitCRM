@@ -8,9 +8,10 @@ import { PersonnelPage } from '@/screens/Admin/Personnel/PersonnelPage';
 import { CapacitiesPage } from '@/screens/Admin/Capacities/CapacitiesPage';
 import { PoliciesPage } from '@/screens/Admin/Policies/PoliciesPage';
 import { ReportsPage } from '@/screens/Admin/Reports/ReportsPage';
+import { CareAssignmentsPage } from '@/screens/Admin/CareAssignments/CareAssignmentsPage';
 import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 
-export type AdminSection='dashboard'|'admin-schools'|'admin-proposals'|'admin-team'|'admin-capacity'|'admin-policies'|'admin-reports';
+export type AdminSection='dashboard'|'admin-schools'|'admin-proposals'|'admin-team'|'admin-capacity'|'admin-policies'|'admin-reports'|'admin-care-assignments';
 type Props=AdminPageProps&{section:AdminSection};
 
 /** Temporary compatibility boundary for the existing state-driven CRM router.
@@ -26,5 +27,6 @@ export function AdminWorkspace({section,...props}:Props) {
     {section==='admin-capacity'&&<AdminPageStatus apiBase={props.apiBase}><CapacitiesPage apiBase={props.apiBase} token={props.token} abilities={props.abilities}/></AdminPageStatus>}
     {section==='admin-policies'&&<PoliciesPage {...props}/>}
     {section==='admin-reports'&&<ReportsPage {...props}/>}
+    {section==='admin-care-assignments'&&<CareAssignmentsPage {...props}/>}
   </>;
 }

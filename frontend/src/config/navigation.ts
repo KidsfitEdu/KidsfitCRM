@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CalendarDays, Phone, FileCheck2 } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, BookOpenCheck, UsersRound, ShieldCheck, TrendingUp, Clock3, WalletCards, CalendarDays, Phone, FileCheck2, Headset, Wrench } from 'lucide-react';
 
 // Stable view IDs and sidebar labels. Do not confuse display profiles with RBAC roles.
 export type View =
@@ -11,6 +11,7 @@ export type View =
   | 'admin-capacity'
   | 'admin-policies'
   | 'admin-reports'
+  | 'admin-care-assignments'
   | 'manager-dashboard'
   | 'manager-proposals'
   | 'manager-allocations'
@@ -41,6 +42,7 @@ export type View =
   | 'role-sales-staff-income'
   | 'role-checkee-dashboard'
   | 'role-checkee-verification'
+  | 'role-checkee-support'
   | 'role-checkee-reconciliation'
   | 'role-checkee-disputes'
   | 'role-checkee-history'
@@ -60,6 +62,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'admin-capacity', label: 'Hạn mức tiếp cận', shortLabel: 'Hạn mức', icon: UsersRound },
   { id: 'admin-policies', label: 'Chính sách vận hành', shortLabel: 'Chính sách', icon: ShieldCheck },
   { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
+  { id: 'admin-care-assignments', label: 'Phân công CSKH', shortLabel: 'Phân công CSKH', icon: Headset },
   { id: 'role-board-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-board-overdue', label: 'Hồ sơ quá hạn', shortLabel: 'Quá hạn', icon: Clock3 },
   { id: 'role-board-disputes', label: 'Tranh chấp', shortLabel: 'Tranh chấp', icon: ShieldCheck },
@@ -67,10 +70,8 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'role-accounting-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-accounting-revenue', label: 'Hợp đồng & hoa hồng', shortLabel: 'Hợp đồng', icon: WalletCards },
   { id: 'role-customer-care-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
-  { id: 'role-customer-care-handover', label: 'Trường bàn giao', shortLabel: 'Trường bàn giao', icon: GraduationCap },
-  { id: 'role-customer-care-cases', label: 'Yêu cầu hỗ trợ', shortLabel: 'Yêu cầu hỗ trợ', icon: BookOpenCheck },
-  { id: 'role-customer-care-customers', label: 'Khách hàng', shortLabel: 'Khách hàng', icon: UsersRound },
-  { id: 'role-customer-care-followup', label: 'Theo dõi chăm sóc', shortLabel: 'Theo dõi chăm sóc', icon: CalendarDays },
+  { id: 'role-customer-care-customers', label: 'Trường phụ trách', shortLabel: 'Trường phụ trách', icon: GraduationCap },
+  { id: 'role-customer-care-cases', label: 'Ticket lỗi hệ thống', shortLabel: 'Ticket lỗi', icon: Wrench },
   { id: 'role-sales-staff-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-sales-staff-schools', label: 'Danh sách trường', shortLabel: 'Danh sách trường', icon: GraduationCap },
   { id: 'role-sales-staff-customers', label: 'Trường của tôi', shortLabel: 'Trường của tôi', icon: UsersRound },
@@ -79,6 +80,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'role-sales-staff-income', label: 'Thu nhập', shortLabel: 'Thu nhập', icon: WalletCards },
   { id: 'role-checkee-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-checkee-verification', label: 'Xác minh hợp đồng', shortLabel: 'Xác minh hợp đồng', icon: FileCheck2 },
+  { id: 'role-checkee-support', label: 'Hỗ trợ kỹ thuật', shortLabel: 'Hỗ trợ kỹ thuật', icon: Wrench },
   { id: 'role-collaborator-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-collaborator-schools', label: 'Đăng ký trường', shortLabel: 'Đăng ký trường', icon: GraduationCap },
   { id: 'role-collaborator-proposals', label: 'Đề xuất trường', shortLabel: 'Đề xuất trường', icon: BookOpenCheck },
@@ -116,6 +118,7 @@ export const viewCopy: Record<
   'admin-reports': { eyebrow: 'Báo cáo CRM', title: 'Giám sát vận hành', description: 'Theo dõi các chỉ số kinh doanh theo phân quyền.' },
   'admin-capacity': { eyebrow: 'Quản trị / Hạn mức tiếp cận', title: 'Quản lý hạn mức tiếp cận', description: 'Quản lý giới hạn trường đang tiếp cận của Nhân viên và CTV.' },
   'admin-policies': { eyebrow: 'Quản trị / Chính sách vận hành', title: 'Quản lý chính sách vận hành', description: 'Xem phiên bản chính sách và thời hạn xử lý theo quy định.' },
+  'admin-care-assignments': { eyebrow: 'Quản trị / Chăm sóc khách hàng', title: 'Phân công CSKH', description: 'Admin điều phối nhân sự chăm sóc khách hàng.' },
   'role-board-dashboard': {eyebrow:'Ban giám đốc',title:'Tổng quan',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-oversight': {eyebrow:'Ban giám đốc',title:'Báo cáo',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-overdue': {eyebrow:'Ban giám đốc',title:'Quá hạn',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
@@ -128,8 +131,8 @@ export const viewCopy: Record<
   'role-accounting-reports': {eyebrow:'Kế toán',title:'Báo cáo',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
   'role-customer-care-dashboard': {eyebrow:'Chăm sóc khách hàng',title:'Tổng quan',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
   'role-customer-care-handover': {eyebrow:'Chăm sóc khách hàng',title:'Trường bàn giao',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
-  'role-customer-care-cases': {eyebrow:'Chăm sóc khách hàng',title:'Yêu cầu hỗ trợ',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
-  'role-customer-care-customers': {eyebrow:'Chăm sóc khách hàng',title:'Khách hàng',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
+  'role-customer-care-cases': {eyebrow:'Chăm sóc khách hàng',title:'Ticket lỗi hệ thống',description:'Chuyển và theo dõi lỗi phần mềm với CHECKEE.'},
+  'role-customer-care-customers': {eyebrow:'Chăm sóc khách hàng',title:'Trường phụ trách',description:'Hỗ trợ các trường học được phân công.'},
   'role-customer-care-followup': {eyebrow:'Chăm sóc khách hàng',title:'Theo dõi chăm sóc',description:'Tiếp nhận trường bàn giao và theo dõi hỗ trợ sau bán.'},
   'role-sales-staff-dashboard': {eyebrow:'Nhân viên bán hàng',title:'Tổng quan',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
   'role-sales-staff-schools': {eyebrow:'Nhân viên bán hàng',title:'Danh sách trường',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
@@ -139,6 +142,7 @@ export const viewCopy: Record<
   'role-sales-staff-income': {eyebrow:'Nhân viên bán hàng',title:'Thu nhập',description:'Tiếp cận trường, ghi nhận hoạt động và theo dõi công việc được giao.'},
   'role-checkee-dashboard': {eyebrow:'CHECKEE',title:'Tổng quan',description:'Theo dõi hợp đồng chờ xác minh, đã phản hồi và đã xác minh.'},
   'role-checkee-verification': {eyebrow:'CHECKEE',title:'Xác minh hợp đồng',description:'Tiếp nhận, xem file hợp đồng, xác minh và theo dõi lịch sử.'},
+  'role-checkee-support': {eyebrow:'CHECKEE',title:'Hỗ trợ kỹ thuật',description:'Phản hồi lỗi phần mềm do CSKH chuyển.'},
   'role-checkee-reconciliation': {eyebrow:'CHECKEE',title:'Đối soát',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
   'role-checkee-disputes': {eyebrow:'CHECKEE',title:'Tranh chấp',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},
   'role-checkee-history': {eyebrow:'CHECKEE',title:'Lịch sử',description:'Xác minh hợp đồng, đối soát và theo dõi hồ sơ CHECKEE.'},

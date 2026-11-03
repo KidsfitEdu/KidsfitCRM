@@ -3,19 +3,17 @@
 import type { RolePageProps } from '@/types/role-pages';
 import { rolePageSections } from '@/config/role-pages';
 import { DashboardPage } from './Dashboard/DashboardPage';
-import { HandoverPage } from './Handover/HandoverPage';
 import { CasesPage } from './Cases/CasesPage';
 import { CustomersPage } from './Customers/CustomersPage';
-import { FollowupPage } from './Followup/FollowupPage';
 
 export type RoleSection = keyof typeof rolePageSections.CustomerCare;
 type Props = RolePageProps & {section: RoleSection};
 const pages = {
   dashboard: DashboardPage,
-  handover: HandoverPage,
+  handover: CustomersPage,
   cases: CasesPage,
   customers: CustomersPage,
-  followup: FollowupPage,
+  followup: CustomersPage,
 };
 
 /** Existing view IDs are preserved; each page owns its UI entrypoint. */

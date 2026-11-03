@@ -11,6 +11,7 @@ public static class SchoolOperationsEndpoints
     {
         group.MapGet("/school-operations", WorkspacePage).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/report", Report).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/school-workflow-policies", PolicyListPage).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/{kind}/{id:long}/history", History).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-proposals/{id:long}/revisions", ProposalRevisions).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/school-units/{id:long}/history", UnitHistory).RequireAuthorization(Permissions.SchoolDirectoryManage);
@@ -70,6 +71,41 @@ public static class SchoolOperationsEndpoints
     }
 
     private static IResult Saved(long id) => Results.Ok(new { data = new { id }, message = "Đã ghi nhận thay đổi." });
+
+    // Dedicated policy list avoids the 100-row snapshot cap in the general workspace API.
+    private static async Task<IResult> PolicyListPage(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (access.OrganizationIds.Length == 0) throw new KeyNotFoundException();
+        var query = db.SchoolWorkflowPolicies.AsNoTracking().Where(x =>
+            x.Status != "CANCELLED" && (access.All || access.OrganizationIds.Contains(x.OrganizationId)));
+        var organizationValue = http.Request.Query["organization_id"].ToString();
+        if (!string.IsNullOrWhiteSpace(organizationValue))
+        {
+            if (!long.TryParse(organizationValue, out var organizationId) || organizationId <= 0)
+                throw ApiValidationException.For("organization_id", "Tổ chức không hợp lệ.");
+            if (!access.CanManageOrganization(organizationId)) throw new KeyNotFoundException();
+            query = query.Where(x => x.OrganizationId == organizationId);
+        }
+        var term = http.Request.Query["search"].ToString().Trim();
+        if (term.Length > 190) throw ApiValidationException.For("search", "Từ khóa tối đa 190 ký tự.");
+        if (term.Length > 0)
+        {
+            var numeric = int.TryParse(term, out var version) ? version : -1;
+            query = query.Where(x => x.Version == numeric
+                || db.Organizations.Any(o => o.Id == x.OrganizationId && o.Name.Contains(term)));
+        }
+        var page = int.TryParse(http.Request.Query["page"], out var p) ? Math.Clamp(p, 1, 10000) : 1;
+        var requestedSize = int.TryParse(http.Request.Query["page_size"], out var size) ? size : 20;
+        var pageSize = requestedSize is 10 or 20 or 50 or 100 ? requestedSize : 20;
+        var count = await query.CountAsync(ct);
+        var items = await query.OrderBy(x => x.OrganizationId).ThenByDescending(x => x.Version)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(x => new { x.Id, x.OrganizationId, x.Version, x.Status, x.ManagerReviewHours,
+                x.AdminReviewHours, x.InvitationHours, x.MaxExtensionDays, x.MaxExtensionCount,
+                x.MaxTotalExtensionDays, x.DecisionReference }).ToArrayAsync(ct);
+        return Results.Ok(new { items, pagination = new { page, page_size = pageSize, total = count } });
+    }
 
     private static IQueryable<SchoolProposal> Proposals(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolProposals.Where(x => a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.SubmittedByUserId == a.UserId || (a.Has(Permissions.SchoolProposalReview) && x.ManagerUserId == a.UserId))));

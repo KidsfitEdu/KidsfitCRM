@@ -7,19 +7,17 @@ import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AdminListPanel, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
-import { AppPagination } from '@/components/common/app-pagination';
 import { channelRequest } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
 import type { RolePageProps } from '@/types/role-pages';
 
 export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
-  const [page,setPage]=useState(1);
   const [organization,setOrganization]=useState('ALL');
   const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.escalation.resolve')||abilities.includes('channel_sales.school.dispute.resolve');
   const connected=Boolean(apiBase&&token&&allowed);
   const query=useQuery({
-    queryKey:['board','policies',apiBase,page],
-    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page='+page),
+    queryKey:['board','policies',apiBase],
+    queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page=1'),
     enabled:connected,
   });
   const data=query.data;
@@ -52,7 +50,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     <AdminListPanel>
       <div className="border-b p-5">
         <label htmlFor="board-policy-org" className="mb-2 block text-sm font-medium">Tổ chức</label>
-        <AppNativeSelect id="board-policy-org" containerClassName="w-full sm:w-72" value={organization} onChange={e=>{setOrganization(e.target.value);setPage(1);}}>
+        <AppNativeSelect id="board-policy-org" containerClassName="w-full sm:w-72" value={organization} onChange={e=>{setOrganization(e.target.value);}}>
           <option value="ALL">Tất cả tổ chức</option>
           {(data?.organizations??[]).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
         </AppNativeSelect>
@@ -71,9 +69,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         </table>
         {connected&&!query.isFetching&&!policies.length&&<p className="p-7 text-center text-sm text-muted-foreground">Không có phiên bản chính sách phù hợp trong trang này.</p>}
       </div>
-      <AppPagination page={page} pageSize={data?.pagination?.page_size??100} total={data?.pagination?.totals.policies??policies.length}
-        disabled={query.isFetching} onPageChange={setPage} showSummary={false}/>
     </AdminListPanel>
-    <p className="text-xs text-muted-foreground">Các giới hạn hiển thị được lấy từ phiên bản chính sách trong API; không áp dụng con số mặc định chưa kích hoạt. Danh sách được lọc trên trang dữ liệu hiện tại.</p>
+    <p className="text-xs text-muted-foreground">Các giới hạn hiển thị được lấy từ phiên bản chính sách trong API; không áp dụng con số mặc định chưa kích hoạt. API hiện trả tối đa 100 phiên bản chính sách gần nhất; đây không phải toàn bộ lịch sử nếu đã vượt giới hạn.</p>
   </div>;
 }

@@ -103,3 +103,18 @@ test('Admin unlock confirmation has compact header and concise copy', () => {
   assert.match(confirm, /headerClassName=\{compactHeader/);
   assert.match(dialog, /headerClassName\?: string/);
 });
+
+test('Admin personnel and partner forms align native selects and place actions in dialog footers', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const actions = read('src/components/common/form-actions.tsx');
+  assert.match(page, /contentClassName="sm:max-w-md" title=\{partner/);
+  assert.equal((page.match(/footer=\{<FormActions inDialogFooter/g) ?? []).length, 3);
+  assert.match(page, /<label htmlFor="admin-new-org">Tổ chức \*/);
+  assert.match(page, /<label htmlFor="admin-new-role">Vai trò \*/);
+  assert.match(page, /<label htmlFor="admin-new-manager">Quản lý bán hàng trực tiếp \*/);
+  assert.match(page, /<AppNativeSelect id="admin-new-org" containerClassName="w-full"/);
+  assert.match(page, /<AppNativeSelect id="admin-new-role" containerClassName="w-full"/);
+  assert.match(page, /grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2/);
+  assert.match(page, /<label htmlFor="admin-partner-name">Tên đối tác \*/);
+  assert.match(actions, /inDialogFooter \? "flex w-full items-center justify-end gap-2"/);
+});

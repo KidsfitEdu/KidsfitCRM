@@ -126,6 +126,7 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
   // Sales now uses the five-entry menu; consultation and extension actions live
   // inside "Trường của tôi", so there is no separate activity sidebar entry.
+  assert.equal(await tabs.getByRole('button',{name:'Gia hạn tiếp cận'}).count(),0);
   await navigation.getByRole('button',{name:'Đề xuất trường',exact:true}).click();
   await page.getByRole('table').waitFor();
   assert.ok(await page.getByRole('columnheader',{name:'Người đề xuất'}).isVisible());

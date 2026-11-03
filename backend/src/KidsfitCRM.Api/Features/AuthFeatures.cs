@@ -42,6 +42,10 @@ public static class AuthFeatures
         if (user is null || user.Status != "ACTIVE" || hasher.VerifyHashedPassword(user, user.Password, password) == PasswordVerificationResult.Failed)
             throw ApiValidationException.For("email", "Email hoặc mật khẩu không chính xác.");
 
+        // A member of a suspended organization must not log in through that organization.
+        // For multi-organization users, another active membership can still authorize login.
+        if (!await HasActiveMembership(db, user.Id))
+            throw ApiValidationException.For("email", "Tài khoản không có tổ chức hoạt động.");
         var permissions = await PermissionCodes(db, user.Id);
         user.LastLoginAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
@@ -56,6 +60,12 @@ public static class AuthFeatures
     }
 
     public static IResult Logout() => Results.Ok(new { message = "Đã đăng xuất." });
+
+    internal static Task<bool> HasActiveMembership(KidsfitDbContext db, long userId) =>
+        (from membership in db.OrganizationMemberships
+         join organization in db.Organizations on membership.OrganizationId equals organization.Id
+         where membership.UserId == userId && membership.Status == "ACTIVE" && organization.Status == "ACTIVE"
+         select membership.Id).AnyAsync();
 
     internal static async Task<string[]> PermissionCodes(KidsfitDbContext db, long userId) => await (
         from userRole in db.UserRoles

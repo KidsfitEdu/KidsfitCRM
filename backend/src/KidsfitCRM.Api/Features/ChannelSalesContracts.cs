@@ -51,7 +51,7 @@ public sealed record ReconcileContractRequest(string? Reason);
 public sealed record CreatePayoutRequest(string? IdempotencyKey, long OrganizationId, long BeneficiaryUserId, string? Period, decimal WithholdingAmount, string? WithholdingReason, long? ContractId = null);
 public sealed record CompletePayoutRequest(string? PaymentReference, string? Reason, long? EvidenceId = null, DateTime? PaidAt = null, decimal? Amount = null);
 public sealed record CreateCommissionPolicyRequest(long OrganizationId, string? Code, string? Name, decimal RatePercent, DateOnly EffectiveFrom, DateOnly? EffectiveUntil, string? PersonnelType = null);
-public sealed record CreateSalesAccountRequest(long OrganizationId, string? Name, string? Email, string? Password, string? RoleCode);
+public sealed record CreateSalesAccountRequest(long OrganizationId, string? Name, string? Email, string? Password, string? RoleCode, long? ManagerUserId = null);
 public sealed record ChangeMembershipStatusRequest(string? Status, string? Reason = null, string? Summary = null, string? IdempotencyKey = null);
 public sealed record AdjustCommissionRequest(string? IdempotencyKey, decimal Amount, string? Period, string? Reason);
 

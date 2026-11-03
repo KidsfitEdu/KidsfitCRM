@@ -19,6 +19,7 @@ public static class ChannelSalesOperationsEndpoints
         group.MapGet("/reconciliation-cases", Reconciliations).RequireAuthorization(Permissions.ChannelSalesView);
         CheckeeVerificationEndpoints.Map(group);
         group.MapGet("/management", Management).RequireAuthorization(Permissions.ChannelSalesTeamManage);
+        group.MapAdminPersonnel();
         group.MapGet("/customers/{id:long}", CustomerDetail).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/customers/{id:long}/work-logs", CustomerWorkLogEndpoints.List).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/customers/{id:long}/support-activities", async (long id, AddCustomerActivityRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
@@ -219,7 +220,7 @@ public static class ChannelSalesOperationsEndpoints
     private static async Task<IResult> Management(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        var organizations = db.Organizations.Where(x => x.Status == "ACTIVE" && (access.All || access.OrganizationIds.Contains(x.Id)));
+        var organizations = db.Organizations.Where(x => access.All || (x.Status == "ACTIVE" && access.OrganizationIds.Contains(x.Id)));
         var ids = organizations.Select(x => x.Id);
         var team = await (from membership in db.OrganizationMemberships
                           join user in db.Users on membership.UserId equals user.Id
@@ -234,16 +235,22 @@ public static class ChannelSalesOperationsEndpoints
                               organization_name = organization.Name,
                               user.Name,
                               user.Email,
+                              user.Phone,
+                              account_status = user.Status,
+                              membership.ManagerUserId,
                               membership.MembershipType,
                               membership.Status,
+                              can_edit = membership.UserId != access.UserId && access.All && access.Has(Permissions.ChannelSalesIdentityManage),
                               can_change_status = membership.UserId != access.UserId && (access.Has(Permissions.ChannelSalesIdentityManage)
-                                  || membership.MembershipType == "PARTNER_COLLABORATOR" || membership.MembershipType == "COLLABORATOR"),
-                          }).Take(200).ToArrayAsync(ct);
+                                  || membership.MembershipType == "SALES" || membership.MembershipType == "PARTNER_COLLABORATOR" || membership.MembershipType == "COLLABORATOR"),
+                          }).Take(1000).ToArrayAsync(ct);
         return Results.Ok(new
         {
             team,
-            organizations = await organizations.Select(x => new { x.Id, x.Code, x.Name }).ToArrayAsync(ct),
-            roles = await db.Roles.Where(x => (access.Has(Permissions.ChannelSalesIdentityManage) && x.Code != "SALES") || x.Code == "PARTNER_COLLABORATOR").Select(x => new { x.Code, x.Name }).ToArrayAsync(ct),
+            organizations = await organizations.OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.Name, x.OrganizationType, x.Status }).ToArrayAsync(ct),
+            roles = await db.Roles.Where(x => access.Has(Permissions.ChannelSalesIdentityManage)
+                ? new[] { "SALES", "SALES_MANAGER", "ACCOUNTANT", "CUSTOMER_SERVICE", "CHECKEE" }.Contains(x.Code)
+                : x.Code == "SALES").Select(x => new { x.Code, x.Name }).ToArrayAsync(ct),
         });
     }
 }

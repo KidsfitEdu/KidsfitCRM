@@ -18,13 +18,14 @@ type AppDialogProps = {
   busy?: boolean;
   contentClassName?: string;
   bodyClassName?: string;
+  headerClassName?: string;
   footerAlign?: 'start' | 'center' | 'end';
 };
 
 /** KIDSFIT CRM dialog shell: one consistent brand header, scrollable content and fixed footer. */
 export function AppDialog({
   open, onOpenChange, title, description, eyebrow = 'KIDSFIT CRM',
-  children, footer, busy = false, contentClassName, bodyClassName, footerAlign = 'end',
+  children, footer, busy = false, contentClassName, bodyClassName, headerClassName, footerAlign = 'end',
 }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={next => { if (!busy) onOpenChange(next); }}>
@@ -35,7 +36,7 @@ export function AppDialog({
           contentClassName,
         )}
       >
-        <DialogHeader className="shrink-0 bg-[#1b5e20] px-5 py-4 text-white sm:px-6 sm:py-5">
+        <DialogHeader className={cn("shrink-0 bg-[#1b5e20] px-5 py-4 text-white sm:px-6 sm:py-5", headerClassName)}>
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
               <span className="text-[11px] font-semibold uppercase tracking-[.14em] text-[#dcf3dd]">{eyebrow}</span>

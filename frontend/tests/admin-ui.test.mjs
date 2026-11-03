@@ -60,3 +60,75 @@ test('Shared school directory applies new notification behavior only to Admin', 
   assert.match(source, /preview\.warnings\.map/);
   assert.match(source, /setPreview\(result\)/);
 });
+
+test('Admin personnel separates account and membership states and reuses audited server operations', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const service = read('src/services/personnel.service.ts');
+  assert.match(page, /Đối tác \/ Tổ chức/);
+  assert.match(page, /account_status/);
+  assert.match(page, /can_edit/);
+  assert.match(page, /<ConfirmDialog/);
+  assert.match(page, /completeTeamHandover/);
+  assert.match(page, /reactivateTeam/);
+  assert.match(page, /role_code/);
+  assert.match(service, /\/school-handovers\//);
+  assert.match(service, /\/school-team\//);
+  assert.match(service, /\/admin\/partners/);
+  assert.doesNotMatch(service, /DELETE/);
+});
+
+test('Admin personnel shows one lock icon per member and minimal lock/unlock dialogs', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const dialog = read('src/components/common/dialogs/confirm-dialog.tsx');
+  assert.match(page, /<th className="px-5 py-4">Tổ chức<\/th>/);
+  assert.match(page, /<th className="px-5 py-4">Vai trò<\/th>/);
+  assert.match(page, /effectiveStatus\(p,management/);
+  assert.doesNotMatch(page, /Khóa toàn tài khoản/);
+  assert.doesNotMatch(page, /Nội dung bàn giao \*/);
+  assert.doesNotMatch(page, /Chỉ tác động tư cách thành viên/);
+  assert.match(page, /partnerStatusAction/);
+  assert.match(page, /statusAction\?\.suspend&&/);
+  assert.match(dialog, /description\?: ReactNode/);
+});
+
+test('Admin unlock confirmation has compact header and concise copy', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const confirm = read('src/components/common/dialogs/confirm-dialog.tsx');
+  const dialog = read('src/components/common/dialogs/app-dialog.tsx');
+  assert.match(page, /compactHeader=\{!statusAction\?\.suspend\}/);
+  assert.match(page, /compactHeader=\{!partnerStatusAction\?\.suspend\}/);
+  assert.match(page, /Bạn có chắc chắn muốn mở khóa thành viên này không\?/);
+  assert.match(page, /Bạn có chắc chắn muốn mở khóa tổ chức này không\?/);
+  assert.match(page, /'Xác nhận'/);
+  assert.match(confirm, /headerClassName=\{compactHeader/);
+  assert.match(dialog, /headerClassName\?: string/);
+});
+
+test('Admin personnel and partner forms align native selects and place actions in dialog footers', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const actions = read('src/components/common/form-actions.tsx');
+  assert.match(page, /contentClassName="sm:max-w-md" title=\{partner/);
+  assert.equal((page.match(/footer=\{<FormActions inDialogFooter/g) ?? []).length, 3);
+  assert.match(page, /<label htmlFor="admin-new-org">Tổ chức \*/);
+  assert.match(page, /<label htmlFor="admin-new-role">Vai trò \*/);
+  assert.match(page, /<label htmlFor="admin-new-manager">Quản lý bán hàng trực tiếp \*/);
+  assert.match(page, /<AppNativeSelect id="admin-new-org" containerClassName="w-full"/);
+  assert.match(page, /<AppNativeSelect id="admin-new-role" containerClassName="w-full"/);
+  assert.match(page, /grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2/);
+  assert.match(page, /<label htmlFor="admin-partner-name">Tên đối tác \*/);
+  assert.match(actions, /inDialogFooter \? "flex w-full items-center justify-end gap-2"/);
+});
+
+test('Personnel detail reuses the shared drawer and shows grouped profile without duplicate close button', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const detail = read('src/screens/Admin/Personnel/PersonnelDetailDrawer.tsx');
+  assert.match(page, /<PersonnelDetailDrawer person=\{detail\}/);
+  assert.match(detail, /<AppDrawer/);
+  assert.match(detail, /Thông tin cá nhân/);
+  assert.match(detail, /Thông tin tổ chức & phân quyền/);
+  assert.match(detail, /Trạng thái truy cập/);
+  assert.match(detail, /effectiveLabel/);
+  assert.match(detail, /hasManager &&/);
+  assert.match(detail, /Chưa cập nhật/);
+  assert.doesNotMatch(detail, /<AppButton[^>]*>Đóng<\/AppButton>/);
+});

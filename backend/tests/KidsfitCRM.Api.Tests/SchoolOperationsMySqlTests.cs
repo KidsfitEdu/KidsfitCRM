@@ -64,6 +64,97 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task AdminPartnerCrudIsScopedAuditedAndNeverDeletesOrganization()
+    {
+        var actor = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var code = "P-" + Key()[..14].ToUpperInvariant();
+        var created = await AdminPersonnelEndpoints.CreatePartner(
+            new(code, "Đối tác kiểm thử"), Http(actor), db, Ct);
+        var id = Json(created).GetProperty("data").GetProperty("id").GetInt64();
+        Assert.Equal("ACTIVE", await db.Organizations.Where(x => x.Id == id).Select(x => x.Status).SingleAsync(Ct));
+        await AdminPersonnelEndpoints.UpdatePartner(id,
+            new("Đối tác kiểm thử cập nhật", "SUSPENDED", "Ngừng hợp tác có căn cứ"),
+            Http(actor), db, Ct);
+        Assert.Equal("SUSPENDED", await db.Organizations.Where(x => x.Id == id).Select(x => x.Status).SingleAsync(Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            new ChannelSalesActions(db).CreateSalesAccount(
+                new CreateSalesAccountRequest(id, "Nhân sự mới", Key() + "@example.test", "Password@2026Secure", "ACCOUNTANT"),
+                actor, new Microsoft.AspNetCore.Identity.PasswordHasher<User>(), Http(actor), Ct));
+        Assert.Equal("Đối tác kiểm thử cập nhật", await db.Organizations.Where(x => x.Id == id).Select(x => x.Name).SingleAsync(Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityType == nameof(Organization) &&
+            x.EntityId == id && x.Action == "UPDATE_ADMIN_PARTNER", Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            AdminPersonnelEndpoints.UpdatePartner(
+                db.Organizations.Single(x => x.Code == "KIDSFIT").Id,
+                new("Sửa KIDSFIT", "SUSPENDED", "Không hợp lệ"), Http(actor), db, Ct));
+    }
+
+    [MySqlFact] public async Task SuspendedOrganizationBlocksAllMembersButRestoresOnlyActiveOnes()
+    {
+        var scenario = await Arrange();
+        var actor = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        Assert.True(await AuthFeatures.HasActiveMembership(db, scenario.Manager.UserId));
+        Assert.True(await AuthFeatures.HasActiveMembership(db, scenario.Seller.UserId));
+        await AdminPersonnelEndpoints.UpdatePartner(scenario.OrgId,
+            new("Tổ chức tạm khóa", "SUSPENDED", "Tạm ngừng hoạt động"), Http(actor), db, Ct);
+        Assert.False(await AuthFeatures.HasActiveMembership(db, scenario.Manager.UserId));
+        Assert.False(await AuthFeatures.HasActiveMembership(db, scenario.Seller.UserId));
+        Assert.Equal("ACTIVE", await db.OrganizationMemberships.Where(x => x.Id == scenario.Seller.MembershipId)
+            .Select(x => x.Status).SingleAsync(Ct));
+        await db.OrganizationMemberships.Where(x => x.Id == scenario.Peer.MembershipId)
+            .ExecuteUpdateAsync(x => x.SetProperty(m => m.Status, "SUSPENDED"), Ct);
+        await AdminPersonnelEndpoints.UpdatePartner(scenario.OrgId,
+            new("Tổ chức hoạt động", "ACTIVE", null), Http(actor), db, Ct);
+        Assert.True(await AuthFeatures.HasActiveMembership(db, scenario.Manager.UserId));
+        Assert.True(await AuthFeatures.HasActiveMembership(db, scenario.Seller.UserId));
+        Assert.False(await AuthFeatures.HasActiveMembership(db, scenario.Peer.UserId));
+        Assert.Equal("SUSPENDED", await db.OrganizationMemberships.Where(x => x.Id == scenario.Peer.MembershipId)
+            .Select(x => x.Status).SingleAsync(Ct));
+    }
+
+    [MySqlFact] public async Task MemberHandoverRequiresReasonButNotManualSummaryAndUnlockNeedsNoReason()
+    {
+        var scenario = await Arrange();
+        var actor = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.CompleteSchoolHandover(
+            scenario.Seller.MembershipId, new(Key(), "", null, false), actor, Http(actor), Ct));
+        await actions.CompleteSchoolHandover(scenario.Seller.MembershipId,
+            new(Key(), "Nhân sự nghỉ việc", null, false), actor, Http(actor), Ct);
+        Assert.False(await AuthFeatures.HasActiveMembership(db, scenario.Seller.UserId));
+        Assert.True(await db.SchoolHandovers.AnyAsync(x => x.MembershipId == scenario.Seller.MembershipId && x.Summary != "", Ct));
+        await actions.ReactivateSchoolMembership(scenario.Seller.MembershipId,
+            new(null, false), actor, Http(actor), Ct);
+        Assert.True(await AuthFeatures.HasActiveMembership(db, scenario.Seller.UserId));
+    }
+
+    [MySqlFact] public async Task AdminRoleEditRequiresHandoverAndCannotEscalateToDirector()
+    {
+        var scenario = await Arrange();
+        var actor = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var original = await db.Users.SingleAsync(x => x.Id == scenario.Peer.UserId, Ct);
+        await AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
+            new("Nhân sự cập nhật", "0901002003", "SALES", "Bổ sung thông tin", scenario.Manager.UserId),
+            Http(actor), db, Ct);
+        Assert.Equal("0901002003", (await db.Users.FindAsync([scenario.Peer.UserId], Ct))!.Phone);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
+                new("Nhân sự cập nhật", null, "DIRECTOR", "Không được cấp đặc quyền"),
+                Http(actor), db, Ct));
+        var actions = new ChannelSalesActions(db);
+        await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Peer.UserId, Http(), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
+                new("Nhân sự cập nhật", null, "ACCOUNTANT", "Chuyển vai trò sai khi còn trường"),
+                Http(actor), db, Ct));
+        Assert.True(await db.UserRoles.AnyAsync(x => x.UserId == scenario.Peer.UserId &&
+            db.Roles.Any(r => r.Id == x.RoleId && r.Code == "SALES"), Ct));
+    }
+
     [MySqlFact] public async Task DemoWorkflowPoliciesAreDraftOnlyIdempotentAndDoNotSetActiveSla()
     {
         await using var db = fixture.Open();

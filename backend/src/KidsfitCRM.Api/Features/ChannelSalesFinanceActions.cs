@@ -239,6 +239,10 @@ public sealed partial class ChannelSalesActions
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesTeamManage, ct);
         if (!access.CanManageOrganization(request.OrganizationId)) throw new KeyNotFoundException();
+        var targetOrganization = await db.Organizations.AsNoTracking().SingleOrDefaultAsync(x => x.Id == request.OrganizationId, ct)
+            ?? throw new KeyNotFoundException();
+        if (targetOrganization.Status != "ACTIVE")
+            throw new ApiConflictException("Tổ chức đang tạm khóa; không thể tạo thành viên mới.");
         var name = Validation.Required(request.Name, "name", "Vui lòng nhập họ tên.", 190);
         var email = Validation.Required(request.Email, "email", "Vui lòng nhập email.", 190).ToLowerInvariant();
         if (!MailAddress.TryCreate(email, out var address) || address.Address != email) throw ApiValidationException.For("email", "Email không hợp lệ.");
@@ -260,6 +264,27 @@ public sealed partial class ChannelSalesActions
         if (!access.Has(Permissions.ChannelSalesIdentityManage) && roleCode != "SALES")
             throw new KeyNotFoundException();
         if (roleCode is "ADMIN" or "DIRECTOR") throw new ApiConflictException("Không cấp vai trò Admin/BGĐ qua chức năng quản lý nhân sự thông thường.");
+        if ((roleCode == "CHECKEE") != (targetOrganization.OrganizationType == "CHECKEE") && roleCode == "CHECKEE")
+            throw new ApiConflictException("Chỉ có thể tạo vai trò CHECKEE trong tổ chức CHECKEE.");
+        long? managerId = null;
+        if (roleCode == "SALES")
+        {
+            managerId = request.ManagerUserId ?? (access.Has(Permissions.ChannelSalesIdentityManage) ? null : actorId);
+            if (!managerId.HasValue && access.Has(Permissions.ChannelSalesIdentityManage))
+            {
+                // Compatibility for existing Admin API clients: choose only an unambiguous active manager.
+                var managers = await db.OrganizationMemberships.Where(x => x.OrganizationId == request.OrganizationId
+                    && x.Status == "ACTIVE" && (x.MembershipType == "SALES_MANAGER" || x.MembershipType == "PARTNER_ADMIN"))
+                    .Select(x => x.UserId).Take(2).ToArrayAsync(ct);
+                if (managers.Length == 1) managerId = managers[0];
+            }
+            if (managerId.HasValue && !await db.OrganizationMemberships.AnyAsync(x =>
+                x.UserId == managerId.Value && x.OrganizationId == request.OrganizationId && x.Status == "ACTIVE" &&
+                (x.MembershipType == "SALES_MANAGER" || x.MembershipType == "PARTNER_ADMIN"), ct))
+                throw ApiValidationException.For("manager_user_id", "Quản lý bán hàng không thuộc tổ chức hoặc đã ngưng hoạt động.");
+            if (!managerId.HasValue && await db.Organizations.AnyAsync(x => x.Id == request.OrganizationId && x.OrganizationType != "CHECKEE", ct))
+                throw ApiValidationException.For("manager_user_id", "Cần chọn Quản lý bán hàng trực tiếp cùng tổ chức.");
+        }
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Code == roleCode, ct) ?? throw new KeyNotFoundException();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var user = new User { Code = "USR-" + Guid.NewGuid().ToString("N")[..16].ToUpperInvariant(), Name = name, Email = email, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
@@ -268,7 +293,7 @@ public sealed partial class ChannelSalesActions
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { throw new ApiConflictException("Email đã được sử dụng. Không tự gán tài khoản đã tồn tại vào tổ chức khác."); }
         db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
-        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = request.OrganizationId, ManagerUserId = actorId, MembershipType = roleCode == "SALES" ? "SALES" : roleCode, Status = "ACTIVE", IsPrimary = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = request.OrganizationId, ManagerUserId = managerId, MembershipType = roleCode == "SALES" ? "SALES" : roleCode, Status = "ACTIVE", IsPrimary = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.OrganizationMemberships.Add(membership);
         Audit.Add(db, actorId, "CREATE_CHANNEL_ACCOUNT", nameof(User), user.Id, null, new { request.OrganizationId, roleCode }, http);
         await db.SaveChangesAsync(ct);

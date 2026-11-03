@@ -377,6 +377,36 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.False(await db.SalesContracts.AnyAsync(x => x.CustomerId == s.CustomerId));
     }
 
+    [MySqlFact] public async Task DirectorCanEditActivateAndCancelDraftWithoutErasingPolicyHistory()
+    {
+        var scenario = await Arrange();
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var first = await actions.CreateSchoolWorkflowPolicy(
+            new(scenario.OrgId, 24, 48, 24, 7, 3, 21, false, "BOARD-DRAFT-" + Key()),
+            board, Http(board), Ct);
+        await actions.UpdateSchoolWorkflowPolicyDraft(first,
+            new(48, 48, 24, 7, 3, 21, "BOARD-EDIT-" + Key()), board, Http(board), Ct);
+        Assert.Equal(48, await db.SchoolWorkflowPolicies.Where(p => p.Id == first).Select(p => p.ManagerReviewHours).SingleAsync(Ct));
+
+        var second = await actions.CreateSchoolWorkflowPolicy(
+            new(scenario.OrgId, 72, 72, 24, 7, 3, 21, false, "BOARD-DRAFT-" + Key()),
+            board, Http(board), Ct);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.ActivateSchoolWorkflowPolicy(
+            first, new(null), board, Http(board), Ct));
+        await actions.ActivateSchoolWorkflowPolicy(first, new("DIRECTOR-APPROVED-" + Key()), board, Http(board), Ct);
+        Assert.Equal("ACTIVE", await db.SchoolWorkflowPolicies.Where(p => p.Id == first).Select(p => p.Status).SingleAsync(Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.UpdateSchoolWorkflowPolicyDraft(
+            first, new(24, 48, 24, 7, 3, 21, "NOT-ALLOWED"), board, Http(board), Ct));
+        await actions.CancelSchoolWorkflowPolicyDraft(second, new("Không còn phù hợp"), board, Http(board), Ct);
+        Assert.Equal("CANCELLED", await db.SchoolWorkflowPolicies.Where(p => p.Id == second).Select(p => p.Status).SingleAsync(Ct));
+        Assert.True(await db.SchoolWorkflowPolicies.AnyAsync(p => p.Id == second, Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.CancelSchoolWorkflowPolicyDraft(
+            first, new("Không được hủy bản hiệu lực"), board, Http(board), Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.Action == "ACTIVATE_SCHOOL_WORKFLOW_POLICY", Ct));
+    }
+
     [MySqlFact] public async Task DraftPolicyCannotApproveExtensionAndActivePolicyEnforcesBoundsAndRetries()
     {
         var s = await Arrange(); await Policy(s.OrgId, false);

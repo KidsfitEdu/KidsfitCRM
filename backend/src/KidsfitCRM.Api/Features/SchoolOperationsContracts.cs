@@ -23,6 +23,10 @@ public sealed record UpdateSchoolUnitRequest(int ExpectedVersion, string? Name, 
     string? SchoolPhone, string? Note, string? Reason);
 public sealed record CreateSchoolWorkflowPolicyRequest(long OrganizationId, int ManagerReviewHours, int AdminReviewHours,
     int InvitationHours, int MaxExtensionDays, int MaxExtensionCount, int MaxTotalExtensionDays, bool Activate, string? DecisionReference);
+public sealed record UpdateSchoolWorkflowPolicyDraftRequest(int ManagerReviewHours, int AdminReviewHours,
+    int InvitationHours, int MaxExtensionDays, int MaxExtensionCount, int MaxTotalExtensionDays, string? DecisionReference);
+public sealed record ActivateSchoolWorkflowPolicyRequest(string? DecisionReference);
+public sealed record CancelSchoolWorkflowPolicyDraftRequest(string? Reason);
 public sealed record AssignContractCareRequest(string? IdempotencyKey, long UserId, long CareOrganizationId, string? Reason);
 public sealed record CreateCustomerSupportCaseRequest(string? IdempotencyKey, long ContractId, string? Subject, string? Description);
 public sealed record UpdateCustomerSupportCaseRequest(string? Status, string? Content, DateTime? NextFollowUpAt);

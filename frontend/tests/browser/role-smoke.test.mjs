@@ -67,7 +67,16 @@ test('CHECKEE uses a compact two-menu verification workspace', async () => {
   assert.equal(await navigation.locator('button').count(),2);
   await navigation.getByRole('button',{name:'Xác minh hợp đồng',exact:true}).click();
   await page.getByRole('heading',{name:'Xác minh hợp đồng'}).waitFor();
-  await page.getByRole('combobox',{name:'Lọc trạng thái xác minh'}).waitFor();
+  const filter = page.getByRole('combobox',{name:'Lọc trạng thái xác minh'});
+  await filter.waitFor();
+  await filter.click();
+  const pendingOption = page.getByRole('option',{name:'Chờ xác minh'});
+  await pendingOption.waitFor();
+  await pendingOption.hover();
+  await pendingOption.click();
+  assert.match(await filter.innerText(), /Chờ xác minh/);
+  await page.getByRole('button',{name:'Đặt lại bộ lọc'}).click();
+  assert.match(await filter.innerText(), /Tất cả trạng thái/);
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
   assert.deepEqual(errors,[]);
   await context.close();

@@ -487,6 +487,71 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Empty(workspace.GetProperty("refunds").EnumerateArray());
     }
 
+
+    [MySqlFact] public async Task SupportTicketsRouteOnlySystemErrorsToCheckeeAndRequireTechnicalReplyBeforeClose()
+    {
+        var scenario = await Arrange();
+        var contract = await ActiveContract(scenario);
+        var caretaker = await AddMember(scenario.OrgId, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        await actions.AssignContractCare(contract, new(Key(), caretaker.UserId, scenario.OrgId, "Bàn giao cho CSKH"),
+            scenario.Manager.UserId, Http(), Ct);
+
+        var usage = await actions.CreateCustomerSupportCase(
+            new(Key(), contract, "Hướng dẫn đăng nhập", "Nhà trường cần hướng dẫn thao tác", "USAGE_GUIDANCE"),
+            caretaker.UserId, Http(), Ct);
+        var technical = await actions.CreateCustomerSupportCase(
+            new(Key(), contract, "Phần mềm không đăng nhập được", "Lỗi máy chủ đã được CSKH kiểm tra", "SYSTEM_ERROR"),
+            caretaker.UserId, Http(), Ct);
+        var checkee = await User("checkee@kidsfit.vn");
+        Assert.Null((await db.CustomerSupportCases.FindAsync(usage))!.CheckeeOrganizationId);
+        Assert.NotNull((await db.CustomerSupportCases.FindAsync(technical))!.CheckeeOrganizationId);
+
+        var checkeeQueue = Json(await CheckeeSupportEndpoints.List(Http(checkee), db, null, null, null, null, Ct));
+        Assert.Contains(checkeeQueue.GetProperty("data").EnumerateArray(),
+            row => row.GetProperty("id").GetInt64() == technical);
+        Assert.DoesNotContain(checkeeQueue.GetProperty("data").EnumerateArray(),
+            row => row.GetProperty("id").GetInt64() == usage);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            actions.RecordCheckeeSupportProgress(usage, new("Không được xem hướng dẫn sử dụng", true),
+                checkee, Http(), Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.UpdateCustomerSupportCase(technical, new("RESOLVED", "Chưa có phản hồi kỹ thuật", null),
+                caretaker.UserId, Http(), Ct));
+
+        await actions.RecordCheckeeSupportProgress(technical, new("Đang kiểm tra máy chủ", false), checkee, Http(), Ct);
+        await actions.RecordCheckeeSupportProgress(technical, new("Đã khắc phục lỗi máy chủ", true), checkee, Http(), Ct);
+        Assert.Equal("IN_PROGRESS", (await db.CustomerSupportCases.FindAsync(technical))!.Status);
+        await actions.UpdateCustomerSupportCase(technical, new("RESOLVED", "Trường xác nhận đăng nhập thành công", null),
+            caretaker.UserId, Http(), Ct);
+        Assert.Equal("RESOLVED", (await db.CustomerSupportCases.FindAsync(technical))!.Status);
+        Assert.Equal(3, await db.CustomerActivities.CountAsync(x => x.SupportCaseId == technical));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.RecordCheckeeSupportProgress(technical, new("Đóng rồi", true), checkee, Http(), Ct));
+    }
+
+    [MySqlFact] public async Task AssignedCareUserMayAcceptHandoverOrRequestMissingInformation()
+    {
+        var scenario = await Arrange();
+        var contract = await ActiveContract(scenario);
+        var caretaker = await AddMember(scenario.OrgId, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var handoverId = await actions.AssignContractCare(contract,
+            new(Key(), caretaker.UserId, scenario.OrgId, "Bàn giao sau xác minh"),
+            scenario.Manager.UserId, Http(), Ct);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            actions.RespondContractCareHandover(contract, new(true, "Không phải nhân sự"), scenario.Seller.UserId, Http(), Ct));
+        await actions.RespondContractCareHandover(contract, new(false, "Thiếu lịch đào tạo"),
+            caretaker.UserId, Http(), Ct);
+        Assert.Equal("NEEDS_INFO", (await db.ContractCareHandovers.FindAsync(handoverId))!.AcceptanceStatus);
+        await actions.RespondContractCareHandover(contract, new(true, "Đã nhận đủ hồ sơ"),
+            caretaker.UserId, Http(), Ct);
+        Assert.Equal("ACCEPTED", (await db.ContractCareHandovers.FindAsync(handoverId))!.AcceptanceStatus);
+        Assert.Equal(caretaker.UserId, (await db.ContractCareHandovers.FindAsync(handoverId))!.AcceptedByUserId);
+    }
+
     [MySqlFact] public async Task ConcurrentRefundsCannotExceedReceiptAndCancellationNeverDeletesLedgerOrReactivatesContract()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s); var admin = await User("admin@kidsfit.vn");

@@ -73,7 +73,7 @@ public static class SchoolOperationsEndpoints
     private static IResult Saved(long id) => Results.Ok(new { data = new { id }, message = "Đã ghi nhận thay đổi." });
 
     // Dedicated policy list avoids the 100-row snapshot cap in the general workspace API.
-    private static async Task<IResult> PolicyListPage(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    public static async Task<IResult> PolicyListPage(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (access.OrganizationIds.Length == 0) throw new KeyNotFoundException();

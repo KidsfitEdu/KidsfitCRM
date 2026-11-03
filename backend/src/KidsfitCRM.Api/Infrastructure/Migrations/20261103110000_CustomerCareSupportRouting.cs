@@ -25,7 +25,7 @@ public sealed class CustomerCareSupportRouting : Migration
         migrationBuilder.AddColumn<long>("accepted_by_user_id", "contract_care_handovers", type: "bigint", nullable: true);
         migrationBuilder.AddColumn<string>("acceptance_note", "contract_care_handovers", type: "text", nullable: true);
 
-        migrationBuilder.CreateIndex("IX_customer_support_cases_checkee_organization_id_status_created_at",
+        migrationBuilder.CreateIndex("ix_support_checkee_status_created",
             "customer_support_cases", new[] { "checkee_organization_id", "status", "created_at" });
         migrationBuilder.CreateIndex("IX_customer_support_cases_forwarded_by_user_id",
             "customer_support_cases", "forwarded_by_user_id");

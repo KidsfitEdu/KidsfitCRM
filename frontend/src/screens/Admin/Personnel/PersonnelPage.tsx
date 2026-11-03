@@ -251,7 +251,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
 
       <AppDialog open={createOpen} onOpenChange={open=>{if(!busy)setCreateOpen(open);}}
         busy={busy} title="Thêm nhân sự" description="Tạo tài khoản đúng tổ chức và vai trò. Không cấp quyền Admin/BGĐ."
-        footer={<FormActions busy={busy} onCancel={()=>setCreateOpen(false)} onSave={submitCreate} saveLabel="Tạo tài khoản"/>}>
+        footer={<FormActions inDialogFooter busy={busy} onCancel={()=>setCreateOpen(false)} onSave={submitCreate} saveLabel="Tạo tài khoản"/>}>
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5 text-sm font-medium">
             <label htmlFor="admin-new-name">Họ và tên *</label>
@@ -304,7 +304,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       </AppDialog>
       <AppDialog open={edit!==null} onOpenChange={open=>{if(!busy&&!open)setEdit(null);}}
         busy={busy} title="Chỉnh sửa nhân sự" description="Thay đổi vai trò chỉ áp dụng sau khi backend kiểm tra quyền và dữ liệu bàn giao."
-        footer={<FormActions busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>}>
+        footer={<FormActions inDialogFooter busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>}>
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5 text-sm font-medium">
             <label htmlFor="admin-edit-name">Họ và tên *</label>
@@ -344,7 +344,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       <AppDialog open={partnerOpen} onOpenChange={open=>{if(!busy)setPartnerOpen(open);}}
         busy={busy} contentClassName="sm:max-w-md" title={partner?'Cập nhật đối tác':'Thêm đối tác'}
         description="Chỉ tổ chức đối tác được phép thay đổi; không sửa KIDSFIT/CHECKEE."
-        footer={<FormActions busy={busy} onCancel={()=>setPartnerOpen(false)} onSave={submitPartner}
+        footer={<FormActions inDialogFooter busy={busy} onCancel={()=>setPartnerOpen(false)} onSave={submitPartner}
           saveLabel={partner?'Lưu đối tác':'Tạo đối tác'}/>}>
         <div className="space-y-4">
           {!partner&&<div className="space-y-1.5 text-sm font-medium">

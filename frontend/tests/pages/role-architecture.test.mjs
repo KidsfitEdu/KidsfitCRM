@@ -14,10 +14,10 @@ const profileSections = {
   Board: ['Dashboard','Oversight','Overdue','Disputes','Policies'],
   Accounting: ['Dashboard','Revenue'],
   CustomerCare: ['Dashboard','Handover','Cases','Customers','Followup'],
-  Checkee: ['Dashboard','Verification','Reconciliation','Disputes','History'],
+  Checkee: ['Dashboard','Verification'],
 };
 
-test('All 44 active role menu pages exist and are compiled from src/pages', () => {
+test('All 41 active role menu pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
@@ -28,14 +28,14 @@ test('All 44 active role menu pages exist and are compiled from src/pages', () =
       total += 1;
     }
   }
-  assert.equal(total, 44);
+  assert.equal(total, 41);
 });
 
-test('Navigation targets and role-to-page config preserve legacy IDs', () => {
+test('Active navigation targets match role page registry and preserve aliases', () => {
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
-  assert.equal(known.length, 44, 'Expected 44 active role navigation entries');
+  assert.equal(known.length, 41, 'Expected 41 active role navigation entries');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;
@@ -47,6 +47,21 @@ test('Navigation targets and role-to-page config preserve legacy IDs', () => {
       assert.ok(config.includes(screen.toLowerCase() + ':'), 'Role page config missing: ' + profile + '/' + screen);
     }
   }
+});
+
+test('CHECKEE has two active menus and legacy bookmarks are redirected', () => {
+  const navigation = read('src/config/navigation.ts');
+  const routes = read('src/config/routes.ts');
+  const page = read('src/screens/Checkee/Verification/VerificationPage.tsx');
+  const dashboard = read('src/screens/Checkee/Dashboard/DashboardPage.tsx');
+  assert.equal((navigation.match(/\{ id: 'role-checkee-(dashboard|verification)', label:/g) ?? []).length, 2);
+  assert.match(routes, /canonicalCheckeeView/);
+  assert.match(page, /<AdminListPanel>/);
+  assert.match(page, /<AppDrawer/);
+  assert.match(page, /<ConfirmDialog/);
+  assert.match(page, /<AppPagination/);
+  assert.match(page, /\/checkee\/verifications/);
+  assert.match(dashboard, /\/checkee\/verifications\?page=1&page_size=1/);
 });
 
 test('No obsolete workspace compatibility imports remain in CrmApp', () => {

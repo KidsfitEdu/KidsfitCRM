@@ -407,7 +407,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.True(await db.AuditLogs.AnyAsync(x => x.Action == "ACTIVATE_SCHOOL_WORKFLOW_POLICY", Ct));
     }
 
-    [MySqlFact] public async Task BoardCanReapplySupersededPolicyAsNewVersionWithoutMutatingHistory()
+    [MySqlFact] public async Task BoardCanReapplySupersededPolicyInPlaceWithoutCreatingAnotherVersion()
     {
         var scenario = await Arrange();
         var board = await User("board@kidsfit.vn");
@@ -419,32 +419,40 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var second = await actions.CreateSchoolWorkflowPolicy(
             new(scenario.OrgId, 48, 72, 24, 7, 3, 21, true, "SECOND-" + Key()),
             board, Http(board), Ct);
-        Assert.Equal("SUPERSEDED", await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == first).Select(x => x.Status).SingleAsync(Ct));
-        var firstVersion = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == first).Select(x => x.Version).SingleAsync(Ct);
-        var secondVersion = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == second).Select(x => x.Version).SingleAsync(Ct);
-        var reference = "REAPPLY-" + Key();
-        var reapplied = await actions.ReapplySchoolWorkflowPolicy(first,
-            new(reference), board, Http(board), Ct);
+        var firstBefore = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == first, Ct);
+        var firstVersion = firstBefore.Version;
+        var firstReference = firstBefore.DecisionReference;
+        var policyCount = await db.SchoolWorkflowPolicies.CountAsync(x => x.OrganizationId == scenario.OrgId, Ct);
+        Assert.Equal("SUPERSEDED", firstBefore.Status);
+        var restored = await actions.ReapplySchoolWorkflowPolicy(first,
+            new("REAPPLY-" + Key()), board, Http(board), Ct);
         db.ChangeTracker.Clear();
-        var original = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == first, Ct);
-        var latest = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == reapplied, Ct);
-        Assert.Equal("SUPERSEDED", original.Status);
-        Assert.Equal(firstVersion, original.Version);
-        Assert.Equal("SUPERSEDED", await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Id == second).Select(x => x.Status).SingleAsync(Ct));
-        Assert.Equal(secondVersion + 1, latest.Version);
-        Assert.Equal("ACTIVE", latest.Status);
-        Assert.Equal(original.ManagerReviewHours, latest.ManagerReviewHours);
-        Assert.Equal(original.AdminReviewHours, latest.AdminReviewHours);
-        Assert.Equal(original.MaxExtensionCount, latest.MaxExtensionCount);
-        Assert.Equal(1, await db.SchoolWorkflowPolicies.CountAsync(x => x.OrganizationId == scenario.OrgId && x.Status == "ACTIVE", Ct));
+        Assert.Equal(first, restored);
+        var firstAfter = await db.SchoolWorkflowPolicies.AsNoTracking().SingleAsync(x => x.Id == first, Ct);
+        Assert.Equal("ACTIVE", firstAfter.Status);
+        Assert.Equal(firstVersion, firstAfter.Version);
+        Assert.Equal(firstReference, firstAfter.DecisionReference);
+        Assert.Equal(24, firstAfter.ManagerReviewHours);
+        Assert.Equal("SUPERSEDED", await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.Id == second).Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal(policyCount, await db.SchoolWorkflowPolicies.CountAsync(x => x.OrganizationId == scenario.OrgId, Ct));
+        Assert.Equal(1, await db.SchoolWorkflowPolicies.CountAsync(
+            x => x.OrganizationId == scenario.OrgId && x.Status == "ACTIVE", Ct));
         Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityType == nameof(SchoolWorkflowPolicyVersion)
-            && x.EntityId == reapplied && x.Action == "REAPPLY_SCHOOL_WORKFLOW_POLICY", Ct));
+            && x.EntityId == first && x.Action == "REAPPLY_SCHOOL_WORKFLOW_POLICY", Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.ReapplySchoolWorkflowPolicy(
-            first, new(reference), board, Http(board), Ct));
-        await Assert.ThrowsAsync<ApiConflictException>(() => actions.ReapplySchoolWorkflowPolicy(
-            reapplied, new("REAPPLY-ACTIVE-" + Key()), board, Http(board), Ct));
+            first, new("REAPPLY-DUP-" + Key()), board, Http(board), Ct));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.ReapplySchoolWorkflowPolicy(
-            first, new("REAPPLY-UNAUTHORIZED-" + Key()), scenario.Manager.UserId, Http(scenario.Manager.UserId), Ct));
+            second, new("REAPPLY-UNAUTHORIZED-" + Key()), scenario.Manager.UserId,
+            Http(scenario.Manager.UserId), Ct));
+        var restoredSecond = await actions.ReapplySchoolWorkflowPolicy(second,
+            new("REAPPLY-SECOND-" + Key()), board, Http(board), Ct);
+        Assert.Equal(second, restoredSecond);
+        db.ChangeTracker.Clear();
+        Assert.Equal("SUPERSEDED", await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.Id == first).Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("ACTIVE", await db.SchoolWorkflowPolicies.AsNoTracking()
+            .Where(x => x.Id == second).Select(x => x.Status).SingleAsync(Ct));
     }
 
     [MySqlFact] public async Task DraftPolicyCannotApproveExtensionAndActivePolicyEnforcesBoundsAndRetries()

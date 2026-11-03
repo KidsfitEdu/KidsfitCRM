@@ -1419,9 +1419,9 @@ export function SchoolOperations({
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4 lg:col-span-2">
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Gợi ý chờ duyệt: Quản lý 24 giờ, Admin 48 giờ; gia hạn 7
-                ngày/lần, tối đa 2 lần và 14 ngày cộng thêm. Hệ thống chưa tự
-                bật các mốc này.
+                Các thời hạn và số lần gia hạn được lấy từ phiên bản chính sách
+                đang áp dụng tại tổ chức. Bản nháp chỉ có hiệu lực sau khi
+                được người có thẩm quyền kích hoạt.
               </p>
               {can('channel_sales.school.workflow_policy.manage') && (
                 <Button size="sm" onClick={openPolicy}>

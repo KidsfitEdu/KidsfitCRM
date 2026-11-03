@@ -427,7 +427,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var board = await User("board@kidsfit.vn");
         await using var db = fixture.Open();
         var actions = new ChannelSalesActions(db);
-        var overdue = await actions.SubmitSchoolProposal(Proposal(), scenario.Seller.UserId, Http(), Ct);
+        var request = Proposal();
+        var overdue = await actions.SubmitSchoolProposal(request, scenario.Seller.UserId, Http(), Ct);
         var onTime = await actions.SubmitSchoolProposal(Proposal(), scenario.Peer.UserId, Http(), Ct);
         await db.SchoolProposals.Where(x => x.Id == overdue)
             .ExecuteUpdateAsync(x => x.SetProperty(p => p.ReviewDueAt, DateTime.UtcNow.AddMinutes(-5)), Ct);
@@ -436,7 +437,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         db.ChangeTracker.Clear();
         var http = Http(board);
         http.Request.QueryString = new QueryString("?overdue_only=true&page_size=10");
-        var result = Json(await SchoolOperationsEndpoints.WorkspacePage(http, db, 1, null, null, Ct));
+        var result = Json(await SchoolOperationsEndpoints.WorkspacePage(http, db, 1, request.Name, null, Ct));
         Assert.Equal(1, result.GetProperty("pagination").GetProperty("totals").GetProperty("proposals").GetInt32());
         Assert.Equal(overdue, result.GetProperty("proposals").EnumerateArray().Single().GetProperty("id").GetInt64());
     }

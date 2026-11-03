@@ -90,3 +90,16 @@ test('Admin personnel shows one lock icon per member and minimal lock/unlock dia
   assert.match(page, /statusAction\?\.suspend&&/);
   assert.match(dialog, /description\?: ReactNode/);
 });
+
+test('Admin unlock confirmation has compact header and concise copy', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const confirm = read('src/components/common/dialogs/confirm-dialog.tsx');
+  const dialog = read('src/components/common/dialogs/app-dialog.tsx');
+  assert.match(page, /compactHeader=\{!statusAction\?\.suspend\}/);
+  assert.match(page, /compactHeader=\{!partnerStatusAction\?\.suspend\}/);
+  assert.match(page, /Bạn có chắc chắn muốn mở khóa thành viên này không\?/);
+  assert.match(page, /Bạn có chắc chắn muốn mở khóa tổ chức này không\?/);
+  assert.match(page, /'Xác nhận'/);
+  assert.match(confirm, /headerClassName=\{compactHeader/);
+  assert.match(dialog, /headerClassName\?: string/);
+});

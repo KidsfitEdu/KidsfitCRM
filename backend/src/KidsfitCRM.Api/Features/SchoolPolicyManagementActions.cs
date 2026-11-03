@@ -90,7 +90,7 @@ public sealed partial class ChannelSalesActions
             .Select(x => (long?)x.OrganizationId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(orgId)) throw new KeyNotFoundException();
         await LockSchoolOrganization(orgId, ct);
-        var source = await db.SchoolWorkflowPolicies.SingleOrDefaultAsync(
+        var source = await db.SchoolWorkflowPolicies.AsNoTracking().SingleOrDefaultAsync(
             x => x.Id == sourceId && x.OrganizationId == orgId, ct) ?? throw new KeyNotFoundException();
         if (source.Status != "SUPERSEDED")
             throw new ApiConflictException("Chỉ có thể áp dụng lại phiên bản đã được thay thế.");
@@ -104,12 +104,14 @@ public sealed partial class ChannelSalesActions
                 .SetProperty(x => x.UpdatedAt, now), ct);
         // No new SchoolWorkflowPolicyVersion is inserted. This preserves policy_version_id
         // references belonging to prior business records and preserves the version number.
-        source.Status = "ACTIVE";
-        source.UpdatedAt = now;
+        // Update directly: a caller may already have an older tracked copy of this version.
+        await db.SchoolWorkflowPolicies.Where(x => x.Id == sourceId && x.Status == "SUPERSEDED")
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "ACTIVE")
+                .SetProperty(x => x.UpdatedAt, now), ct);
         Audit.Add(db, actorId, "REAPPLY_SCHOOL_WORKFLOW_POLICY", nameof(SchoolWorkflowPolicyVersion),
             source.Id,
             new { source.OrganizationId, source.Version, previousStatus = "SUPERSEDED", previousActive },
-            new { source.Status, source.Version, reference, effectiveAt = now }, http);
+            new { status = "ACTIVE", source.Version, reference, effectiveAt = now }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return source.Id;

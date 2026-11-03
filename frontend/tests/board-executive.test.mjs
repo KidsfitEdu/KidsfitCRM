@@ -79,3 +79,17 @@ test('Board queues share Sales search toolbar, icon actions and real server pagi
   assert.match(policies, /Tìm kiếm và phân trang áp dụng trên tối đa 100 phiên bản/);
   assert.match(policies, /<AppPagination/);
 });
+
+test('Director policy lifecycle uses audited API and hides edits of non-drafts', () => {
+  const screen = read('screens/Board/BoardPoliciesPage.tsx');
+  const editor = read('screens/Board/PolicyEditorDialog.tsx');
+  assert.match(screen, /channel_sales\.school\.workflow_policy\.manage/);
+  assert.match(screen, /p\.status==='DRAFT'/);
+  assert.match(screen, /<PolicyEditorDialog/);
+  assert.match(screen, /<ConfirmDialog/);
+  assert.match(screen, /\/school-workflow-policies/);
+  assert.match(screen, /canManage&&<AppButton/);
+  assert.doesNotMatch(screen, /Chính sách đang áp dụng<\/h3>/);
+  assert.doesNotMatch(screen, /Làm mới danh sách chính sách/);
+  assert.match(editor, /max_extension_days:7,max_extension_count:3,max_total_extension_days:21/);
+});

@@ -70,7 +70,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
       invitation_hours:form.invitation_hours,max_extension_days:form.max_extension_days,
       max_extension_count:form.max_extension_count,max_total_extension_days:form.max_total_extension_days,
     };
-    if(editingId!==null)void write('/school-workflow-policies/'+editingId+'/draft','PATCH',payload);
+    if(editingId!==null)void write('/school-workflow-policies/'+editingId+'/draft','PATCH',{...payload,organization_id:form.organization_id});
     else void write('/school-workflow-policies','POST',{...payload,organization_id:form.organization_id,activate:false});
   };
   const confirmAction=()=>{

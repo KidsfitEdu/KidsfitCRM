@@ -43,7 +43,9 @@ public sealed partial class ChannelSalesActions
         policy.MaxExtensionDays = request.MaxExtensionDays;
         policy.MaxExtensionCount = request.MaxExtensionCount;
         policy.MaxTotalExtensionDays = request.MaxTotalExtensionDays;
-        policy.DecisionReference = Validation.Required(request.DecisionReference, "decision_reference", "Cần căn cứ phê duyệt.", 120);
+        // Editing draft settings must not replace its audit reference with a fake user decision.
+        if (!string.IsNullOrWhiteSpace(request.DecisionReference))
+            policy.DecisionReference = Validation.Required(request.DecisionReference, "decision_reference", "Mã tham chiếu không hợp lệ.", 120);
         policy.UpdatedAt = DateTime.UtcNow;
         Audit.Add(db, actorId, "UPDATE_SCHOOL_WORKFLOW_POLICY_DRAFT", nameof(SchoolWorkflowPolicyVersion),
             id, before, new { policy.ManagerReviewHours, policy.AdminReviewHours, policy.InvitationHours,

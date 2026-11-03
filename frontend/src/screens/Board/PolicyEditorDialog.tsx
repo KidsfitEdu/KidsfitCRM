@@ -38,7 +38,7 @@ export function PolicyEditorDialog({open,onClose,busy,policy,organizations,onSav
       admin_review_hours:policy.admin_review_hours,invitation_hours:policy.invitation_hours,
       max_extension_days:policy.max_extension_days,max_extension_count:policy.max_extension_count,
       max_total_extension_days:policy.max_total_extension_days,decision_reference:policy.decision_reference||'',
-    }:initialPolicy(organizations.find(o=>o.status==='ACTIVE')?.id??organizations[0]?.id??0));
+    }:initialPolicy(0));
     setError('');
   },[open,policy,organizations]);
   const numeric:(keyof PolicyForm)[]=['manager_review_hours','admin_review_hours','invitation_hours',
@@ -70,8 +70,9 @@ export function PolicyEditorDialog({open,onClose,busy,policy,organizations,onSav
       <div className="space-y-1.5">
         <label className="text-sm font-medium" htmlFor="board-policy-organization">Tổ chức *</label>
         <AppNativeSelect id="board-policy-organization" containerClassName="w-full" value={form.organization_id}
-          disabled={!!policy} onChange={e=>setForm(v=>({...v,organization_id:Number(e.target.value)}))}>
-          {organizations.filter(o=>o.status==='ACTIVE'||o.id===policy?.organization_id).map(o=>
+          disabled={!!policy||busy} onChange={e=>setForm(v=>({...v,organization_id:Number(e.target.value)}))}>
+          {!policy&&<option value={0}>Chọn tổ chức</option>}
+          {organizations.map(o=>
             <option key={o.id} value={o.id}>{o.name}</option>)}
         </AppNativeSelect>
       </div>

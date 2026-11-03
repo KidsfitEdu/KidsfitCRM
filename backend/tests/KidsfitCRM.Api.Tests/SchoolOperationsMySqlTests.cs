@@ -421,6 +421,26 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.True(report.GetProperty("available_schools").GetInt32() >= 2);
     }
 
+    [MySqlFact] public async Task BoardOverdueFilterAppliesBeforeCountAndPaging()
+    {
+        var scenario = await Arrange();
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var overdue = await actions.SubmitSchoolProposal(Proposal(), scenario.Seller.UserId, Http(), Ct);
+        var onTime = await actions.SubmitSchoolProposal(Proposal(), scenario.Peer.UserId, Http(), Ct);
+        await db.SchoolProposals.Where(x => x.Id == overdue)
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.ReviewDueAt, DateTime.UtcNow.AddMinutes(-5)), Ct);
+        await db.SchoolProposals.Where(x => x.Id == onTime)
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.ReviewDueAt, DateTime.UtcNow.AddDays(1)), Ct);
+        db.ChangeTracker.Clear();
+        var http = Http(board);
+        http.Request.QueryString = new QueryString("?overdue_only=true&page_size=10");
+        var result = Json(await SchoolOperationsEndpoints.WorkspacePage(http, db, 1, null, null, Ct));
+        Assert.Equal(1, result.GetProperty("pagination").GetProperty("totals").GetProperty("proposals").GetInt32());
+        Assert.Equal(overdue, result.GetProperty("proposals").EnumerateArray().Single().GetProperty("id").GetInt64());
+    }
+
     [MySqlFact] public async Task HandoverRevokesUnsignedClaimsButPreservesSignedProtectionAndEarnedPayout()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s); var admin = await User("admin@kidsfit.vn");

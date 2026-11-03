@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Headset, Eye, UserRoundCheck } from 'lucide-react';
+import { Eye, UserRoundCheck } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -62,12 +62,6 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
     {!allowed&&<p role="alert" className="rounded-xl border p-4 text-sm text-destructive">Tài khoản chưa có quyền phân công CSKH.</p>}
     {!apiBase&&<p className="rounded-xl border p-4 text-sm text-muted-foreground">Chế độ xem thử chỉ đọc. Kết nối Backend để phân công thực tế.</p>}
     {query.error&&<p role="alert" className="rounded-xl border p-4 text-sm text-destructive">{query.error.message}</p>}
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {staff.map(s=><div key={s.id} className="rounded-2xl border bg-card p-4">
-        <div className="flex items-center gap-2 font-semibold"><Headset className="size-4 text-[#1b5e20]"/>{s.name}</div>
-        <p className="mt-2 text-sm text-muted-foreground">{s.schools} trường · {s.open_tickets} ticket chưa hoàn tất</p>
-      </div>)}
-    </div>
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}

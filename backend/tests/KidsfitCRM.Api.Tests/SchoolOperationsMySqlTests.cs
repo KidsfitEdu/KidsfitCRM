@@ -667,13 +667,14 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
 
         await actions.AssignContractCare(contract, new(Key(), care, careOrg, "Admin phân công hỗ trợ trường"),
             admin, Http(admin), Ct);
-        var mine = Json(await CustomerCareEndpoints.Schools(Http(care), db, null, 1, 20, Ct));
+        var contractCode = await db.SalesContracts.Where(x => x.Id == contract).Select(x => x.ContractCode).SingleAsync();
+        var mine = Json(await CustomerCareEndpoints.Schools(Http(care), db, contractCode, 1, 20, Ct));
         Assert.Contains(mine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
         var notMine = Json(await CustomerCareEndpoints.Schools(Http(other.UserId), db, null, 1, 20, Ct));
         Assert.DoesNotContain(notMine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.SchoolDetail(
             contract, Http(other.UserId), db, Ct));
-        var adminPage = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, Ct));
+        var adminPage = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, contractCode, 1, 20, Ct));
         Assert.Contains(adminPage.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
 
         await CustomerCareEndpoints.LogCall(contract, new("Đã hướng dẫn cách đăng nhập qua điện thoại", null),

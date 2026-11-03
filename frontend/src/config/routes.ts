@@ -2,7 +2,8 @@ import { nav, type View } from './navigation';
 
 /** Internal URL convention. Vinext owns /crm/[view]; static Pages demo keeps root-only navigation. */
 const ids = new Set<View>([...nav.map(item=>item.id),'role-board-oversight','channel-sales',
-  'role-checkee-reconciliation','role-checkee-disputes','role-checkee-history']);
+  'role-checkee-reconciliation','role-checkee-disputes','role-checkee-history',
+  'role-customer-care-handover','role-customer-care-followup']);
 /** Preserve old bookmarks after consolidating CHECKEE workflows into Verification. */
 export const canonicalCheckeeView = (view: View): View =>
   ['role-checkee-reconciliation','role-checkee-disputes','role-checkee-history'].includes(view)

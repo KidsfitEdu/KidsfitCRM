@@ -623,21 +623,28 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     [MySqlFact] public async Task CustomerCareHandoverPreservesActivityAndDoesNotTransferSalesOwnership()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s);
-        var first = await AddMember(s.OrgId, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
-        var second = await AddMember(s.OrgId, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        var admin = await User("admin@kidsfit.vn");
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
-        await a.AssignContractCare(contractId, new(Key(), first.UserId, s.OrgId, "Bàn giao hợp đồng đã xác minh"), s.Manager.UserId, Http(), Ct);
-        var ticket = await a.CreateCustomerSupportCase(new(Key(), contractId, "Hướng dẫn vận hành", "Khách cần hướng dẫn sử dụng"), first.UserId, Http(), Ct);
-        await a.UpdateCustomerSupportCase(ticket, new("IN_PROGRESS", "Đã liên hệ, hẹn đào tạo", DateTime.UtcNow.AddDays(1)), first.UserId, Http(), Ct);
-        var handover = new AssignContractCareRequest(Key(), second.UserId, s.OrgId, "Đổi người chăm sóc, giữ lịch đào tạo");
-        await a.AssignContractCare(contractId, handover, s.Manager.UserId, Http(), Ct);
-        await a.AssignContractCare(contractId, handover, s.Manager.UserId, Http(), Ct);
+        var careOrg = await db.Organizations.Where(x => x.Code == "KIDSFIT").Select(x => x.Id).SingleAsync();
+        var first = await AddMember(careOrg, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        var second = await AddMember(careOrg, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => a.AssignContractCare(contractId,
+            new(Key(), first.UserId, careOrg, "Manager không được phân công"), s.Manager.UserId, Http(), Ct));
+        await a.AssignContractCare(contractId, new(Key(), first.UserId, careOrg, "Admin bàn giao cho CSKH"), admin, Http(), Ct);
+        var ticket = await a.CreateCustomerSupportCase(new(Key(), contractId, "Lỗi đăng nhập", "Máy chủ đăng nhập lỗi"), first.UserId, Http(), Ct);
+        await a.UpdateCustomerSupportCase(ticket, new("IN_PROGRESS", "Đã báo CHECKEE", DateTime.UtcNow.AddDays(1)), first.UserId, Http(), Ct);
+        var handover = new AssignContractCareRequest(Key(), second.UserId, careOrg, "Đổi người chăm sóc, giữ ticket");
+        await a.AssignContractCare(contractId, handover, admin, Http(), Ct);
+        await a.AssignContractCare(contractId, handover, admin, Http(), Ct);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Không còn phụ trách", null), first.UserId, Http(), Ct));
-        await a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Đã đào tạo và khách xác nhận", null), second.UserId, Http(), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() => a.UpdateCustomerSupportCase(ticket,
+            new("RESOLVED", "Chưa có phản hồi kỹ thuật", null), second.UserId, Http(), Ct));
+        await a.RecordCheckeeSupportProgress(ticket, new("Đã khắc phục máy chủ", true), await User("checkee@kidsfit.vn"), Http(), Ct);
+        await a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Trường xác nhận đăng nhập thành công", null), second.UserId, Http(), Ct);
         Assert.Equal(s.Seller.UserId, await db.SalesContracts.Where(x => x.Id == contractId).Select(x => x.OwnerUserId).SingleAsync());
-        Assert.Equal(2, await db.CustomerActivities.CountAsync(x => x.SupportCaseId == ticket));
+        Assert.Equal(3, await db.CustomerActivities.CountAsync(x => x.SupportCaseId == ticket));
         var workspace = Json(await SchoolOperationsEndpoints.Workspace(Http(second.UserId), db, Ct));
-        Assert.Equal("Đã đào tạo và khách xác nhận", workspace.GetProperty("support_cases")[0].GetProperty("outcome").GetString());
+        Assert.Equal("Trường xác nhận đăng nhập thành công", workspace.GetProperty("support_cases")[0].GetProperty("outcome").GetString());
         Assert.Empty(workspace.GetProperty("receipts").EnumerateArray());
         Assert.Empty(workspace.GetProperty("refunds").EnumerateArray());
     }

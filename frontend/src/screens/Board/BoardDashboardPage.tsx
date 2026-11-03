@@ -66,5 +66,13 @@ export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
         {metrics && metrics.allocation_performance.length===0 && <p className="p-5 text-center text-sm text-muted-foreground">Không có hoạt động phân bổ trong kỳ này.</p>}
       </div>
     </section>
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <h3 className="font-semibold">Đối soát doanh thu theo kỳ</h3>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">Tổng thực thu</p><p className="mt-2 text-lg font-bold">{boardMoney(metrics?.collected_revenue)}</p></div>
+        <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">Khoản hoàn</p><p className="mt-2 text-lg font-bold">{boardMoney(metrics?.refunded_revenue)}</p></div>
+        <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">Thu ròng</p><p className="mt-2 text-lg font-bold">{boardMoney(metrics?.net_collected_revenue)}</p></div>
+      </div>
+    </section>
   </div>;
 }

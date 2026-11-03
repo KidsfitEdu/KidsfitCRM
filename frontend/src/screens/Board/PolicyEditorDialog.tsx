@@ -68,8 +68,8 @@ export function PolicyEditorDialog({open,onClose,busy,policy,organizations,onSav
       <div className="space-y-1.5">
         <label className="text-sm font-medium" htmlFor="board-policy-organization">Tổ chức *</label>
         <AppNativeSelect id="board-policy-organization" containerClassName="w-full" value={form.organization_id}
-          disabled={!!policy||busy} onChange={e=>setForm(v=>({...v,organization_id:Number(e.target.value)}))}>
-          {!policy&&<option value={0}>Chọn tổ chức</option>}
+          disabled={busy} onChange={e=>setForm(v=>({...v,organization_id:Number(e.target.value)}))}>
+          <option value={0}>Chọn tổ chức</option>
           {organizations.map(o=>
             <option key={o.id} value={o.id}>{o.name}</option>)}
         </AppNativeSelect>

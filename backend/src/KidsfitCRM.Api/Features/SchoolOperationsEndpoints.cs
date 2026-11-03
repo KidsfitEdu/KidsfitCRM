@@ -74,10 +74,12 @@ public static class SchoolOperationsEndpoints
     private static IQueryable<SchoolDispute> Disputes(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolDisputes.Where(x => a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.OpenedByUserId == a.UserId || (a.Organization && a.Has(Permissions.SchoolAllocationManage)))));
     private static IQueryable<ContractCareHandover> CareHandovers(KidsfitDbContext db, ChannelSalesAccess a) =>
-        db.ContractCareHandovers.Where(x => a.All
-            || (a.Has(Permissions.SchoolSupportManage) && x.AssignedUserId == a.UserId && a.OrganizationIds.Contains(x.CareOrganizationId)
-                && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId))
-            || (a.Has(Permissions.SchoolCareAssign) && a.Organization && a.OrganizationIds.Contains(x.CareOrganizationId)));
+        db.ContractCareHandovers.Where(x => !db.ContractCareHandovers.Any(newer => newer.ContractId == x.ContractId && newer.Id > x.Id)
+            && (a.All
+                || (a.Has(Permissions.SchoolSupportManage) && x.AssignedUserId == a.UserId && a.OrganizationIds.Contains(x.CareOrganizationId)
+                    && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId
+                        && c.CareOrganizationId == x.CareOrganizationId))
+                || (a.Has(Permissions.SchoolCareAssign) && a.Organization && a.OrganizationIds.Contains(x.CareOrganizationId))));
 
     private static IQueryable<CustomerSupportCase> SupportCases(KidsfitDbContext db, ChannelSalesAccess a) => db.CustomerSupportCases.Where(x => a.All
         || (a.Has(Permissions.SchoolSupportManage) && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId && c.CareOrganizationId.HasValue && a.OrganizationIds.Contains(c.CareOrganizationId.Value)))

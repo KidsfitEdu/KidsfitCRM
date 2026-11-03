@@ -118,7 +118,7 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
         {selected.kind==='extension'&&selected.record.can_review&&<div className="flex flex-wrap gap-2">
           <AdminIconAction icon={CheckCircle2} label="Phê duyệt gia hạn" onClick={()=>{openExtension(selected.record as Extension,true);setSelected(null);}}/>
           <AdminIconAction icon={XCircle} tone="red" label="Từ chối gia hạn" onClick={()=>{openExtension(selected.record as Extension,false);setSelected(null);}}/>
-        </div>
+        </div>}
       </div>}
     </AppDrawer>
     <SchoolActionDialog action={action} onClose={()=>setAction(null)} save={save}/>

@@ -79,6 +79,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
             if (!long.TryParse(userIdValue, out var userId)) { context.Fail("Invalid identity."); return; }
             var db = context.HttpContext.RequestServices.GetRequiredService<KidsfitDbContext>();
             if (!await db.Users.AnyAsync(x => x.Id == userId && x.Status == "ACTIVE")) { context.Fail("Inactive account."); return; }
+            if (!await AuthFeatures.HasActiveMembership(db, userId)) { context.Fail("No active organization membership."); return; }
             if (context.Principal?.Identity is System.Security.Claims.ClaimsIdentity identity)
             {
                 foreach (var claim in identity.FindAll("permission").ToArray()) identity.RemoveClaim(claim);

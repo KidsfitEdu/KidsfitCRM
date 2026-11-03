@@ -52,6 +52,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const [createForm,setCreateForm] = useState(blankCreate);
   const [edit,setEdit] = useState<Person|null>(null);
   const [editForm,setEditForm] = useState({name:'',phone:'',role_code:'SALES',manager_user_id:'',reason:''});
+  const [partnerDetail,setPartnerDetail] = useState<Partner|null>(null);
   const [partner,setPartner] = useState<Partner|null>(null);
   const [partnerOpen,setPartnerOpen] = useState(false);
   const [partnerForm,setPartnerForm] = useState(blankPartner);
@@ -227,7 +228,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
                 <td className="px-5 py-4"><p className="font-semibold">{p.name}</p><p className="mt-1 text-xs text-muted-foreground">{p.code}</p></td>
                 <td className="px-5 py-4">{p.organization_type??'PARTNER'}</td>
                 <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status??'ACTIVE'} label={statusName(p.status??'ACTIVE')}/></td>
-                <td className="px-5 py-4"><div className="flex justify-end">
+                <td className="px-5 py-4"><div className="flex justify-end gap-2">
+                  <AdminIconAction icon={Eye} label={`Xem tổ chức ${p.name}`} onClick={()=>setPartnerDetail(p)}/>
                   {identity && p.organization_type==='PARTNER'&&<>
                     <AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>openPartner(p)}/>
                     <AdminIconAction icon={p.status==='SUSPENDED'?LockKeyholeOpen:LockKeyhole}
@@ -310,6 +312,26 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
        </div>
         <FormActions busy={busy} onCancel={()=>setPartnerOpen(false)} onSave={submitPartner} saveLabel={partner?'Lưu đối tác':'Tạo đối tác'}/>
       </AppDialog>
+      <AppDrawer open={partnerDetail!==null} onOpenChange={open=>{if(!open)setPartnerDetail(null);}}
+        title="Thông tin tổ chức" description="Hồ sơ và thành viên trong tổ chức">
+        {partnerDetail&&<div className="space-y-5 text-sm">
+          <dl className="grid grid-cols-[125px_1fr] gap-3">
+            <dt className="text-muted-foreground">Tên tổ chức</dt><dd>{partnerDetail.name}</dd>
+            <dt className="text-muted-foreground">Mã tổ chức</dt><dd>{partnerDetail.code}</dd>
+            <dt className="text-muted-foreground">Loại hình</dt><dd>{partnerDetail.organization_type??'PARTNER'}</dd>
+            <dt className="text-muted-foreground">Trạng thái</dt><dd>{statusName(partnerDetail.status??'ACTIVE')}</dd>
+          </dl>
+          <h3 className="font-semibold">Thành viên thuộc tổ chức</h3>
+          {management?.team.filter(p=>p.organization_id===partnerDetail.id).map(p=>
+            <div key={p.id} className="rounded-lg border p-3">
+              <p className="font-medium">{p.name}</p>
+              <p className="text-xs text-muted-foreground">{p.email} · {roleText(p.membership_type)}</p>
+              <p className="mt-1 text-xs">{effectiveStatus(p,management.organizations).label}</p>
+            </div>)}
+          {!management?.team.some(p=>p.organization_id===partnerDetail.id)&&
+            <p className="text-muted-foreground">Chưa có thành viên.</p>}
+        </div>}
+      </AppDrawer>
       <AppDrawer open={detail!==null} onOpenChange={open=>{if(!open)setDetail(null);}}
         title="Thông tin nhân sự" description="Trạng thái tài khoản và tư cách thành viên được quản lý riêng.">
         {detail&&<dl className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-3 text-sm">

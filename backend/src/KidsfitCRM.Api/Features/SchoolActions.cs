@@ -184,7 +184,11 @@ public sealed partial class ChannelSalesActions
         var access = await RequirePermission(actorId, Permissions.SchoolContractReview, ct);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {contractId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!contract.RequiresSchoolVerification || !access.CanManageOrganization(contract.OwnerOrganizationId)) throw new KeyNotFoundException();
+        if (!contract.RequiresSchoolVerification || !access.CanManageOrganization(contract.OwnerOrganizationId)
+            || (!access.All && !await db.OrganizationMemberships.AnyAsync(m =>
+                m.UserId == contract.OwnerUserId && m.OrganizationId == contract.OwnerOrganizationId
+                && m.ManagerUserId == actorId && (m.Status == "ACTIVE" || m.Status == "SUSPENDED"), ct)))
+            throw new KeyNotFoundException();
         if (contract.ManagerReviewedAt is not null) return;
         if (contract.Status != "PENDING_REVIEW") throw new ApiConflictException("Hợp đồng không ở bước quản lý kiểm tra.");
         if ((!await db.FinancialEvidences.AnyAsync(x => x.ContractId == contract.Id && x.Kind == "CONTRACT" && x.AttachedAt != null, ct)

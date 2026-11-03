@@ -76,3 +76,17 @@ test('Admin personnel separates account and membership states and reuses audited
   assert.match(service, /\/admin\/partners/);
   assert.doesNotMatch(service, /DELETE/);
 });
+
+test('Admin personnel shows one lock icon per member and minimal lock/unlock dialogs', () => {
+  const page = read('src/screens/Admin/Personnel/PersonnelPage.tsx');
+  const dialog = read('src/components/common/dialogs/confirm-dialog.tsx');
+  assert.match(page, /<th className="px-5 py-4">Tổ chức<\/th>/);
+  assert.match(page, /<th className="px-5 py-4">Vai trò<\/th>/);
+  assert.match(page, /effectiveStatus\(p,management/);
+  assert.doesNotMatch(page, /Khóa toàn tài khoản/);
+  assert.doesNotMatch(page, /Nội dung bàn giao \*/);
+  assert.doesNotMatch(page, /Chỉ tác động tư cách thành viên/);
+  assert.match(page, /partnerStatusAction/);
+  assert.match(page, /statusAction\?\.suspend&&/);
+  assert.match(dialog, /description\?: ReactNode/);
+});

@@ -33,7 +33,7 @@ export function BoardReportsPage({apiBase,token,abilities}:RolePageProps) {
       </div>}/>
     {!connected && <p className="rounded-xl border p-4 text-sm text-muted-foreground">Chưa kết nối API hoặc chưa được cấp quyền báo cáo.</p>}
     {report.error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{report.error instanceof Error?report.error.message:'Không tải được báo cáo.'}</p>}
-    {report.isFetching && <p role="status" className="text-sm text-muted-foreground">Đang tải báo cáo…</p>}
+    {report.isFetching && <output className="block text-sm text-muted-foreground">Đang tải báo cáo…</output>}
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{metrics.map(m=><AppStatCard key={m.label} {...m}/>)}</div>
     <section className="rounded-2xl border bg-card p-5">
       <h3 className="font-semibold">Đối soát doanh thu theo kỳ</h3>

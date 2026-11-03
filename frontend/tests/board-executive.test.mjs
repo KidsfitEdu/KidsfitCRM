@@ -93,3 +93,16 @@ test('Director policy lifecycle uses audited API and hides edits of non-drafts',
   assert.doesNotMatch(screen, /Làm mới danh sách chính sách/);
   assert.match(editor, /max_extension_days:7,max_extension_count:3,max_total_extension_days:21/);
 });
+
+test('Policy reapply preserves historical versions and organization dropdown offers an explicit choice', () => {
+  const screen = read('screens/Board/BoardPoliciesPage.tsx');
+  const editor = read('screens/Board/PolicyEditorDialog.tsx');
+  assert.match(screen, /p\.status==='SUPERSEDED'/);
+  assert.match(screen, /action:'reapply'/);
+  assert.match(screen, /RotateCcw/);
+  assert.match(screen, /p\.status!=='CANCELLED'/);
+  assert.match(editor, /<option value=\{0\}>Chọn tổ chức<\/option>/);
+  assert.match(editor, /organizations\.map\(o=>/);
+  assert.doesNotMatch(editor, /organizations\.filter\(o=>o\.status/);
+  assert.match(editor, /if\(!form\.organization_id\)/);
+});

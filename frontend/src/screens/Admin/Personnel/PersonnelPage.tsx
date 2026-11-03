@@ -236,7 +236,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
                       tone={p.status==='SUSPENDED'?'green':'red'}
                       label={p.status==='SUSPENDED'?`Mở khóa tổ chức ${p.name}`:`Khóa tổ chức ${p.name}`}
                       onClick={()=>{setPartnerStatusAction({partner:p,suspend:p.status!=='SUSPENDED'});setReason('');setErrors({});}}/>
-                  </>}}
+                  </>}
                 </div></td>
               </tr>)}
             </tbody>

@@ -49,7 +49,7 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
     ['Quản trị viên',7],['Quản lý bán hàng',7],
     ['Nhân viên bán hàng',5],['CTV đối tác',5],
     ['Ban giám đốc',5],['Kế toán',2],
-    ['Chăm sóc khách hàng',5],['CHECKEE',2],
+    ['Chăm sóc khách hàng',5],['CHECKEE',3],
   ];
   for (const [name,expected] of roles) {
     const {context,page,navigation,errors} = await login(name);
@@ -62,13 +62,15 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
   }
 });
 
-test('CHECKEE uses a compact two-menu verification workspace', async () => {
+test('CHECKEE has separate verification and system-error support workspaces', async () => {
   const {context,page,navigation,errors} = await login('CHECKEE');
-  assert.equal(await navigation.locator('button').count(),2);
+  assert.equal(await navigation.locator('button').count(),3);
   await navigation.getByRole('button',{name:'Xác minh hợp đồng',exact:true}).click();
   await page.getByRole('heading',{name:'Xác minh hợp đồng'}).waitFor();
   await page.getByRole('combobox',{name:'Lọc trạng thái xác minh'}).waitFor();
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  await navigation.getByRole('button',{name:'Lỗi hệ thống',exact:true}).click();
+  await page.getByRole('heading',{name:'Ticket lỗi hệ thống'}).waitFor();
   assert.deepEqual(errors,[]);
   await context.close();
 });

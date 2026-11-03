@@ -306,6 +306,11 @@ public sealed partial class ChannelSalesActions
         var access = await RequirePermission(actorId, Permissions.ChannelSalesActivity, ct);
         var customer = await access.Customers(db).SingleOrDefaultAsync(x => x.Id == customerId && x.LifecycleStatus == "CONTRACTED", ct) ?? throw new KeyNotFoundException();
         if (!access.All && !await access.Contracts(db).AnyAsync(x => x.CustomerId == customerId && x.Status == "ACTIVE", ct)) throw new KeyNotFoundException();
+        if (access.Has(Permissions.SchoolSupportManage) && !access.All
+            && !await db.SalesContracts.AnyAsync(x => x.CustomerId == customerId && x.Status == "ACTIVE"
+                && x.VerifiedAt != null && x.CareUserId == actorId && x.CareOrganizationId.HasValue
+                && access.OrganizationIds.Contains(x.CareOrganizationId.Value), ct))
+            throw new KeyNotFoundException();
         var content = Validation.Required(request.Content, "content", "Vui lòng nhập nội dung chăm sóc.", 4000);
         var now = DateTime.UtcNow;
         await using var transaction = await db.Database.BeginTransactionAsync(ct);

@@ -159,6 +159,12 @@ public sealed class ContractCareHandover : EntityBase
 
 public sealed class CustomerSupportCase : EntityBase
 {
+    // LEGACY keeps existing support history internal; only newly created technical errors are routed.
+    public string TicketType { get; set; } = "LEGACY";
+    public long? CheckeeOrganizationId { get; set; }
+    public DateTime? ForwardedAt { get; set; }
+    public long? ForwardedByUserId { get; set; }
+    public DateTime? CheckeeRespondedAt { get; set; }
     public long ContractId { get; set; }
     public long CustomerId { get; set; }
     public long OrganizationId { get; set; }

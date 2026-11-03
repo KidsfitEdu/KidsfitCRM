@@ -31,7 +31,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   const [actionError,setActionError]=useState('');
   const allowed=abilities.includes('*')||abilities.includes('channel_sales.school.escalation.resolve')||abilities.includes('channel_sales.school.dispute.resolve');
   const connected=Boolean(apiBase&&token&&allowed);
-  const canManage=abilities.includes('*')||abilities.includes('channel_sales.school.workflow.policy.manage');
+  const canManage=abilities.includes('*')||abilities.includes('channel_sales.school.workflow_policy.manage');
   const query=useQuery({
     queryKey:['board','policies',apiBase],
     queryFn:()=>channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page=1'),

@@ -110,6 +110,7 @@ public static class DatabaseSeeder
             (Permissions.SchoolHandoverManage, "Bàn giao nhân sự ngưng hoạt động"),
             (Permissions.SchoolCareAssign, "Phân công và bàn giao CSKH"),
             (Permissions.SchoolSupportManage, "Quản lý yêu cầu hỗ trợ khách hàng"),
+            (Permissions.SchoolTechnicalSupportHandle, "CHECKEE xử lý lỗi phần mềm"),
             (Permissions.SchoolWorkflowPolicyManage, "Xác nhận chính sách vận hành trường"),
             (Permissions.ChannelSalesContractCancel, "Ghi nhận quyết định hủy hợp đồng"),
             (Permissions.ChannelSalesRevenueRefund, "Ghi nhận khoản hoàn tiền thực tế"),
@@ -157,12 +158,13 @@ public static class DatabaseSeeder
         var currentLinks = await db.PermissionRoles.Select(x => new { x.RoleId, x.PermissionId }).ToListAsync();
         foreach (var managerRole in new[] { "SALES_MANAGER" })
             rolePermissions[managerRole] = [.. rolePermissions[managerRole], Permissions.SchoolContractReview, Permissions.SchoolProposalReview,
-                Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage, Permissions.SchoolCareAssign];
+                Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage];
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
         rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
         rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund];
         rolePermissions["CUSTOMER_SERVICE"] = [.. rolePermissions["CUSTOMER_SERVICE"], Permissions.SchoolSupportManage];
+        rolePermissions["CHECKEE"] = [.. rolePermissions["CHECKEE"], Permissions.SchoolTechnicalSupportHandle];
         foreach (var bundle in rolePermissions)
         {
             if (!roleByCode.TryGetValue(bundle.Key, out var role)) continue;

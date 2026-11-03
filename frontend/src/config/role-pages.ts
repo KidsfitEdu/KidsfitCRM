@@ -18,7 +18,7 @@ export const rolePageSections = {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},
     handover: {label:"Trường bàn giao",panel:"operations",tab:"care"},
     cases: {label:"Yêu cầu hỗ trợ",panel:"operations",tab:"care"},
-    customers: {label:"Khách hàng",panel:"customers",tab:""},
+    customers: {label:"Trường phụ trách",panel:"customers",tab:""},
     followup: {label:"Theo dõi chăm sóc",panel:"operations",tab:"care"},
   },
   SalesStaff: {
@@ -32,6 +32,7 @@ export const rolePageSections = {
   Checkee: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},
     verification: {label:"Xác minh hợp đồng",panel:"reconciliation",tab:""},
+    support: {label:"Hỗ trợ kỹ thuật",panel:"operations",tab:"care"},
   },
   Collaborator: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},

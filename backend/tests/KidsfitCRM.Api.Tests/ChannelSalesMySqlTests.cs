@@ -348,7 +348,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
-    public async Task Customer_care_records_support_after_signing_and_checkee_cannot_write_support()
+    public async Task Unassigned_CSKH_and_CHECKEE_cannot_write_customer_support()
     {
         var seller = await Seller();
         var (_, contractId) = await Contract(seller);
@@ -357,8 +357,8 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         await using var db = fixture.Open();
         var customerId = await db.SalesContracts.Where(x => x.Id == contractId).Select(x => x.CustomerId).SingleAsync();
         var actions = new ChannelSalesActions(db);
-        var activityId = await actions.RecordSupportActivity(customerId, new(null, "Đã hướng dẫn sử dụng phần mềm.", null), care, Http(), Ct);
-        Assert.Equal("SUPPORT", (await db.CustomerActivities.FindAsync(activityId))!.ActivityType);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.RecordSupportActivity(customerId,
+            new(null, "Chưa được Admin phân công", null), care, Http(), Ct));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.RecordSupportActivity(customerId, new(null, "Không được phép", null), checkee, Http(), Ct));
     }
 

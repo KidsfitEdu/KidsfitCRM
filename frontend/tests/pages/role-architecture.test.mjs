@@ -7,21 +7,23 @@ const root = resolve(import.meta.dirname, '../..');
 const file = (name) => resolve(root, name);
 const read = (name) => readFileSync(file(name), 'utf8');
 const profileSections = {
-  Admin: ['Dashboard','Schools','Proposals','Personnel','Capacities','Policies','Reports'],
+  Admin: ['Dashboard','Schools','Proposals','Personnel','Capacities','Policies','Reports','CareAssignments'],
   SalesManager: ['Dashboard','Proposals','Allocations','Progress','Contracts','Extensions','Team'],
   SalesStaff: ['Dashboard','Schools','Customers','Activities','Proposals','Income'],
   Collaborator: ['Dashboard','Schools','Proposals','Invitations','Approaches','Extensions','Income'],
   Board: ['Dashboard','Overdue','Disputes','Policies'],
   Accounting: ['Dashboard','Revenue'],
-  CustomerCare: ['Dashboard','Handover','Cases','Customers','Followup'],
-  Checkee: ['Dashboard','Verification'],
+  CustomerCare: ['Dashboard','Cases','Customers'],
+  Checkee: ['Dashboard','Verification','Support'],
 };
 
 test('All 40 active role menu pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
-      const source = 'src/screens/' + profile + '/' + screen + '/' + screen + 'Page.tsx';
+      const source = profile === 'Admin' && screen === 'CareAssignments'
+        ? 'src/screens/Admin/CareAssignments/CareAssignmentsPage.tsx'
+        : 'src/screens/' + profile + '/' + screen + '/' + screen + 'Page.tsx';
       assert.ok(existsSync(file(source)), 'Missing role page: ' + source);
       const text = read(source);
       assert.match(text, new RegExp('export function ' + screen + 'Page\\b'));
@@ -49,12 +51,12 @@ test('Active navigation targets match role page registry and preserve aliases', 
   }
 });
 
-test('CHECKEE has two active menus and legacy bookmarks are redirected', () => {
+test('CHECKEE has verification and separate technical support menus', () => {
   const navigation = read('src/config/navigation.ts');
   const routes = read('src/config/routes.ts');
   const page = read('src/screens/Checkee/Verification/VerificationPage.tsx');
   const dashboard = read('src/screens/Checkee/Dashboard/DashboardPage.tsx');
-  assert.equal((navigation.match(/\{ id: 'role-checkee-(dashboard|verification)', label:/g) ?? []).length, 2);
+  assert.equal((navigation.match(/\{ id: 'role-checkee-(dashboard|verification|support)', label:/g) ?? []).length, 3);
   assert.match(routes, /canonicalCheckeeView/);
   assert.match(page, /<AdminListPanel>/);
   assert.match(page, /<AppDrawer/);

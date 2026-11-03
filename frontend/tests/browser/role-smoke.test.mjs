@@ -46,10 +46,10 @@ async function login(profileLabel, viewport={width:1400,height:900}) {
 
 test('seven CRM roles across eight demo accounts can log in and open their menu', async () => {
   const roles = [
-    ['Quản trị viên',7],['Quản lý bán hàng',7],
+    ['Quản trị viên',8],['Quản lý bán hàng',7],
     ['Nhân viên bán hàng',5],['CTV đối tác',5],
     ['Ban giám đốc',4],['Kế toán',2],
-    ['Chăm sóc khách hàng',5],['CHECKEE',2],
+    ['Chăm sóc khách hàng',3],['CHECKEE',3],
   ];
   for (const [name,expected] of roles) {
     const {context,page,navigation,errors} = await login(name);
@@ -62,20 +62,22 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
   }
 });
 
-test('CHECKEE uses a compact two-menu verification workspace', async () => {
+test('CHECKEE has verification and technical support screens', async () => {
   const {context,page,navigation,errors} = await login('CHECKEE');
-  assert.equal(await navigation.locator('button').count(),2);
+  assert.equal(await navigation.locator('button').count(),3);
   await navigation.getByRole('button',{name:'Xác minh hợp đồng',exact:true}).click();
   await page.getByRole('heading',{name:'Xác minh hợp đồng'}).waitFor();
   await page.getByRole('combobox',{name:'Lọc trạng thái xác minh'}).waitFor();
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
+  await navigation.getByRole('button',{name:'Hỗ trợ kỹ thuật',exact:true}).click();
+  await page.getByRole('heading',{name:'Hỗ trợ kỹ thuật'}).waitFor();
   assert.deepEqual(errors,[]);
   await context.close();
 });
 
-test('Admin can navigate seven screens without browser exceptions', async () => {
+test('Admin can navigate eight screens without browser exceptions', async () => {
   const {context,page,navigation,errors} = await login('Quản trị viên');
-  for (let i=0;i<7;i+=1) {
+  for (let i=0;i<8;i+=1) {
     await navigation.locator('button').nth(i).click();
     await page.waitForTimeout(180);
     assert.ok((await page.locator('body').innerText()).length>200,'Empty Admin screen '+i);

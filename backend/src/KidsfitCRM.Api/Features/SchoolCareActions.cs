@@ -10,21 +10,26 @@ public sealed partial class ChannelSalesActions
     public Task<long> AssignContractCare(long contractId, AssignContractCareRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await RequirePermission(actorId, Permissions.SchoolCareAssign, ct);
+        // Only a central Admin may assign across partner-owned contracts.
+        // Old permission rows granted to Sales Managers must not authorize this action.
+        if (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage)
+            || !await db.Organizations.AnyAsync(o => o.Code == "KIDSFIT" && o.Status == "ACTIVE"
+                && access.OrganizationIds.Contains(o.Id), ct))
+            throw new KeyNotFoundException();
         var key = SchoolKey(request.IdempotencyKey); var hash = ChannelSalesValidation.Fingerprint(request, contractId);
         var reason = Validation.Required(request.Reason, "reason", "Cần nội dung bàn giao CSKH.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        if (!await db.Organizations.AnyAsync(o => o.Id == request.CareOrganizationId && o.Code == "KIDSFIT" && o.Status == "ACTIVE", ct))
+            throw ApiValidationException.For("care_organization_id", "Chỉ phân công CSKH thuộc KIDSFIT.");
         await ActiveSchoolMembership(request.UserId, request.CareOrganizationId, ct);
         var nextCare = await ChannelSalesAccess.Load(db, request.UserId, ct);
         if (!nextCare.Has(Permissions.SchoolSupportManage)) throw ApiValidationException.For("user_id", "Nhân sự cần có quyền chăm sóc khách hàng.");
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {contractId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if ((!access.CanManageOrganization(contract.OwnerOrganizationId)
-            && !(contract.CareOrganizationId.HasValue && access.CanManageOrganization(contract.CareOrganizationId.Value)))
-            || !access.CanManageOrganization(request.CareOrganizationId)) throw new KeyNotFoundException();
+        // Admin already authorized with all-scope; owner organization may be a partner.
         var replay = await db.ContractCareHandovers.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.ActorUserId, actorId, replay.RequestFingerprint, hash);
-        var historicalCare = contract.Status == "CANCELLED" && await db.ContractCancellations.AnyAsync(x => x.ContractId == contractId && x.PreviousStatus == "ACTIVE", ct);
-        if ((contract.Status != "ACTIVE" && !historicalCare) || (contract.RequiresSchoolVerification && contract.VerifiedAt is null))
-            throw new ApiConflictException("Chỉ bàn giao CSKH cho hợp đồng đang hoạt động và đã xác minh hợp lệ.");
+        if (contract.Status != "ACTIVE" || contract.VerifiedAt is null)
+            throw new ApiConflictException("Chỉ phân công CSKH cho hợp đồng đang hoạt động đã được CHECKEE xác minh.");
         var now = DateTime.UtcNow;
         var handover = new ContractCareHandover
         {
@@ -50,25 +55,31 @@ public sealed partial class ChannelSalesActions
         EnsureContractCareAccess(access, contract);
         var replay = await db.CustomerSupportCases.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.CreatedByUserId, actorId, replay.RequestFingerprint, hash);
-        if (contract.Status != "ACTIVE" || (contract.RequiresSchoolVerification && contract.VerifiedAt is null)) throw new ApiConflictException("Hợp đồng chưa đủ điều kiện tiếp nhận CSKH.");
+        if (contract.Status != "ACTIVE" || contract.VerifiedAt is null) throw new ApiConflictException("Hợp đồng chưa được CHECKEE xác minh để hỗ trợ CSKH.");
         if (!contract.CareUserId.HasValue || !contract.CareOrganizationId.HasValue) throw new ApiConflictException("Cần phân công người CSKH trước khi mở hồ sơ hỗ trợ.");
         // Contract lock serializes assignment changes; membership is read here to avoid reversing its lock order.
         if (!await db.OrganizationMemberships.AnyAsync(x => x.UserId == contract.CareUserId && x.OrganizationId == contract.CareOrganizationId && x.Status == "ACTIVE", ct)
             || !await db.Users.AnyAsync(x => x.Id == contract.CareUserId && x.Status == "ACTIVE", ct)) throw new ApiConflictException("Người CSKH đã ngưng hoạt động; cần bàn giao lại.");
         var caretaker = await ChannelSalesAccess.Load(db, contract.CareUserId.Value, ct);
         if (!caretaker.Has(Permissions.SchoolSupportManage)) throw new ApiConflictException("Người phụ trách không còn quyền CSKH; cần bàn giao lại.");
+        // Usage questions are logged via CustomerActivity SUPPORT; tickets represent software errors only.
+        var checkeeOrg = await db.Organizations.Where(o => o.Code == "CHECKEE" && o.Status == "ACTIVE")
+            .Select(o => (long?)o.Id).SingleOrDefaultAsync(ct);
+        if (!checkeeOrg.HasValue) throw new ApiConflictException("Chưa cấu hình đơn vị CHECKEE hỗ trợ kỹ thuật.");
         var now = DateTime.UtcNow;
         var item = new CustomerSupportCase
         {
             ContractId = contract.Id, CustomerId = contract.CustomerId, OrganizationId = contract.CareOrganizationId.Value,
             AssignedUserId = contract.CareUserId.Value, CreatedByUserId = actorId,
+            TicketType = "SYSTEM_ERROR", CheckeeOrganizationId = checkeeOrg.Value,
+            ForwardedAt = now, ForwardedByUserId = actorId,
             Subject = Validation.Required(request.Subject, "subject", "Cần tiêu đề yêu cầu.", 190),
             Description = Validation.Required(request.Description, "description", "Cần nội dung yêu cầu.", 4000),
             IdempotencyKey = key, RequestFingerprint = hash, CreatedAt = now, UpdatedAt = now,
         };
         db.CustomerSupportCases.Add(item); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "CREATE_CUSTOMER_SUPPORT_CASE", nameof(CustomerSupportCase), item.Id, null,
-            new { item.ContractId, item.AssignedUserId, item.OrganizationId, item.Status }, http);
+            new { item.ContractId, item.AssignedUserId, item.OrganizationId, item.Status, item.TicketType, item.CheckeeOrganizationId }, http);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return item.Id;
     }, ct);
 
@@ -84,6 +95,8 @@ public sealed partial class ChannelSalesActions
         EnsureContractCareAccess(access, contract);
         var item = await db.CustomerSupportCases.FromSqlInterpolated($"SELECT * FROM customer_support_cases WHERE id = {id} FOR UPDATE").SingleAsync(ct);
         if (item.Status == "RESOLVED") throw new ApiConflictException("Yêu cầu đã kết thúc; cần mở yêu cầu mới để tiếp tục hỗ trợ.");
+        if (status == "RESOLVED" && item.TicketType == "SYSTEM_ERROR" && !item.CheckeeRespondedAt.HasValue)
+            throw new ApiConflictException("Cần CHECKEE hoàn tất kỹ thuật trước khi CSKH đóng ticket.");
         if (item.Status == "IN_PROGRESS" && status == "OPEN") throw new ApiConflictException("Không chuyển ngược yêu cầu đang xử lý về mới nhận.");
         var now = DateTime.UtcNow; var previous = item.Status;
         item.Status = status; item.UpdatedAt = now;
@@ -100,6 +113,6 @@ public sealed partial class ChannelSalesActions
     private static void EnsureContractCareAccess(ChannelSalesAccess access, SalesContract contract)
     {
         if (!access.All && !(contract.CareUserId == access.UserId && contract.CareOrganizationId.HasValue && access.InOrganization(contract.CareOrganizationId.Value))
-            && !(access.Has(Permissions.SchoolCareAssign) && access.CanManageOrganization(contract.OwnerOrganizationId))) throw new KeyNotFoundException();
+            && !(access.All && access.Has(Permissions.ChannelSalesIdentityManage))) throw new KeyNotFoundException();
     }
 }

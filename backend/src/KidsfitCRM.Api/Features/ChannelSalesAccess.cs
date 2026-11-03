@@ -32,7 +32,10 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
         return new(userId, organizations, codes);
     }
 
-    public IQueryable<SalesContract> Contracts(KidsfitDbContext db) => All ? db.SalesContracts : db.SalesContracts.Where(x =>
+    public IQueryable<SalesContract> Contracts(KidsfitDbContext db) => IsPureCaretaker
+        ? db.SalesContracts.Where(x => x.CareUserId == UserId && x.CareOrganizationId.HasValue
+            && OrganizationIds.Contains(x.CareOrganizationId.Value))
+        : All ? db.SalesContracts : db.SalesContracts.Where(x =>
         (OrganizationIds.Contains(x.OwnerOrganizationId) && (Organization
             ? (!Has(Permissions.ChannelSalesManage) || x.OwnerUserId == UserId
                 || db.OrganizationMemberships.Any(m => m.OrganizationId == x.OwnerOrganizationId
@@ -56,6 +59,9 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
 
     public IQueryable<ChannelCustomer> Customers(KidsfitDbContext db)
     {
+        if (IsPureCaretaker) return db.ChannelCustomers.Where(x => db.SalesContracts.Any(c =>
+            c.CustomerId == x.Id && c.CareUserId == UserId && c.CareOrganizationId.HasValue
+            && OrganizationIds.Contains(c.CareOrganizationId.Value)));
         if (All) return db.ChannelCustomers;
         var now = DateTime.UtcNow;
         var scoped = db.ChannelCustomers.Where(x =>
@@ -76,6 +82,11 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
         return scoped;
     }
 
+    // Pure care profiles cannot obtain wider customer reads through OrganizationScope.
+    private bool IsPureCaretaker => Has(Permissions.SchoolSupportManage) && !All
+        && !Has(Permissions.ChannelSalesRegister) && !Has(Permissions.ChannelSalesManage)
+        && !Has(Permissions.ChannelSalesRecordRevenue) && !Has(Permissions.ChannelSalesCommissionView)
+        && !Has(Permissions.SchoolCareAssign);
     private bool HasReconciliation => Has(Permissions.ChannelSalesReconcile);
     private bool HasCareAccess => Has(Permissions.SchoolSupportManage);
 }

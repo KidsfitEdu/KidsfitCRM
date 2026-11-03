@@ -126,7 +126,7 @@ public static class CustomerCareEndpoints
         var tickets = db.CustomerSupportCases.Where(t => contractIds.Contains(t.ContractId));
         var now = DateTime.UtcNow;
         return Results.Ok(new { data = new {
-            schools = await assigned.CountAsync(ct),
+            schools = await assigned.Select(c => c.CustomerId).Distinct().CountAsync(ct),
             open_tickets = await tickets.CountAsync(x => x.Status != "RESOLVED", ct),
             waiting_checkee = await tickets.CountAsync(x => x.TicketType == "SYSTEM_ERROR" && x.Status != "RESOLVED" && x.CheckeeRespondedAt == null, ct),
             resolved_tickets = await tickets.CountAsync(x => x.Status == "RESOLVED", ct),
@@ -193,7 +193,8 @@ public static class CustomerCareEndpoints
                     && db.PermissionRoles.Any(pr => pr.RoleId == ur.RoleId && db.Permissions.Any(pe =>
                         pe.Id == pr.PermissionId && pe.Code == Permissions.SchoolSupportManage)))
             orderby u.Name select new { id = u.Id, name = u.Name, organization_id = o.Id,
-                schools = db.SalesContracts.Count(c => c.CareUserId == u.Id && c.Status == "ACTIVE"),
+                schools = db.SalesContracts.Where(c => c.CareUserId == u.Id && c.Status == "ACTIVE")
+                    .Select(c => c.CustomerId).Distinct().Count(),
                 open_tickets = db.CustomerSupportCases.Count(t => t.AssignedUserId == u.Id && t.Status != "RESOLVED")
             }).ToArrayAsync(ct);
         return Results.Ok(new { data = contracts, users, total, page = p, page_size = size });

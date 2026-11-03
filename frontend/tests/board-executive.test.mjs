@@ -47,3 +47,34 @@ test('Board policy screens use saved policy versions, not stale two-extension te
   assert.match(source, /decision_reference/);
   assert.doesNotMatch(shared, /tối đa 2 lần và 14 ngày/);
 });
+
+test('Board has four menu items while historic reports route still loads dashboard', () => {
+  const nav = read('config/navigation.ts');
+  const routes = read('config/routes.ts');
+  const workspace = read('screens/Board/BoardWorkspace.tsx');
+  const dashboard = read('screens/Board/BoardDashboardPage.tsx');
+  assert.doesNotMatch(nav, /\{ id: 'role-board-oversight', label:/);
+  assert.match(nav, /\{ id: 'role-board-overdue', label: 'Hồ sơ quá hạn'/);
+  assert.match(routes, /canonicalBoardView/);
+  assert.match(routes, /'role-board-oversight' \? 'role-board-dashboard'/);
+  assert.match(workspace, /oversight: DashboardPage/);
+  assert.match(dashboard, /Đối soát doanh thu theo kỳ/);
+});
+
+test('Board queues share Sales search toolbar, icon actions and real server paging', () => {
+  const overdue = read('screens/Board/BoardOverduePage.tsx');
+  const disputes = read('screens/Board/BoardDisputesPage.tsx');
+  const policies = read('screens/Board/BoardPoliciesPage.tsx');
+  for (const source of [overdue, disputes, policies]) {
+    assert.match(source, /AdminListToolbar/);
+    assert.match(source, /AdminIconAction/);
+  }
+  for (const source of [overdue, disputes]) {
+    assert.match(source, /pageSizeOptions=\{\[10,20,50,100\]\}/);
+    assert.match(source, /page_size=/);
+    assert.match(source, /encodeURIComponent\(search\)/);
+    assert.doesNotMatch(source, /<AppButton[^>]*>Xử lý<\/AppButton>/);
+  }
+  assert.match(policies, /Chi tiết chính sách/);
+  assert.match(policies, /Tìm kiếm hiện áp dụng trên tối đa 100 phiên bản/);
+});

@@ -39,7 +39,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
   });
   const data=query.data;
   const policies=(data?.policies??[]).filter(p=>p.status!=='CANCELLED' && (organization==='ALL'||String(p.organization_id)===organization)
-      && [data?.organizations.find(o=>o.id===p.organization_id)?.name??'',String(p.version),p.decision_reference??'']
+      && [data?.organizations.find(o=>o.id===p.organization_id)?.name??'',String(p.version)]
         .some(value=>value.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'))))
     .sort((a,b)=>a.organization_id-b.organization_id||b.version-a.version);
   const orgName=(id:number)=>data?.organizations.find(x=>x.id===id)?.name??String(id);
@@ -61,7 +61,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
       manager_review_hours:form.manager_review_hours,admin_review_hours:form.admin_review_hours,
       invitation_hours:form.invitation_hours,max_extension_days:form.max_extension_days,
       max_extension_count:form.max_extension_count,max_total_extension_days:form.max_total_extension_days,
-      decision_reference:form.decision_reference.trim(),
+      decision_reference:'POLICY-SAVE-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),
     };
     if(editingId!==null)void write('/school-workflow-policies/'+editingId+'/draft','PATCH',payload);
     else void write('/school-workflow-policies','POST',{...payload,organization_id:form.organization_id,activate:false});
@@ -89,7 +89,7 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}
         onReset={()=>{setDraft('');setSearch('');setOrganization('ALL');setPage(1);}}
-        searchLabel="Tìm chính sách" placeholder="Tên tổ chức, phiên bản, căn cứ..."
+        searchLabel="Tìm chính sách" placeholder="Tên tổ chức, phiên bản..."
         filters={<AppNativeSelect aria-label="Lọc tổ chức" containerClassName="w-full sm:w-56"
           value={organization} onChange={e=>{setOrganization(e.target.value);setPage(1);}}>
           <option value="ALL">Tất cả tổ chức</option>
@@ -97,14 +97,13 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         </AppNativeSelect>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass}>
-          <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Tổ chức</th><th className="px-5 py-4">Phiên bản</th><th className="px-5 py-4">Thời hạn xử lý</th><th className="px-5 py-4">Gia hạn</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4">Căn cứ quyết định</th><th className="px-5 py-4 text-right">Thao tác</th></tr></thead>
+          <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Tổ chức</th><th className="px-5 py-4">Phiên bản</th><th className="px-5 py-4">Thời hạn xử lý</th><th className="px-5 py-4">Gia hạn</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-right">Thao tác</th></tr></thead>
           <tbody>{visiblePolicies.map(p=><tr className="border-b" key={p.id}>
             <td className="px-5 py-4 font-medium">{orgName(p.organization_id)}</td>
             <td className="px-5 py-4">{p.version}</td>
             <td className="px-5 py-4">Quản lý {p.manager_review_hours}h · Admin {p.admin_review_hours}h · Phân bổ {p.invitation_hours}h</td>
             <td className="px-5 py-4">{p.max_extension_days} ngày/lần · {p.max_extension_count} lần</td>
             <td className="px-5 py-4"><AdminStatusBadge status={p.status} label={p.status==='ACTIVE'?'Đang áp dụng':p.status==='DRAFT'?'Bản nháp':p.status==='CANCELLED'?'Đã hủy':'Đã thay phiên bản'}/></td>
-            <td className="break-words px-5 py-4">{p.decision_reference||'Chưa cập nhật'}</td>
             <td className="px-5 py-4 text-right"><div className="flex items-center justify-end gap-2">
               <AdminIconAction icon={Eye} label="Xem chi tiết chính sách" onClick={()=>setDetailId(p.id)}/>
               {canManage&&p.status==='SUPERSEDED'&&<AdminIconAction icon={RotateCcw} tone="blue"
@@ -129,7 +128,6 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}
         disabled={query.isFetching} showSummary={false}/>
     </AdminListPanel>
-    <p className="text-xs text-muted-foreground">Tìm kiếm và phân trang áp dụng trên tối đa 100 phiên bản mới nhất do API cung cấp, không phải toàn bộ lịch sử.</p>
     <AppDrawer open={detailId!==null} onOpenChange={open=>{if(!open)setDetailId(null);}} title="Chi tiết chính sách">
       {detail&&<div className="space-y-4 text-sm">
         <h3 className="text-lg font-semibold">{orgName(detail.organization_id)} · Phiên bản {detail.version}</h3>
@@ -142,9 +140,6 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
           <div><dt className="text-muted-foreground">Số lần gia hạn</dt><dd className="font-semibold">{detail.max_extension_count} lần</dd></div>
           <div><dt className="text-muted-foreground">Tổng ngày gia hạn</dt><dd className="font-semibold">{detail.max_total_extension_days} ngày</dd></div>
         </dl>
-        <section className="rounded-xl border p-4"><h4 className="font-semibold">Căn cứ quyết định</h4>
-          <p className="mt-2 whitespace-pre-wrap">{detail.decision_reference||'Chưa cập nhật'}</p>
-        </section>
       </div>}
     </AppDrawer>
     <PolicyEditorDialog open={editorOpen} onClose={()=>{if(!busy)setEditorOpen(false);}}

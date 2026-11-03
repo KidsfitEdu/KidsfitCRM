@@ -76,5 +76,6 @@ test('Board queues share Sales search toolbar, icon actions and real server pagi
     assert.doesNotMatch(source, /<AppButton[^>]*>Xử lý<\/AppButton>/);
   }
   assert.match(policies, /Chi tiết chính sách/);
-  assert.match(policies, /Tìm kiếm hiện áp dụng trên tối đa 100 phiên bản/);
+  assert.match(policies, /Tìm kiếm và phân trang áp dụng trên tối đa 100 phiên bản/);
+  assert.match(policies, /<AppPagination/);
 });

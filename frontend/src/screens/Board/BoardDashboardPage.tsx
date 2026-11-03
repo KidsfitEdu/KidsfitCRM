@@ -34,9 +34,9 @@ export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
         <AppButton type="button" tone="outline" disabled={!connected||report.isFetching||operations.isFetching}
           onClick={()=>{void report.refetch();void operations.refetch();}} leadingIcon={<RefreshCw className="size-4"/>}>Làm mới</AppButton>
       </div>}/>
-    {!connected && <p className="rounded-xl border p-4 text-sm text-muted-foreground" role="status">
+    {!connected && <output className="block rounded-xl border p-4 text-sm text-muted-foreground">
       {!apiBase?'Đang xem giao diện mẫu. Kết nối API để tải dữ liệu thực tế.':'Tài khoản không có quyền xem báo cáo điều hành.'}
-    </p>}
+    </output>}
     {(report.error||operations.error) && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800">
       {report.error instanceof Error?report.error.message:operations.error instanceof Error?operations.error.message:'Không tải được dữ liệu.'}
     </p>}

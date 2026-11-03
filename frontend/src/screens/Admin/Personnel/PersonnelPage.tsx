@@ -250,67 +250,116 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       </AdminListPanel>
 
       <AppDialog open={createOpen} onOpenChange={open=>{if(!busy)setCreateOpen(open);}}
-        busy={busy} title="Thêm nhân sự" description="Tạo tài khoản đúng tổ chức và vai trò. Không cấp quyền Admin/BGĐ.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(['name','email','password'] as const).map(k=><div key={k} className="text-sm font-medium">
-            <span>{({name:'Họ và tên',email:'Email',password:'Mật khẩu ban đầu (ít nhất 12 ký tự)'} as const)[k]}</span>
-            <Input aria-label={k==='name'?'Họ và tên':k==='email'?'Email':'Mật khẩu ban đầu'}
-              type={k==='password'?'password':'text'} className="mt-1.5" value={createForm[k]} aria-invalid={!!errors[k]}
-              onChange={e=>setCreateForm(v=>({...v,[k]:e.target.value}))}/><FormError>{errors[k]}</FormError>
-          </div>)}
-          <div className="text-sm font-medium"><span>Tổ chức</span>
-            <AppNativeSelect aria-label="Tổ chức" className="mt-1.5 w-full" value={createForm.organization_id}
+        busy={busy} title="Thêm nhân sự" description="Tạo tài khoản đúng tổ chức và vai trò. Không cấp quyền Admin/BGĐ."
+        footer={<FormActions busy={busy} onCancel={()=>setCreateOpen(false)} onSave={submitCreate} saveLabel="Tạo tài khoản"/>}>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+          <div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-new-name">Họ và tên *</label>
+            <Input id="admin-new-name" autoComplete="name" className="h-11" value={createForm.name}
+              aria-invalid={!!errors.name} onChange={e=>setCreateForm(v=>({...v,name:e.target.value}))}/>
+            <FormError>{errors.name}</FormError>
+          </div>
+          <div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-new-email">Email *</label>
+            <Input id="admin-new-email" type="email" autoComplete="email" className="h-11" value={createForm.email}
+              aria-invalid={!!errors.email} onChange={e=>setCreateForm(v=>({...v,email:e.target.value}))}/>
+            <FormError>{errors.email}</FormError>
+          </div>
+          <div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-new-org">Tổ chức *</label>
+            <AppNativeSelect id="admin-new-org" containerClassName="w-full" value={createForm.organization_id}
               onChange={e=>setCreateForm(v=>({...v,organization_id:e.target.value,manager_user_id:'',
                 role_code:management?.organizations.find(o=>String(o.id)===e.target.value)?.organization_type==='CHECKEE'?'CHECKEE':'SALES'}))}>
               <option value="">Chọn tổ chức</option>
               {management?.organizations.filter(o=>o.status==='ACTIVE').map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
-            </AppNativeSelect><FormError>{errors.organization_id}</FormError>
+            </AppNativeSelect>
+            <FormError>{errors.organization_id}</FormError>
           </div>
-          <div className="text-sm font-medium"><span>Vai trò</span>
-            <AppNativeSelect aria-label="Vai trò" className="mt-1.5 w-full" value={createForm.role_code}
-              onChange={e=>setCreateForm(v=>({...v,role_code:e.target.value}))}>
+          <div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-new-role">Vai trò *</label>
+            <AppNativeSelect id="admin-new-role" containerClassName="w-full" value={createForm.role_code}
+              onChange={e=>setCreateForm(v=>({...v,role_code:e.target.value,manager_user_id:''}))}>
               {management?.roles.filter(r=>editableRoles.includes(r.code) &&
                 (r.code==='CHECKEE')===(management.organizations.find(o=>String(o.id)===createForm.organization_id)?.organization_type==='CHECKEE'))
                 .map(r=><option key={r.code} value={r.code}>{roleText(r.code)}</option>)}
             </AppNativeSelect>
           </div>
-          {createForm.role_code==='SALES' && <div className="text-sm font-medium"><span>Quản lý bán hàng trực tiếp</span>
-            <AppNativeSelect aria-label="Quản lý bán hàng trực tiếp" className="mt-1.5 w-full" value={createForm.manager_user_id}
+          {createForm.role_code==='SALES' && <div className="min-w-0 space-y-1.5 text-sm font-medium sm:col-span-2">
+            <label htmlFor="admin-new-manager">Quản lý bán hàng trực tiếp *</label>
+            <AppNativeSelect id="admin-new-manager" containerClassName="w-full" value={createForm.manager_user_id}
               onChange={e=>setCreateForm(v=>({...v,manager_user_id:e.target.value}))}>
-              <option value="">Chọn Quản lý</option>{managers(createForm.organization_id).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}
-            </AppNativeSelect><FormError>{errors.manager_user_id}</FormError>
+              <option value="">Chọn Quản lý</option>
+              {managers(createForm.organization_id).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}
+            </AppNativeSelect>
+            <FormError>{errors.manager_user_id}</FormError>
           </div>}
+          <div className="min-w-0 space-y-1.5 text-sm font-medium sm:col-span-2">
+            <label htmlFor="admin-new-password">Mật khẩu ban đầu (ít nhất 12 ký tự) *</label>
+            <Input id="admin-new-password" type="password" autoComplete="new-password" className="h-11"
+              value={createForm.password} aria-invalid={!!errors.password}
+              onChange={e=>setCreateForm(v=>({...v,password:e.target.value}))}/>
+            <FormError>{errors.password}</FormError>
+          </div>
         </div>
-        <FormActions busy={busy} onCancel={()=>setCreateOpen(false)} onSave={submitCreate} saveLabel="Tạo tài khoản"/>
       </AppDialog>
       <AppDialog open={edit!==null} onOpenChange={open=>{if(!busy&&!open)setEdit(null);}}
-        busy={busy} title="Chỉnh sửa nhân sự" description="Thay đổi vai trò chỉ áp dụng sau khi backend kiểm tra quyền và dữ liệu bàn giao.">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="text-sm font-medium">Họ và tên<Input aria-label="Họ và tên" className="mt-1.5" value={editForm.name} onChange={e=>setEditForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></div>
-          <div className="text-sm font-medium">Điện thoại<Input aria-label="Điện thoại" className="mt-1.5" value={editForm.phone} onChange={e=>setEditForm(v=>({...v,phone:e.target.value}))}/></div>
-          <div className="text-sm font-medium"><span>Vai trò</span>
-            <AppNativeSelect aria-label="Vai trò nhân sự" className="mt-1.5 w-full" value={editForm.role_code} onChange={e=>setEditForm(v=>({...v,role_code:e.target.value}))}>
+        busy={busy} title="Chỉnh sửa nhân sự" description="Thay đổi vai trò chỉ áp dụng sau khi backend kiểm tra quyền và dữ liệu bàn giao."
+        footer={<FormActions busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>}>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+          <div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-edit-name">Họ và tên *</label>
+            <Input id="admin-edit-name" className="h-11" value={editForm.name} onChange={e=>setEditForm(v=>({...v,name:e.target.value}))}/>
+            <FormError>{errors.name}</FormError>
+          </div>
+          <div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-edit-phone">Điện thoại</label>
+            <Input id="admin-edit-phone" className="h-11" value={editForm.phone} onChange={e=>setEditForm(v=>({...v,phone:e.target.value}))}/>
+          </div>
+          <div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-edit-role">Vai trò *</label>
+            <AppNativeSelect id="admin-edit-role" containerClassName="w-full" value={editForm.role_code}
+              onChange={e=>setEditForm(v=>({...v,role_code:e.target.value,manager_user_id:''}))}>
               {management?.roles.filter(r=>editableRoles.includes(r.code) &&
                 (r.code==='CHECKEE')===(management.organizations.find(o=>o.id===edit?.organization_id)?.organization_type==='CHECKEE'))
                 .map(r=><option key={r.code} value={r.code}>{roleText(r.code)}</option>)}
             </AppNativeSelect>
           </div>
-          {editForm.role_code==='SALES'&&<div className="text-sm font-medium"><span>Quản lý trực tiếp</span>
-            <AppNativeSelect aria-label="Quản lý trực tiếp" className="mt-1.5 w-full" value={editForm.manager_user_id} onChange={e=>setEditForm(v=>({...v,manager_user_id:e.target.value}))}>
-              <option value="">Chọn Quản lý</option>{managers(String(edit?.organization_id??'')).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}
-            </AppNativeSelect><FormError>{errors.manager_user_id}</FormError>
+          {editForm.role_code==='SALES'&&<div className="min-w-0 space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-edit-manager">Quản lý trực tiếp *</label>
+            <AppNativeSelect id="admin-edit-manager" containerClassName="w-full" value={editForm.manager_user_id}
+              onChange={e=>setEditForm(v=>({...v,manager_user_id:e.target.value}))}>
+              <option value="">Chọn Quản lý</option>
+              {managers(String(edit?.organization_id??'')).map(p=><option key={p.user_id} value={p.user_id}>{p.name}</option>)}
+            </AppNativeSelect>
+            <FormError>{errors.manager_user_id}</FormError>
           </div>}
-          <div className="text-sm font-medium sm:col-span-2">Lý do thay đổi<Input aria-label="Lý do thay đổi" className="mt-1.5" value={editForm.reason} onChange={e=>setEditForm(v=>({...v,reason:e.target.value}))}/><FormError>{errors.reason}</FormError></div>
+          <div className="min-w-0 space-y-1.5 text-sm font-medium sm:col-span-2">
+            <label htmlFor="admin-edit-reason">Lý do thay đổi *</label>
+            <Input id="admin-edit-reason" className="h-11" value={editForm.reason}
+              onChange={e=>setEditForm(v=>({...v,reason:e.target.value}))}/>
+            <FormError>{errors.reason}</FormError>
+          </div>
         </div>
-        <FormActions busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>
       </AppDialog>
       <AppDialog open={partnerOpen} onOpenChange={open=>{if(!busy)setPartnerOpen(open);}}
-        busy={busy} title={partner?'Cập nhật đối tác':'Thêm đối tác'} description="Chỉ tổ chức đối tác được phép thay đổi; không sửa KIDSFIT/CHECKEE.">
-        <div className="space-y-3">
-          {!partner&&<div className="block text-sm font-medium">Mã đối tác<Input aria-label="Mã đối tác" className="mt-1.5" value={partnerForm.code} onChange={e=>setPartnerForm(v=>({...v,code:e.target.value}))}/><FormError>{errors.code}</FormError></div>}
-          <div className="block text-sm font-medium">Tên đối tác<Input aria-label="Tên đối tác" className="mt-1.5" value={partnerForm.name} onChange={e=>setPartnerForm(v=>({...v,name:e.target.value}))}/><FormError>{errors.name}</FormError></div>
-       </div>
-        <FormActions busy={busy} onCancel={()=>setPartnerOpen(false)} onSave={submitPartner} saveLabel={partner?'Lưu đối tác':'Tạo đối tác'}/>
+        busy={busy} contentClassName="sm:max-w-md" title={partner?'Cập nhật đối tác':'Thêm đối tác'}
+        description="Chỉ tổ chức đối tác được phép thay đổi; không sửa KIDSFIT/CHECKEE."
+        footer={<FormActions busy={busy} onCancel={()=>setPartnerOpen(false)} onSave={submitPartner}
+          saveLabel={partner?'Lưu đối tác':'Tạo đối tác'}/>}>
+        <div className="space-y-4">
+          {!partner&&<div className="space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-partner-code">Mã đối tác *</label>
+            <Input id="admin-partner-code" className="h-11" value={partnerForm.code}
+              onChange={e=>setPartnerForm(v=>({...v,code:e.target.value}))}/>
+            <FormError>{errors.code}</FormError>
+          </div>}
+          <div className="space-y-1.5 text-sm font-medium">
+            <label htmlFor="admin-partner-name">Tên đối tác *</label>
+            <Input id="admin-partner-name" className="h-11" value={partnerForm.name}
+              onChange={e=>setPartnerForm(v=>({...v,name:e.target.value}))}/>
+            <FormError>{errors.name}</FormError>
+          </div>
+        </div>
       </AppDialog>
       <AppDrawer open={partnerDetail!==null} onOpenChange={open=>{if(!open)setPartnerDetail(null);}}
         title="Thông tin tổ chức" description="Hồ sơ và thành viên trong tổ chức">

@@ -53,6 +53,8 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
         group.MapPost("/school-workflow-policies/{id:long}/activate", async (long id, ActivateSchoolWorkflowPolicyRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ActivateSchoolWorkflowPolicy(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
+        group.MapPost("/school-workflow-policies/{id:long}/reapply", async (long id, ActivateSchoolWorkflowPolicyRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReapplySchoolWorkflowPolicy(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
         group.MapPost("/school-workflow-policies/{id:long}/cancel", async (long id, CancelSchoolWorkflowPolicyDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CancelSchoolWorkflowPolicyDraft(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolWorkflowPolicyManage);
         group.MapPost("/contracts/{id:long}/care-handover", async (long id, AssignContractCareRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.AssignContractCare(id, request, h.UserId(), h, ct)))
@@ -221,7 +223,7 @@ public static class SchoolOperationsEndpoints
                 can_assign_care = (x.Status == "ACTIVE" || (x.Status == "CANCELLED" && db.ContractCancellations.Any(c => c.ContractId == x.Id && c.PreviousStatus == "ACTIVE")))
                     && (!x.RequiresSchoolVerification || x.VerifiedAt != null) && a.Has(Permissions.SchoolCareAssign) && (a.All || (a.Organization && (a.OrganizationIds.Contains(x.OwnerOrganizationId) || (x.CareOrganizationId.HasValue && a.OrganizationIds.Contains(x.CareOrganizationId.Value))))),
                 can_cancel = x.Status != "CANCELLED" && x.Status != "REJECTED" && a.Has(Permissions.ChannelSalesContractCancel) && (a.All || (a.Organization && a.OrganizationIds.Contains(x.OwnerOrganizationId))) }).ToArrayAsync(ct),
-            policies = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => a.All || a.OrganizationIds.Contains(x.OrganizationId)).OrderByDescending(x => x.CreatedAt).Take(100)
+            policies = await db.SchoolWorkflowPolicies.AsNoTracking().Where(x => x.Status != "CANCELLED" && (a.All || a.OrganizationIds.Contains(x.OrganizationId))).OrderByDescending(x => x.CreatedAt).Take(100)
                 .Select(x => new { x.Id, x.OrganizationId, x.Version, x.Status, x.ManagerReviewHours, x.AdminReviewHours, x.InvitationHours, x.MaxExtensionDays, x.MaxExtensionCount, x.MaxTotalExtensionDays, x.DecisionReference }).ToArrayAsync(ct),
             receipts = await receiptQuery.OrderByDescending(x => x.ReceivedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize)
                 .Select(x => new { x.Id, x.ContractId, x.ReferenceCode, x.Amount, x.ReceivedAt,

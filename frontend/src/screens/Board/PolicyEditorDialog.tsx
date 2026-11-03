@@ -15,11 +15,10 @@ export type PolicyForm = {
   max_extension_days:number;
   max_extension_count:number;
   max_total_extension_days:number;
-  decision_reference:string;
 };
 export const initialPolicy = (organizationId:number): PolicyForm => ({
   organization_id:organizationId,manager_review_hours:24,admin_review_hours:48,invitation_hours:24,
-  max_extension_days:7,max_extension_count:3,max_total_extension_days:21,decision_reference:'',
+  max_extension_days:7,max_extension_count:3,max_total_extension_days:21,
 });
 
 type Props = {
@@ -37,7 +36,7 @@ export function PolicyEditorDialog({open,onClose,busy,policy,organizations,onSav
       organization_id:policy.organization_id,manager_review_hours:policy.manager_review_hours,
       admin_review_hours:policy.admin_review_hours,invitation_hours:policy.invitation_hours,
       max_extension_days:policy.max_extension_days,max_extension_count:policy.max_extension_count,
-      max_total_extension_days:policy.max_total_extension_days,decision_reference:policy.decision_reference||'',
+      max_total_extension_days:policy.max_total_extension_days,
     }:initialPolicy(0));
     setError('');
   },[open,policy,organizations]);
@@ -49,7 +48,6 @@ export function PolicyEditorDialog({open,onClose,busy,policy,organizations,onSav
       setError('Các giới hạn phải là số nguyên dương.');return;
     }
     if(form.max_total_extension_days < form.max_extension_days){setError('Tổng gia hạn không thể nhỏ hơn số ngày mỗi lần.');return;}
-    if(!form.decision_reference.trim()){setError('Cần căn cứ quyết định.');return;}
     setError('');onSave(form);
   };
   const fields:[
@@ -82,11 +80,6 @@ export function PolicyEditorDialog({open,onClose,busy,policy,organizations,onSav
           <Input id={'board-policy-'+key} type="number" min={1} step={1} value={form[key]}
             onChange={e=>setForm(v=>({...v,[key]:Number(e.target.value)}))}/>
         </div>)}
-      </div>
-      <div className="space-y-1.5">
-        <label htmlFor="board-policy-reference" className="text-sm font-medium">Căn cứ quyết định *</label>
-        <Input id="board-policy-reference" maxLength={120} value={form.decision_reference}
-          onChange={e=>setForm(v=>({...v,decision_reference:e.target.value}))}/>
       </div>
       <p className="text-xs text-muted-foreground">Theo chính sách đã chốt: gia hạn 7 ngày/lần, tối đa 3 lần (tổng 21 ngày). Khi kích hoạt, máy chủ sẽ kiểm tra lại các giới hạn.</p>
       {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}

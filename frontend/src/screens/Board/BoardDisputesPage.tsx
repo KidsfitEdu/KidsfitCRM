@@ -89,7 +89,6 @@ export function BoardDisputesPage({apiBase,token,abilities,onChanged}:RolePagePr
         pageSizeOptions={[10,20,50,100]} onPageSizeChange={size=>{setPageSize(size);setPage(1);}}
         showSummary={false} disabled={query.isFetching} onPageChange={setPage}/>
     </AdminListPanel>
-    <p className="text-xs text-muted-foreground">Trạng thái được lọc trên máy chủ; phân trang phản ánh số hồ sơ thuộc trạng thái đã chọn.</p>
     <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open)setSelected(null);}} title="Chi tiết tranh chấp">
       {selected&&<div className="space-y-4 text-sm">
         <h3 className="text-lg font-semibold">{selected.school_name}</h3>

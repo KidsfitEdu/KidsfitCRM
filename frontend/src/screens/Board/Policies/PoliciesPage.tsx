@@ -1,9 +1,8 @@
 'use client';
 
-import { RoleOperationsPage } from '@/components/roles/RoleOperationsPage';
+import { BoardPoliciesPage } from '../BoardPoliciesPage';
 import type { RolePageProps } from '@/types/role-pages';
 
-/** Board · Policies (shared domain view). */
-export function PoliciesPage(props: RolePageProps) {
-  return <RoleOperationsPage profile="Board" section="policies" {...props}/>;
+export function PoliciesPage (props: RolePageProps) {
+  return <BoardPoliciesPage {...props}/>;
 }

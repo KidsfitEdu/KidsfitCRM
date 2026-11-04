@@ -21,7 +21,6 @@ import {
   BadgeCheck,
   ClipboardList,
   Building2,
-  Check,
   ChevronRight,
   FileCheck2,
   Plus,

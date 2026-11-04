@@ -27,7 +27,8 @@ type Props = {
   onSubmitDraft?: (proposal: Proposal) => void;
 };
 
-const template = 'minmax(260px,2fr) minmax(175px,1fr) minmax(135px,.85fr) minmax(140px,.8fr) 232px';
+// Keep school name and area visually adjacent; reserve enough room for draft action icons.
+const template = 'minmax(220px,1.2fr) minmax(180px,1.3fr) minmax(140px,1fr) minmax(130px,.85fr) 190px';
 
 export function SalesProposalTable({
   proposals, page, total, pageSize, loading, preview, onPageChange, onPageSizeChange,
@@ -55,21 +56,18 @@ export function SalesProposalTable({
   </AppNativeSelect>;
   return <SalesListLayout columns={['Trường học','Khu vực','Người đề xuất','Trạng thái','Thao tác']}
     template={template} page={preview ? 1 : page} pageSize={pageSize}
-    total={preview ? items.length : total} loading={loading} minWidth={1020} centerColumns={[1,3]}
+    total={preview ? items.length : total} loading={loading} minWidth={960} centerColumns={[3]}
     onPageChange={onPageChange} onPageSizeChange={onPageSizeChange}
     empty="Không có đề xuất trường phù hợp. Hãy thử bộ lọc khác."
     toolbar={<SalesListToolbar search={term} onSearchChange={setTerm}
-      searchLabel="Tìm đề xuất trường" placeholder="Tên trường, mã trường, người đề xuất..."
+      searchLabel="Tìm đề xuất trường" placeholder="Tên trường, khu vực, người đề xuất..."
       filters={statusFilter} onReset={reset}
       onSearch={() => {setApplied(term.trim());onSearch(term.trim());}}/>}>
     {items.map(item => <SalesListRow key={item.id} template={template}>
       <div className="min-w-0">
         <p className="truncate font-semibold text-foreground" title={item.name}>{item.name || 'Chưa đặt tên trường'}</p>
-        {!item.school_code.startsWith('SEED-SCH-') && !item.school_code.startsWith('DRAFT-') && (
-          <p className="mt-1 truncate text-xs text-muted-foreground" title={item.school_code}>{item.school_code}</p>
-        )}
       </div>
-      <div className="min-w-0 text-center text-sm text-muted-foreground">
+      <div className="min-w-0 text-left text-sm text-muted-foreground">
         <p className="truncate" title={item.ward || 'Chưa cập nhật'}>{item.ward || 'Chưa cập nhật'}</p>
         <p className="mt-0.5 truncate" title={item.province || 'Chưa cập nhật'}>{item.province || 'Chưa cập nhật'}</p>
       </div>

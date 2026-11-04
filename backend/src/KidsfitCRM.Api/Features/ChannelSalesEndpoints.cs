@@ -45,6 +45,7 @@ public static class ChannelSalesEndpoints
         channel.MapGet("/contract-school-units/{customerId:long}", AccountingContractEndpoints.SchoolUnits).RequireAuthorization(Permissions.ChannelSalesReportContract);
         channel.MapPost("/evidence", FinancialEvidenceEndpoints.Upload).RequireAuthorization(Permissions.ChannelSalesView).DisableAntiforgery();
         channel.MapGet("/evidence/{id:long}", FinancialEvidenceEndpoints.Download).RequireAuthorization(Permissions.ChannelSalesView);
+        ManagerProgressEndpoints.MapManagerProgress(channel);
         channel.MapGet("/workspace", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapGet("/customers/search", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapPost("/approach-registrations", async (RegisterApproachRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>

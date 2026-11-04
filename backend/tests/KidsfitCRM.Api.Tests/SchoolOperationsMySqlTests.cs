@@ -1199,6 +1199,12 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             scenario.Seller.UserId, Http(), Ct);
 
         Assert.Equal("PENDING_REVIEW", (await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct)).Status);
+        var salesPage = Json(await SalesSchoolEndpoints.Mine(Http(scenario.Seller.UserId), db, Ct));
+        var schoolRow = salesPage.GetProperty("data").EnumerateArray()
+            .Single(x => x.GetProperty("id").GetInt64() == scenario.CustomerId);
+        Assert.Equal(contractId, schoolRow.GetProperty("contract_id").GetInt64());
+        Assert.Equal("PENDING_REVIEW", schoolRow.GetProperty("contract_status").GetString());
+        Assert.False(schoolRow.GetProperty("can_request_extension").GetBoolean());
         const string reason = "Bổ sung phụ lục có chữ ký của trường.";
         await ManagerContractEndpoints.ReturnForRevision(
             contractId, new(reason), Http(scenario.Manager.UserId), db, Ct);

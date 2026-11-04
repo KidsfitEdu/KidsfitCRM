@@ -212,12 +212,12 @@ function RevisionEditor({
           <option value="MONTHLY_9">Hàng tháng (9 tháng)</option>
         </select>
       </label>
-      <label className="space-y-1 text-sm">Phí duy trì (VNĐ) *
-        <AppCurrencyInput aria-label="Phí duy trì" value={maintenance}
+      <label htmlFor="revision-maintenance-fee" className="space-y-1 text-sm">Phí duy trì (VNĐ) *
+        <AppCurrencyInput id="revision-maintenance-fee" aria-label="Phí duy trì" value={maintenance}
           onValueChange={setMaintenance} required />
       </label>
-      <label className="space-y-1 text-sm">Phí khởi tạo (VNĐ) *
-        <AppCurrencyInput aria-label="Phí khởi tạo" value={setup}
+      <label htmlFor="revision-setup-fee" className="space-y-1 text-sm">Phí khởi tạo (VNĐ) *
+        <AppCurrencyInput id="revision-setup-fee" aria-label="Phí khởi tạo" value={setup}
           onValueChange={setSetup} required />
       </label>
       <label className="space-y-1 text-sm">Quy mô học sinh *

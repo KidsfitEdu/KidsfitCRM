@@ -13,8 +13,8 @@ This is a **business decision record**, not an assertion that code was migrated.
 | D-07 | CONFIRMED | Contract: Sales → direct KIDSFIT **or partner** manager → **directly CHECKEE** → authorized KIDSFIT grant for 5 years from verification | Supersedes proposal of routine BGĐ intermediary; Admin not a routine contract processor |
 | D-08 | CONFIRMED | BGĐ KIDSFIT oversees KPIs, policy, conflict and exception; no review of every contract | Clarifies role responsibility |
 | D-09 | CONFIRMED | Drop referrer/person-at-school commission split feature entirely | No new referrer entity/API/report |
-| D-10 | PROVISIONAL | Commission **30% for Sales**, employee and collaborator alike | Percentage mentioned as expected, not approved payout rule |
-| D-11 | OPEN | Commission calculation base (contract amount vs collected revenue), triggering event, approval, taxes and effective policy | Do not hardcode 30%; legacy 10%/12%/ceilings are demo |
+| D-10 | CONFIRMED (2026-11-04) | Commission **30% for Sales**, employee and collaborator alike | Product owner confirmed the rate; qualifying base, payout trigger, deductions and effective production policy still require a separate approval |
+| D-11 | OPEN | Commission calculation base (contract amount vs collected revenue), triggering event, approval, taxes and effective policy | Do not activate real payouts without the missing financial terms; the review fixture uses illustrative 30% of net collected cash |
 | D-12 | OPEN | Which specific KIDSFIT role performs post-CHECKEE long-term grant | Legacy code assigns Admin; requires dedicated delegated permission decision |
 | D-13 | OPEN | SLA and exact protection semantics of pending extension requests | Do not infer automatic waiting extension |
 | D-14 | OPEN | Branch/main-school ownership and 5-year coverage where legal contracts differ | Current import assumes protection per main school |

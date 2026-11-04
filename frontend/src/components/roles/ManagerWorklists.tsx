@@ -10,6 +10,7 @@ import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
+import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
 import { Button } from '@/components/ui/button';
 import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
@@ -24,6 +25,30 @@ import type { ManagerPageProps } from '@/types/manager-pages';
 
 export type ManagerWorklistSection = 'proposals' | 'allocations' | 'progress' | 'extensions';
 type Proposal = SchoolOperationsWorkspace['proposals'][number];
+type ProposalDetail = {
+  id: number;
+  proposal_mode: 'LEGACY' | 'NEW_MAIN' | 'ADD_BRANCHES';
+  target_directory_school_id: number | null;
+  target: { id: number; school_code: string; name: string; province: string; ward: string } | null;
+  units: Omit<SchoolProfileUnit, 'id'>[];
+};
+type OfficialSchoolDetail = { units: SchoolProfileUnit[] };
+
+/** Legacy proposals predate school_proposal_units; never invent unit data. */
+function legacyProposalUnit(proposal: Proposal): SchoolProfileUnit {
+  return {
+    id: -1,
+    unit_type: 'MAIN',
+    name: proposal.name,
+    province: proposal.province,
+    ward: proposal.ward,
+    address: proposal.address,
+    contact_name: proposal.contact_name,
+    contact_position: proposal.contact_position,
+    contact_phone: proposal.contact_phone,
+    email: proposal.email,
+  };
+}
 type Invitation = SchoolOperationsWorkspace['invitations'][number];
 type Extension = SchoolOperationsWorkspace['extensions'][number];
 type Selection =
@@ -100,6 +125,37 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     queryFn: () => api<{ data: Capacity[] }>('/school-capacities'),
     enabled: section === 'allocations' && !preview && !!token,
   });
+  const selectedProposal = selection?.kind === 'proposal' ? selection.item : null;
+  const proposalDetailQuery = useQuery({
+    queryKey: [...channelQueryKeys.all, 'manager-proposal-detail', selectedProposal?.id],
+    queryFn: () => api<{ data: ProposalDetail }>(`/school-proposals/${selectedProposal!.id}/draft-detail`),
+    enabled: !preview && !!token && selectedProposal !== null,
+  });
+  const proposalDetail = proposalDetailQuery.data?.data;
+  // Use the existing scoped school endpoint: it redacts contact details the manager may not see.
+  const targetSchoolQuery = useQuery({
+    queryKey: [...channelQueryKeys.all, 'manager-proposal-target-school', proposalDetail?.target_directory_school_id],
+    queryFn: () => api<OfficialSchoolDetail>(`/schools/${proposalDetail!.target_directory_school_id}`),
+    enabled: !preview && !!token && selectedProposal !== null &&
+      proposalDetail?.proposal_mode === 'ADD_BRANCHES' && !!proposalDetail.target_directory_school_id,
+  });
+  const proposalUnits: SchoolProfileUnit[] = selectedProposal === null ? [] : preview
+    ? [legacyProposalUnit(selectedProposal)]
+    : proposalDetail?.proposal_mode === 'LEGACY'
+      ? [legacyProposalUnit(selectedProposal)]
+      : [
+          ...(proposalDetail?.proposal_mode === 'ADD_BRANCHES'
+            ? (targetSchoolQuery.data?.units.filter(unit => unit.unit_type === 'MAIN') ??
+              (proposalDetail.target ? [{
+                id: proposalDetail.target.id,
+                unit_type: 'MAIN',
+                name: proposalDetail.target.name,
+                province: proposalDetail.target.province,
+                ward: proposalDetail.target.ward,
+              }] : []))
+            : []),
+          ...(proposalDetail?.units ?? []).map((unit, index) => ({ ...unit, id: -(index + 1) })),
+        ];
   const historyQuery = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-operation-history', history?.kind, history?.id],
     queryFn: () => api<HistoryResult>('/school-operations/' + history!.kind + '/' + history!.id + '/history'),
@@ -381,15 +437,40 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
     </ConfirmDialog>
     <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
-    <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}} title="Chi tiết hồ sơ"
-      description="Thông tin trong phạm vi quản lý được Backend cho phép truy cập.">
-        {selection?.kind==='proposal' && <div className="space-y-3 text-sm">
-          <p className="font-semibold text-base">{selection.item.name}</p>
-          <p>Mã trường: {selection.item.school_code} · {selection.item.province} · {selection.item.ward}</p>
-          <p>Người đề xuất: {selection.item.submitted_by} · Quản lý: {selection.item.manager_name}</p>
-          <p>Lý do đề xuất: {selection.item.reason}</p><p>Hạn xử lý: {nice(selection.item.review_due_at)}</p>
-          {selection.item.possible_duplicate && <p className="rounded-xl bg-amber-50 p-3 text-amber-800">Có khả năng trùng tên/khu vực. Admin cần đối chiếu mã định danh.</p>}
-          {selection.item.decision_reason && <p>Phản hồi: {selection.item.decision_reason}</p>}
+    <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}
+      title={selectedProposal?.name ?? 'Chi tiết hồ sơ'}
+      description={selectedProposal ? selectedProposal.school_code : 'Thông tin trong phạm vi quản lý được Backend cho phép truy cập.'}
+      wide={selectedProposal !== null}>
+        {selectedProposal && <div className="space-y-4 text-sm">
+          <section className="space-y-2">
+            <p className="font-semibold text-base">Thông tin đề xuất</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Người đề xuất</p><p>{selectedProposal.submitted_by}</p></div>
+              <div><p className="text-xs text-muted-foreground">Quản lý phụ trách</p><p>{selectedProposal.manager_name}</p></div>
+              <div><p className="text-xs text-muted-foreground">Trạng thái</p><p>{statusLabel(selectedProposal.status)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{nice(selectedProposal.review_due_at)}</p></div>
+            </div>
+          </section>
+          {proposalDetailQuery.isPending && !preview && <p role="status">Đang tải thông tin trường chính và phân hiệu…</p>}
+          {proposalDetailQuery.error && <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 p-3">
+            <p>Không thể tải chi tiết trường: {proposalDetailQuery.error.message}</p>
+            <AppButton tone="neutral" type="button" onClick={() => void proposalDetailQuery.refetch()}>Thử lại</AppButton>
+          </div>}
+          {(preview || proposalDetail) && <>
+            {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.isPending &&
+              <p role="status">Đang tải trường chính hiện hữu…</p>}
+            {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.error &&
+              <p role="alert" className="text-amber-700">Không thể tải đầy đủ trường chính trong phạm vi quyền truy cập. Chỉ hiển thị thông tin được phép xem.</p>}
+            <SchoolProfileDetails units={proposalUnits}/>
+            {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && !proposalDetail.target && proposalUnits.every(x => x.unit_type !== 'MAIN') &&
+              <p className="text-muted-foreground">Chưa có thông tin trường chính liên kết.</p>}
+          </>}
+          <section className="space-y-2 border-t pt-3">
+            <p className="font-semibold text-base">Thông tin xử lý đề xuất</p>
+            <p>Lý do đề xuất: {selectedProposal.reason || 'Chưa cập nhật'}</p>
+            {selectedProposal.possible_duplicate && <p className="rounded-xl bg-amber-50 p-3 text-amber-800">Có khả năng trùng tên/khu vực. Admin cần đối chiếu mã định danh.</p>}
+            {selectedProposal.decision_reason && <p>Phản hồi: {selectedProposal.decision_reason}</p>}
+          </section>
         </div>}
         {selection?.kind==='invitation' && <div className="space-y-3 text-sm">
           <p className="font-semibold text-base">{selection.item.school_name}</p>

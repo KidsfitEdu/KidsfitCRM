@@ -96,7 +96,6 @@ export type CustomerActivityInput = {
 
 export type ReportContractInput = {
   idempotency_key: string;
-  contract_code: string;
   signed_on: string;
   product_package_id: number;
   total_value: number;

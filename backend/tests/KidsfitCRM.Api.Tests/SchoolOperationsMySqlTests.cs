@@ -1186,4 +1186,57 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<ApiConflictException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), employee.UserId, Http(), Ct));
         Assert.False(await db.CustomerProtections.AnyAsync(x => x.CustomerId == s.OtherCustomerId && x.OwnerUserId == employee.UserId && x.Status == "ACTIVE"));
     }
+    [MySqlFact] public async Task ManagerRevisionKeepsSameContractAndShowsSalesReasonUntilResubmitted()
+    {
+        var scenario = await Arrange();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
+        var contractId = await actions.ReportSignedContract(registration,
+            new(Key(), "REV-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+                await db.CheckeeProductPackages.Select(p => p.Id).FirstAsync(Ct),
+                1_000_000m, null, "ORIGINAL-CONTRACT"),
+            scenario.Seller.UserId, Http(), Ct);
+
+        Assert.Equal("PENDING_REVIEW", (await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct)).Status);
+        const string reason = "Bổ sung phụ lục có chữ ký của trường.";
+        await ManagerContractEndpoints.ReturnForRevision(
+            contractId, new(reason), Http(scenario.Manager.UserId), db, Ct);
+        db.ChangeTracker.Clear();
+        var returned = await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct);
+        Assert.Equal("NEEDS_REVISION", returned.Status);
+        Assert.Equal(reason, returned.RevisionReason);
+        Assert.NotNull(returned.RevisionRequestedAt);
+
+        var revisions = Json(await ManagerContractEndpoints.MyRevisions(Http(scenario.Seller.UserId), db, Ct));
+        Assert.Contains(revisions.GetProperty("data").EnumerateArray(),
+            item => item.GetProperty("id").GetInt64() == contractId
+                && item.GetProperty("reason").GetString() == reason);
+
+        // A peer must not attach evidence to another Sales owner's contract.
+        var proof = new FinancialEvidence
+        {
+            Kind = "CONTRACT", UploadedByUserId = scenario.Seller.UserId,
+            FileName = "signed-addendum.pdf", MimeType = "application/pdf",
+            Sha256 = Key() + Key(), Bytes = [37, 80, 68, 70]
+        };
+        db.FinancialEvidences.Add(proof);
+        await db.SaveChangesAsync(Ct);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Peer.UserId), db, Ct));
+        db.ChangeTracker.Clear();
+
+        await ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Seller.UserId), db, Ct);
+        db.ChangeTracker.Clear();
+        var submitted = await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct);
+        Assert.Equal("PENDING_REVIEW", submitted.Status);
+        Assert.Null(submitted.RevisionReason);
+        Assert.Null(submitted.RevisionRequestedAt);
+        Assert.Equal(contractId, await db.FinancialEvidences.Where(f => f.Id == proof.Id)
+            .Select(f => f.ContractId).SingleAsync(Ct));
+        Assert.Equal(1, await db.SalesContracts.CountAsync(c => c.ApproachRegistrationId == registration, Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Seller.UserId), db, Ct));
+    }
+
 }

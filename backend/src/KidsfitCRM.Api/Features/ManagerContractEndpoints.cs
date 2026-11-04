@@ -428,7 +428,12 @@ public static class ManagerContractEndpoints
         if (evidence.Kind != "CONTRACT" || evidence.ContractId.HasValue || evidence.AttachedAt.HasValue
             || evidence.UploadedByUserId != http.UserId()) throw new KeyNotFoundException();
         var now = DateTime.UtcNow;
+        var oldFeeLines = await db.SalesContractItems.AsNoTracking()
+            .Where(x => x.ContractId == id)
+            .Select(x => new { x.Description, x.Quantity, x.UnitPrice, x.Amount })
+            .ToArrayAsync(ct);
         var before = new {
+            fee_items = oldFeeLines,
             contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
             contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
         };
@@ -520,6 +525,8 @@ public static class ManagerContractEndpoints
         }
         Audit.Add(db, http.UserId(), "EDIT_SCHOOL_CONTRACT_REVISION", nameof(SalesContract), id,
             before, new {
+                maintenance_fee = request.MaintenanceFee,
+                setup_fee = request.SetupFee,
                 contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
                 contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
             }, http);

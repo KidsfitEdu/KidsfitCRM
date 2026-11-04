@@ -27,7 +27,7 @@ type Props = {
   onSubmitDraft?: (proposal: Proposal) => void;
 };
 
-const template = 'minmax(260px,2fr) minmax(135px,.85fr) minmax(140px,.8fr) minmax(175px,1fr) 232px';
+const template = 'minmax(260px,2fr) minmax(175px,1fr) minmax(135px,.85fr) minmax(140px,.8fr) 232px';
 
 export function SalesProposalTable({
   proposals, page, total, pageSize, loading, preview, onPageChange, onPageSizeChange,
@@ -53,9 +53,9 @@ export function SalesProposalTable({
     <option value="APPROVED">Đã duyệt</option>
     <option value="REJECTED">Từ chối</option>
   </AppNativeSelect>;
-  return <SalesListLayout columns={['Trường học','Người đề xuất','Trạng thái','Khu vực','Thao tác']}
+  return <SalesListLayout columns={['Trường học','Khu vực','Người đề xuất','Trạng thái','Thao tác']}
     template={template} page={preview ? 1 : page} pageSize={pageSize}
-    total={preview ? items.length : total} loading={loading} minWidth={1020} centerColumns={[2,3]}
+    total={preview ? items.length : total} loading={loading} minWidth={1020} centerColumns={[1,3]}
     onPageChange={onPageChange} onPageSizeChange={onPageSizeChange}
     empty="Không có đề xuất trường phù hợp. Hãy thử bộ lọc khác."
     toolbar={<SalesListToolbar search={term} onSearchChange={setTerm}
@@ -69,12 +69,12 @@ export function SalesProposalTable({
           <p className="mt-1 truncate text-xs text-muted-foreground" title={item.school_code}>{item.school_code}</p>
         )}
       </div>
+      <div className="min-w-0 text-center text-sm text-muted-foreground">
+        <p className="truncate" title={item.ward || 'Chưa cập nhật'}>{item.ward || 'Chưa cập nhật'}</p>
+        <p className="mt-0.5 truncate" title={item.province || 'Chưa cập nhật'}>{item.province || 'Chưa cập nhật'}</p>
+      </div>
       <div className="min-w-0 truncate text-sm" title={item.submitted_by}>{item.submitted_by}</div>
       <div className="flex justify-center"><AdminStatusBadge label={workflowLabels[item.status] ?? item.status} status={item.status}/></div>
-      <div className="min-w-0 text-center text-sm">
-        <p className="truncate font-medium" title={item.province || 'Chưa cập nhật'}>{item.province || 'Chưa cập nhật'}</p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground" title={item.ward || 'Chưa cập nhật'}>{item.ward || 'Chưa cập nhật'}</p>
-      </div>
       <div className="flex min-w-0 items-center justify-end gap-1.5 whitespace-nowrap">
         <AdminIconAction icon={Eye} label={`Xem đề xuất ${item.name}`} onClick={() => onOpen(item)}/>
         {!preview && item.can_edit_draft && <>

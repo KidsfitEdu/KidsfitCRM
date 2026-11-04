@@ -1,4 +1,4 @@
-import { trainingSchools } from './ten-school-fixtures';
+import { trainingSchools } from './ten-school-fixtures.ts';
 export type ChannelCustomer = {
   id: number;
   code: string;

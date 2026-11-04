@@ -1,4 +1,4 @@
-import { trainingSchools } from './ten-school-fixtures';
+import { trainingSchools } from './ten-school-fixtures.ts';
 
 /** Static preview is intentionally read-only. Connected mode uses authenticated API/MySQL. */
 export async function readSchoolDemo<T>(path:string):Promise<T>{

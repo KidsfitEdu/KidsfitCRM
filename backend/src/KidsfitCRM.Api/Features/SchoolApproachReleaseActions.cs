@@ -136,7 +136,7 @@ public sealed partial class ChannelSalesActions
             MembershipId = member.Id, OrganizationId = member.OrganizationId,
             UserId = member.UserId, CompletedByUserId = actorId,
             Reason = reason,
-            Summary = $"Thu hồi quyền tiếp cận: {revoked} trường, hủy {pendingInvitations.Count} lời mời phân bổ và {pendingExtensions.Count} yêu cầu gia hạn. Không ngưng Sales.",
+            Summary = $"Thu hồi quyền tiếp cận: {revoked} trường, hủy {cancelledInvitations} lời mời phân bổ và {cancelledExtensions} yêu cầu gia hạn. Không ngưng Sales.",
             RevokedRegistrations = revoked, AccountSuspended = false,
             IdempotencyKey = key, RequestFingerprint = hash,
             CreatedAt = now, UpdatedAt = now

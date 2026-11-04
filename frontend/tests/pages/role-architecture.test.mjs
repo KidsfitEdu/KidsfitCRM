@@ -132,3 +132,17 @@ test('Board legacy reports route remains an alias, not an active fifth menu item
   assert.match(app, /canonicalBoardView/);
   assert.ok(existsSync(file('src/screens/Board/Oversight/OversightPage.tsx')));
 });
+
+test('CSKH school page separates profile, recording and history into three icon actions', () => {
+  const source = read('src/screens/CustomerCare/Customers/CustomersPage.tsx');
+  assert.match(source, /icon=\{Eye\}/);
+  assert.match(source, /icon=\{SquarePen\}/);
+  assert.match(source, /icon=\{History\}/);
+  assert.match(source, /SchoolProfileDetails units=\{details\.data\.school_units\}/);
+  assert.match(source, /title="Cập nhật nhật ký hướng dẫn"/);
+  assert.match(source, /title="Lịch sử hỗ trợ"/);
+  assert.match(source, /next_follow_up_at:null/);
+  assert.doesNotMatch(source, /Lịch hỗ trợ tiếp theo/);
+  assert.doesNotMatch(source, /Lịch sử phân công/);
+  assert.doesNotMatch(source, /details\.data\.handovers\.map/);
+});

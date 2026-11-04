@@ -211,6 +211,16 @@ export function SchoolOperations({
           ),
     enabled: reportAccess && active === 'report' && (preview || !!token),
   });
+  const proposalDetail = useQuery({
+    queryKey: [...channelQueryKeys.all, 'proposal-units', selectedProposal?.id],
+    queryFn: () => api<{ data: {
+      units: {unit_type:string;name:string;province:string;ward:string;address:string|null;
+        contact_name:string|null;contact_position:string|null;contact_phone:string|null;
+        school_phone:string|null;email:string|null;note:string|null}[]
+    }}>(`/school-proposals/${selectedProposal!.id}/draft-detail`),
+    enabled: !preview && selectedProposal !== null && !!selectedProposal.proposal_mode
+      && selectedProposal.proposal_mode !== 'LEGACY',
+  });
   const historyQuery = useQuery({
     queryKey: [
       ...channelQueryKeys.all,
@@ -647,6 +657,17 @@ export function SchoolOperations({
                       >
                         Chuyển Admin
                       </Button>
+                      {x.proposal_mode && x.proposal_mode !== 'LEGACY' && <Button
+                        size="sm" variant="outline"
+                        onClick={() => setAction({
+                          title: 'Yêu cầu bổ sung hồ sơ',
+                          description: 'Ghi rõ thông tin Sales cần cập nhật trước khi gửi lại.',
+                          path: '/school-proposals/' + x.id + '/request-revision',
+                          fields: [{name:'reason',label:'Thông tin cần bổ sung',type:'textarea'}],
+                          submitLabel: 'Trả về Sales'
+                        })}>
+                        Yêu cầu bổ sung
+                      </Button>}
                       <Button
                         size="sm"
                         variant="outline"
@@ -1632,6 +1653,19 @@ export function SchoolOperations({
             <p><strong>Địa điểm:</strong> {selectedProposal.province} · {selectedProposal.ward}</p>
             <p><strong>Hạn xử lý:</strong> {workflowDate(selectedProposal.review_due_at)}</p>
             <p><strong>Nội dung:</strong> {selectedProposal.reason}</p>
+            {!!selectedProposal.unit_count && <p><strong>Đơn vị trong hồ sơ:</strong> {selectedProposal.unit_count}</p>}
+            {proposalDetail.isPending && selectedProposal.proposal_mode !== 'LEGACY' && <p>Đang tải trường và phân hiệu...</p>}
+            {proposalDetail.isError && <p role="alert" className="text-destructive">Không tải được danh sách phân hiệu.</p>}
+            {proposalDetail.data?.data.units.map((unit,index)=><section key={index} className="rounded-xl border p-3">
+              <h4 className="font-semibold">{unit.unit_type==='MAIN'?'Trường chính':'Phân hiệu'}: {unit.name||'Chưa đặt tên'}</h4>
+              <p>{unit.province} · {unit.ward}</p>
+              {unit.address&&<p>Địa chỉ: {unit.address}</p>}
+              {unit.contact_name&&<p>Liên hệ: {unit.contact_name}{unit.contact_position?' · '+unit.contact_position:''}</p>}
+              {unit.contact_phone&&<p>SĐT liên hệ: {unit.contact_phone}</p>}
+              {unit.school_phone&&<p>SĐT trường: {unit.school_phone}</p>}
+              {unit.email&&<p>Email: {unit.email}</p>}
+              {unit.note&&<p>Ghi chú: {unit.note}</p>}
+            </section>)}
             {selectedProposal.decision_reason && <p><strong>Phản hồi:</strong> {selectedProposal.decision_reason}</p>}
           </div>}
         </AppDrawer>

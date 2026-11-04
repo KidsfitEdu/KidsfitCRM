@@ -171,6 +171,8 @@ export function SchoolDirectory({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [provinceFilter, setProvinceFilter] = useState('');
+  const [wardFilter, setWardFilter] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
   const [editingUnit, setEditingUnit] = useState<Detail['units'][number] | null>(null);
   const [editUnitChoices, setEditUnitChoices] = useState<Detail['units']>([]);
@@ -189,14 +191,23 @@ export function SchoolDirectory({
   const demo = !apiBase;
   const can = (code: string) => !demo && (abilities.includes('*') || abilities.includes(code));
   const canAdminManage = adminMode && can('channel_sales.school.directory.manage');
+  // Only Sales/CTV directory browsers use the availability and area picker.
+  const salesDirectory = !adminMode && (registrationIconOnly || abilities.includes('channel_sales.approach.register'));
   const api = <T,>(path: string, options?: RequestInit) =>
     demo
       ? readSchoolDemo<T>(path)
       : channelRequest<T>(apiBase, token, path, options);
+  const areas = useQuery({
+    queryKey: [...channelQueryKeys.all, 'school-areas'],
+    queryFn: () => api<{ data: { province: string; ward: string }[] }>('/schools/areas'),
+    enabled: salesDirectory,
+  });
+  const provinces = [...new Set((areas.data?.data ?? []).map(area => area.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  const wards = [...new Set((areas.data?.data ?? []).filter(area => area.province === provinceFilter).map(area => area.ward).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
   const schools = useQuery({
-    queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize, statusFilter],
+    queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize, statusFilter, salesDirectory, provinceFilter, wardFilter],
     queryFn: () => api<SchoolList>(
-      `/schools?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}&status=${encodeURIComponent(statusFilter === 'DELETED' ? 'ALL' : statusFilter)}${canAdminManage && statusFilter === 'DELETED' ? '&includeDeleted=true' : ''}`,
+      `/schools?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}&status=${encodeURIComponent(salesDirectory ? 'AVAILABLE' : statusFilter === 'DELETED' ? 'ALL' : statusFilter)}${canAdminManage && statusFilter === 'DELETED' ? '&includeDeleted=true' : ''}${salesDirectory ? `&availableOnly=true&province=${encodeURIComponent(provinceFilter)}&ward=${encodeURIComponent(wardFilter)}` : ''}`,
     ),
   });
   const capacities = useQuery({
@@ -396,25 +407,37 @@ export function SchoolDirectory({
       )}
       <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
 
-        <form className="grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_200px_auto_44px] sm:px-6"
+        <form className={`grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6 ${salesDirectory ? 'lg:grid-cols-[minmax(0,1fr)_170px_170px_auto_44px]' : 'sm:grid-cols-[minmax(0,1fr)_200px_auto_44px]'}`
           onSubmit={event => { event.preventDefault(); setSearch(term); setPage(1); }}>
           <div className="relative min-w-0">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
             <Input aria-label="Tìm tên trường, mã hoặc khu vực" className="h-11 w-full rounded-xl pl-10"
               placeholder="Tên trường, mã trường, phường/xã..." value={term} onChange={event => setTerm(event.target.value)}/>
           </div>
-          <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full"
+          {salesDirectory ? <>
+            <AppNativeSelect aria-label="Lọc tỉnh/thành" containerClassName="w-full"
+              value={provinceFilter} onChange={event => {setProvinceFilter(event.target.value);setWardFilter('');setPage(1);}}>
+              <option value="">Tất cả tỉnh/thành</option>
+              {provinces.map(value => <option key={value} value={value}>{value}</option>)}
+            </AppNativeSelect>
+            <AppNativeSelect aria-label="Lọc phường/xã" containerClassName="w-full"
+              value={wardFilter} disabled={!provinceFilter}
+              onChange={event => {setWardFilter(event.target.value);setPage(1);}}>
+              <option value="">Tất cả phường/xã</option>
+              {wards.map(value => <option key={value} value={value}>{value}</option>)}
+            </AppNativeSelect>
+          </> : <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full"
             value={statusFilter} onChange={event => {setStatusFilter(event.target.value);setPage(1);}}>
             <option value="ALL">Tất cả trạng thái</option>
             <option value="AVAILABLE">Chưa đăng ký</option>
             <option value="APPROACHING">Đang tiếp cận</option>
             <option value="CONTRACTED">Đã xác minh hợp đồng</option>
             {canAdminManage && <option value="DELETED">Đã ngừng sử dụng</option>}
-          </AppNativeSelect>
+          </AppNativeSelect>}
           <AppButton type="submit" tone="orange" premium className="h-10 min-w-0 justify-center gap-2 rounded-lg bg-[#d97706] px-4 font-bold text-white shadow-[0_6px_16px_rgba(217,119,6,.18)] hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" size="icon-lg"
             className="h-11 w-11 min-w-11 rounded-lg border border-[#a5d6a7] bg-white p-0 text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-[#17341f] dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white" aria-label="Đặt lại bộ lọc"
-            title="Đặt lại bộ lọc" onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setPage(1);}}>
+            title="Đặt lại bộ lọc" onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setProvinceFilter('');setWardFilter('');setPage(1);}}>
             <RotateCcw className="size-4" aria-hidden="true"/>
           </AppButton>
         </form>
@@ -527,8 +550,8 @@ export function SchoolDirectory({
           </div>
         ) : (
           <AppEmptyState icon={Building2}
-            title={search || statusFilter !== 'ALL' ? 'Không có trường phù hợp với bộ lọc' : 'Chưa có danh bạ trường học'}
-            description={search || statusFilter !== 'ALL' ? 'Thử đổi từ khóa hoặc trạng thái để tìm lại.' : 'Hãy thêm trường hoặc nhập danh sách Excel để bắt đầu.'}/>
+            title={search || (salesDirectory ? provinceFilter || wardFilter : statusFilter !== 'ALL') ? 'Không có trường phù hợp với bộ lọc' : salesDirectory ? 'Không còn trường khả dụng' : 'Chưa có danh bạ trường học'}
+            description={search || (salesDirectory ? provinceFilter || wardFilter : statusFilter !== 'ALL') ? 'Thử đổi từ khóa hoặc khu vực để tìm lại.' : salesDirectory ? 'Các trường đang được tiếp cận hoặc đã ký hợp đồng sẽ không xuất hiện tại đây.' : 'Hãy thêm trường hoặc nhập danh sách Excel để bắt đầu.'}/>
         )}
         <AppPagination page={page} pageSize={schools.data?.page_size ?? 20} total={schools.data?.total ?? 0} showSummary={false}
           disabled={schools.isFetching} onPageChange={setPage}

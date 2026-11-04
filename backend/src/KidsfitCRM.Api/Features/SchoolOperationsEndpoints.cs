@@ -109,6 +109,7 @@ public static class SchoolOperationsEndpoints
                 && (x.SubmittedByUserId == access.UserId
                     || (access.Has(Permissions.SchoolProposalReview) && x.ManagerUserId == access.UserId)))), ct)
             ?? throw new KeyNotFoundException();
+        if (proposal.Status == "DRAFT" && proposal.SubmittedByUserId != access.UserId) throw new KeyNotFoundException();
         var units = await db.SchoolProposalUnits.AsNoTracking().Where(x => x.SchoolProposalId == id)
             .OrderBy(x => x.SortOrder).Select(x => new {
                 x.UnitType, x.Name, x.Province, x.Ward, x.Address, x.ContactName,
@@ -162,7 +163,7 @@ public static class SchoolOperationsEndpoints
         return Results.Ok(new { items, pagination = new { page, page_size = pageSize, total = count } });
     }
 
-    private static IQueryable<SchoolProposal> Proposals(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolProposals.Where(x => !x.IsDeleted && (a.All
+    private static IQueryable<SchoolProposal> Proposals(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolProposals.Where(x => !x.IsDeleted && (x.Status != "DRAFT" || x.SubmittedByUserId == a.UserId) && (a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.SubmittedByUserId == a.UserId || (a.Has(Permissions.SchoolProposalReview) && x.ManagerUserId == a.UserId)))));
     private static IQueryable<SchoolInvitation> Invitations(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolInvitations.Where(x => a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.AssigneeUserId == a.UserId || (a.Organization && a.Has(Permissions.SchoolAllocationManage)))));

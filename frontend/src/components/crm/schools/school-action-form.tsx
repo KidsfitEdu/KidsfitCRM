@@ -9,6 +9,7 @@ import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { workflowFormValue } from '@/lib/school-operations';
 import { AppCombobox } from '@/components/common/forms/app-combobox';
 import { AppDateTimePicker } from '@/components/common/forms/app-date-time-picker';
+import { appNotice } from '@/components/common/app-toast-provider';
 
 export type SchoolActionField = {
   name: string;
@@ -36,6 +37,7 @@ export type SchoolAction = {
   preset?: Record<string, unknown>;
   submitLabel?: string;
   danger?: boolean;
+  apiErrorDisplay?: 'inline' | 'toast';
   prepare?: (body: Record<string, unknown>) => Record<string, unknown>;
 };
 export function SchoolActionForm({
@@ -112,11 +114,12 @@ export function SchoolActionForm({
               body: action.prepare ? action.prepare(body) : body,
             });
           } catch (cause) {
-            setError(
-              cause instanceof Error
-                ? cause.message
-                : 'Không thể lưu thay đổi.',
-            );
+            const message = cause instanceof Error ? cause.message : 'Không thể lưu thay đổi.';
+            if (action.apiErrorDisplay === 'toast') {
+              appNotice.error('Không thể phân bổ trường', message);
+            } else {
+              setError(message);
+            }
           }
         })}
       >

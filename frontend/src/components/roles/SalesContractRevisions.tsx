@@ -103,7 +103,8 @@ function RevisionEditor({
     delete next[field];
     return next;
   });
-  const today = new Date().toLocaleDateString('en-CA');
+  const currentDate = new Date();
+  const today = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
   const total = Number(maintenance) * (plan === 'MONTHLY_9' ? 9 : 1) + Number(setup);
   const validMoney = maintenance !== '' && setup !== '' &&
     Number.isSafeInteger(Number(maintenance)) && Number(maintenance) >= 0 &&

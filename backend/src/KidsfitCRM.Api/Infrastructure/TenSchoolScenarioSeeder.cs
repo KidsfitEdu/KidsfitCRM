@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,8 +37,27 @@ internal static class TenSchoolScenarioSeeder
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     public static async Task SeedAsync(KidsfitDbContext db, IPasswordHasher<User> hasher,
-        string sharedPassword, DateTime now)
+        string sharedPassword, DateTime now, ParsedSchoolWorkbook? source = null)
     {
+        // An optional local-only workbook preserves the exact original contacts in the
+        // disposable MySQL database, without embedding them into public source code.
+        var selected = source?.Rows.Where(x => Directory.Any(s => s.Code == x.SchoolCode)).ToArray();
+        if (source is not null)
+        {
+            var mainCodes = source.Rows.Where(x => x.UnitType == "MAIN").Take(10)
+                .Select(x => x.SchoolCode).ToArray();
+            if (!mainCodes.SequenceEqual(Directory.Select(x => x.Code))
+                || selected is null || selected.Length != 19)
+                throw new InvalidOperationException("The workbook does not contain the expected first ten schools and nine branches.");
+            foreach (var sample in Directory)
+            {
+                var group = selected.Where(x => x.SchoolCode == sample.Code).ToArray();
+                if (group.Length != sample.Branches.Length + 1 || group[0].UnitType != "MAIN"
+                    || group[0].Name != sample.Name
+                    || !group.Skip(1).Select(x => x.Name).SequenceEqual(sample.Branches))
+                    throw new InvalidOperationException("School or branch hierarchy differs from the approved workbook: " + sample.Code);
+            }
+        }
         // A flag alone cannot establish the provenance of data already in a database.
         // Refuse the training profile when an unrelated directory record exists.
         var codes = Directory.Select(x => x.Code).ToArray();
@@ -89,6 +109,8 @@ internal static class TenSchoolScenarioSeeder
         var schools = new Dictionary<string, (long SchoolId, long CustomerId)>();
         foreach (var sample in Directory)
         {
+            var sourceRows = selected?.Where(x => x.SchoolCode == sample.Code).ToArray();
+            var sourceMain = sourceRows?.First(x => x.UnitType == "MAIN");
             var found = await db.DirectorySchools.SingleOrDefaultAsync(x => x.SchoolCode == sample.Code);
             if (found is null)
             {
@@ -96,6 +118,9 @@ internal static class TenSchoolScenarioSeeder
                 {
                     Code = "SCH-TRAIN-" + sample.Code, CustomerType = "ORGANIZATION",
                     DisplayName = sample.Name, Province = "Cần Thơ",
+                    Address = sourceMain?.Address, ContactName = sourceMain?.ContactName,
+                    ContactPosition = sourceMain?.ContactPosition,
+                    Phone = sourceMain?.SchoolPhone, Email = sourceMain?.Email,
                     Source = "SCHOOL_DIRECTORY", LifecycleStatus = "PROSPECT",
                     VerificationStatus = "VERIFIED", CreatedByUserId = admin.Id,
                     OrganizationId = kidsfit.Id, CreatedAt = now, UpdatedAt = now
@@ -124,14 +149,20 @@ internal static class TenSchoolScenarioSeeder
             for (var unit = 0; unit < names.Length; unit++)
             {
                 var kind = unit == 0 ? "MAIN" : "BRANCH";
-                var key = Hash("ten-school:v1:" + sample.Code + ":" + kind + ":" + names[unit]);
+                var sourceUnit = sourceRows is null ? null : sourceRows[unit];
+                var key = sourceUnit?.ContentHash ??
+                    Hash("ten-school:v1:" + sample.Code + ":" + kind + ":" + names[unit]);
                 if (await db.SchoolUnits.AnyAsync(x => x.DirectorySchoolId == found.Id
                     && x.UnitType == kind && x.Name == names[unit])) continue;
                 db.SchoolUnits.Add(new SchoolUnit
                 {
                     DirectorySchoolId = found.Id, Version = 1, ContentHash = key,
                     UnitType = kind, Name = names[unit], Province = "Cần Thơ", Ward = sample.Ward,
-                    SourceRow = 0, CreatedAt = now, UpdatedAt = now
+                    Address = sourceUnit?.Address, ContactName = sourceUnit?.ContactName,
+                    ContactPosition = sourceUnit?.ContactPosition, ContactPhone = sourceUnit?.ContactPhone,
+                    SchoolPhone = sourceUnit?.SchoolPhone, Email = sourceUnit?.Email,
+                    Note = sourceUnit?.Note, SourceRow = sourceUnit?.Row ?? 0,
+                    CreatedAt = now, UpdatedAt = now
                 });
             }
             await db.SaveChangesAsync();

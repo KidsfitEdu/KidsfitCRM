@@ -1049,7 +1049,6 @@ function ContractDialog({
         '/evidence', {method: 'POST', body: upload});
       await onSubmit({
         idempotency_key: requestKey,
-        contract_code: text(form, 'contract_code'),
         signed_on: text(form, 'signed_on'),
         product_package_id: Number(text(form, 'product_package_id')),
         total_value: total,
@@ -1072,7 +1071,6 @@ function ContractDialog({
     <form onSubmit={submit}>
       <CustomerHighlight customer={customer}/>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label="Mã hợp đồng *"><Input name="contract_code" required maxLength={64} placeholder="HĐ-KIDSFIT-2026-001"/></Field>
         <Field label="Ngày ký *"><Input name="signed_on" type="date" required defaultValue={new Date().toISOString().slice(0,10)}/></Field>
         <Field label="Gói dịch vụ tham chiếu *">
           <Select name="product_package_id" value={packageId} required onChange={event=>setPackageId(Number(event.target.value))}>

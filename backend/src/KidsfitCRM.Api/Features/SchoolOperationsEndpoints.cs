@@ -22,6 +22,8 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.SchoolProposalSubmit);
         group.MapPatch("/school-proposals/{id:long}/draft", async (long id, SaveSchoolProposalDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.UpdateSchoolProposalDraft(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolProposalSubmit);
+        group.MapPost("/school-proposals/{id:long}/request-revision", async (long id, RequestSchoolProposalRevisionRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReturnSchoolProposalForRevision(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolProposalReview);
         group.MapPost("/school-proposals/{id:long}/submit", async (long id, SubmitSchoolProposalDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.SendSchoolProposalDraft(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolProposalSubmit);
         group.MapPost("/school-proposals/{id:long}/soft-delete", async (long id, DeleteSchoolProposalDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.DeleteSchoolProposalDraft(id, request, h.UserId(), h, ct)))
@@ -112,10 +114,15 @@ public static class SchoolOperationsEndpoints
                 x.UnitType, x.Name, x.Province, x.Ward, x.Address, x.ContactName,
                 x.ContactPosition, x.ContactPhone, x.Email, x.SchoolPhone, x.Note
             }).ToArrayAsync(ct);
+        var target = await (from school in db.DirectorySchools.AsNoTracking()
+            join main in db.SchoolUnits.AsNoTracking() on school.Id equals main.DirectorySchoolId
+            where school.Id == proposal.TargetDirectorySchoolId && main.UnitType == "MAIN"
+            select new { id = school.Id, school_code = school.SchoolCode, name = main.Name,
+                province = main.Province, ward = main.Ward }).FirstOrDefaultAsync(ct);
         return Results.Ok(new { data = new {
             proposal.Id, proposal.Name, proposal.Version, proposal.Status, proposal.ProposalMode,
-            proposal.TargetDirectorySchoolId, proposal.SchoolCode, units,
-            can_edit = proposal.Status == "DRAFT" && proposal.SubmittedByUserId == access.UserId
+            proposal.TargetDirectorySchoolId, proposal.SchoolCode, target, units,
+            can_edit = (proposal.Status == "DRAFT" || proposal.Status == "NEEDS_REVISION") && proposal.SubmittedByUserId == access.UserId
                 && access.Has(Permissions.SchoolProposalSubmit)
         } });
     }
@@ -188,7 +195,7 @@ public static class SchoolOperationsEndpoints
         var matchingSchools = db.DirectorySchools.Where(s => s.SchoolCode.Contains(term)
             || db.SchoolUnits.Any(u => u.DirectorySchoolId == s.Id && (u.Name.Contains(term) || u.Province.Contains(term) || u.Ward.Contains(term)))).Select(s => s.Id);
         var matchingCustomers = db.ChannelCustomers.Where(c => c.DisplayName.Contains(term) || db.DirectorySchools.Any(s => s.CustomerId == c.Id && matchingSchools.Contains(s.Id))).Select(c => c.Id);
-        var allowedProposalStatuses = new[] { "DRAFT", "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
+        var allowedProposalStatuses = new[] { "DRAFT", "NEEDS_REVISION", "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
         if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
         var overdueOnly = string.Equals(http.Request.Query["overdue_only"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
         var disputeStatus = http.Request.Query["dispute_status"].ToString().ToUpperInvariant();
@@ -239,11 +246,11 @@ public static class SchoolOperationsEndpoints
                 x.Id, x.OrganizationId, x.SchoolCode, x.Name, x.Province, x.Ward, x.Address, x.ContactName, x.ContactPosition, x.ContactPhone, x.Email,
                 x.ProposalMode, x.TargetDirectorySchoolId,
                 x.Reason, x.Status, x.Version, x.ManagerUserId, x.SubmittedByUserId, x.ReviewDueAt, x.DecisionReason, x.DirectorySchoolId,
-                can_edit_draft = x.Status == "DRAFT" && x.SubmittedByUserId == a.UserId && a.Has(Permissions.SchoolProposalSubmit),
+                can_edit_draft = (x.Status == "DRAFT" || x.Status == "NEEDS_REVISION") && x.SubmittedByUserId == a.UserId && a.Has(Permissions.SchoolProposalSubmit),
                 unit_count = db.SchoolProposalUnits.Count(u => u.SchoolProposalId == x.Id),
                 submitted_by = db.Users.Where(u => u.Id == x.SubmittedByUserId).Select(u => u.Name).First(),
                 manager_name = db.Users.Where(u => u.Id == x.ManagerUserId).Select(u => u.Name).First(),
-                possible_duplicate = db.SchoolUnits.Any(u => u.UnitType == "MAIN" && (x.DirectorySchoolId == null || u.DirectorySchoolId != x.DirectorySchoolId) && u.Name == x.Name && u.Province == x.Province && u.Ward == x.Ward),
+                possible_duplicate = x.ProposalMode != "ADD_BRANCHES" && db.SchoolUnits.Any(u => u.UnitType == "MAIN" && (x.DirectorySchoolId == null || u.DirectorySchoolId != x.DirectorySchoolId) && u.Name == x.Name && u.Province == x.Province && u.Ward == x.Ward),
                 is_overdue = (x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN") && x.ReviewDueAt <= now,
                 can_manager_review = x.Status == "PENDING_MANAGER" && x.SubmittedByUserId != a.UserId
                     && ((a.Has(Permissions.SchoolProposalReview) && (a.All || (a.Organization && x.ManagerUserId == a.UserId && a.OrganizationIds.Contains(x.OrganizationId))))

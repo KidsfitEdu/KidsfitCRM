@@ -117,7 +117,7 @@ const contractBadge = (customer: ChannelCustomer) => {
   const red = 'border-red-200 bg-red-50 text-red-800';
   if (status === 'PENDING_REVIEW' || status === 'MANAGER_REVIEW')
     return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: blue };
-  if (status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING_CHECKEE' || status === 'UNDER_VERIFICATION')
+  if (status === 'MANAGER_REVIEWED' || status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING_CHECKEE' || status === 'UNDER_VERIFICATION')
     return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: blue };
   if (status === 'NEEDS_REVISION' || status === 'NEEDS_INFO' || status === 'RETURNED')
     return { label: 'Cần bổ sung hồ sơ', compact: 'Bổ sung hồ sơ hiện có', className: amber };
@@ -125,10 +125,12 @@ const contractBadge = (customer: ChannelCustomer) => {
     return { label: 'Hồ sơ bị từ chối', compact: 'Xem lý do từ chối', className: red };
   if (status === 'CANCELLED')
     return { label: 'Hợp đồng đã hủy', compact: 'Xem lịch sử hồ sơ', className: red };
+  if (status === 'PENDING_KIDSFIT')
+    return { label: 'Chờ KIDSFIT ghi nhận', compact: 'CHECKEE đã xác minh', className: blue };
   if (status === 'VERIFIED')
     return { label: 'Đã xác minh hợp đồng', compact: 'Hợp đồng hợp lệ', className: statusCopy.CONTRACTED.className };
   if (status === 'ACTIVE')
-    return { label: customer.visible_status === 'CONTRACTED' ? 'Đã ký hợp đồng' : 'Hợp đồng đang hiệu lực', compact: 'Xem chi tiết hợp đồng', className: statusCopy.CONTRACTED.className };
+    return { label: customer.visible_status === 'CONTRACTED' ? 'Đã xác minh hợp đồng' : 'Hợp đồng đang hiệu lực', compact: 'Xem chi tiết hợp đồng', className: statusCopy.CONTRACTED.className };
   return { label: 'Đã nộp hồ sơ hợp đồng', compact: 'Theo dõi tình trạng hồ sơ', className: blue };
 };
 
@@ -462,6 +464,7 @@ export function ChannelSalesView({
                 onRegister={() => setRegisterCustomer(customer)}
                 onActivity={() => setActivityCustomer(customer)}
                 onContract={() => { void openContractReport(customer); }}
+                onRevision={() => { document.getElementById('sales-contract-revisions')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                 onReceipt={() => setReceiptCustomer(customer)}
               />
             ))}
@@ -577,6 +580,7 @@ function CustomerRow({
   onRegister,
   onActivity,
   onContract,
+  onRevision,
   onReceipt,
 }: {
   mineMode: boolean;
@@ -593,6 +597,7 @@ function CustomerRow({
   onRegister: () => void;
   onActivity: () => void;
   onContract: () => void;
+  onRevision: () => void;
   onReceipt: () => void;
 }) {
   const urgency = mineMode && customer.visible_status === 'APPROACHING' && customer.protected_until
@@ -710,6 +715,10 @@ function CustomerRow({
               </Button>
             </span>
           )}
+          {canReportContract && customer.contract_id !== null && customer.contract_status === 'NEEDS_REVISION' && (
+            <Button type="button" size="sm" variant="outline" className="border-amber-500 text-amber-800"
+              onClick={onRevision} title="Bổ sung hồ sơ theo yêu cầu Quản lý">Bổ sung hồ sơ</Button>
+          )}
           {canReportContract && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (
             <Button type="button" size="icon" variant="outline"
               className="size-9 rounded-lg border-green-700 text-green-800"
@@ -731,6 +740,10 @@ function CustomerRow({
                 title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}>
                 <SquarePen className="size-4" aria-hidden="true"/>
               </Button>
+            )}
+            {canReportContract && customer.contract_id !== null && customer.contract_status === 'NEEDS_REVISION' && (
+              <Button type="button" size="sm" variant="outline" className="border-amber-500 text-amber-800"
+                onClick={onRevision} title="Bổ sung hồ sơ theo yêu cầu Quản lý">Bổ sung hồ sơ</Button>
             )}
             {canReportContract && customer.can_manage_approach && !customer.contract_id && (
               <Button onClick={onContract} size="icon" className="size-9 rounded-lg bg-[#1b5e20] hover:bg-[#124c17]"

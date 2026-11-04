@@ -1,4 +1,5 @@
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
@@ -39,7 +40,15 @@ public static class DatabaseSeeder
         {
             if (config.GetValue<bool>("Seed:AccountingScenarios"))
                 throw new InvalidOperationException("The ten-school scenario must not activate legacy 30% accounting fixtures.");
-            await TenSchoolScenarioSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow);
+            ParsedSchoolWorkbook? workbook = null;
+            var workbookPath = config["Seed:SchoolWorkbookPath"];
+            if (!string.IsNullOrWhiteSpace(workbookPath))
+            {
+                if (!File.Exists(workbookPath))
+                    throw new FileNotFoundException("Private CRM school workbook is missing.", workbookPath);
+                workbook = SchoolWorkbookReader.Read(await File.ReadAllBytesAsync(workbookPath));
+            }
+            await TenSchoolScenarioSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow, workbook);
         }
         else
         {

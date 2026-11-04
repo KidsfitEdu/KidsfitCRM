@@ -155,7 +155,10 @@ public sealed partial class ChannelSalesActions
     {
         var access = await RequirePermission(actorId, Permissions.SchoolDirectoryManage, ct);
         if (!access.All || !await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && access.OrganizationIds.Contains(x.Id), ct)) throw new KeyNotFoundException();
-        var reason = Validation.Required(request.Reason, "reason", "Cần lý do sửa dữ liệu nhập.", 2000);
+        // Editing from the Admin form does not require a reason, but revisions retain an audit reason.
+        var reason = string.IsNullOrWhiteSpace(request.Reason)
+            ? "Admin cập nhật thông tin trường học."
+            : Validation.Required(request.Reason, "reason", "Lý do chỉnh sửa không hợp lệ.", 2000);
         var schoolId = await db.SchoolUnits.Where(x => x.Id == id).Select(x => (long?)x.DirectorySchoolId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         var customerId = await db.DirectorySchools.Where(x => x.Id == schoolId && !x.IsDeleted).Select(x => x.CustomerId).SingleOrDefaultAsync(ct);
         if (customerId == 0) throw new ApiConflictException("Trường đã ngừng sử dụng. Hãy khôi phục trước khi chỉnh sửa.");

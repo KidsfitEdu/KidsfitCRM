@@ -32,7 +32,7 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
     void fetchAdminProposalProfile(apiBase,token,proposalId).then(({data})=>{
       if(!active)return;
       setProfile(data);
-      const initial=data.proposal_mode==='LEGACY'
+      const initial=data.proposal_mode==='LEGACY' && data.units.length===0
         ? [{...emptySchoolUnit('MAIN'),name:data.name,province:data.province,ward:data.ward,address:data.address??'',
           contact_name:data.contact_name??'',contact_position:data.contact_position??'',contact_phone:data.contact_phone??'',
           email:data.email??''}]

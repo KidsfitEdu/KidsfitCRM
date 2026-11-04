@@ -10,8 +10,17 @@ import { appNotice } from '@/components/common/app-toast-provider';
 import { ChannelRequestError } from '@/lib/channel-operations';
 
 const editableUnit = (unit:AdminProposalUnit):SchoolFormUnit => ({
-  ...emptySchoolUnit(unit.unit_type), ...Object.fromEntries(Object.entries(unit).map(([key,value])=>[key,value??'']))
+  ...emptySchoolUnit(unit.unit_type),
+  ...Object.fromEntries(Object.entries(unit).map(([key,value])=>[key,value??''])),
 });
+
+const existingMainUnit = (profile:AdminProposalProfile):SchoolFormUnit =>
+  profile.target
+    ? editableUnit(profile.target)
+    : {...emptySchoolUnit('MAIN'),name:profile.name,province:profile.province,
+      ward:profile.ward,address:profile.address??'',contact_name:profile.contact_name??'',
+      contact_position:profile.contact_position??'',contact_phone:profile.contact_phone??'',
+      email:profile.email??''};
 
 export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClose,onSaved}:{
   open:boolean; proposalId:number|null; apiBase:string; token:string;
@@ -118,6 +127,7 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
   const mainIndex=units.findIndex(x=>x.unit_type==='MAIN');
   const isBranches=profile?.proposal_mode==='ADD_BRANCHES';
   const isLegacy=profile?.proposal_mode==='LEGACY';
+  const mainForDisplay = profile && isBranches ? existingMainUnit(profile) : null;
   return <AppDialog open={open} onOpenChange={value=>{if(!value&&!busy)onClose()}}
     title="Chỉnh sửa đề xuất trường" description="Cập nhật hồ sơ đang chờ Admin duyệt; chưa thay đổi danh bạ chính thức."
     busy={busy} contentClassName="sm:max-w-3xl"
@@ -127,15 +137,17 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
     </>}>
     {loading?<p className="py-8 text-sm text-muted-foreground">Đang tải hồ sơ…</p>:
     profile?<div className="space-y-5">
-      {isBranches?<section className="rounded-xl border bg-muted/20 p-4">
-        <p className="font-semibold">Trường chính hiện hữu</p>
-        <p className="mt-1 text-sm">{profile.target?.name??profile.name}</p>
-        <p className="text-xs text-muted-foreground">Chỉ chỉnh sửa các phân hiệu đang đề xuất; không thay đổi trường chính.</p>
-      </section>:mainIndex>=0?<SchoolMainSection unit={units[mainIndex]} index={mainIndex}
-        onFieldChange={change} errors={errors} prefix="admin-proposal-main"/>:null}
-      {!isLegacy && <SchoolBranchList units={units} expanded={expanded} onExpandedChange={setExpanded}
+      {isBranches && mainForDisplay
+        ? <SchoolMainSection unit={mainForDisplay} index={-1} readOnly
+            description="Trường chính đã có trong danh bạ, chỉ xem thông tin. Chỉnh sửa các phân hiệu đề xuất bên dưới."
+            onFieldChange={change} prefix="admin-proposal-existing-main"/>
+        : mainIndex>=0
+          ? <SchoolMainSection unit={units[mainIndex]} index={mainIndex}
+              onFieldChange={change} errors={errors} prefix="admin-proposal-main"/>
+          : null}
+      <SchoolBranchList units={units} expanded={expanded} onExpandedChange={setExpanded}
         onAdd={addBranch} onRemove={removeBranch} onFieldChange={change}
-        errors={errors} prefix="admin-proposal-branch"/>}
+        errors={errors} allowAdd={!isLegacy} prefix="admin-proposal-branch"/>
       <label className="block text-sm font-medium" htmlFor="admin-proposal-profile-reason">
         Lý do chỉnh sửa *
         <Input id="admin-proposal-profile-reason" value={reason} className="mt-1" maxLength={2000}

@@ -1093,7 +1093,15 @@ function ActivityDialog({
         <DialogFooter
           saving={saving}
           error={error}
-          ofunction ContractDialog({
+          onClose={onClose}
+          label="Lưu kết quả"
+        />
+      </form>
+    </SalesFormDialog>
+  );
+}
+
+function ContractDialog({
   customer, packages, apiBase, token, onClose, onSubmit,
 }: {
   customer: ChannelCustomer;
@@ -1294,17 +1302,7 @@ function ActivityDialog({
           <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
         </div>
       </div>
-      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
-    </form>
-  </SalesFormDialog>;
-}
-
-aving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
-    </form>
-  </SalesFormDialog>;
-}
-
-function ReceiptDialog({
+      <DialogFooter saving={sfunction ReceiptDialog({
   customer,
   apiBase,
   token,

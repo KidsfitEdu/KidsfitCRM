@@ -146,3 +146,21 @@ test('CSKH school page separates profile, recording and history into three icon 
   assert.doesNotMatch(source, /Lịch sử phân công/);
   assert.doesNotMatch(source, /details\.data\.handovers\.map/);
 });
+
+test('CSKH and CHECKEE use distinct ticket closure roles and shared support timeline', () => {
+  const care = read('src/screens/CustomerCare/Cases/CasesPage.tsx');
+  const checkee = read('src/screens/Checkee/Support/SupportPage.tsx');
+  const common = read('src/components/common/support-ticket-detail.tsx');
+  assert.match(care, /title="Chi tiết ticket lỗi phần mềm"/);
+  assert.match(care, /Xác nhận kết quả với nhà trường/);
+  assert.match(care, /Chờ CSKH xác nhận/);
+  assert.match(care, /selected\.checkee_responded_at/);
+  assert.match(care, /<SupportTicketTimeline entries=\{selected\.activities\}/);
+  assert.match(checkee, /title="Xử lý lỗi kỹ thuật"/);
+  assert.match(checkee, /Hoàn tất kỹ thuật/);
+  assert.match(checkee, /Lưu kết quả xử lý/);
+  assert.match(checkee, /technicalStatus==='COMPLETED'/);
+  assert.doesNotMatch(checkee, /type="checkbox"/);
+  assert.match(checkee, /<SupportTicketTimeline entries=\{selected\.activities\}/);
+  assert.match(common, /author_role/);
+});

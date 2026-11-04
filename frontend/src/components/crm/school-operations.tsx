@@ -47,6 +47,7 @@ import {
 import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-editor';
+import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 
 type Props = {
@@ -214,6 +215,7 @@ export function SchoolOperations({
   const proposalDetail = useQuery({
     queryKey: [...channelQueryKeys.all, 'proposal-units', selectedProposal?.id],
     queryFn: () => api<{ data: {
+      target: { id:number; name:string; province:string; ward:string } | null;
       units: {unit_type:string;name:string;province:string;ward:string;address:string|null;
         contact_name:string|null;contact_position:string|null;contact_phone:string|null;
         school_phone:string|null;email:string|null;note:string|null}[]
@@ -221,6 +223,38 @@ export function SchoolOperations({
     enabled: !preview && selectedProposal !== null && !!selectedProposal.proposal_mode
       && selectedProposal.proposal_mode !== 'LEGACY',
   });
+  // Reuse the same read-only school profile as "Trường của tôi" and the directory.
+  // Legacy proposals have no child-unit records; their original fields are the fallback.
+  const proposalProfileUnits: SchoolProfileUnit[] = selectedProposal
+    ? selectedProposal.proposal_mode && selectedProposal.proposal_mode !== 'LEGACY' && !preview
+      ? [
+          ...(proposalDetail.data?.data.target
+            ? [{
+                id: -1,
+                unit_type: 'MAIN',
+                name: proposalDetail.data.data.target.name,
+                province: proposalDetail.data.data.target.province,
+                ward: proposalDetail.data.data.target.ward,
+              }]
+            : []),
+          ...(proposalDetail.data?.data.units ?? []).map((unit, index) => ({
+            ...unit,
+            id: index + 1,
+          })),
+        ]
+      : [{
+          id: selectedProposal.id,
+          unit_type: 'MAIN',
+          name: selectedProposal.name,
+          province: selectedProposal.province,
+          ward: selectedProposal.ward,
+          address: selectedProposal.address,
+          contact_name: selectedProposal.contact_name,
+          contact_position: selectedProposal.contact_position,
+          contact_phone: selectedProposal.contact_phone,
+          email: selectedProposal.email,
+        }]
+    : [];
   const historyQuery = useQuery({
     queryKey: [
       ...channelQueryKeys.all,
@@ -1645,30 +1679,45 @@ export function SchoolOperations({
           )}
         </section>
       )}
-      <AppDrawer open={selectedProposal !== null} onOpenChange={open => !open && setSelectedProposal(null)} title="Chi tiết đề xuất trường" description={selectedProposal?.name}>
-          {selectedProposal && <div className="space-y-3 text-sm">
-            <p><strong>Người đề xuất:</strong> {selectedProposal.submitted_by}</p>
-            <p><strong>Quản lý:</strong> {selectedProposal.manager_name}</p>
-            <p><strong>Trạng thái:</strong> {workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p>
-            <p><strong>Địa điểm:</strong> {selectedProposal.province} · {selectedProposal.ward}</p>
-            <p><strong>Hạn xử lý:</strong> {workflowDate(selectedProposal.review_due_at)}</p>
-            <p><strong>Nội dung:</strong> {selectedProposal.reason}</p>
-            {!!selectedProposal.unit_count && <p><strong>Đơn vị trong hồ sơ:</strong> {selectedProposal.unit_count}</p>}
-            {proposalDetail.isPending && selectedProposal.proposal_mode !== 'LEGACY' && <p>Đang tải trường và phân hiệu...</p>}
-            {proposalDetail.isError && <p role="alert" className="text-destructive">Không tải được danh sách phân hiệu.</p>}
-            {proposalDetail.data?.data.units.map((unit,index)=><section key={index} className="rounded-xl border p-3">
-              <h4 className="font-semibold">{unit.unit_type==='MAIN'?'Trường chính':'Phân hiệu'}: {unit.name||'Chưa đặt tên'}</h4>
-              <p>{unit.province} · {unit.ward}</p>
-              {unit.address&&<p>Địa chỉ: {unit.address}</p>}
-              {unit.contact_name&&<p>Liên hệ: {unit.contact_name}{unit.contact_position?' · '+unit.contact_position:''}</p>}
-              {unit.contact_phone&&<p>SĐT liên hệ: {unit.contact_phone}</p>}
-              {unit.school_phone&&<p>SĐT trường: {unit.school_phone}</p>}
-              {unit.email&&<p>Email: {unit.email}</p>}
-              {unit.note&&<p>Ghi chú: {unit.note}</p>}
-            </section>)}
-            {selectedProposal.decision_reason && <p><strong>Phản hồi:</strong> {selectedProposal.decision_reason}</p>}
-          </div>}
-        </AppDrawer>
+      <AppDrawer
+        open={selectedProposal !== null}
+        onOpenChange={open => !open && setSelectedProposal(null)}
+        title={selectedProposal?.name || 'Chi tiết đề xuất trường'}
+        description={selectedProposal?.school_code?.startsWith('DRAFT-')
+          ? 'Hồ sơ đề xuất trường học'
+          : selectedProposal?.school_code || 'Hồ sơ đề xuất trường học'}
+        wide
+      >
+        {selectedProposal && <div className="space-y-5">
+          {proposalDetail.isPending && selectedProposal.proposal_mode !== 'LEGACY' && !preview &&
+            <p className="text-sm text-muted-foreground">Đang tải thông tin trường chính và phân hiệu...</p>}
+          {proposalDetail.isError && <p role="alert" className="text-sm text-destructive">
+            Không tải được thông tin trường chính và phân hiệu. Vui lòng thử lại.
+          </p>}
+          {(!selectedProposal.proposal_mode || selectedProposal.proposal_mode === 'LEGACY'
+            || preview || proposalDetail.isSuccess) &&
+            <SchoolProfileDetails units={proposalProfileUnits}/>}
+          <section className="space-y-2 border-t pt-4 text-sm">
+            <h3 className="font-semibold">Thông tin đề xuất</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Trạng thái</p>
+                <p>{workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p></div>
+              <div><p className="text-xs text-muted-foreground">Người đề xuất</p>
+                <p>{selectedProposal.submitted_by || 'Chưa cập nhật'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Quản lý bán hàng</p>
+                <p>{selectedProposal.manager_name || 'Chưa cập nhật'}</p></div>
+              {selectedProposal.status !== 'DRAFT' && <div>
+                <p className="text-xs text-muted-foreground">Hạn xử lý</p>
+                <p>{workflowDate(selectedProposal.review_due_at)}</p>
+              </div>}
+            </div>
+            {selectedProposal.decision_reason && <div>
+              <p className="text-xs text-muted-foreground">Phản hồi phê duyệt</p>
+              <p>{selectedProposal.decision_reason}</p>
+            </div>}
+          </section>
+        </div>}
+      </AppDrawer>
       <SchoolProposalEditor open={proposalEditorOpen} draftId={proposalEditorId}
         apiBase={apiBase} token={token} onClose={() => setProposalEditorOpen(false)}
         onSaved={async () => {

@@ -46,7 +46,7 @@ test('Shared school fields keep per-input feedback for both Admin and Sales', ()
   assert.doesNotMatch(adminDirectory, /school_code:code/);
   assert.doesNotMatch(adminProposal, /Mã trường chính|school_code/);
   assert.match(shared, /label: 'Tên trường'/);
-  assert.doesNotMatch(shared, /Tên trường\\/phân hiệu/);
+  assert.doesNotMatch(shared, /Tên trường\/phân hiệu/);
 });
 
 test('Sales approach registration produces one success toast after synchronization', () => {

@@ -95,11 +95,6 @@ export function SchoolProposalEditor({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open,mode,lookup,apiBase,token]);
 
-  const changeMode = (value: 'NEW_MAIN'|'ADD_BRANCHES') => {
-    setMode(value); setTarget(null); setLookup(''); setFieldErrors({});
-    setUnits(value==='NEW_MAIN'?[emptyUnit('MAIN')]:[emptyUnit('BRANCH')]);
-    setExpanded([0]);
-  };
   const editUnit = (index:number,key:keyof Unit,value:string) => {
     setUnits(items=>items.map((item,i)=>i===index?{...item,[key]:value}:item));
     setFieldErrors(current=>({...current,[`${index}.${key}`]:''}));
@@ -157,9 +152,9 @@ export function SchoolProposalEditor({
   };
   const unitForm = (u:Unit,i:number) => <div key={i} className="grid gap-3 sm:grid-cols-2">
     {fields.map(field=><div key={field.key} className="block min-w-0 text-sm">
-      {field.label} {field.required&&<span className="text-destructive">*</span>}
+      {field.key === 'name' && u.unit_type === 'MAIN' ? 'Tên trường' : field.label} {field.required&&<span className="text-destructive">*</span>}
       <Input id={`proposal-unit-${i}-${field.key}`} className="mt-1" value={u[field.key] ?? ''} maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
-        aria-label={field.label} aria-invalid={!!fieldErrors[`${i}.${field.key}`]}
+        aria-label={field.key === 'name' && u.unit_type === 'MAIN' ? 'Tên trường' : field.label} aria-invalid={!!fieldErrors[`${i}.${field.key}`]}
         onChange={e=>editUnit(i,field.key,e.target.value)}/>
       {fieldErrors[`${i}.${field.key}`]&&<span className="mt-1 block text-xs text-destructive">{fieldErrors[`${i}.${field.key}`]}</span>}
     </div>)}
@@ -179,11 +174,6 @@ export function SchoolProposalEditor({
     </>}>
     {loading?<p className="py-8 text-sm text-muted-foreground">Đang tải hồ sơ...</p>:
     <div className="space-y-5">
-      <fieldset className="space-y-2">
-        <legend className="font-semibold">Loại đề xuất</legend>
-        <div className="flex items-center gap-2 text-sm"><input aria-label="Trường chính mới" id="proposal-mode-main" type="radio" name="proposal-mode" checked={mode==='NEW_MAIN'} onChange={()=>changeMode('NEW_MAIN')}/> Trường chính mới (có thể kèm phân hiệu)</div>
-        <div className="flex items-center gap-2 text-sm"><input aria-label="Bổ sung phân hiệu cho trường chính đã có" id="proposal-mode-branch" type="radio" name="proposal-mode" checked={mode==='ADD_BRANCHES'} onChange={()=>changeMode('ADD_BRANCHES')}/> Bổ sung phân hiệu cho trường chính đã có</div>
-      </fieldset>
       {mode==='NEW_MAIN'?<section className="rounded-xl border bg-muted/20 p-4 space-y-3">
         <h3 className="font-semibold">Trường chính</h3>
         <p className="text-xs text-muted-foreground">Mã trường chính sẽ được hệ thống cấp khi Admin phê duyệt.</p>

@@ -302,6 +302,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 EffectiveOn = request.EffectiveOn,
                 TotalValue = decimal.Round(request.TotalValue, 0),
                 ServicePlan = servicePlan,
+                ContractNote = CleanOptional(request.ContractNote, 4000),
                 StudentCount = request.StudentCount,
                 SchoolUnitIdsJson = System.Text.Json.JsonSerializer.Serialize(unitIds),
                 Status = schoolContract ? "PENDING_REVIEW" : "ACTIVE",

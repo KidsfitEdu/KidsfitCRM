@@ -8,7 +8,16 @@ using Microsoft.EntityFrameworkCore;
 namespace KidsfitCRM.Api.Features;
 
 public sealed record ReturnSchoolContractRequest(string? Reason);
-public sealed record ResubmitSchoolContractRequest(long? EvidenceId);
+public sealed record ResubmitSchoolContractRequest(
+    long? EvidenceId,
+    DateOnly? SignedOn = null,
+    string? ServicePlan = null,
+    int? StudentCount = null,
+    int? BranchCount = null,
+    long[]? SchoolUnitIds = null,
+    decimal? MaintenanceFee = null,
+    decimal? SetupFee = null,
+    string? ContractNote = null);
 
 /// <summary>
 /// Manager contract workflow. Authorization and scope are enforced in SQL, not by the UI.
@@ -307,12 +316,15 @@ public static class ManagerContractEndpoints
                               join owner in db.Users.AsNoTracking() on c.OwnerUserId equals owner.Id
                               select new {
                                   id = c.Id, c.ContractCode, c.SignedOn, c.EffectiveOn, c.TotalValue,
-                                  c.Status, c.ServicePlan, c.StudentCount, c.EvidenceReference, c.SchoolUnitIdsJson,
+                                  c.Status, c.ServicePlan, c.StudentCount, c.BranchCount, c.ContractNote, c.EvidenceReference, c.SchoolUnitIdsJson,
                                   c.ManagerReviewedAt, c.VerifiedAt, c.OwnerUserId, c.OwnerOrganizationId, c.ReportedByUserId,
                                   school_name = customer.DisplayName, school_address = customer.Address,
                                   school_province = customer.Province, sales_name = owner.Name
                               }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
 
+        var feeItems = await db.SalesContractItems.AsNoTracking().Where(x => x.ContractId == id).ToArrayAsync(ct);
+        var maintenanceFee = feeItems.FirstOrDefault(x => x.Description.StartsWith("Phí duy trì"))?.UnitPrice;
+        var setupFee = feeItems.FirstOrDefault(x => x.Description == "Phí khởi tạo (một lần)")?.UnitPrice ?? 0m;
         var files = await db.FinancialEvidences.AsNoTracking()
             .Where(x => x.ContractId == id && x.Kind == "CONTRACT" && x.AttachedAt != null)
             .OrderByDescending(x => x.AttachedAt)
@@ -332,7 +344,9 @@ public static class ManagerContractEndpoints
         return Results.Ok(new {
             data = new {
                 contract.id, contract.ContractCode, contract.SignedOn, contract.EffectiveOn,
-                contract.TotalValue, contract.Status, contract.ServicePlan, contract.StudentCount,
+                contract.TotalValue, contract.Status, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+                contract.ContractNote, maintenance_fee = maintenanceFee, setup_fee = setupFee,
+                revision_reason = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.RevisionReason).SingleAsync(ct),
                 contract.EvidenceReference, contract.ManagerReviewedAt, contract.VerifiedAt,
                 contract.school_name, contract.school_address, contract.school_province, contract.sales_name,
                 can_review = contract.Status == "PENDING_REVIEW" && access.Has(Permissions.SchoolContractReview)

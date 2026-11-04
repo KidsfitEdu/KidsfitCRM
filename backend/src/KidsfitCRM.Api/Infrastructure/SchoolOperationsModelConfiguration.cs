@@ -62,6 +62,7 @@ public sealed partial class KidsfitDbContext
         Restrict<SchoolProposalAlert, User>(b, x => x.RecipientUserId);
         b.Entity<SchoolProposal>().Property(x => x.Version).IsConcurrencyToken();
         b.Entity<SchoolProposal>().Property(x => x.ProposalMode).HasMaxLength(32).HasDefaultValue("LEGACY");
+        b.Entity<SchoolProposal>().Property(x => x.IsDeleted).HasDefaultValue(false);
         b.Entity<SchoolProposal>().HasIndex(x => new { x.SubmittedByUserId, x.Status, x.IsDeleted });
         b.Entity<SchoolProposalUnit>().Property(x => x.UnitType).HasMaxLength(16);
         b.Entity<SchoolProposalUnit>().Property(x => x.Name).HasMaxLength(500);

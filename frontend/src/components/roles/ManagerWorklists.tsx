@@ -281,13 +281,11 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
         { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number',
           value: suggestedSchoolId?String(suggestedSchoolId):undefined,
           options: schools.map(s => ({ value: String(s.id), label: s.display_name })) },
-        { name: 'organization_id', label: 'Tổ chức', type: 'number', options: (operations.data?.organizations ?? []).map(o => ({ value: String(o.id), label: o.name })) },
         { name: 'assignee_user_id', label: 'Sales/CTV nhận phân bổ', type: 'number', options: members.map(m => {
           const cap = capacities.data?.data.find(c => c.id === m.id);
           return { value: String(m.user_id), label: m.name + (cap ? ' · ' + cap.active + '/' + cap.school_approach_limit + ' trường' : '') };
         }) },
-        { name: 'respond_by', label: 'Hạn phản hồi', type: 'datetime-local', value: vietnamDateTimeInput(new Date(Date.now() + 24 * 3600000).toISOString()) },
-        reason,
+        { ...reason, label: 'Lý do', requiredMessage: 'Vui lòng nhập lý do phân bổ trường.' },
       ],
     });
   };

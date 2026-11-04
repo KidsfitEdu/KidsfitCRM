@@ -234,8 +234,10 @@ test('Sales contract revisions use original contract and retain manager instruct
   const source = read('src/components/roles/SalesContractRevisions.tsx');
   const sales = read('src/components/crm/channel-sales-view.tsx');
   assert.match(source, /school-contracts\/my-revisions/);
-  assert.match(source, /school-contracts\/\$\{selected\.id\}\/resubmit/);
-  assert.match(source, /selected\?\.reason/);
+  assert.match(source, /school-contracts\/\$\{revision\.id\}\/resubmit/);
+  assert.match(source, /revision\.reason/);
+  assert.match(source, /maintenance_fee: Number\(maintenance\)/);
+  assert.match(source, /contract_note: note/);
   assert.match(source, /id="sales-contract-revisions"/);
   assert.match(sales, /status === 'NEEDS_REVISION'/);
   assert.match(sales, /Bổ sung hồ sơ/);

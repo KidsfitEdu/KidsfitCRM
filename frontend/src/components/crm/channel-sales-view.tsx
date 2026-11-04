@@ -1434,10 +1434,10 @@ function StatusSummary({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div role="group" aria-label={label} className="grid gap-1.5 text-sm font-medium">
-      <span>{label}</span>
+    <fieldset className="grid min-w-0 gap-1.5 text-sm font-medium">
+      <legend className="text-sm font-medium">{label}</legend>
       {children}
-    </div>
+    </fieldset>
   );
 }
 

@@ -15,6 +15,15 @@ test('Admin school form separates input validation from server notifications', (
   assert.match(editor, /cause.status === 404 \|\| cause.status === 405/);
 });
 
+test('Admin directory hides school codes while preserving data bindings', () => {
+  const source = read('components/crm/school-directory.tsx');
+  assert.match(source, /!adminMode && <p/);
+  assert.match(source, /description=\{adminMode \?/);
+  const editor = read('components/crm/schools/school-record-editor.tsx');
+  assert.match(editor, /body:JSON\.stringify\(\{units\}\)/);
+  assert.doesNotMatch(editor, /official-school-code|Mã trường chính/);
+});
+
 test('Transport preserves structured API validation errors', () => {
   const transport = read('lib/channel-operations.ts');
   assert.match(transport, /readonly errors: Record<string, string\[\]>/);

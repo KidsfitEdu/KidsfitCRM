@@ -8,7 +8,7 @@ namespace KidsfitCRM.Api.Features;
 
 public sealed record CreateSchoolManualRequest(string? SchoolCode, string? UnitType, string? Name,
     string? Province, string? Ward, string? Address, string? ContactName, string? ContactPosition,
-    string? ContactPhone, string? Email, string? SchoolPhone, string? Reason);
+    string? ContactPhone, string? Email, string? SchoolPhone, string? Reason, string? Note = null);
 
 public sealed record ChangeSchoolCapacityRequest(int Limit, string? Reason);
 
@@ -38,6 +38,7 @@ public sealed partial class ChannelSalesActions
         var contactPhone = SchoolPhone(request.ContactPhone);
         var schoolPhone = SchoolPhone(request.SchoolPhone);
         var email = SchoolEmail(request.Email);
+        var note = CleanOptional(request.Note, 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await LockSchoolOrganization(centralId, ct);
         var existing = await db.DirectorySchools.SingleOrDefaultAsync(x => x.SchoolCode == code, ct);
@@ -70,7 +71,7 @@ public sealed partial class ChannelSalesActions
         {
             DirectorySchoolId = existing!.Id, UnitType = kind, Name = name, Province = province, Ward = ward,
             Address = address, ContactName = contactName, ContactPosition = contactPosition,
-            ContactPhone = contactPhone, SchoolPhone = schoolPhone, Email = email,
+            ContactPhone = contactPhone, SchoolPhone = schoolPhone, Email = email, Note = note,
             ContentHash = Guid.NewGuid().ToString("N"), SourceRow = 0, CreatedAt = now, UpdatedAt = now,
         };
         db.SchoolUnits.Add(unit); await db.SaveChangesAsync(ct);

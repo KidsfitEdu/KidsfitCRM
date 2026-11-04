@@ -53,7 +53,6 @@ const schoolManagerAbilities = [
   'channel_sales.school.allocation.manage',
   'channel_sales.school.extension.review',
   'channel_sales.school.handover.manage',
-  'channel_sales.school.handover.manage',
 ];
 const schoolAbilitiesByProfile: Record<string, string[]> = {
   admin: [

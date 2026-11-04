@@ -205,9 +205,8 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 throw ApiValidationException.For("maintenance_fee", "Cần nhập cả phí duy trì và phí khởi tạo.");
             if (request.ServicePlan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
                 throw ApiValidationException.For("service_plan", "Cần chọn gói năm học hoặc gói hàng tháng.");
-            ChannelSalesValidation.WholeDong(request.MaintenanceFee.Value, "maintenance_fee");
-            if (request.SetupFee.Value < 0 || request.SetupFee.Value != decimal.Truncate(request.SetupFee.Value))
-                throw ApiValidationException.For("setup_fee", "Phí khởi tạo phải là số nguyên không âm.");
+            ChannelSalesValidation.WholeDong(request.MaintenanceFee.Value, "maintenance_fee", positive: false);
+            ChannelSalesValidation.WholeDong(request.SetupFee.Value, "setup_fee", positive: false);
             try
             {
                 calculatedTotal = checked(request.MaintenanceFee.Value *

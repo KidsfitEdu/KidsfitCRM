@@ -175,6 +175,34 @@ export function ChannelSalesView({
   const [extensionRefresh, setExtensionRefresh] = useState(0);
   const [contractCustomer, setContractCustomer] =
     useState<ChannelCustomer | null>(null);
+  const [checkingContract, setCheckingContract] = useState(false);
+
+  const openContractReport = async (customer: ChannelCustomer) => {
+    if (checkingContract) return;
+    if (customer.contract_id !== null) {
+      appNotice.warning('Hợp đồng đã được báo cáo', 'Vui lòng theo dõi hồ sơ xác minh hoặc bổ sung hồ sơ nếu được yêu cầu.');
+      return;
+    }
+    if (!apiBase || !token) {
+      appNotice.error('Không thể kiểm tra hợp đồng.', 'Chưa kết nối API. Vui lòng thử lại.');
+      return;
+    }
+    setCheckingContract(true);
+    try {
+      // Refresh the server state before showing an expensive upload form.
+      const profile = await channelRequest<SalesSchoolProfile>(apiBase, token, `/customers/${customer.id}`);
+      if (profile.contracts.length > 0) {
+        appNotice.warning('Hợp đồng đã được báo cáo', 'Trường đã có hồ sơ hợp đồng. Vui lòng theo dõi xác minh hoặc bổ sung hồ sơ theo yêu cầu.');
+        setExtensionRefresh(value => value + 1);
+        return;
+      }
+      setContractCustomer(customer);
+    } catch (cause) {
+      appNotice.error('Không thể kiểm tra trạng thái hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
+    } finally {
+      setCheckingContract(false);
+    }
+  };
   const [receiptCustomer, setReceiptCustomer] =
     useState<ChannelCustomer | null>(null);
 
@@ -409,7 +437,7 @@ export function ChannelSalesView({
                 canRecordRevenue={canRecordRevenue}
                 onRegister={() => setRegisterCustomer(customer)}
                 onActivity={() => setActivityCustomer(customer)}
-                onContract={() => setContractCustomer(customer)}
+                onContract={() => { void openContractReport(customer); }}
                 onReceipt={() => setReceiptCustomer(customer)}
               />
             ))}
@@ -672,7 +700,7 @@ function CustomerRow({
                 <SquarePen className="size-4" aria-hidden="true"/>
               </Button>
             )}
-            {canReportContract && customer.can_manage_approach && (
+            {canReportContract && customer.can_manage_approach && !customer.contract_id && (
               <Button onClick={onContract} size="icon" className="size-9 rounded-lg bg-[#1b5e20] hover:bg-[#124c17]"
                 title="Báo hợp đồng" aria-label={`Báo hợp đồng ${customer.display_name}`}>
                 <FileCheck2 className="size-4" aria-hidden="true"/>
@@ -1017,7 +1045,6 @@ function ContractDialog({
   const [branchCountTouched, setBranchCountTouched] = useState(false);
   const [unitsError, setUnitsError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [requestKey] = useState(() => idempotencyKey('contract'));
   const multiplier = plan === 'MONTHLY_9' ? 9 : 1;
   const maintenance = Number(maintenanceFee);
@@ -1042,9 +1069,12 @@ function ContractDialog({
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError('');
     try {
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
+      // Recheck before uploading a file to avoid orphaned evidence on stale forms.
+      const latest = await channelRequest<SalesSchoolProfile>(apiBase, token, `/customers/${customer.id}`);
+      if (latest.contracts.length > 0)
+        throw new Error('Trường đã có hồ sơ hợp đồng. Vui lòng theo dõi hồ sơ xác minh hoặc bổ sung theo yêu cầu.');
       if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
       // The reported count can be entered even when the directory unit lookup fails.
       if (total === null) throw new Error('Phí duy trì và phí khởi tạo phải là số nguyên không âm, tổng giá trị hợp đồng phải lớn hơn 0.');
@@ -1082,7 +1112,6 @@ function ContractDialog({
       });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Không thể báo cáo hợp đồng.';
-      setError(message);
       appNotice.error('Không thể gửi hợp đồng xác minh.', message);
     } finally { setSaving(false); }
   };
@@ -1174,7 +1203,7 @@ function ContractDialog({
           <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
         </div>
       </div>
-      <DialogFooter saving={saving} error={error} onClose={onClose} label="Gửi hợp đồng xác minh"/>
+      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
     </form>
   </SalesFormDialog>;
 }

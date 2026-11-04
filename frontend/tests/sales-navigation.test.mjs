@@ -157,3 +157,18 @@ test('Income simplification and Sales page-size selection stay consistent', () =
   assert.match(operations, /onPageSizeChange=\{size => \{ setSalesPageSize\(size\); setPage\(1\); \}\}/);
   assert.match(shared, /disabled=\{loading\}/);
 });
+
+test('Sales consultation update has one content input and never invents a classified outcome', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function ActivityDialog({');
+  const end = source.indexOf('function ContractDialog({', start);
+  assert.ok(start > 0 && end > start);
+  const dialog = source.slice(start, end);
+  assert.match(dialog, /title="Cập nhật kết quả tư vấn"/);
+  assert.match(dialog, /name="content"/);
+  assert.match(dialog, /maxLength=\{4000\}/);
+  assert.match(dialog, /activity_type: 'NOTE', content/);
+  assert.match(dialog, /appNotice\.success\('Đã lưu nội dung trao đổi\.'/);
+  assert.doesNotMatch(dialog, /name="outcome"|name="activity_type"|name="occurred_at"|name="next_follow_up_at"/);
+  assert.doesNotMatch(dialog, /outcome: 'INTERESTED'/);
+});

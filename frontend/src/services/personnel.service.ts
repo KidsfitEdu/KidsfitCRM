@@ -7,7 +7,7 @@ export function createAdminTeamMember(apiBase:string,token:string,payload:{name:
   return channelRequest(apiBase,token,'/team',{method:'POST',body:JSON.stringify(payload)});
 }
 
-export function updateAdminTeamMember(base:string,token:string,id:number,payload:{name:string;phone:string|null;role_code:string;reason:string;manager_user_id?:number|null}) {
+export function updateAdminTeamMember(base:string,token:string,id:number,payload:{name:string;phone:string|null;role_code:string;reason?:string;manager_user_id?:number|null}) {
   return channelRequest(base,token,`/admin/team/${id}`,{method:'PATCH',body:JSON.stringify(payload)});
 }
 export function changeTeamStatus(base:string,token:string,id:number,payload:{status:'ACTIVE'|'SUSPENDED';reason:string;summary?:string;idempotency_key?:string}) {

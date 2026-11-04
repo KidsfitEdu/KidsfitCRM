@@ -1,6 +1,8 @@
 name: Frontend refactor validation
 
 on:
+  push:
+    branches: ['feat/crm-seed']
   pull_request:
     branches: [develop]
     paths:

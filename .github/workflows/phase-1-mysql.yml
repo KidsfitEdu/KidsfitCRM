@@ -1,6 +1,8 @@
 name: Phase 1 isolated MySQL integrity
 
 on:
+  push:
+    branches: ['feat/crm-seed']
   pull_request:
     branches: [develop]
     paths:
@@ -40,9 +42,34 @@ jobs:
           sudo apt-get install -y -qq default-mysql-client
           mysql --protocol=TCP -h127.0.0.1 -uroot -p'ephemeral-ci-only' --skip-column-names -e "SELECT VERSION();" | tee /tmp/kidsfit-mysql-version.txt
           grep -E '^8\.4\.' /tmp/kidsfit-mysql-version.txt
-          test "$GITHUB_EVENT_NAME" = "pull_request" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_EVENT_NAME" = "pull_request" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch" -o "$GITHUB_EVENT_NAME" = "push"
       - name: Full EF migrations, seed replay, transaction and concurrency tests
         run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
+      - name: Ten school scenario boot and repeat seed (ephemeral database only)
+        env:
+          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_ten_schools_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
+          Jwt__Key: "ephemeral_ci_jwt_32_byte_key_not_production__"
+          Seed__DemoPassword: "temporary-ci-only-test-secret"
+          Seed__DisposableDatabase: "true"
+          Seed__TenSchoolScenario: "true"
+          Seed__AccountingScenarios: "false"
+        run: |
+          set -euo pipefail
+          export MYSQL_PWD='ephemeral-ci-only'
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_ten_schools_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM directory_schools;" | grep -x 10
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM school_units;" | grep -x 19
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM sales_contracts;" | grep -x 6
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM customer_support_cases WHERE ticket_type='SYSTEM_ERROR';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM commission_policy_versions WHERE status='ACTIVE' AND rate_percent=30;" | grep -x 0
+          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_ten_schools_ci;"
       - name: Separate synthetic backup and restore smoke test
         run: |
           set -euo pipefail

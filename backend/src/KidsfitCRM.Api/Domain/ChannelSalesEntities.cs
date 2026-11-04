@@ -118,6 +118,7 @@ public sealed class SalesContract : EntityBase
     public string? ServicePlan { get; set; }
     public string? ContractNote { get; set; }
     public int? StudentCount { get; set; }
+    public int? BranchCount { get; set; }
     public string? SchoolUnitIdsJson { get; set; }
     public string Currency { get; set; } = "VND";
     public string Status { get; set; } = "ACTIVE";

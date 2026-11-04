@@ -439,7 +439,7 @@ internal static class CrmReviewSeeder
                 if (school.RefundAmount > 0 &&
                     !await db.CommissionLedgerEntries.AnyAsync(x => x.IdempotencyKey == "review-commission-refund-" + school.Code))
                     db.CommissionLedgerEntries.Add(new CommissionLedgerEntry {
-                        ContractId = contract.Id, RevenueReceiptId = receipt.Id,
+                        ContractId = contract.Id, RevenueReceiptId = null,
                         PolicyVersionId = selectedPolicy.Id, BeneficiaryUserId = owner.Id,
                         BeneficiaryOrganizationId = org.Id, EntryType = "ADJUSTMENT",
                         CalculationBase = school.RefundAmount, RatePercent = 30m,

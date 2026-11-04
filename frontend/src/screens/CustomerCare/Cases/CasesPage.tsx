@@ -9,7 +9,7 @@ import {AppPagination} from '@/components/common/app-pagination';
 import {AppDialog} from '@/components/common/dialogs/app-dialog';
 import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {AppButton} from '@/components/common/buttons/app-button';
-import {channelRequest,channelDate} from '@/lib/channel-operations';
+import {channelRequest} from '@/lib/channel-operations';
 import type {RolePageProps} from '@/types/role-pages';
 import {SupportTicketSummary,SupportTicketTimeline} from '@/components/common/support-ticket-detail';
 
@@ -166,14 +166,14 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
               <ChevronDown className="size-4" aria-hidden="true"/>
             </button>
           </div>
-          {schoolOpen&&<div id="ticket-school-options" role="listbox"
+          {schoolOpen&&<div id="ticket-school-options"
             aria-label="Danh sách trường phụ trách" className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border bg-background p-1 shadow-lg">
             {(schools.isLoading||schools.isFetching)&&schoolChoices.length===0
               ?<p className="p-3 text-muted-foreground">Đang tải trường...</p>
               :schools.isError?<p role="alert" className="p-3 text-destructive">Không tải được danh sách trường.</p>
               :schoolChoices.length===0?<p className="p-3 text-muted-foreground">Không tìm thấy trường phù hợp.</p>
-              :schoolChoices.map((school,index)=><button key={school.id} type="button" role="option"
-                  aria-selected={contractId===String(school.id)} disabled={busy}
+              :schoolChoices.map((school,index)=><button key={school.id} type="button"
+                  aria-current={contractId===String(school.id)?"true":undefined} disabled={busy}
                   className={'flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-muted '+(schoolActiveIndex===index?'bg-muted':'')}
                   onMouseDown={e=>e.preventDefault()} onClick={()=>selectSchool(school)}>
                   <span>{school.school_name}</span>

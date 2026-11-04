@@ -29,11 +29,11 @@ public sealed class SchoolProposalDraftUnits : Migration
             "school_proposals", "deleted_by_user_id");
         migrationBuilder.CreateIndex("IX_school_proposals_submitted_by_user_id_status_is_deleted",
             "school_proposals", new[] { "submitted_by_user_id", "status", "is_deleted" });
-        migrationBuilder.AddForeignKey("FK_school_proposals_directory_schools_target_directory_school_id",
-            "school_proposals", "target_directory_school_id", "directory_schools", "id",
+        migrationBuilder.AddForeignKey(name: "FK_school_proposals_directory_schools_target_directory_school_id",
+            table: "school_proposals", column: "target_directory_school_id", principalTable: "directory_schools", principalColumn: "id",
             onDelete: ReferentialAction.Restrict);
-        migrationBuilder.AddForeignKey("FK_school_proposals_users_deleted_by_user_id",
-            "school_proposals", "deleted_by_user_id", "users", "id",
+        migrationBuilder.AddForeignKey(name: "FK_school_proposals_users_deleted_by_user_id",
+            table: "school_proposals", column: "deleted_by_user_id", principalTable: "users", principalColumn: "id",
             onDelete: ReferentialAction.Restrict);
         migrationBuilder.CreateTable(
             name: "school_proposal_units",
@@ -60,8 +60,8 @@ public sealed class SchoolProposalDraftUnits : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_school_proposal_units", x => x.id);
-                table.ForeignKey("FK_school_proposal_units_school_proposals_school_proposal_id",
-                    x => x.school_proposal_id, "school_proposals", "id", onDelete: ReferentialAction.Restrict);
+                table.ForeignKey(name: "FK_school_proposal_units_school_proposals_school_proposal_id",
+                    column: x => x.school_proposal_id, principalTable: "school_proposals", principalColumn: "id", onDelete: ReferentialAction.Restrict);
             }).Annotation("Relational:Collation", "utf8mb4_0900_ai_ci");
         migrationBuilder.CreateIndex("IX_school_proposal_units_school_proposal_id_sort_order",
             "school_proposal_units", new[] { "school_proposal_id", "sort_order" }, unique: true);

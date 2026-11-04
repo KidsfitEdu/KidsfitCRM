@@ -186,3 +186,20 @@ test('Sales contract report does not ask for a contract code', () => {
   const payload = model.slice(model.indexOf('export type ReportContractInput ='), model.indexOf('export type RevenueReceiptInput ='));
   assert.doesNotMatch(payload, /contract_code:/);
 });
+
+test('Simplified Sales contract report computes total from fees and keeps required upload', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function ContractDialog({');
+  const end = source.indexOf('function ReceiptDialog({', start);
+  assert.ok(start >= 0 && end > start);
+  const form = source.slice(start,end);
+  assert.match(form, /Tổng giá trị hợp đồng<\/strong>/);
+  assert.doesNotMatch(form, /Tổng giá trị hợp đồng dự kiến/);
+  assert.doesNotMatch(form, /Ví dụ minh họa: phí duy trì/);
+  assert.match(form, /maintenance_fee: maintenance/);
+  assert.match(form, /setup_fee: setup/);
+  assert.match(form, /maintenance \* multiplier \+ setup/);
+  assert.match(form, /name="contract_file"/);
+  assert.match(form, /name="contract_note"/);
+  assert.doesNotMatch(form, /Số đợt thanh toán theo hợp đồng|name="total_value"/);
+});

@@ -4,18 +4,18 @@ import { readSchoolDemo } from '../src/lib/school-demo.ts';
 
 test('demo directory has fictional schools with readonly actions', async () => {
   const result = await readSchoolDemo('/schools?page=1');
-  assert.equal(result.total, 3);
+  assert.equal(result.total, 10);
   assert.deepEqual(
     result.data.map((s) => s.visible_status),
-    ['AVAILABLE', 'APPROACHING', 'CONTRACTED'],
+    ['CONTRACTED', 'CONTRACTED', 'APPROACHING', 'APPROACHING', 'APPROACHING', 'APPROACHING', 'APPROACHING', 'APPROACHING', 'AVAILABLE', 'AVAILABLE'],
   );
   for (const school of result.data) {
-    assert.match(school.school_code, /^SCH-/);
+    assert.match(school.school_code, /^SCH\d{4}$/);
     assert.equal(school.can_register, false);
   }
 });
 test('demo search and empty results behave consistently', async () => {
-  const result = await readSchoolDemo('/schools?search=anh%20duong');
+  const result = await readSchoolDemo('/schools?search=SCH0001');
   assert.equal(result.total, 1);
   assert.equal(result.data[0].id, 1);
   assert.equal(
@@ -26,7 +26,7 @@ test('demo search and empty results behave consistently', async () => {
 });
 test('demo details preserve branch grouping without real contacts', async () => {
   const detail = await readSchoolDemo('/schools/1');
-  assert.equal(detail.units.length, 3);
+  assert.equal(detail.units.length, 10);
   assert.equal(detail.units[0].unit_type, 'MAIN');
   assert.equal(detail.can_report_contract, false);
   for (const unit of detail.units) {
@@ -36,7 +36,7 @@ test('demo details preserve branch grouping without real contacts', async () => 
   }
 });
 test('demo contract is readonly and does not expose verification actions', async () => {
-  const detail = await readSchoolDemo('/schools/3');
+  const detail = await readSchoolDemo('/schools/1');
   assert.equal(detail.contracts.length, 1);
   assert.equal(detail.contracts[0].can_review, false);
   assert.equal(detail.contracts[0].can_grant, false);
@@ -75,4 +75,22 @@ test('public school labels are neutral without changing readonly workflow flags'
   const capacities = await readSchoolDemo('/school-capacities');
   for (const capacity of capacities.data)
     assert.doesNotMatch(capacity.organization_name, /demo/i);
+});
+
+test('training directory reproduces the first ten workbook main schools and nine Ninh Kieu branches', async () => {
+  const list = await readSchoolDemo('/schools');
+  assert.equal(list.total, 10);
+  assert.deepEqual(list.data.map(s => s.school_code), Array.from({length:10},(_,i)=>'SCH'+String(i+1).padStart(4,'0')));
+  assert.equal(list.data[0].display_name, 'Trường Mầm Non Ninh Kiều');
+  assert.equal(list.data[9].display_name, 'Trường Mầm Non Mặt Trời Nhỏ 2');
+  assert.equal((await readSchoolDemo('/schools/1')).units.length, 10);
+  for(const school of list.data){
+    const detail = await readSchoolDemo('/schools/'+school.id);
+    assert.equal(detail.units[0].name,school.display_name);
+    for(const unit of detail.units){
+      assert.equal(unit.contact_name,null);
+      assert.equal(unit.contact_phone,null);
+      assert.equal(unit.email,null);
+    }
+  }
 });

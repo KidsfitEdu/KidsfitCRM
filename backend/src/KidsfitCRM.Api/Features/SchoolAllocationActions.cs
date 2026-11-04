@@ -167,7 +167,11 @@ public sealed partial class ChannelSalesActions
         var lookup = await db.SchoolExtensionRequests.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(lookup.OrganizationId) || (!(access.Has(Permissions.SchoolExtensionReview) && (lookup.ManagerUserId == actorId || access.All))
             && !(access.Has(Permissions.SchoolEscalationResolve) && lookup.ReviewDueAt <= DateTime.UtcNow))) throw new KeyNotFoundException();
-        var reason = Validation.Required(request.Reason, "reason", "Cần lý do quyết định gia hạn.", 4000);
+        var reason = request.Approve
+            ? (string.IsNullOrWhiteSpace(request.Reason)
+                ? "Quản lý duyệt gia hạn theo chính sách CRM."
+                : Validation.Required(request.Reason, "reason", "Lý do duyệt không hợp lệ.", 4000))
+            : Validation.Required(request.Reason, "reason", "Vui lòng nhập lý do từ chối gia hạn.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         // Match registration/allocation/offboarding lock order: membership, customer, registration, request.
         var registrationInfo = await db.ApproachRegistrations.AsNoTracking().SingleAsync(x => x.Id == lookup.ApproachRegistrationId, ct);
@@ -178,7 +182,8 @@ public sealed partial class ChannelSalesActions
         if (actorId == extension.RequestedByUserId) throw new ApiConflictException("Người xin không tự duyệt gia hạn.");
         var target = request.Approve ? "APPROVED" : "REJECTED";
         if (extension.Status == target && extension.ReviewedByUserId == actorId && extension.DecisionReason == reason
-            && (!request.Approve || (request.ApprovedUntil.HasValue && request.NextReviewAt.HasValue && extension.ApprovedUntil == SchoolUtc(request.ApprovedUntil.Value) && extension.NextReviewAt == SchoolUtc(request.NextReviewAt.Value)))) return id;
+            && (!request.Approve || (extension.ApprovedUntil == SchoolUtc(request.ApprovedUntil ?? extension.RequestedUntil)
+                && extension.NextReviewAt == SchoolUtc(request.NextReviewAt ?? request.ApprovedUntil ?? extension.RequestedUntil)))) return id;
         if (extension.Status != "PENDING") throw new ApiConflictException("Yêu cầu gia hạn đã có quyết định.");
         var now = DateTime.UtcNow;
         if (request.Approve)
@@ -188,8 +193,10 @@ public sealed partial class ChannelSalesActions
             if (await db.CustomerProtections.AnyAsync(x => x.CustomerId == registration.CustomerId && x.Status == "ACTIVE" && x.EffectiveUntil > now && x.ApproachRegistrationId != registration.Id, ct))
                 throw new ApiConflictException("Đã có quyền hợp lệ khác; không ghi đè người đang được bảo vệ.");
             var policy = await ActiveSchoolPolicy(extension.OrganizationId, ct) ?? throw new ApiConflictException("Admin cần xác nhận chính sách gia hạn trước khi duyệt. Các con số gợi ý chưa tự có hiệu lực.");
-            var until = SchoolFuture(request.ApprovedUntil, "approved_until", registration.ProtectedUntil);
-            var nextReview = SchoolFuture(request.NextReviewAt, "next_review_at", now);
+            // The requested deadline was calculated and validated when Sales submitted
+            // the extension. Manager approval requires confirmation, not re-entering dates.
+            var until = SchoolFuture(request.ApprovedUntil ?? extension.RequestedUntil, "approved_until", registration.ProtectedUntil);
+            var nextReview = SchoolFuture(request.NextReviewAt ?? until, "next_review_at", now);
             var count = await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration.Id && x.Status == "APPROVED", ct);
             if (until > extension.RequestedUntil || until > registration.ProtectedUntil.AddDays(policy.MaxExtensionDays)
                 || until > registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays) || count >= policy.MaxExtensionCount)

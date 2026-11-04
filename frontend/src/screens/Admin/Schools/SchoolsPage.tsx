@@ -41,7 +41,7 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
       const message=e instanceof Error?e.message:'Vui lòng kiểm tra thông tin và thử lại.';
       const duplicateCode=e instanceof ChannelRequestError && e.status===409 && /mã trường.*(đã có|trùng)|trường đã ngừng sử dụng/i.test(message);
       if(duplicateCode) setFormErrors(current=>({...current,school_code:message}));
-      else setFormError(message);
+      else appNotice.error('Không thể thêm trường học.', message);
     }
     finally{setBusy(false);}
   };

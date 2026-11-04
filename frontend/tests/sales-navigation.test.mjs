@@ -219,10 +219,14 @@ test('Sales contract branch count is editable and persisted separately from chos
   assert.match(form, /Tổng giá trị hợp đồng/);
 });
 
-test('Shared currency input formats display but emits raw VND digits', () => {
+test('Shared currency input keeps the caret stable while grouping VND digits', () => {
   const source = read('src/components/common/inputs/app-currency-input.tsx');
-  assert.match(source, /replace\(\/\\B\(\?=\(\\d\{3\}\)\+\(\?!\\d\)\)\/g, '\\.'\)/);
+  assert.match(source, /pendingCaretDigits/);
+  assert.match(source, /selectionStart/);
+  assert.match(source, /setSelectionRange\(offset, offset\)/);
+  assert.match(source, /useLayoutEffect/);
   assert.match(source, /inputMode="numeric"/);
-  assert.match(source, /replace\(\/\[\^0-9\]\/g, ''\)/);
-  assert.match(source, /onValueChange\(raw\)/);
+  assert.match(source, /onValueChange\(normalized\)/);
+  assert.match(source, /15\)/);
+  assert.doesNotMatch(source, /toLocaleString/);
 });

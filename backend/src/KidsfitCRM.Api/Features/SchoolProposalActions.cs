@@ -58,6 +58,8 @@ public sealed partial class ChannelSalesActions
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var proposal = await db.SchoolProposals.FromSqlInterpolated($"SELECT * FROM school_proposals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException();
+        if (proposal.ProposalMode != "LEGACY")
+            throw new ApiConflictException("Đề xuất nhiều phân hiệu chỉ được sửa từ bản nháp của Sales.");
         if (proposal.Status != "PENDING_ADMIN") throw new ApiConflictException("Chỉ sửa đề xuất đang chờ Admin duyệt.");
         if (proposal.Version != request.ExpectedVersion) throw new ApiConflictException("Đề xuất vừa được người khác sửa. Vui lòng tải lại trước khi lưu.");
         var code = Validation.Required(request.SchoolCode, "school_code", "Cần mã trường chính.", 64).ToUpperInvariant();

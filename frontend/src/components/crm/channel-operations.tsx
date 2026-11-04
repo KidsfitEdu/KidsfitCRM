@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SchoolDirectory } from './school-directory';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminListPanel, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { EvidenceReference, SchoolOperations } from './school-operations';
@@ -115,7 +116,6 @@ function OperationsContent({
   const visiblePanel = allowedPanels && !allowedPanels.includes(panel) ? allowedPanels[0] : panel;
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [modal, setModal] = useState<ReactNode>(null);
-  const [notice, setNotice] = useState('');
   const [customerId, setCustomerId] = useState<number | null>(null);
   const client = useQueryClient();
   const can = (permission: string) => abilities.includes(permission);
@@ -166,10 +166,11 @@ function OperationsContent({
           command.body === undefined ? undefined : JSON.stringify(command.body),
       }),
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: keys.all });
-      await onChanged();
-      setNotice('Đã cập nhật dữ liệu.');
+      const updates = await Promise.allSettled([client.invalidateQueries({queryKey: keys.all}),onChanged()]);
+      appNotice.success('Đã cập nhật dữ liệu.');
+      if (updates.some(x=>x.status==='rejected')) appNotice.warning('Đã lưu nhưng chưa tải lại được dữ liệu.', 'Vui lòng tải lại trang.');
     },
+    onError: (error) => appNotice.error('Không thể cập nhật dữ liệu.', error instanceof Error ? error.message : 'Vui lòng thử lại.'),
   });
   const run = async (command: Command) => {
     await mutation.mutateAsync(command);
@@ -226,7 +227,6 @@ function OperationsContent({
                 key={tab.id}
                 onClick={() => {
                   setPanel(tab.id);
-                  setNotice('');
                   mutation.reset();
                 }}
                 className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${visiblePanel === tab.id ? 'bg-[#1b5e20] text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
@@ -246,13 +246,7 @@ function OperationsContent({
           </Button>
         )}
       </div>}
-      {notice && (
-        <output className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-          <Check className="size-4" />
-          {notice}
-        </output>
-      )}
-      {mutation.error && <ErrorBox message={mutation.error.message} />}
+
       {visiblePanel === 'customers' &&
         customerView(connected ? setCustomerId : undefined)}
       {visiblePanel === 'schools' && (

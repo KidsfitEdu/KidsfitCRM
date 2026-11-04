@@ -1070,6 +1070,7 @@ function ContractDialog({
         school_unit_ids: selectedUnitIds,
         maintenance_fee: maintenance,
         setup_fee: setup,
+        contract_note: text(form, 'contract_note').trim() || undefined,
         total_value: total,
         evidence_id: response.data.id,
       });
@@ -1148,6 +1149,11 @@ function ContractDialog({
             </strong>
           </div>
         </div>
+        <Field label="Ghi chú hợp đồng (không bắt buộc)">
+          <textarea name="contract_note" aria-label="Ghi chú hợp đồng" maxLength={4000}
+            rows={3} className={textareaClass}
+            placeholder="Nhập thông tin cần xác minh thêm (nếu có)..."/>
+        </Field>
         <div>
           <Field label="File hợp đồng đã ký *">
             <Input name="contract_file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required/>

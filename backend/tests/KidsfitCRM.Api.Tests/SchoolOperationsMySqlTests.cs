@@ -121,9 +121,11 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var actions = new ChannelSalesActions(db);
         var code = "NEW-" + Key()[..12].ToUpperInvariant();
         var request = new CreateSchoolManualRequest(code, "MAIN", "Trường kiểm thử " + code,
-            "Cần Thơ", "Phường kiểm thử", null, null, null, null, null, null, null);
+            "Cần Thơ", "Phường kiểm thử", null, null, null, null, null, null, null,
+            "Ghi chú từ form thêm trường");
         var unitId = await actions.CreateManualSchool(request, admin, Http(admin), Ct);
         var schoolId = await db.SchoolUnits.Where(x => x.Id == unitId).Select(x => x.DirectorySchoolId).SingleAsync(Ct);
+        Assert.Equal("Ghi chú từ form thêm trường", await db.SchoolUnits.Where(x => x.Id == unitId).Select(x => x.Note).SingleAsync(Ct));
         Assert.Equal(code, await db.DirectorySchools.Where(x => x.Id == schoolId).Select(x => x.SchoolCode).SingleAsync(Ct));
         var audit = await db.AuditLogs.AsNoTracking().Where(x =>
             x.Action == "CREATE_MANUAL_SCHOOL_UNIT" && x.EntityId == unitId).SingleAsync(Ct);

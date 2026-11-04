@@ -200,12 +200,12 @@ export function SchoolDirectory({
       ? readSchoolDemo<T>(path)
       : channelRequest<T>(apiBase, token, path, options);
   const areas = useQuery({
-    queryKey: [...channelQueryKeys.all, 'school-areas'],
+    queryKey: [...channelQueryKeys.all, 'school-areas', apiBase],
     queryFn: () => api<{ data: { province: string; ward: string }[] }>('/schools/areas'),
     enabled: salesDirectory,
   });
-  const provinces = [...new Set((areas.data?.data ?? []).map(area => area.province).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
-  const wards = [...new Set((areas.data?.data ?? []).filter(area => area.province === provinceFilter).map(area => area.ward).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  const provinces = [...new Set((areas.data?.data ?? []).map(area => area.province?.trim()).filter((value): value is string => !!value))].sort((a,b)=>a.localeCompare(b,'vi'));
+  const wards = [...new Set((areas.data?.data ?? []).filter(area => area.province?.trim() === provinceFilter).map(area => area.ward?.trim()).filter((value): value is string => !!value))].sort((a,b)=>a.localeCompare(b,'vi'));
   const schools = useQuery({
     queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize, statusFilter, salesDirectory, provinceFilter, wardFilter],
     queryFn: () => api<SchoolList>(
@@ -418,12 +418,13 @@ export function SchoolDirectory({
           </div>
           {salesDirectory ? <>
             <AppNativeSelect aria-label="Lọc tỉnh/thành" containerClassName="w-full"
-              value={provinceFilter} onChange={event => {setProvinceFilter(event.target.value);setWardFilter('');setPage(1);}}>
-              <option value="">Tất cả tỉnh/thành</option>
+              value={provinceFilter} disabled={areas.isPending || areas.isError}
+              onChange={event => {setProvinceFilter(event.target.value);setWardFilter('');setPage(1);}}>
+              <option value="">{areas.isPending ? 'Đang tải tỉnh/thành...' : areas.isError ? 'Không tải được tỉnh/thành' : provinces.length ? 'Tất cả tỉnh/thành' : 'Chưa có khu vực khả dụng'}</option>
               {provinces.map(value => <option key={value} value={value}>{value}</option>)}
             </AppNativeSelect>
             <AppNativeSelect aria-label="Lọc phường/xã" containerClassName="w-full"
-              value={wardFilter} disabled={!provinceFilter}
+              value={wardFilter} disabled={!provinceFilter || areas.isPending || areas.isError}
               onChange={event => {setWardFilter(event.target.value);setPage(1);}}>
               <option value="">Tất cả phường/xã</option>
               {wards.map(value => <option key={value} value={value}>{value}</option>)}
@@ -443,6 +444,12 @@ export function SchoolDirectory({
             <RotateCcw className="size-4" aria-hidden="true"/>
           </AppButton>
         </form>
+        {salesDirectory && areas.isError && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-5 py-3 text-sm text-destructive">
+            <span>Không tải được danh sách tỉnh/thành, phường/xã. Vui lòng kiểm tra kết nối API hoặc phiên bản Backend.</span>
+            <AppButton type="button" tone="outline" size="sm" onClick={() => void areas.refetch()}>Thử lại</AppButton>
+          </div>
+        )}
         {schools.isPending ? (
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
         ) : visibleSchools.length ? (

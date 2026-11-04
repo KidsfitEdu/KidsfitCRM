@@ -60,6 +60,8 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.SchoolAllocationManage);
         group.MapPost("/school-deferrals/{id:long}/complete", async (long id, ReconcileContractRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CompleteSchoolDeferral(id, request.Reason, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolAllocationManage);
+        group.MapPost("/school-approach-releases/{id:long}", async (long id, ReleaseSchoolApproachesRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReleaseSchoolApproaches(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolHandoverManage);
         group.MapPost("/school-handovers/{id:long}", async (long id, CompleteSchoolHandoverRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CompleteSchoolHandover(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolHandoverManage);
         group.MapPost("/school-team/{id:long}/reactivate", async (long id, ReactivateSchoolMembershipRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReactivateSchoolMembership(id, request, h.UserId(), h, ct)))

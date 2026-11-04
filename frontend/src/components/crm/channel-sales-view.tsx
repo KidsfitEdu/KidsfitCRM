@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -1012,6 +1013,8 @@ function ContractDialog({
   const [studentCount, setStudentCount] = useState('');
   const [units, setUnits] = useState<{id:number;name:string}[]>([]);
   const [selectedUnitIds, setSelectedUnitIds] = useState<number[]>([]);
+  const [branchCount, setBranchCount] = useState('0');
+  const [branchCountTouched, setBranchCountTouched] = useState(false);
   const [unitsError, setUnitsError] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -1047,6 +1050,8 @@ function ContractDialog({
       if (total === null) throw new Error('Phí duy trì và phí khởi tạo phải là số nguyên không âm, tổng giá trị hợp đồng phải lớn hơn 0.');
       if (!Number.isSafeInteger(Number(studentCount)) || Number(studentCount) <= 0)
         throw new Error('Quy mô học sinh phải là số nguyên dương.');
+      if (!/^\d+$/.test(branchCount) || !Number.isSafeInteger(Number(branchCount)) || Number(branchCount) < selectedUnitIds.length)
+        throw new Error('Số phân hiệu phải là số nguyên không âm và không nhỏ hơn số phân hiệu đã chọn.');
       const form = new FormData(event.currentTarget);
       const file = form.get('contract_file');
       if (!(file instanceof File) || file.size === 0)
@@ -1068,6 +1073,7 @@ function ContractDialog({
         service_plan: plan,
         student_count: Number(studentCount),
         school_unit_ids: selectedUnitIds,
+        branch_count: Number(branchCount),
         maintenance_fee: maintenance,
         setup_fee: setup,
         contract_note: text(form, 'contract_note').trim() || undefined,
@@ -1110,26 +1116,31 @@ function ContractDialog({
               placeholder="Ví dụ: 450"/>
           </Field>
           <Field label="Số phân hiệu triển khai">
-            <Input aria-label="Số phân hiệu triển khai" value={selectedUnitIds.length} readOnly/>
+            <Input aria-label="Số phân hiệu triển khai" type="number" inputMode="numeric" min={0} max={100000}
+              required value={branchCount} onChange={e=>{setBranchCount(e.target.value);setBranchCountTouched(true);}}/>
           </Field>
         </div>
         {units.length>0 && <fieldset className="rounded-xl border p-3">
           <legend className="px-1 text-sm font-semibold">Chọn phân hiệu triển khai</legend>
           <div className="space-y-2">{units.map(unit => <label key={unit.id} className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={selectedUnitIds.includes(unit.id)}
-              onChange={e=>setSelectedUnitIds(ids=>e.target.checked?[...ids,unit.id]:ids.filter(id=>id!==unit.id))}/>
+              onChange={e=>setSelectedUnitIds(ids=>{
+                const next = e.target.checked ? [...ids,unit.id] : ids.filter(id=>id!==unit.id);
+                if (!branchCountTouched || Number(branchCount) < next.length) setBranchCount(String(next.length));
+                return next;
+              })}/>
             {unit.name}
           </label>)}</div>
         </fieldset>}
         {unitsError && <p role="alert" className="text-sm text-destructive">{unitsError}</p>}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
-            <Input aria-label="Phí duy trì" type="number" min={0} step={1} required
-              value={maintenanceFee} onChange={e=>setMaintenanceFee(e.target.value)}/>
+            <AppCurrencyInput aria-label="Phí duy trì" required
+              value={maintenanceFee} onValueChange={setMaintenanceFee} placeholder="Ví dụ: 1.000.000"/>
           </Field>
           <Field label="Phí khởi tạo (VNĐ) *">
-            <Input aria-label="Phí khởi tạo" type="number" min={0} step={1} required
-              value={setupFee} onChange={e=>setSetupFee(e.target.value)}/>
+            <AppCurrencyInput aria-label="Phí khởi tạo" required
+              value={setupFee} onValueChange={setSetupFee} placeholder="Ví dụ: 2.000.000"/>
           </Field>
         </div>
         <div className="space-y-2 rounded-xl border bg-muted/20 p-4">

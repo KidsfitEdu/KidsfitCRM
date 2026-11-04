@@ -213,7 +213,9 @@ internal static class TenSchoolScenarioSeeder
             var contract = await db.SalesContracts.SingleOrDefaultAsync(x => x.ContractCode == contractCode);
             if (contract is null)
             {
-                var verified = stage.Case == "CONFIRMED" ? now.AddDays(-10) : (DateTime?)null;
+                var verified = stage.Case == "CONFIRMED"
+                    ? stage.Status == "ACTIVE" ? now.AddDays(-10) : now.AddDays(-1)
+                    : (DateTime?)null;
                 contract = new SalesContract
                 {
                     CustomerId = customerId, ApproachRegistrationId = approach.Id,
@@ -282,7 +284,9 @@ internal static class TenSchoolScenarioSeeder
                     CustomerId = customerId, ContractId = contract.Id,
                     CheckeeOrganizationId = checkee.Id, Status = stage.Case,
                     OpenedAt = stage.Status == "ACTIVE" ? now.AddDays(-12) : now.AddDays(-2),
-                    ResolvedAt = stage.Case == "CONFIRMED" ? now.AddDays(-10) : null,
+                    ResolvedAt = stage.Case == "CONFIRMED"
+                        ? stage.Status == "ACTIVE" ? now.AddDays(-10) : now.AddDays(-1)
+                        : null,
                     CreatedAt = now, UpdatedAt = now
                 };
                 db.ReconciliationCases.Add(recon);
@@ -291,14 +295,14 @@ internal static class TenSchoolScenarioSeeder
                 {
                     ReconciliationCaseId = recon.Id, ActorUserId = stage.Manager,
                     EventType = stage.Case is "PENDING" or "CONFIRMED" ? "MANAGER_FORWARDED" : "OPENED",
-                    CreatedAt = now.AddDays(-12), UpdatedAt = now
+                    CreatedAt = stage.Status == "ACTIVE" ? now.AddDays(-12) : now.AddDays(-2), UpdatedAt = now
                 });
                 if (stage.Case == "CONFIRMED")
                     db.ReconciliationEvents.Add(new ReconciliationEvent
                     {
                         ReconciliationCaseId = recon.Id, ActorUserId = checkeeUser.Id,
                         EventType = "CONFIRMED", Reason = "Hoàn tất bước xác minh trong tình huống đào tạo",
-                        CreatedAt = now.AddDays(-10), UpdatedAt = now
+                        CreatedAt = stage.Status == "ACTIVE" ? now.AddDays(-10) : now.AddDays(-1), UpdatedAt = now
                     });
             }
             // Monetary records are illustrative; commission entitlements remain unset

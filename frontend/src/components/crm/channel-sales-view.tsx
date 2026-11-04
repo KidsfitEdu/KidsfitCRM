@@ -1302,7 +1302,12 @@ function ContractDialog({
           <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
         </div>
       </div>
-      <DialogFooter saving={sfunction ReceiptDialog({
+      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
+    </form>
+  </SalesFormDialog>;
+}
+
+function ReceiptDialog({
   customer,
   apiBase,
   token,

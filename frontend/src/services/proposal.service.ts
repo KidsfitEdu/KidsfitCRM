@@ -32,7 +32,7 @@ export function fetchAdminProposalProfile(apiBase:string,token:string,id:number)
   return channelRequest<{data:AdminProposalProfile}>(apiBase,token,`/school-proposals/${id}/admin-profile`);
 }
 export function updateAdminProposalProfile(apiBase:string,token:string,id:number,payload:{
-  expected_version:number; reason:string; units:AdminProposalUnit[];
+  expected_version:number; reason?:string; units:AdminProposalUnit[];
 }) {
   return channelRequest(apiBase,token,`/school-proposals/${id}/admin-profile`,{
     method:'PUT',body:JSON.stringify(payload),

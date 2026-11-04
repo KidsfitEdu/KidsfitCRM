@@ -8,7 +8,16 @@ using Microsoft.EntityFrameworkCore;
 namespace KidsfitCRM.Api.Features;
 
 public sealed record ReturnSchoolContractRequest(string? Reason);
-public sealed record ResubmitSchoolContractRequest(long? EvidenceId);
+public sealed record ResubmitSchoolContractRequest(
+    long? EvidenceId,
+    DateOnly? SignedOn = null,
+    string? ServicePlan = null,
+    int? StudentCount = null,
+    int? BranchCount = null,
+    long[]? SchoolUnitIds = null,
+    decimal? MaintenanceFee = null,
+    decimal? SetupFee = null,
+    string? ContractNote = null);
 
 /// <summary>
 /// Manager contract workflow. Authorization and scope are enforced in SQL, not by the UI.
@@ -307,12 +316,15 @@ public static class ManagerContractEndpoints
                               join owner in db.Users.AsNoTracking() on c.OwnerUserId equals owner.Id
                               select new {
                                   id = c.Id, c.ContractCode, c.SignedOn, c.EffectiveOn, c.TotalValue,
-                                  c.Status, c.ServicePlan, c.StudentCount, c.EvidenceReference, c.SchoolUnitIdsJson,
+                                  c.Status, c.ServicePlan, c.StudentCount, c.BranchCount, c.ContractNote, c.EvidenceReference, c.SchoolUnitIdsJson,
                                   c.ManagerReviewedAt, c.VerifiedAt, c.OwnerUserId, c.OwnerOrganizationId, c.ReportedByUserId,
                                   school_name = customer.DisplayName, school_address = customer.Address,
                                   school_province = customer.Province, sales_name = owner.Name
                               }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
 
+        var feeItems = await db.SalesContractItems.AsNoTracking().Where(x => x.ContractId == id).ToArrayAsync(ct);
+        var maintenanceFee = feeItems.FirstOrDefault(x => x.Description.StartsWith("Phí duy trì"))?.UnitPrice;
+        var setupFee = feeItems.FirstOrDefault(x => x.Description == "Phí khởi tạo (một lần)")?.UnitPrice ?? 0m;
         var files = await db.FinancialEvidences.AsNoTracking()
             .Where(x => x.ContractId == id && x.Kind == "CONTRACT" && x.AttachedAt != null)
             .OrderByDescending(x => x.AttachedAt)
@@ -329,10 +341,24 @@ public static class ManagerContractEndpoints
                              orderby e.CreatedAt, e.Id
                              select new { event_type = e.EventType, reason = e.Reason, created_at = e.CreatedAt, actor_name = actor.Name })
                             .ToArrayAsync(ct);
+        var revisionHistory = await db.AuditLogs.AsNoTracking()
+            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == id
+                && (x.Action == "REQUEST_SCHOOL_CONTRACT_REVISION"
+                    || x.Action == "EDIT_SCHOOL_CONTRACT_REVISION"
+                    || x.Action == "RESUBMIT_SCHOOL_CONTRACT"))
+            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+            .Select(x => new {
+                action = x.Action, old_values = x.OldValues, new_values = x.NewValues,
+                created_at = x.CreatedAt,
+                actor_name = db.Users.Where(u => u.Id == x.UserId).Select(u => u.Name).FirstOrDefault()
+            }).ToArrayAsync(ct);
         return Results.Ok(new {
             data = new {
-                contract.id, contract.ContractCode, contract.SignedOn, contract.EffectiveOn,
-                contract.TotalValue, contract.Status, contract.ServicePlan, contract.StudentCount,
+                contract.id, customer_id = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.CustomerId).SingleAsync(ct),
+                contract.ContractCode, contract.SignedOn, contract.EffectiveOn,
+                contract.TotalValue, contract.Status, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+                contract.ContractNote, maintenance_fee = maintenanceFee, setup_fee = setupFee,
+                revision_reason = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.RevisionReason).SingleAsync(ct),
                 contract.EvidenceReference, contract.ManagerReviewedAt, contract.VerifiedAt,
                 contract.school_name, contract.school_address, contract.school_province, contract.sales_name,
                 can_review = contract.Status == "PENDING_REVIEW" && access.Has(Permissions.SchoolContractReview)
@@ -350,7 +376,7 @@ public static class ManagerContractEndpoints
                             && await db.OrganizationMemberships.AnyAsync(m => m.UserId == contract.OwnerUserId
                                 && m.OrganizationId == contract.OwnerOrganizationId && m.Status == "SUSPENDED", ct)))
             },
-            evidence = files, installments, school_units = units, history
+            evidence = files, installments, school_units = units, history, audit_history = revisionHistory
         });
     }
 
@@ -395,7 +421,6 @@ public static class ManagerContractEndpoints
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Cần tải lại file hợp đồng bổ sung.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
@@ -408,14 +433,126 @@ public static class ManagerContractEndpoints
             || (contract.OwnerUserId != http.UserId() && contract.ReportedByUserId != http.UserId() && !managerRecovery))
             throw new KeyNotFoundException();
         if (contract.Status != "NEEDS_REVISION") throw new ApiConflictException("Hợp đồng không ở bước cần bổ sung.");
-        var evidence = await db.FinancialEvidences.FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
-            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (evidence.Kind != "CONTRACT" || evidence.ContractId.HasValue || evidence.AttachedAt.HasValue
-            || evidence.UploadedByUserId != http.UserId()) throw new KeyNotFoundException();
+        FinancialEvidence? evidence = null;
+        if (request.EvidenceId.HasValue)
+        {
+            evidence = await db.FinancialEvidences.FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
+                .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+            if (evidence.Kind != "CONTRACT" || evidence.ContractId.HasValue || evidence.AttachedAt.HasValue
+                || evidence.UploadedByUserId != http.UserId()) throw new KeyNotFoundException();
+        }
+        else if (!await db.FinancialEvidences.AnyAsync(x => x.ContractId == id && x.Kind == "CONTRACT"
+            && x.AttachedAt.HasValue, ct))
+            throw ApiValidationException.For("evidence_id", "Hợp đồng chưa có file hợp lệ. Vui lòng tải lên file hợp đồng.");
         var now = DateTime.UtcNow;
-        evidence.ContractId = id;
-        evidence.AttachedAt = now;
-        evidence.UpdatedAt = now;
+        var oldFeeLines = await db.SalesContractItems.AsNoTracking()
+            .Where(x => x.ContractId == id)
+            .Select(x => new { x.Description, x.Quantity, x.UnitPrice, x.Amount })
+            .ToArrayAsync(ct);
+        var before = new {
+            fee_items = oldFeeLines,
+            contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+            contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
+        };
+        if (request.SignedOn.HasValue)
+        {
+            var registeredAt = await db.ApproachRegistrations.Where(x => x.Id == contract.ApproachRegistrationId)
+                .Select(x => x.RegisteredAt).SingleAsync(ct);
+            if (request.SignedOn.Value < ChannelSalesValidation.BusinessDate(registeredAt)
+                || request.SignedOn.Value > ChannelSalesValidation.BusinessDate(now))
+                throw ApiValidationException.For("signed_on", "Ngày ký phải từ ngày đăng ký tiếp cận đến hôm nay.");
+            contract.SignedOn = request.SignedOn.Value;
+        }
+        if (request.ServicePlan is not null)
+        {
+            var plan = request.ServicePlan.Trim().ToUpperInvariant();
+            if (plan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
+                throw ApiValidationException.For("service_plan", "Gói thanh toán không hợp lệ.");
+            contract.ServicePlan = plan;
+        }
+        if (request.StudentCount.HasValue)
+        {
+            if (request.StudentCount.Value is <= 0 or > 100000)
+                throw ApiValidationException.For("student_count", "Quy mô học sinh phải từ 1 đến 100.000.");
+            contract.StudentCount = request.StudentCount.Value;
+        }
+        if (request.SchoolUnitIds is not null)
+        {
+            var units = request.SchoolUnitIds;
+            if (units.Length != units.Distinct().Count())
+                throw ApiValidationException.For("school_unit_ids", "Danh sách phân hiệu bị trùng.");
+            var schoolId = await db.DirectorySchools.Where(x => x.CustomerId == contract.CustomerId)
+                .Select(x => (long?)x.Id).SingleOrDefaultAsync(ct);
+            if (!schoolId.HasValue || await db.SchoolUnits.CountAsync(x =>
+                    x.DirectorySchoolId == schoolId.Value && x.UnitType == "BRANCH"
+                    && units.Contains(x.Id), ct) != units.Length)
+                throw ApiValidationException.For("school_unit_ids", "Phân hiệu không thuộc trường chính.");
+            contract.SchoolUnitIdsJson = JsonSerializer.Serialize(units);
+        }
+        var selectedUnits = JsonSerializer.Deserialize<long[]>(contract.SchoolUnitIdsJson ?? "[]") ?? [];
+        if (request.BranchCount.HasValue)
+        {
+            if (request.BranchCount.Value < selectedUnits.Length || request.BranchCount.Value > 100000)
+                throw ApiValidationException.For("branch_count", "Số phân hiệu phải hợp lệ và không nhỏ hơn số đã chọn.");
+            contract.BranchCount = request.BranchCount.Value;
+        }
+        else if (contract.BranchCount < selectedUnits.Length)
+            throw ApiValidationException.For("branch_count", "Số phân hiệu nhỏ hơn số phân hiệu được chọn.");
+        if (request.ContractNote is not null)
+        {
+            if (request.ContractNote.Length > 4000)
+                throw ApiValidationException.For("contract_note", "Ghi chú tối đa 4.000 ký tự.");
+            contract.ContractNote = request.ContractNote.Trim();
+        }
+        if (request.MaintenanceFee.HasValue != request.SetupFee.HasValue)
+            throw ApiValidationException.For("maintenance_fee", "Cần nhập đủ phí duy trì và phí khởi tạo.");
+        if (request.MaintenanceFee.HasValue)
+        {
+            var maintenance = request.MaintenanceFee.Value;
+            var setup = request.SetupFee!.Value;
+            ChannelSalesValidation.WholeDong(maintenance, "maintenance_fee", positive: false);
+            ChannelSalesValidation.WholeDong(setup, "setup_fee", positive: false);
+            decimal updatedTotal;
+            try { updatedTotal = checked(maintenance * (contract.ServicePlan == "MONTHLY_9" ? 9 : 1) + setup); }
+            catch (OverflowException) { throw ApiValidationException.For("total_value", "Giá trị hợp đồng vượt giới hạn."); }
+            if (updatedTotal <= 0) throw ApiValidationException.For("total_value", "Tổng hợp đồng phải lớn hơn 0.");
+            if (await db.RevenueReceipts.AnyAsync(x => x.ContractId == id && x.Status == "COMPLETED", ct))
+                throw new ApiConflictException("Hợp đồng đã có khoản thu; cần Kế toán điều chỉnh trước khi sửa phí.");
+            var items = await db.SalesContractItems.Where(x => x.ContractId == id).ToListAsync(ct);
+            if (items.Count == 0) throw new ApiConflictException("Hợp đồng chưa có dòng chi phí.");
+            var packageId = items[0].ProductPackageId;
+            db.SalesContractItems.RemoveRange(items);
+            var qty = contract.ServicePlan == "MONTHLY_9" ? 9 : 1;
+            db.SalesContractItems.Add(new SalesContractItem {
+                ContractId = id, ProductPackageId = packageId, Description = qty == 9
+                    ? "Phí duy trì mỗi tháng (9 tháng)" : "Phí duy trì năm học (9 tháng)",
+                Quantity = qty, UnitPrice = maintenance, Amount = maintenance * qty,
+                CreatedAt = now, UpdatedAt = now
+            });
+            if (setup > 0) db.SalesContractItems.Add(new SalesContractItem {
+                ContractId = id, ProductPackageId = packageId, Description = "Phí khởi tạo (một lần)",
+                Quantity = 1, UnitPrice = setup, Amount = setup, CreatedAt = now, UpdatedAt = now
+            });
+            var schedules = await db.RevenueSchedules.Where(x => x.ContractId == id).OrderBy(x => x.Id).ToListAsync(ct);
+            if (schedules.Count != 1 || schedules[0].AmountReceived > 0)
+                throw new ApiConflictException("Lịch thanh toán đã thay đổi; cần Kế toán xử lý trước khi sửa phí.");
+            schedules[0].AmountDue = updatedTotal;
+            schedules[0].UpdatedAt = now;
+            contract.TotalValue = updatedTotal;
+        }
+        Audit.Add(db, http.UserId(), "EDIT_SCHOOL_CONTRACT_REVISION", nameof(SalesContract), id,
+            before, new {
+                maintenance_fee = request.MaintenanceFee,
+                setup_fee = request.SetupFee,
+                contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+                contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
+            }, http);
+        if (evidence is not null)
+        {
+            evidence.ContractId = id;
+            evidence.AttachedAt = now;
+            evidence.UpdatedAt = now;
+        }
         contract.Status = "PENDING_REVIEW";
         contract.RevisionReason = null;
         contract.RevisionRequestedAt = null;
@@ -431,7 +568,7 @@ public static class ManagerContractEndpoints
                 ActorUserId = http.UserId(), EventType = managerRecovery ? "MANAGER_RESUBMITTED" : "SALES_RESUBMITTED", CreatedAt = now, UpdatedAt = now });
         }
         Audit.Add(db, http.UserId(), "RESUBMIT_SCHOOL_CONTRACT", nameof(SalesContract), id,
-            new { status = "NEEDS_REVISION" }, new { contract.Status, evidence_id = evidence.Id }, http);
+            new { status = "NEEDS_REVISION" }, new { contract.Status, evidence_id = evidence?.Id, reused_existing_evidence = evidence is null }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { message = "Đã bổ sung hợp đồng, chuyển lại Quản lý kiểm tra." });

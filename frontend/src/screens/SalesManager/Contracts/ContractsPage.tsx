@@ -23,6 +23,7 @@ type Detail = {
  installments:{due_on:string;amount:number;status:string}[];
  school_units:{id:number;name:string}[];
  history:{event_type:string;reason:string|null;created_at:string;actor_name:string}[];
+ audit_history?:{action:string;old_values:string|null;new_values:string|null;created_at:string;actor_name:string|null}[];
 };
 const statuses:Record<string,string>={
  PENDING_REVIEW:'Chờ Quản lý',MANAGER_REVIEWED:'Chờ CHECKEE',NEEDS_REVISION:'Cần bổ sung',
@@ -188,6 +189,22 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
              <span>{channelDate(item.due_on)}</span><span>{channelMoney(item.amount)}</span></div>)}
            {!detail.installments.length&&<p className="text-muted-foreground">Chưa khai báo lịch thanh toán.</p>}
          </section>
+         {!!detail.audit_history?.length && <section className="space-y-2 border-t pt-4">
+           <h3 className="font-bold">Lịch sử chỉnh sửa hợp đồng</h3>
+           {detail.audit_history.map((entry,i)=><div key={i} className="border-l-2 border-amber-600 py-2 pl-3">
+             <p className="font-medium">{({
+               REQUEST_SCHOOL_CONTRACT_REVISION:'Quản lý yêu cầu bổ sung',
+               EDIT_SCHOOL_CONTRACT_REVISION:'Sales chỉnh sửa hợp đồng',
+               RESUBMIT_SCHOOL_CONTRACT:'Sales gửi lại Quản lý',
+             } as Record<string,string>)[entry.action]??entry.action}</p>
+             <p className="text-xs text-muted-foreground">{channelDate(entry.created_at)} · {entry.actor_name??'Hệ thống'}</p>
+             {(entry.old_values||entry.new_values)&&<details className="mt-2 text-xs">
+               <summary className="cursor-pointer text-primary">Xem dữ liệu thay đổi</summary>
+               {entry.old_values&&<pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-muted p-2">Trước: {entry.old_values}</pre>}
+               {entry.new_values&&<pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-muted p-2">Sau: {entry.new_values}</pre>}
+             </details>}
+           </div>)}
+         </section>}
          <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Lịch sử xử lý</h3>
            {detail.history.map((entry,i)=><div key={i} className="border-l-2 border-green-700 py-2 pl-3">
              <p className="font-medium">{entry.event_type} · {entry.actor_name}</p>

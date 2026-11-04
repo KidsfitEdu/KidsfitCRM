@@ -117,7 +117,9 @@ test('Manager contract review reuses existing drawer, table, and mandatory confi
   assert.match(team, /\/manager\/team/);
   assert.doesNotMatch(team, /ChannelOperations/);
   assert.match(dashboard, /\/manager\/overview/);
-  assert.match(sales, /\/school-contracts\/my-revisions/);
+  assert.match(sales, /\/school-contracts\/\$\{contractId\}\/review-detail/);
+  assert.match(sales, /aria-label="Thay thế file hợp đồng"/);
+  assert.doesNotMatch(sales, /sales-contract-revisions/);
 });
 
 test('Board legacy reports route remains an alias, not an active fifth menu item', () => {

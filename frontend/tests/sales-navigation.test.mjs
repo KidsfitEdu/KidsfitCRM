@@ -209,7 +209,7 @@ test('Sales contract branch count is editable and persisted separately from chos
   const start = source.indexOf('function ContractDialog({');
   const end = source.indexOf('function ReceiptDialog({', start);
   const form = source.slice(start, end);
-  assert.match(form, /aria-label="Số phân hiệu triển khai" type="number"/);
+  assert.match(form, /aria-label="Số phân hiệu triển khai" data-field="branch_count"/);
   assert.doesNotMatch(form, /value=\{selectedUnitIds\.length\} readOnly/);
   assert.match(form, /branch_count: Number\(branchCount\)/);
   assert.match(form, /<AppCurrencyInput aria-label="Phí duy trì"/);
@@ -233,14 +233,21 @@ test('Shared currency input never reformats while editing and formats VND on blu
 test('Sales contract revisions use original contract and retain manager instructions', () => {
   const source = read('src/components/roles/SalesContractRevisions.tsx');
   const sales = read('src/components/crm/channel-sales-view.tsx');
-  assert.match(source, /school-contracts\/my-revisions/);
-  assert.match(source, /school-contracts\/\$\{selected\.id\}\/resubmit/);
-  assert.match(source, /selected\?\.reason/);
-  assert.match(source, /id="sales-contract-revisions"/);
+  assert.match(source, /school-contracts\/\$\{contractId\}\/review-detail/);
+  assert.match(source, /school-contracts\/\$\{revision\.id\}\/resubmit/);
+  assert.match(source, /revision\.reason/);
+  assert.match(source, /maintenance_fee: Number\(maintenance\)/);
+  assert.match(source, /contract_note: note/);
+  assert.doesNotMatch(source, /id="sales-contract-revisions"/);
+  assert.match(sales, /setRevisionContractId\(customer.contract_id\)/);
+  assert.match(sales, /<FilePenLine className="size-4"/);
+  assert.doesNotMatch(sales, />Bổ sung hồ sơ<\/Button>/);
   assert.match(sales, /status === 'NEEDS_REVISION'/);
-  assert.match(sales, /Bổ sung hồ sơ/);
+  assert.match(sales, /Chỉnh sửa hợp đồng theo yêu cầu Quản lý/);
   assert.match(sales, /status === 'MANAGER_REVIEWED'/);
   assert.match(sales, /status === 'PENDING_KIDSFIT'/);
+  const focus = read('src/components/roles/SalesFocusPage.tsx');
+  assert.doesNotMatch(focus, /<SalesContractRevisions/);
 });
 
 test('Sales contract errors appear only in shared toast and duplicate report opening is guarded', () => {
@@ -257,4 +264,41 @@ test('Sales contract errors appear only in shared toast and duplicate report ope
   assert.match(source, /profile\.contracts\.length > 0/);
   assert.match(source, /onContract=\{\(\) => \{ void openContractReport\(customer\); \}\}/);
   assert.match(source, /customer\.can_manage_approach && !customer\.contract_id/);
+});
+
+test('Sales contract revision uses one modal scrollbar and validates every field before upload', () => {
+  const source = read('src/components/roles/SalesContractRevisions.tsx');
+  const modal = read('src/components/common/dialogs/app-dialog.tsx');
+  assert.match(modal, /flex-1 overflow-y-auto/);
+  assert.match(source, /<form ref=\{formRef\} onSubmit=\{submit\} noValidate className="space-y-4"/);
+  assert.doesNotMatch(source, /max-h-\[70vh\]/);
+  assert.doesNotMatch(source, /overflow-y-auto pr-1/);
+  assert.match(source, /setErrors\(issues\)/);
+  assert.match(source, /data-field="contract_file"/);
+  assert.match(source, /errors\.signed_on/);
+  assert.match(source, /errors\.student_count/);
+  assert.match(source, /errors\.branch_count/);
+  assert.match(source, /errors\.maintenance_fee/);
+  assert.match(source, /errors\.setup_fee/);
+  assert.match(source, /errors\.total_value/);
+  assert.match(source, /errors\.contract_file/);
+  assert.match(source, /scrollIntoView/);
+  assert.match(source, /const issues = validateContract/);
+  assert.doesNotMatch(source, /type="file"[^\n]*required/);
+});
+
+test('Contract reporting and revisions share one validator and retain existing signed file', () => {
+  const validator = read('src/lib/contract-validation.ts');
+  const sales = read('src/components/crm/channel-sales-view.tsx');
+  const editor = read('src/components/roles/SalesContractRevisions.tsx');
+  assert.match(validator, /export function validateContract/);
+  assert.match(validator, /const digits = \/\^\\d\+\$\//);
+  assert.match(validator, /existingEvidence: boolean/);
+  assert.match(sales, /const issues = validateContract\(/);
+  assert.match(sales, /<form onSubmit=\{submit\} noValidate>/);
+  assert.match(editor, /const issues = validateContract\(/);
+  assert.match(editor, /fileInputRef\.current\?\.click\(\)/);
+  assert.match(editor, /aria-label="Thay thế file hợp đồng"/);
+  assert.doesNotMatch(editor, /Vui lòng chọn file hợp đồng đã chỉnh sửa/);
+  assert.match(editor, /existingEvidence: detail\.evidence\.length > 0/);
 });

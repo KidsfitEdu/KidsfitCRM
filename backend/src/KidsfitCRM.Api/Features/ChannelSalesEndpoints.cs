@@ -34,7 +34,8 @@ public sealed record ChannelCustomerListItem(
     bool ExtensionPending = false,
     int ExtensionApprovedCount = 0,
     int? ExtensionMaxCount = null,
-    string? ExtensionUnavailableReason = null);
+    string? ExtensionUnavailableReason = null,
+    string? ContractStatus = null);
 
 public static class ChannelSalesEndpoints
 {
@@ -128,11 +129,12 @@ public static class ChannelSalesEndpoints
             .ToListAsync(cancellationToken);
         var scopedContractIds = access.Contracts(db).Select(x => x.Id);
         var contracts = await db.SalesContracts.AsNoTracking()
-            .Where(x => customerIds.Contains(x.CustomerId) && x.Status == "ACTIVE")
+            .Where(x => customerIds.Contains(x.CustomerId))
             .Where(x => scopedContractIds.Contains(x.Id) || reconciliationScopeCustomerIds.Contains(x.CustomerId))
-            .OrderByDescending(x => x.SignedOn)
+            .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
-        var contractIds = contracts.Select(x => x.Id).ToArray();
+        // Pending contracts must be visible to Sales, but must not count as verified revenue.
+        var contractIds = contracts.Where(x => x.Status == "ACTIVE").Select(x => x.Id).ToArray();
         var receipts = await db.RevenueReceipts.AsNoTracking()
             .Where(x => contractIds.Contains(x.ContractId) && x.Status == "COMPLETED")
             .GroupBy(x => x.ContractId)
@@ -167,17 +169,17 @@ public static class ChannelSalesEndpoints
             var canManageApproach = registration is not null && registration.Status == "ACTIVE" && registration.ProtectedUntil > now
                 && (registration.OwnerUserId == actorId || allScope
                 || (hasOrganizationScope && organizationIds.Contains(registration.OwnerOrganizationId)));
-            var canRecordCustomerRevenue = access.Has(Permissions.ChannelSalesRecordRevenue) && contract is not null && (allScope
+            var canRecordCustomerRevenue = access.Has(Permissions.ChannelSalesRecordRevenue) && contract?.Status == "ACTIVE" && (allScope
                 || (hasOrganizationScope && organizationIds.Contains(contract.OwnerOrganizationId)));
             return new ChannelCustomerListItem(
                 customer.Id, customer.Code, customer.DisplayName, customer.CustomerType, customer.TaxCode, reconciliationOnly ? null : customer.Phone,
                 reconciliationOnly ? null : customer.Email, reconciliationOnly ? null : customer.ContactName, reconciliationOnly ? null : customer.Source, visibleStatus, customer.LifecycleStatus,
                 canManageApproach ? registration?.Id : null, registration?.Status, protection is null ? null : owners.GetValueOrDefault(protection.OwnerUserId),
                 protection?.EffectiveUntil, reconciliationOnly ? null : followUps.GetValueOrDefault(customer.Id), contract?.Id, contract?.ContractCode,
-                contract is null || (!canSeeRevenue && !access.Has(Permissions.ChannelSalesReconcile)) ? 0 : contract.TotalValue, !canSeeRevenue || contract is null ? 0 : receipts.GetValueOrDefault(contract.Id) - refunds.GetValueOrDefault(contract.Id),
+                contract?.Status != "ACTIVE" || (!canSeeRevenue && !access.Has(Permissions.ChannelSalesReconcile)) ? 0 : contract.TotalValue, !canSeeRevenue || contract?.Status != "ACTIVE" ? 0 : receipts.GetValueOrDefault(contract.Id) - refunds.GetValueOrDefault(contract.Id),
                 !canSeeCommission || contract is null ? 0 : commissions.GetValueOrDefault(contract.Id),
                 contract is null ? null : reconciliations.GetValueOrDefault(contract.Id)?.Status,
-                canManageApproach, canRecordCustomerRevenue);
+                canManageApproach, canRecordCustomerRevenue, ContractStatus: contract?.Status);
         }).Where(x => string.IsNullOrWhiteSpace(status) || x.VisibleStatus == status.ToUpperInvariant()).ToArray();
 
         var visibleContractIds = data.Where(x => x.ContractId.HasValue).Select(x => x.ContractId!.Value).ToArray();

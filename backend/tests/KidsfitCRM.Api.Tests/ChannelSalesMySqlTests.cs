@@ -134,6 +134,39 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Sales_contract_code_is_generated_when_omitted_and_legacy_codes_are_preserved()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var signedOn = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+
+        var firstRegistration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var automaticRequest = new ReportSalesContractRequest(Key(), null, signedOn, null, packageId,
+            1_000_000m, null, "TEST-EVIDENCE");
+        var automaticId = await actions.ReportSignedContract(firstRegistration, automaticRequest, seller, Http(), Ct);
+        var automaticCode = await db.SalesContracts.Where(x => x.Id == automaticId)
+            .Select(x => x.ContractCode).SingleAsync(Ct);
+        Assert.Matches(@"^HD-[0-9]{4}-[0-9A-F]{32}$", automaticCode);
+        Assert.Equal(automaticId, await actions.ReportSignedContract(firstRegistration, automaticRequest, seller, Http(), Ct));
+
+        var secondRegistration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var secondId = await actions.ReportSignedContract(secondRegistration,
+            automaticRequest with { IdempotencyKey = Key() }, seller, Http(), Ct);
+        var secondCode = await db.SalesContracts.Where(x => x.Id == secondId)
+            .Select(x => x.ContractCode).SingleAsync(Ct);
+        Assert.NotEqual(automaticCode, secondCode);
+
+        var thirdRegistration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var legacyCode = "CT-LEGACY-" + Key()[..8].ToUpperInvariant();
+        var legacyId = await actions.ReportSignedContract(thirdRegistration,
+            automaticRequest with { IdempotencyKey = Key(), ContractCode = legacyCode }, seller, Http(), Ct);
+        Assert.Equal(legacyCode, await db.SalesContracts.Where(x => x.Id == legacyId)
+            .Select(x => x.ContractCode).SingleAsync(Ct));
+    }
+
+    [MySqlFact]
     public async Task Concurrent_identity_registration_has_exactly_one_owner_and_no_orphans()
     {
         var firstSeller = await Seller();

@@ -5,6 +5,7 @@ import { Plus, FileSpreadsheet } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { SchoolDirectory } from '@/components/crm/school-directory';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { FormActions } from '@/components/common/form-actions';
@@ -48,6 +49,12 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
           <label className="text-sm">Loại đơn vị<select className="mt-1 w-full rounded-lg border bg-background p-2" value={manual.unit_type||'MAIN'} onChange={e=>setManual(m=>({...m,unit_type:e.target.value}))}><option value="MAIN">Trường chính</option><option value="BRANCH">Phân hiệu</option></select></label>
           {(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email','school_phone'] as const).map(k=><label className="text-sm" key={k}>{({school_code:'Mã trường chính',name:'Tên trường/phân hiệu',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'SĐT liên hệ',email:'Email',school_phone:'SĐT trường'} as Record<string,string>)[k]}<Input className="mt-1" aria-invalid={!!formErrors[k]} value={manual[k]||''} onChange={e=>{setManual(m=>({...m,[k]:e.target.value}));setFormErrors(x=>({...x,[k]:''}));}}/><FormError>{formErrors[k]}</FormError></label>)}
         </div>
+        <label className="block text-sm">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
+          <Textarea className="mt-1" rows={3} maxLength={4000}
+            placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
+            value={manual.note ?? ''}
+            onChange={e=>setManual(m=>({...m,note:e.target.value}))}/>
+        </label>
         {formError && <p role="alert" className="text-sm text-red-600">{formError}</p>}
         <FormActions busy={busy} onCancel={()=>setManualOpen(false)} onSave={()=>void createManual()} saveLabel="Lưu trường"/>
       </div></AppDialog>

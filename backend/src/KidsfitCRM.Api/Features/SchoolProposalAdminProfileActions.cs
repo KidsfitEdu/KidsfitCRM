@@ -80,29 +80,23 @@ public sealed partial class ChannelSalesActions
             proposal.ContactPhone = main.ContactPhone;
             proposal.Email = main.Email;
         }
-        if (mode == "LEGACY")
+        if (mode == "ADD_BRANCHES")
         {
-            // Preserve the legacy identity and storage contract; no synthetic school code.
-            // Legacy proposal data continues to be read from SchoolProposal fields.
+            proposal.Name = await SchoolMainName(proposal.TargetDirectorySchoolId!.Value, ct);
+            var mainLocation = await db.SchoolUnits.Where(u =>
+                u.DirectorySchoolId == proposal.TargetDirectorySchoolId && u.UnitType == "MAIN")
+                .Select(u => new { u.Province, u.Ward }).SingleAsync(ct);
+            proposal.Province = mainLocation.Province;
+            proposal.Ward = mainLocation.Ward;
         }
-        else
+        // Store complete form details for all proposal modes, including legacy:
+        // the scalar legacy identity/code remains unchanged, while school phone and
+        // notes are retained as one proposal-unit row.
+        await db.SchoolProposalUnits.Where(u => u.SchoolProposalId == id).ExecuteDeleteAsync(ct);
+        foreach (var unit in units)
         {
-            if (mode == "ADD_BRANCHES")
-            {
-                proposal.Name = await SchoolMainName(proposal.TargetDirectorySchoolId!.Value, ct);
-                var mainLocation = await db.SchoolUnits.Where(u =>
-                    u.DirectorySchoolId == proposal.TargetDirectorySchoolId && u.UnitType == "MAIN")
-                    .Select(u => new { u.Province, u.Ward }).SingleAsync(ct);
-                proposal.Province = mainLocation.Province;
-                proposal.Ward = mainLocation.Ward;
-            }
-            // The unique (proposal_id, sort_order) constraint requires deleting first.
-            await db.SchoolProposalUnits.Where(u => u.SchoolProposalId == id).ExecuteDeleteAsync(ct);
-            foreach (var unit in units)
-            {
-                unit.SchoolProposalId = id;
-                db.SchoolProposalUnits.Add(unit);
-            }
+            unit.SchoolProposalId = id;
+            db.SchoolProposalUnits.Add(unit);
         }
         var now = DateTime.UtcNow;
         proposal.Version++;

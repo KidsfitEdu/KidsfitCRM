@@ -42,6 +42,7 @@ type Props = {
   adminMode?: boolean;
   renderImportAction?: (openImport: () => void) => ReactNode;
   registrationIconOnly?: boolean;
+  salesDirectoryMode?: boolean;
 };
 type School = {
   id: number;
@@ -165,6 +166,7 @@ export function SchoolDirectory({
   adminMode = false,
   renderImportAction,
   registrationIconOnly = false,
+  salesDirectoryMode = false,
 }: Props) {
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
@@ -192,7 +194,7 @@ export function SchoolDirectory({
   const can = (code: string) => !demo && (abilities.includes('*') || abilities.includes(code));
   const canAdminManage = adminMode && can('channel_sales.school.directory.manage');
   // Only Sales/CTV directory browsers use the availability and area picker.
-  const salesDirectory = !adminMode && (registrationIconOnly || abilities.includes('channel_sales.approach.register'));
+  const salesDirectory = !adminMode && salesDirectoryMode;
   const api = <T,>(path: string, options?: RequestInit) =>
     demo
       ? readSchoolDemo<T>(path)

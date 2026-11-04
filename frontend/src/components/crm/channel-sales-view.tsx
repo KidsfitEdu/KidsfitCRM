@@ -943,29 +943,22 @@ function ActivityDialog({
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const content = text(form, 'content').trim();
+    if (!content) {
+      setError('Vui lòng nhập nội dung trao đổi.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      const next = text(form, 'next_follow_up_at');
-      const occurred = text(form, 'occurred_at');
-      if (!occurred) throw new Error('Vui lòng nhập thời gian thực hiện.');
-      if (occurred && new Date(occurred).getTime() > Date.now()) throw new Error('Thời gian thực hiện không được ở tương lai.');
-      await onSubmit({
-        activity_type: text(form, 'activity_type') as CustomerActivityInput['activity_type'],
-        content: text(form, 'content'),
-        occurred_at: occurred ? new Date(occurred).toISOString() : undefined,
-        contact_name: text(form, 'contact_name') || undefined,
-        contact_position: text(form, 'contact_position') || undefined,
-        feedback: text(form, 'feedback') || undefined,
-        outcome: text(form, 'outcome') as CustomerActivityInput['outcome'],
-        evidence_reference: text(form, 'evidence_reference') || undefined,
-        commitment: text(form, 'commitment') || undefined,
-        next_follow_up_at: next ? new Date(next).toISOString() : undefined,
-      });
+      // Server records actor and timestamp; outcome stays unset instead of
+      // guessing the school's level of interest from a free-form note.
+      await onSubmit({ activity_type: 'NOTE', content });
+      appNotice.success('Đã lưu nội dung trao đổi.');
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Không thể lưu hoạt động.',
-      );
+      const message = cause instanceof Error ? cause.message : 'Không thể lưu nội dung trao đổi.';
+      setError(message);
+      appNotice.error('Không thể lưu kết quả tư vấn.', message);
     } finally {
       setSaving(false);
     }
@@ -973,67 +966,30 @@ function ActivityDialog({
   return (
     <SalesFormDialog
       title="Cập nhật kết quả tư vấn"
-      subtitle="Hoạt động không tự động gia hạn quyền bảo vệ."
+      subtitle="Ghi nhận nội dung làm việc với nhà trường. Hoạt động không tự gia hạn quyền bảo vệ."
       onClose={onClose}
     >
       <form onSubmit={submit}>
         <CustomerHighlight customer={customer} />
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Loại hoạt động">
-            <Select name="activity_type" defaultValue="CALL">
-              <option value="CALL">Gọi điện</option>
-              <option value="ZALO">Zalo</option>
-              <option value="MEETING">Gặp trực tiếp</option>
-              <option value="DEMO">Demo sản phẩm</option>
-              <option value="PROPOSAL">Gửi đề xuất / báo giá</option>
-              <option value="NOTE">Ghi chú</option>
-            </Select>
-          </Field>
-          <Field label="Thời gian đã thực hiện">
-            <Input name="occurred_at" type="datetime-local" required className="rounded-xl"
-              defaultValue={new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)} />
-          </Field>
-          <Field label="Người liên hệ"><Input name="contact_name" maxLength={500} placeholder="Họ tên"/></Field>
-          <Field label="Chức vụ"><Input name="contact_position" maxLength={120} placeholder="Hiệu trưởng, kế toán..."/></Field>
-          <Field label="Lịch theo dõi tiếp theo">
-            <Input
-              name="next_follow_up_at"
-              type="datetime-local"
-              className="rounded-xl"
+        <div className="mt-4">
+          <Field label="Nội dung trao đổi *">
+            <textarea
+              name="content"
+              aria-label="Nội dung trao đổi"
+              required
+              maxLength={4000}
+              rows={5}
+              className={textareaClass}
+              placeholder="Nhập nội dung đã trao đổi, phản hồi của nhà trường hoặc kế hoạch tiếp theo..."
             />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Kết quả tư vấn *">
-              <Select name="outcome" required defaultValue="INTERESTED">
-                <option value="INTERESTED">Quan tâm sản phẩm</option>
-                <option value="NEEDS_INFO">Cần tư vấn thêm</option>
-                <option value="DEMO_SCHEDULED">Đã hẹn demo</option>
-                <option value="WAITING">Chờ phản hồi</option>
-                <option value="DECLINED">Không có nhu cầu</option>
-                <option value="UNREACHABLE">Không liên hệ được</option>
-              </Select>
-            </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <Field label="Nội dung trao đổi *">
-              <textarea
-                name="content"
-                required
-                rows={4}
-                className={textareaClass}
-                placeholder="Nội dung trao đổi, phản hồi và bước tiếp theo…"
-              />
-            </Field>
-          </div>
-          <div className="sm:col-span-2"><Field label="Phản hồi của nhà trường"><textarea name="feedback" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
-          <div className="sm:col-span-2"><Field label="Cam kết / bước tiếp theo"><textarea name="commitment" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
-          <div className="sm:col-span-2"><Field label="Tham chiếu minh chứng (nếu có)"><Input name="evidence_reference" maxLength={500} placeholder="Mã tài liệu / liên kết được quản lý bởi tổ chức"/></Field></div>
+          <p className="mt-1 text-xs text-muted-foreground">Tối đa 4.000 ký tự.</p>
         </div>
         <DialogFooter
           saving={saving}
           error={error}
           onClose={onClose}
-          label="Lưu hoạt động"
+          label="Lưu kết quả"
         />
       </form>
     </SalesFormDialog>

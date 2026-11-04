@@ -18,9 +18,9 @@ import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { channelRequest, channelQueryKeys, ChannelRequestError } from '@/lib/channel-operations';
 import { loadAllocationSchools } from '@/lib/manager-allocation';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { workflowLabels, workflowDate, vietnamDateTimeInput, type SchoolOperationsWorkspace } from '@/lib/school-operations';
+import { workflowLabels, workflowDate, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 import { schoolOperationsPreview } from '@/lib/school-operations-preview';
-import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace } from '@/lib/channel-sales';
+import { demoChannelSalesWorkspace, type ChannelCustomer } from '@/lib/channel-sales';
 import type { ManagerPageProps } from '@/types/manager-pages';
 
 export type ManagerWorklistSection = 'proposals' | 'allocations' | 'progress' | 'extensions';

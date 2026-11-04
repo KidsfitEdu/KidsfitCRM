@@ -16,7 +16,7 @@ type Ticket={id:number;contract_id:number;customer_id:number;subject:string;desc
   ticket_type:string;checkee_responded_at:string|null;outcome:string|null;created_at:string;school_name:string;
   activities:{id:number;content:string;activity_type:string;created_at:string;next_follow_up_at:string|null}[]};
 type TicketList={data:Ticket[];total:number;page:number;page_size:number};
-type School={id:number;customer_id:number;school_name:string};
+type School={id:number;customer_id:number;school_name:string;eligible_contract_count:number};
 type SchoolList={data:School[];total:number};
 export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
   const allowed=!apiBase||abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
@@ -32,7 +32,6 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
   const [fieldErrors,setFieldErrors]=useState<{school?:string;subject?:string;description?:string}>({});
   const [schoolActiveIndex,setSchoolActiveIndex]=useState(-1);
   const schoolInputRef=useRef<HTMLInputElement>(null);
-  const listRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     const timeout=setTimeout(()=>setDebouncedSchoolSearch(schoolSearch.trim()),250);
     return ()=>clearTimeout(timeout);
@@ -50,9 +49,8 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
       '/care/schools?page='+schoolPage+'&page_size=50&search='+encodeURIComponent(debouncedSchoolSearch)),
     enabled:!!apiBase&&!!token&&allowed&&creating});
   const schoolChoices=schools.data?.data??[];
-  const duplicates=schoolChoices.filter(x=>schoolChoices.some(y=>y.id!==x.id && y.customer_id===x.customer_id));
   const selectSchool=(school:School)=>{
-    if(duplicates.some(x=>x.customer_id===school.customer_id)){
+    if(school.eligible_contract_count > 1){
       setSchoolError('Trường có nhiều hợp đồng đang hỗ trợ. Vui lòng liên hệ Quản lý để xác định hợp đồng phù hợp.');
       setContractId('');return;
     }
@@ -67,7 +65,7 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
   const reload=async()=>{await Promise.all([client.invalidateQueries({queryKey:['care-ticket-list']}),onChanged()]);};
   const create=async()=>{
     const nextErrors:{school?:string;subject?:string;description?:string}={};
-    if(!contractId)nextErrors.school='Vui lòng chọn trường cần hỗ trợ.';
+    if(!contractId)nextErrors.school=schoolError||'Vui lòng chọn trường cần hỗ trợ.';
     if(!subject.trim())nextErrors.subject='Vui lòng nhập tiêu đề lỗi.';
     else if(subject.trim().length>190)nextErrors.subject='Tiêu đề tối đa 190 ký tự.';
     if(!description.trim())nextErrors.description='Vui lòng mô tả lỗi và các bước tái hiện.';
@@ -85,7 +83,7 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
         subject:subject.trim(),description:description.trim(),
       })});
       setCreating(false);setContractId('');setSubject('');setDescription('');setSchoolSearch('');
-      setSelectedSchoolName('');setSchoolOpen(false);setFieldErrors({});setSchoolError('');
+      setSelectedSchoolName('');setSchoolOpen(false);setFieldErrors({});setSchoolError('');setSchoolPage(1);
       await reload();
     }catch(cause){setError(cause instanceof Error?cause.message:'Không tạo được ticket kỹ thuật.');}
     finally{setBusy(false);}
@@ -167,9 +165,9 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
               <ChevronDown className="size-4" aria-hidden="true"/>
             </button>
           </div>
-          {schoolOpen&&<div ref={listRef} id="ticket-school-options" role="listbox"
+          {schoolOpen&&<div id="ticket-school-options" role="listbox"
             aria-label="Danh sách trường phụ trách" className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border bg-background p-1 shadow-lg">
-            {schools.isLoading||schools.isFetching&&schoolChoices.length===0
+            {(schools.isLoading||schools.isFetching)&&schoolChoices.length===0
               ?<p className="p-3 text-muted-foreground">Đang tải trường...</p>
               :schools.isError?<p role="alert" className="p-3 text-destructive">Không tải được danh sách trường.</p>
               :schoolChoices.length===0?<p className="p-3 text-muted-foreground">Không tìm thấy trường phù hợp.</p>
@@ -180,10 +178,12 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
                   <span>{school.school_name}</span>
                   {contractId===String(school.id)&&<Check className="size-4 text-emerald-600" aria-hidden="true"/>}
                 </button>)}
+            {schoolPage>1&&<button type="button" className="w-full rounded-lg p-2 text-center text-sm text-emerald-700 hover:bg-muted"
+              disabled={schools.isFetching} onClick={()=>{setSchoolPage(n=>n-1);setSchoolActiveIndex(-1);}}>Trang trước</button>}
             {schoolPage*50<(schools.data?.total??0)&&<button type="button"
               className="w-full rounded-lg p-3 text-center text-sm text-emerald-700 hover:bg-muted"
               disabled={schools.isFetching} onClick={()=>{setSchoolPage(n=>n+1);setSchoolActiveIndex(-1);}}>
-              Xem thêm trường
+              Trang tiếp theo
             </button>}
           </div>}
         </div>

@@ -775,12 +775,18 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var second = await AddMember(careOrg, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.AssignContractCare(contractId,
             new(Key(), first.UserId, careOrg, "Manager không được phân công"), s.Manager.UserId, Http(), Ct));
-        await a.AssignContractCare(contractId, new(Key(), first.UserId, careOrg, "Admin bàn giao cho CSKH"), admin, Http(), Ct);
+        await a.AssignContractCare(contractId, new(Key(), first.UserId, careOrg, null), admin, Http(), Ct);
+        Assert.Equal("Admin phân công nhân viên CSKH.", await db.ContractCareHandovers
+            .Where(x => x.ContractId == contractId && x.AssignedUserId == first.UserId)
+            .Select(x => x.Reason).SingleAsync(Ct));
         var ticket = await a.CreateCustomerSupportCase(new(Key(), contractId, "Lỗi đăng nhập", "Máy chủ đăng nhập lỗi"), first.UserId, Http(), Ct);
         await a.UpdateCustomerSupportCase(ticket, new("IN_PROGRESS", "Đã báo CHECKEE", DateTime.UtcNow.AddDays(1)), first.UserId, Http(), Ct);
-        var handover = new AssignContractCareRequest(Key(), second.UserId, careOrg, "Đổi người chăm sóc, giữ ticket");
+        var handover = new AssignContractCareRequest(Key(), second.UserId, careOrg, null);
         await a.AssignContractCare(contractId, handover, admin, Http(), Ct);
         await a.AssignContractCare(contractId, handover, admin, Http(), Ct);
+        Assert.Equal("Admin điều chuyển nhân viên CSKH.", await db.ContractCareHandovers
+            .Where(x => x.ContractId == contractId && x.AssignedUserId == second.UserId)
+            .Select(x => x.Reason).SingleAsync(Ct));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Không còn phụ trách", null), first.UserId, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => a.UpdateCustomerSupportCase(ticket,
             new("RESOLVED", "Chưa có phản hồi kỹ thuật", null), second.UserId, Http(), Ct));
@@ -820,6 +826,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.SchoolDetail(
             contract, Http(other.UserId), db, Ct));
         var adminPage = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, contractCode, 1, 20, Ct));
+        var staffEmail = await db.Users.Where(x => x.Id == care).Select(x => x.Email).SingleAsync(Ct);
+        Assert.Contains(adminPage.GetProperty("users").EnumerateArray(),
+            x => x.GetProperty("email").GetString() == staffEmail);
         Assert.Contains(adminPage.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
 
         await CustomerCareEndpoints.LogCall(contract, new("Đã hướng dẫn cách đăng nhập qua điện thoại", null),

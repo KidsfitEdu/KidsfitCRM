@@ -17,7 +17,6 @@ public sealed partial class ChannelSalesActions
                 && access.OrganizationIds.Contains(o.Id), ct))
             throw new KeyNotFoundException();
         var key = SchoolKey(request.IdempotencyKey); var hash = ChannelSalesValidation.Fingerprint(request, contractId);
-        var reason = Validation.Required(request.Reason, "reason", "Cần nội dung bàn giao CSKH.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         if (!await db.Organizations.AnyAsync(o => o.Id == request.CareOrganizationId && o.Code == "KIDSFIT" && o.Status == "ACTIVE", ct))
             throw ApiValidationException.For("care_organization_id", "Chỉ phân công CSKH thuộc KIDSFIT.");
@@ -30,6 +29,12 @@ public sealed partial class ChannelSalesActions
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.ActorUserId, actorId, replay.RequestFingerprint, hash);
         if (contract.Status != "ACTIVE" || contract.VerifiedAt is null)
             throw new ApiConflictException("Chỉ phân công CSKH cho hợp đồng đang hoạt động đã được CHECKEE xác minh.");
+        // The Admin assignment form does not request a reason. Store a meaningful default in handover history.
+        var reason = string.IsNullOrWhiteSpace(request.Reason)
+            ? (contract.CareUserId.HasValue
+                ? "Admin điều chuyển nhân viên CSKH."
+                : "Admin phân công nhân viên CSKH.")
+            : Validation.Required(request.Reason, "reason", "Nội dung bàn giao CSKH không hợp lệ.", 4000);
         var now = DateTime.UtcNow;
         var handover = new ContractCareHandover
         {

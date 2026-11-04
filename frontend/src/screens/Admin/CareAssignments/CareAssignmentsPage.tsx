@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, UserRoundCheck } from 'lucide-react';
+import { ArrowLeftRight, UserRoundPlus } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -14,7 +14,7 @@ import type { AdminPageProps } from '@/screens/Admin/types';
 
 type Assignment = {id:number;contract_code:string;school_name:string;partner:string;
   care_user_id:number|null;care_name:string|null;open_tickets:number};
-type Staff = {id:number;name:string;organization_id:number;schools:number;open_tickets:number};
+type Staff = {id:number;name:string;email:string;organization_id:number;schools:number;open_tickets:number};
 type Result = {data:Assignment[];users:Staff[];total:number;page:number;page_size:number};
 
 export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPageProps) {
@@ -24,7 +24,6 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
   const [pageSize,setPageSize]=useState(20);
   const [selected,setSelected]=useState<Assignment|null>(null);
   const [staffId,setStaffId]=useState('');
-  const [reason,setReason]=useState('');
   const [confirm,setConfirm]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -38,9 +37,9 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
     enabled:!!apiBase&&!!token&&allowed,
   });
   const staff=query.data?.users??[];
-  const close=()=>{setSelected(null);setStaffId('');setReason('');setError('');};
+  const close=()=>{setSelected(null);setStaffId('');setError('');};
   const assign=async()=>{
-    if(!selected||!staffId||!reason.trim())return;
+    if(!selected||!staffId)return;
     setBusy(true);setError('');
     try{
       const assignee=staff.find(s=>s.id===Number(staffId));
@@ -48,7 +47,10 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
       await channelRequest(apiBase,token,'/contracts/'+selected.id+'/care-handover',{
         method:'POST',body:JSON.stringify({
           idempotency_key:crypto.randomUUID(),user_id:assignee.id,
-          care_organization_id:assignee.organization_id,reason:reason.trim(),
+          care_organization_id:assignee.organization_id,
+          reason:selected.care_user_id
+            ? 'Admin điều chuyển nhân viên CSKH.'
+            : 'Admin phân công nhân viên CSKH.',
         }),
       });
       setConfirm(false);close();
@@ -78,9 +80,9 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
           <td className={adminTableCellClass}>{x.partner}</td>
           <td className={adminTableCellClass}>{x.care_name??'Chưa phân công'}</td>
           <td className={adminTableCellClass}>{x.open_tickets}</td>
-          <td className={adminTableCellClass}><AdminIconAction icon={x.care_user_id?Eye:UserRoundCheck}
+          <td className={adminTableCellClass}><AdminIconAction icon={x.care_user_id?ArrowLeftRight:UserRoundPlus}
             label={x.care_user_id?'Điều chuyển CSKH':'Phân công CSKH'} disabled={!apiBase||!allowed}
-            onClick={()=>{setSelected(x);setStaffId(x.care_user_id?String(x.care_user_id):'');setReason('');setError('');}}/></td>
+            onClick={()=>{setSelected(x);setStaffId(x.care_user_id?String(x.care_user_id):'');setError('');}}/></td>
         </tr>)}</tbody>
       </table></div>
       {query.isLoading&&<p className="p-6 text-sm text-muted-foreground">Đang tải trường đủ điều kiện…</p>}
@@ -93,18 +95,14 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
       title={selected?.care_user_id?'Điều chuyển CSKH':'Phân công CSKH'}
       description={selected?.school_name} busy={busy}
       footer={<><AppButton tone="neutral" onClick={close} disabled={busy}>Hủy</AppButton>
-        <AppButton disabled={!staffId||!reason.trim()||busy} onClick={()=>setConfirm(true)}>Tiếp tục</AppButton></>}>
+        <AppButton disabled={!staffId||busy} onClick={()=>setConfirm(true)}>Tiếp tục</AppButton></>}>
       <div className="space-y-4">
         <label className="block text-sm font-semibold" htmlFor="assigned-care-user">Nhân viên CSKH</label>
         <select id="assigned-care-user" className="w-full rounded-xl border bg-background p-3" value={staffId}
           onChange={e=>setStaffId(e.target.value)}>
           <option value="">Chọn người phụ trách</option>
-          {staff.map(s=><option key={s.id} value={s.id}>{s.name} · {s.schools} trường / {s.open_tickets} ticket mở</option>)}
+          {staff.map(s=><option key={s.id} value={s.id}>{s.name} – {s.email}</option>)}
         </select>
-        <label className="block text-sm font-semibold" htmlFor="assignment-reason">Lý do phân công / điều chuyển</label>
-        <textarea id="assignment-reason" className="w-full rounded-xl border bg-background p-3" rows={3}
-          maxLength={4000} value={reason} onChange={e=>setReason(e.target.value)}/>
-        <p className="text-xs text-muted-foreground">Hệ thống giữ lịch sử và chuyển các ticket chưa đóng. Không thay đổi quyền sở hữu Sales hay hoa hồng.</p>
         {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>
     </AppDialog>

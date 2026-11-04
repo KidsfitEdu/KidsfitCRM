@@ -117,6 +117,10 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
       const message = cause instanceof ChannelRequestError && (cause.status === 404 || cause.status === 405)
         ? 'API lưu trường chưa khả dụng. Hãy cập nhật Backend chứa POST /schools và PUT /schools/{id}, sau đó khởi động lại.'
         : cause instanceof Error ? cause.message : 'Vui lòng thử lại.';
+      if (cause instanceof ChannelRequestError && cause.status === 409 && /mã trường.*(đã tồn tại|đã có|trùng)/i.test(message)) {
+        setErrors(current => ({...current,school_code:message}));
+        return;
+      }
       appNotice.error('Không thể lưu hồ sơ trường học.', message);
     }finally{setBusy(false);}
   };

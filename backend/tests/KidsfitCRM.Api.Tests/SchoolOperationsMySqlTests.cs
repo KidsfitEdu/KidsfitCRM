@@ -114,6 +114,26 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.False(await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId).Select(x => x.IsDeleted).SingleAsync(Ct));
     }
 
+    [MySqlFact] public async Task AdminCreatesSchoolWithoutReasonAndRejectsDuplicateSchoolCode()
+    {
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var code = "NEW-" + Key()[..12].ToUpperInvariant();
+        var request = new CreateSchoolManualRequest(code, "MAIN", "Trường kiểm thử " + code,
+            "Cần Thơ", "Phường kiểm thử", null, null, null, null, null, null, null);
+        var unitId = await actions.CreateManualSchool(request, admin, Http(admin), Ct);
+        var schoolId = await db.SchoolUnits.Where(x => x.Id == unitId).Select(x => x.DirectorySchoolId).SingleAsync(Ct);
+        Assert.Equal(code, await db.DirectorySchools.Where(x => x.Id == schoolId).Select(x => x.SchoolCode).SingleAsync(Ct));
+        var audit = await db.AuditLogs.AsNoTracking().Where(x =>
+            x.Action == "CREATE_MANUAL_SCHOOL_UNIT" && x.EntityId == unitId).SingleAsync(Ct);
+        Assert.Contains("Admin tạo trường học thủ công.", audit.AfterValues ?? "");
+        var duplicate = await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.CreateManualSchool(request, admin, Http(admin), Ct));
+        Assert.Contains("Mã trường đã có", duplicate.Message);
+        Assert.Equal(1, await db.DirectorySchools.CountAsync(x => x.SchoolCode == code, Ct));
+    }
+
     [MySqlFact] public async Task AdminPartnerCrudIsScopedAuditedAndNeverDeletesOrganization()
     {
         var actor = await User("admin@kidsfit.vn");

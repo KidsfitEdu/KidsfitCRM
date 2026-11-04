@@ -118,7 +118,7 @@ public static class SchoolEndpoints
                 && !db.ApproachRegistrations.Any(a => a.CustomerId == x.CustomerId
                     && a.Status == "ACTIVE" && a.ProtectedUntil > now)
                 && !db.SalesContracts.Any(c => c.CustomerId == x.CustomerId
-                    && c.Status == "ACTIVE" && c.VerifiedAt.HasValue));
+                    && c.Status != "CANCELLED" && c.Status != "REJECTED"));
         }
         if (selectedStatus != "ALL")
         {
@@ -159,18 +159,16 @@ public static class SchoolEndpoints
         if (!access.Has(Permissions.ChannelSalesRegister) || access.All || access.OrganizationIds.Length == 0)
             throw new KeyNotFoundException();
         var now = DateTime.UtcNow;
-        var scopedCustomers = access.Customers(db).Select(x => x.Id);
         var areas = await (from school in db.DirectorySchools.AsNoTracking()
             join customer in db.ChannelCustomers.AsNoTracking() on school.CustomerId equals customer.Id
             join unit in db.SchoolUnits.AsNoTracking() on school.Id equals unit.DirectorySchoolId
             where !school.IsDeleted && unit.UnitType == "MAIN"
-                && (access.Has(Permissions.ChannelSalesRegister) || scopedCustomers.Contains(customer.Id))
                 && !db.CustomerProtections.Any(p => p.CustomerId == customer.Id
                     && p.Status == "ACTIVE" && p.EffectiveUntil > now)
                 && !db.ApproachRegistrations.Any(a => a.CustomerId == customer.Id
                     && a.Status == "ACTIVE" && a.ProtectedUntil > now)
                 && !db.SalesContracts.Any(c => c.CustomerId == customer.Id
-                    && c.Status == "ACTIVE" && c.VerifiedAt.HasValue)
+                    && c.Status != "CANCELLED" && c.Status != "REJECTED")
             select new { customer.Province, unit.Ward })
             .Distinct().OrderBy(x => x.Province).ThenBy(x => x.Ward).ToArrayAsync(ct);
         return Results.Ok(new { data = areas });

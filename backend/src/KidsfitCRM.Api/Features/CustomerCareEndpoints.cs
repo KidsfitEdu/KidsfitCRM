@@ -93,7 +93,16 @@ public static class CustomerCareEndpoints
                 assigned_name = db.Users.Where(u => u.Id == h.AssignedUserId).Select(u => u.Name).FirstOrDefault(),
                 assigned_by = db.Users.Where(u => u.Id == h.ActorUserId).Select(u => u.Name).FirstOrDefault(),
             }).ToArrayAsync(ct);
-        return Results.Ok(new { data = contract, calls = logs, tickets, handovers });
+        var schoolUnits = await (from school in db.DirectorySchools.AsNoTracking()
+            join unit in db.SchoolUnits.AsNoTracking() on school.Id equals unit.DirectorySchoolId
+            where school.CustomerId == contract.CustomerId && !school.IsDeleted
+            orderby unit.UnitType == "MAIN" descending, unit.SourceRow, unit.Id
+            select new {
+                unit.Id, unit.Name, unit.UnitType, unit.Address, unit.Province, unit.Ward,
+                unit.ContactName, unit.ContactPosition, unit.ContactPhone,
+                unit.SchoolPhone, unit.Email, unit.Note
+            }).ToArrayAsync(ct);
+        return Results.Ok(new { data = contract, school_units = schoolUnits, calls = logs, tickets, handovers });
     }
 
     public static async Task<IResult> Tickets(HttpContext http, KidsfitDbContext db, string? status,

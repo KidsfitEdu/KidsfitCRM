@@ -69,40 +69,64 @@ public sealed partial class ChannelSalesActions
                 new { registration.Status, member.Id, reason }, http);
         }
 
-        var pendingInvitations = await db.SchoolInvitations
+        // Invitation acceptance locks the customer before the invitation row.
+        // Observe that same order so a concurrent acceptance cannot be overwritten
+        // by a stale PENDING snapshot.
+        var invitationCandidates = await db.SchoolInvitations.AsNoTracking()
             .Where(x => x.AssigneeUserId == member.UserId
                 && x.OrganizationId == member.OrganizationId && x.Status == "PENDING")
-            .ToListAsync(ct);
-        foreach (var invitation in pendingInvitations)
+            .Select(x => new { x.Id, x.DirectorySchoolId }).ToArrayAsync(ct);
+        var cancelledInvitations = 0;
+        foreach (var candidate in invitationCandidates)
         {
+            var customerId = await db.DirectorySchools.AsNoTracking()
+                .Where(s => s.Id == candidate.DirectorySchoolId)
+                .Select(s => s.CustomerId).SingleAsync(ct);
+            await LockCustomer(customerId, ct);
+            var invitation = await db.SchoolInvitations.FromSqlInterpolated(
+                $"SELECT * FROM school_invitations WHERE id = {candidate.Id} FOR UPDATE")
+                .SingleAsync(ct);
+            if (invitation.Status != "PENDING") continue;
             invitation.Status = "CANCELLED";
             invitation.ResponseReason = "Quản lý thu hồi quyền tiếp cận; cần phân bổ lại.";
             invitation.RespondedAt = now;
             invitation.UpdatedAt = now;
+            cancelledInvitations++;
             Audit.Add(db, actorId, "CANCEL_INVITATION_BY_MANAGER",
                 nameof(SchoolInvitation), invitation.Id,
                 new { status = "PENDING" },
                 new { invitation.Status, member.Id, reason }, http);
         }
 
-        var pendingExtensions = await db.SchoolExtensionRequests
+        var extensionCandidates = await db.SchoolExtensionRequests.AsNoTracking()
             .Where(x => x.RequestedByUserId == member.UserId
                 && x.OrganizationId == member.OrganizationId && x.Status == "PENDING")
-            .ToListAsync(ct);
-        foreach (var extension in pendingExtensions)
+            .Select(x => new { x.Id, x.ApproachRegistrationId }).ToArrayAsync(ct);
+        var cancelledExtensions = 0;
+        foreach (var candidate in extensionCandidates)
         {
+            // Extension approval also locks customer before the extension row.
+            var customerId = await db.ApproachRegistrations.AsNoTracking()
+                .Where(r => r.Id == candidate.ApproachRegistrationId)
+                .Select(r => r.CustomerId).SingleAsync(ct);
+            await LockCustomer(customerId, ct);
+            var extension = await db.SchoolExtensionRequests.FromSqlInterpolated(
+                $"SELECT * FROM school_extension_requests WHERE id = {candidate.Id} FOR UPDATE")
+                .SingleAsync(ct);
+            if (extension.Status != "PENDING") continue;
             extension.Status = "CANCELLED";
             extension.DecisionReason = "Quản lý thu hồi quyền tiếp cận; yêu cầu gia hạn được hủy.";
             extension.ReviewedByUserId = actorId;
             extension.ReviewedAt = now;
             extension.UpdatedAt = now;
+            cancelledExtensions++;
             Audit.Add(db, actorId, "CANCEL_EXTENSION_BY_MANAGER",
                 nameof(SchoolExtensionRequest), extension.Id,
                 new { status = "PENDING" },
                 new { extension.Status, member.Id, reason }, http);
         }
 
-        if (revoked == 0 && pendingInvitations.Count == 0 && pendingExtensions.Count == 0)
+        if (revoked == 0 && cancelledInvitations == 0 && cancelledExtensions == 0)
             throw new ApiConflictException("Sales không có lượt tiếp cận hoặc yêu cầu đang chờ có thể thu hồi.");
 
         // Reuse the audited/idempotent handover journal; this operation deliberately
@@ -121,8 +145,8 @@ public sealed partial class ChannelSalesActions
         await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "RELEASE_SCHOOL_APPROACHES",
             nameof(SchoolHandover), journal.Id, null,
-            new { member.Id, revoked, cancelled_invitations = pendingInvitations.Count,
-                cancelled_extensions = pendingExtensions.Count, reason,
+            new { member.Id, revoked, cancelled_invitations = cancelledInvitations,
+                cancelled_extensions = cancelledExtensions, reason,
                 membership_status = member.Status }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

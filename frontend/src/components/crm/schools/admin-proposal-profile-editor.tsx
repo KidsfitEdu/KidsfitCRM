@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Input } from '@/components/ui/input';
-import { SchoolBranchList, SchoolUnitFields, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit } from '@/components/crm/schools/school-units-editor';
+import { SchoolBranchList, SchoolMainSection, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit } from '@/components/crm/schools/school-units-editor';
 import { fetchAdminProposalProfile, updateAdminProposalProfile, type AdminProposalProfile, type AdminProposalUnit } from '@/services/proposal.service';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { ChannelRequestError } from '@/lib/channel-operations';
@@ -131,10 +131,8 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
         <p className="font-semibold">Trường chính hiện hữu</p>
         <p className="mt-1 text-sm">{profile.target?.name??profile.name}</p>
         <p className="text-xs text-muted-foreground">Chỉ chỉnh sửa các phân hiệu đang đề xuất; không thay đổi trường chính.</p>
-      </section>:mainIndex>=0?<section className="space-y-3 rounded-xl border bg-muted/20 p-4">
-        <h3 className="font-semibold">Trường chính</h3>
-        <SchoolUnitFields unit={units[mainIndex]} index={mainIndex} onFieldChange={change} errors={errors} prefix="admin-proposal-main"/>
-      </section>:null}
+      </section>:mainIndex>=0?<SchoolMainSection unit={units[mainIndex]} index={mainIndex}
+        onFieldChange={change} errors={errors} prefix="admin-proposal-main"/>:null}
       {!isLegacy && <SchoolBranchList units={units} expanded={expanded} onExpandedChange={setExpanded}
         onAdd={addBranch} onRemove={removeBranch} onFieldChange={change}
         errors={errors} prefix="admin-proposal-branch"/>}

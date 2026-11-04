@@ -219,16 +219,28 @@ test('Sales contract branch count is editable and persisted separately from chos
   assert.match(form, /Tổng giá trị hợp đồng/);
 });
 
-test('Shared currency input keeps the caret stable while grouping VND digits', () => {
+test('Shared currency input never reformats while editing and formats VND on blur', () => {
   const source = read('src/components/common/inputs/app-currency-input.tsx');
-  assert.match(source, /pendingCaretDigits/);
-  assert.match(source, /selectionStart/);
-  assert.match(source, /setSelectionRange\(offset, offset\)/);
-  assert.match(source, /useLayoutEffect/);
+  assert.match(source, /value=\{focused \? value : formatted\}/);
+  assert.match(source, /setFocused\(true\)/);
+  assert.match(source, /setFocused\(false\)/);
   assert.match(source, /inputMode="numeric"/);
-  assert.match(source, /onValueChange\(normalized\)/);
+  assert.match(source, /onValueChange\(digits\.replace/);
   assert.match(source, /15\)/);
-  assert.doesNotMatch(source, /toLocaleString/);
+  assert.doesNotMatch(source, /pendingCaretDigits/);
+});
+
+test('Sales contract revisions use original contract and retain manager instructions', () => {
+  const source = read('src/components/roles/SalesContractRevisions.tsx');
+  const sales = read('src/components/crm/channel-sales-view.tsx');
+  assert.match(source, /school-contracts\/my-revisions/);
+  assert.match(source, /school-contracts\/\$\{selected\.id\}\/resubmit/);
+  assert.match(source, /selected\?\.reason/);
+  assert.match(source, /id="sales-contract-revisions"/);
+  assert.match(sales, /status === 'NEEDS_REVISION'/);
+  assert.match(sales, /Bổ sung hồ sơ/);
+  assert.match(sales, /status === 'MANAGER_REVIEWED'/);
+  assert.match(sales, /status === 'PENDING_KIDSFIT'/);
 });
 
 test('Sales contract errors appear only in shared toast and duplicate report opening is guarded', () => {

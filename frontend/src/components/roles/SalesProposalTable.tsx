@@ -47,6 +47,7 @@ export function SalesProposalTable({
     onChange={event => {setStatus(event.target.value);onStatusChange?.(event.target.value);}}>
     <option value="ALL">Tất cả trạng thái</option>
     <option value="DRAFT">Nháp</option>
+    <option value="NEEDS_REVISION">Cần bổ sung</option>
     <option value="PENDING_MANAGER">Chờ Quản lý</option>
     <option value="PENDING_ADMIN">Chờ Admin</option>
     <option value="APPROVED">Đã duyệt</option>

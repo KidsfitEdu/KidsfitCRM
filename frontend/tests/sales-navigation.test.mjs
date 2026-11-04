@@ -315,3 +315,23 @@ test('Sales proposal list keeps school codes searchable but hides them from tabl
   assert.match(source, /<SalesListLayout/);
   assert.match(source, /<SalesListRow/);
 });
+
+
+test('Sales my schools shows extension icon for active approaches and explains disabled states', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function CustomerRow(');
+  const end = source.indexOf('/** Submit a school extension request', start);
+  assert.ok(start >= 0 && end > start);
+  const row = source.slice(start, end);
+  assert.match(row, /const activeApproach = mineMode && customer\.visible_status === 'APPROACHING'/);
+  assert.match(row, /const showExtension = activeApproach && customer\.contract_id === null/);
+  assert.match(row, /const extensionBlocked = !canRequestExtension \|\| Boolean\(customer\.extension_pending\)/);
+  assert.match(row, /\{showExtension && \(/);
+  assert.match(row, /title=\{extensionHint\}/);
+  assert.match(row, /disabled=\{extensionBlocked\} onClick=\{onExtension\}/);
+  assert.match(row, /tabIndex=\{extensionBlocked \? 0 : undefined\}/);
+  assert.match(row, /<CalendarClock className="size-4" aria-hidden="true"\/>/);
+  assert.doesNotMatch(row, /activeApproach && !customer\.contract_id && canRequestExtension && !extensionBlocked/);
+  assert.match(source, /<ExtensionDialog key=\{extensionCustomer\.approach_registration_id \?\? extensionCustomer\.id\}/);
+  assert.match(source, /\/approaches\/\$\{customer\.approach_registration_id\}\/extension-requests/);
+});

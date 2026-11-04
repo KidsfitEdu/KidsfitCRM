@@ -45,10 +45,10 @@ public static class CheckeeSupportEndpoints
             .Select(t => new {
                 t.Id, t.Subject, t.Description, t.Status, t.ForwardedAt, t.CheckeeRespondedAt, t.CreatedAt,
                 school_name = db.ChannelCustomers.Where(c => c.Id == t.CustomerId).Select(c => c.DisplayName).First(),
-                activities = db.CustomerActivities.Where(a => a.SupportCaseId == t.Id && a.ActivityType == "CHECKEE_SUPPORT")
+                activities = db.CustomerActivities.Where(a => a.SupportCaseId == t.Id && (a.ActivityType == "CHECKEE_SUPPORT" || a.ActivityType == "SUPPORT"))
                     .OrderBy(a => a.CreatedAt).Select(a => new { a.Id, a.Content, a.CreatedAt,
                         author_name = db.Users.Where(u => u.Id == a.UserId).Select(u => u.Name).FirstOrDefault(),
-                        author_role = "CHECKEE", activity_type = a.ActivityType }).ToArray()
+                        author_role = a.ActivityType == "CHECKEE_SUPPORT" ? "CHECKEE" : "CSKH", activity_type = a.ActivityType }).ToArray()
             }).ToArrayAsync(ct);
         return Results.Ok(new { data = rows, total, page = p, page_size = size });
     }

@@ -240,7 +240,7 @@ public static class ManagerContractEndpoints
                           select new
                           {
                               id = contract.Id, contract_code = contract.ContractCode, school_name = school.DisplayName,
-                              reason = (from reconciliation in db.ReconciliationCases
+                              reason = contract.RevisionReason ?? (from reconciliation in db.ReconciliationCases
                                         join evt in db.ReconciliationEvents on reconciliation.Id equals evt.ReconciliationCaseId
                                         where reconciliation.ContractId == contract.Id && evt.EventType == "MANAGER_REVISION"
                                         orderby evt.CreatedAt descending, evt.Id descending

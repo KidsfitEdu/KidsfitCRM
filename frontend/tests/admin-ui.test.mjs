@@ -29,13 +29,20 @@ test('Admin page headers do not expose manual refresh buttons', () => {
   assert.match(capacities, /onReset=/);
 });
 
-test('Admin proposals hide synthetic school codes but retain real codes and raw editing', () => {
+test('Admin proposal list hides school codes and reuses official school profile UI', () => {
   const source = read('src/screens/Admin/Proposals/ProposalsPage.tsx');
-  assert.equal(source.split("!p.school_code.startsWith('SEED-SCH-')").length - 1, 2);
-  assert.match(source, /school_code:editFields\.school_code/);
-  assert.match(source, /editFields\.school_code/);
-  assert.match(source, /workflowLabels\[p.status\]/);
-  assert.match(source, /appNotice\.success\(approve\?/);
+  assert.doesNotMatch(source, /p\\.school_code/);
+  assert.match(source, /\\[p\\.address,p\\.ward,p\\.province\\]/);
+  assert.match(source, /icon=\\{Eye\\}/);
+  assert.doesNotMatch(source, /icon=\\{History\\}/);
+  assert.match(source, /<SchoolProfileDetails/);
+  assert.match(source, /<AdminProposalProfileEditor/);
+  assert.match(source, /workflowLabels\\[p.status\\]/);
+  assert.match(source, /appNotice\\.success\\(approve\\?/);
+  const editor = read('src/components/crm/schools/admin-proposal-profile-editor.tsx');
+  assert.match(editor, /<SchoolUnitFields/);
+  assert.match(editor, /<SchoolBranchList/);
+  assert.match(editor, /expected_version:profile.version/);
 });
 
 test('All Admin views report server errors through shared toast; form errors stay inline', () => {

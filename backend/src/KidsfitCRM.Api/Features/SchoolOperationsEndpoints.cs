@@ -252,7 +252,7 @@ public static class SchoolOperationsEndpoints
         if (disputeStatus is not ("" or "OPEN" or "RESOLVED"))
             throw ApiValidationException.For("dispute_status", "Trạng thái tranh chấp không hợp lệ.");
         var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status)
-            && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)
+            && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term) || (x.Address != null && x.Address.Contains(term)) || x.Province.Contains(term) || x.Ward.Contains(term)
                 || db.Users.Any(u => (u.Id == x.ManagerUserId || u.Id == x.SubmittedByUserId) && u.Name.Contains(term))));
         if (overdueOnly)
             proposalQuery = proposalQuery.Where(x =>

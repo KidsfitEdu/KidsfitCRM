@@ -181,8 +181,8 @@ export function SchoolProposalEditor({
     <div className="space-y-5">
       <fieldset className="space-y-2">
         <legend className="font-semibold">Loại đề xuất</legend>
-        <label htmlFor="proposal-mode-main" className="flex items-center gap-2 text-sm"><input id="proposal-mode-main" type="radio" name="proposal-mode" checked={mode==='NEW_MAIN'} onChange={()=>changeMode('NEW_MAIN')}/> Trường chính mới (có thể kèm phân hiệu)</label>
-        <label htmlFor="proposal-mode-branch" className="flex items-center gap-2 text-sm"><input id="proposal-mode-branch" type="radio" name="proposal-mode" checked={mode==='ADD_BRANCHES'} onChange={()=>changeMode('ADD_BRANCHES')}/> Bổ sung phân hiệu cho trường chính đã có</label>
+        <div className="flex items-center gap-2 text-sm"><input aria-label="Trường chính mới" id="proposal-mode-main" type="radio" name="proposal-mode" checked={mode==='NEW_MAIN'} onChange={()=>changeMode('NEW_MAIN')}/> Trường chính mới (có thể kèm phân hiệu)</div>
+        <div className="flex items-center gap-2 text-sm"><input aria-label="Bổ sung phân hiệu cho trường chính đã có" id="proposal-mode-branch" type="radio" name="proposal-mode" checked={mode==='ADD_BRANCHES'} onChange={()=>changeMode('ADD_BRANCHES')}/> Bổ sung phân hiệu cho trường chính đã có</div>
       </fieldset>
       {mode==='NEW_MAIN'?<section className="rounded-xl border bg-muted/20 p-4 space-y-3">
         <h3 className="font-semibold">Trường chính</h3>

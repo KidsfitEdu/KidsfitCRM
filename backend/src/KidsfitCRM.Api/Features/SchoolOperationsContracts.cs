@@ -15,7 +15,7 @@ public sealed record UpdateSchoolProposalRequest(int ExpectedVersion, string? Sc
     string? Address, string? ContactName, string? ContactPosition, string? ContactPhone, string? Email,
     string? Reason);
 public sealed record ReviewSchoolProposalRequest(bool Approve, string? Reason, DateTime? ReviewDueAt, bool DuplicateReviewed = false);
-public sealed record CreateSchoolInvitationRequest(string? IdempotencyKey, long SchoolId, long OrganizationId,
+public sealed record CreateSchoolInvitationRequest(string? IdempotencyKey, long SchoolId, long? OrganizationId,
     long AssigneeUserId, string? Reason, DateTime? RespondBy);
 public sealed record RespondSchoolInvitationRequest(bool Accept, string? Reason);
 public sealed record RequestSchoolExtensionRequest(string? IdempotencyKey, DateTime? RequestedUntil,

@@ -10,10 +10,25 @@ public sealed partial class ChannelSalesActions
     public Task<long> InviteSchoolCollaborator(CreateSchoolInvitationRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await RequirePermission(actorId, Permissions.SchoolAllocationManage, ct);
-        if (!access.CanManageOrganization(request.OrganizationId)) throw new KeyNotFoundException();
+        // Organization comes from the eligible active Sales/CTV membership.
+        // Older clients may still pass an explicit organization; validate it instead
+        // of trusting the request. Multiple eligible memberships are ambiguous.
+        var candidates = await db.OrganizationMemberships.AsNoTracking()
+            .Where(m => m.UserId == request.AssigneeUserId && m.Status == "ACTIVE"
+                && access.OrganizationIds.Contains(m.OrganizationId)
+                && (m.MembershipType == "SALES" || m.MembershipType == "CHANNEL_SALES"
+                    || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR")
+                && (access.All || (access.Organization && m.ManagerUserId == actorId))
+                && (!request.OrganizationId.HasValue || m.OrganizationId == request.OrganizationId.Value))
+            .Select(m => m.OrganizationId).Distinct().ToArrayAsync(ct);
+        if (candidates.Length == 0) throw new KeyNotFoundException();
+        if (candidates.Length > 1)
+            throw ApiValidationException.For("assignee_user_id", "Sales/CTV thuộc nhiều tổ chức. Cần xác định tổ chức trước khi phân bổ.");
+        var organizationId = candidates[0];
+        if (!access.CanManageOrganization(organizationId)) throw new KeyNotFoundException();
         var key = SchoolKey(request.IdempotencyKey); var hash = ChannelSalesValidation.Fingerprint(request);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        var membership = await ActiveSchoolMembership(request.AssigneeUserId, request.OrganizationId, ct);
+        var membership = await ActiveSchoolMembership(request.AssigneeUserId, organizationId, ct);
         if (!access.All && membership.ManagerUserId != actorId) throw new KeyNotFoundException();
         var assignee = await ChannelSalesAccess.Load(db, request.AssigneeUserId, ct);
         if (!assignee.Has(Permissions.ChannelSalesRegister)) throw ApiValidationException.For("assignee_user_id", "Nhân sự chưa có quyền tiếp cận trường.");
@@ -21,17 +36,17 @@ public sealed partial class ChannelSalesActions
         await LockCustomer(school.CustomerId, ct);
         var replay = await db.SchoolInvitations.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.AssignedByUserId, actorId, replay.RequestFingerprint, hash);
-        await CheckSchoolCapacity(request.AssigneeUserId, request.OrganizationId, ct);
+        await CheckSchoolCapacity(request.AssigneeUserId, organizationId, ct);
         var now = DateTime.UtcNow;
         await EnsureSchoolAvailable(school.CustomerId, now, ct);
         if (await db.SchoolInvitations.AnyAsync(x => x.DirectorySchoolId == school.Id && x.Status == "PENDING" && x.RespondBy > now, ct))
             throw new ApiConflictException("Trường đang có lời mời còn hạn. Cần chờ phản hồi hoặc hủy lời mời trước khi phân bổ lại.");
-        var policy = await ActiveSchoolPolicy(request.OrganizationId, ct);
+        var policy = await ActiveSchoolPolicy(organizationId, ct);
         var invitation = new SchoolInvitation
         {
-            DirectorySchoolId = school.Id, OrganizationId = request.OrganizationId, AssigneeUserId = request.AssigneeUserId,
-            AssignedByUserId = actorId, Reason = Validation.Required(request.Reason, "reason", "Cần lý do phân bổ.", 2000),
-            RespondBy = policy is null ? SchoolFuture(request.RespondBy, "respond_by", now) : now.AddHours(policy.InvitationHours),
+            DirectorySchoolId = school.Id, OrganizationId = organizationId, AssigneeUserId = request.AssigneeUserId,
+            AssignedByUserId = actorId, Reason = Validation.Required(request.Reason, "reason", "Vui lòng nhập lý do phân bổ trường.", 2000),
+            RespondBy = policy is null ? now.AddHours(24) : now.AddHours(policy.InvitationHours),
             IdempotencyKey = key, RequestFingerprint = hash, CreatedAt = now, UpdatedAt = now,
         };
         db.SchoolInvitations.Add(invitation); await db.SaveChangesAsync(ct);

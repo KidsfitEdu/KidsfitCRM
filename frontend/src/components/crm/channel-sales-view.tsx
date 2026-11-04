@@ -108,6 +108,28 @@ const statusCopy = {
   },
 } as const;
 
+// Contract workflow is shown independently of the three school lifecycle statuses.
+const contractBadge = (customer: ChannelCustomer) => {
+  if (customer.contract_id == null) return statusCopy[customer.visible_status];
+  const status = customer.contract_status?.toUpperCase();
+  const blue = 'border-blue-200 bg-blue-50 text-blue-800';
+  const amber = 'border-amber-200 bg-amber-50 text-amber-800';
+  const red = 'border-red-200 bg-red-50 text-red-800';
+  if (status === 'PENDING_REVIEW' || status === 'MANAGER_REVIEW')
+    return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: blue };
+  if (status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION')
+    return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: blue };
+  if (status === 'NEEDS_REVISION' || status === 'NEEDS_INFO' || status === 'RETURNED')
+    return { label: 'Cần bổ sung hồ sơ', compact: 'Bổ sung hồ sơ hiện có', className: amber };
+  if (status === 'REJECTED')
+    return { label: 'Hồ sơ bị từ chối', compact: 'Xem lý do từ chối', className: red };
+  if (status === 'CANCELLED')
+    return { label: 'Hợp đồng đã hủy', compact: 'Xem lịch sử hồ sơ', className: red };
+  if (status === 'ACTIVE' || status === 'VERIFIED')
+    return { label: 'Đã xác minh hợp đồng', compact: 'Hợp đồng hợp lệ', className: statusCopy.CONTRACTED.className };
+  return { label: 'Đã nộp hồ sơ hợp đồng', compact: 'Theo dõi tình trạng hồ sơ', className: blue };
+};
+
 const money = (value: number) =>
   new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -511,6 +533,7 @@ export function ChannelSalesView({
             try {
               await onReportContract(contractCustomer, input);
               setContractCustomer(null);
+              setExtensionRefresh(value => value + 1);
             } catch (cause) {
               const message = cause instanceof Error ? cause.message : '';
               if (message.includes('đã báo cáo hợp đồng')) {
@@ -580,9 +603,7 @@ function CustomerRow({
   const extensionHint = customer.extension_pending
     ? 'Yêu cầu gia hạn đang chờ Quản lý bán hàng duyệt.'
     : customer.extension_unavailable_reason || (canRequestExtension ? 'Xin gia hạn tiếp cận' : 'Chưa đủ điều kiện xin gia hạn.');
-  const status = customer.contract_id && customer.visible_status === 'APPROACHING'
-    ? {label:'Chờ xác minh hợp đồng',compact:'Quản lý / CHECKEE đang xử lý',className:'border-blue-200 bg-blue-50 text-blue-800'}
-    : statusCopy[customer.visible_status];
+  const status = contractBadge(customer);
   return (
     <div className={`grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:items-center ${mineMode ? 'xl:grid-cols-[minmax(300px,1.8fr)_minmax(140px,.75fr)_minmax(165px,.85fr)_minmax(225px,1.1fr)]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
       <div className="flex min-w-0 gap-3">

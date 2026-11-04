@@ -1260,6 +1260,19 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(1, await db.SalesContracts.CountAsync(c => c.ApproachRegistrationId == registration, Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() =>
             ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Seller.UserId), db, Ct));
+        // Manager requests a second data-only correction. Sales reuses the attached file.
+        await ManagerContractEndpoints.ReturnForRevision(
+            contractId, new("Chỉnh sửa ghi chú, giữ nguyên chứng từ."), Http(scenario.Manager.UserId), db, Ct);
+        db.ChangeTracker.Clear();
+        await ManagerContractEndpoints.Resubmit(contractId,
+            new(null, ContractNote: "Đã cập nhật ghi chú, giữ file gốc."),
+            Http(scenario.Seller.UserId), db, Ct);
+        db.ChangeTracker.Clear();
+        var reused = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+        Assert.Equal("PENDING_REVIEW", reused.Status);
+        Assert.Equal("Đã cập nhật ghi chú, giữ file gốc.", reused.ContractNote);
+        Assert.Equal(1, await db.FinancialEvidences.CountAsync(x => x.ContractId == contractId && x.Kind == "CONTRACT", Ct));
+        Assert.Equal(1, await db.SalesContracts.CountAsync(x => x.ApproachRegistrationId == registration, Ct));
     }
 
 }

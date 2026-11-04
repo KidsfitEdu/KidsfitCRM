@@ -427,6 +427,101 @@ public static class ManagerContractEndpoints
         if (evidence.Kind != "CONTRACT" || evidence.ContractId.HasValue || evidence.AttachedAt.HasValue
             || evidence.UploadedByUserId != http.UserId()) throw new KeyNotFoundException();
         var now = DateTime.UtcNow;
+        var before = new {
+            contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+            contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
+        };
+        if (request.SignedOn.HasValue)
+        {
+            var registeredAt = await db.ApproachRegistrations.Where(x => x.Id == contract.ApproachRegistrationId)
+                .Select(x => x.RegisteredAt).SingleAsync(ct);
+            if (request.SignedOn.Value < ChannelSalesValidation.BusinessDate(registeredAt)
+                || request.SignedOn.Value > ChannelSalesValidation.BusinessDate(now))
+                throw ApiValidationException.For("signed_on", "Ngày ký phải từ ngày đăng ký tiếp cận đến hôm nay.");
+            contract.SignedOn = request.SignedOn.Value;
+        }
+        if (request.ServicePlan is not null)
+        {
+            var plan = request.ServicePlan.Trim().ToUpperInvariant();
+            if (plan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
+                throw ApiValidationException.For("service_plan", "Gói thanh toán không hợp lệ.");
+            contract.ServicePlan = plan;
+        }
+        if (request.StudentCount.HasValue)
+        {
+            if (request.StudentCount.Value is <= 0 or > 100000)
+                throw ApiValidationException.For("student_count", "Quy mô học sinh phải từ 1 đến 100.000.");
+            contract.StudentCount = request.StudentCount.Value;
+        }
+        if (request.SchoolUnitIds is not null)
+        {
+            var units = request.SchoolUnitIds;
+            if (units.Length != units.Distinct().Count())
+                throw ApiValidationException.For("school_unit_ids", "Danh sách phân hiệu bị trùng.");
+            var schoolId = await db.DirectorySchools.Where(x => x.CustomerId == contract.CustomerId)
+                .Select(x => (long?)x.Id).SingleOrDefaultAsync(ct);
+            if (!schoolId.HasValue || await db.SchoolUnits.CountAsync(x =>
+                    x.DirectorySchoolId == schoolId.Value && x.UnitType == "BRANCH"
+                    && units.Contains(x.Id), ct) != units.Length)
+                throw ApiValidationException.For("school_unit_ids", "Phân hiệu không thuộc trường chính.");
+            contract.SchoolUnitIdsJson = JsonSerializer.Serialize(units);
+        }
+        var selectedUnits = JsonSerializer.Deserialize<long[]>(contract.SchoolUnitIdsJson ?? "[]") ?? [];
+        if (request.BranchCount.HasValue)
+        {
+            if (request.BranchCount.Value < selectedUnits.Length || request.BranchCount.Value > 100000)
+                throw ApiValidationException.For("branch_count", "Số phân hiệu phải hợp lệ và không nhỏ hơn số đã chọn.");
+            contract.BranchCount = request.BranchCount.Value;
+        }
+        else if (contract.BranchCount < selectedUnits.Length)
+            throw ApiValidationException.For("branch_count", "Số phân hiệu nhỏ hơn số phân hiệu được chọn.");
+        if (request.ContractNote is not null)
+        {
+            if (request.ContractNote.Length > 4000)
+                throw ApiValidationException.For("contract_note", "Ghi chú tối đa 4.000 ký tự.");
+            contract.ContractNote = request.ContractNote.Trim();
+        }
+        if (request.MaintenanceFee.HasValue != request.SetupFee.HasValue)
+            throw ApiValidationException.For("maintenance_fee", "Cần nhập đủ phí duy trì và phí khởi tạo.");
+        if (request.MaintenanceFee.HasValue)
+        {
+            var maintenance = request.MaintenanceFee.Value;
+            var setup = request.SetupFee!.Value;
+            ChannelSalesValidation.WholeDong(maintenance, "maintenance_fee", positive: false);
+            ChannelSalesValidation.WholeDong(setup, "setup_fee", positive: false);
+            decimal updatedTotal;
+            try { updatedTotal = checked(maintenance * (contract.ServicePlan == "MONTHLY_9" ? 9 : 1) + setup); }
+            catch (OverflowException) { throw ApiValidationException.For("total_value", "Giá trị hợp đồng vượt giới hạn."); }
+            if (updatedTotal <= 0) throw ApiValidationException.For("total_value", "Tổng hợp đồng phải lớn hơn 0.");
+            if (await db.RevenueReceipts.AnyAsync(x => x.ContractId == id && x.Status == "COMPLETED", ct))
+                throw new ApiConflictException("Hợp đồng đã có khoản thu; cần Kế toán điều chỉnh trước khi sửa phí.");
+            var items = await db.SalesContractItems.Where(x => x.ContractId == id).ToListAsync(ct);
+            if (items.Count == 0) throw new ApiConflictException("Hợp đồng chưa có dòng chi phí.");
+            var packageId = items[0].ProductPackageId;
+            db.SalesContractItems.RemoveRange(items);
+            var qty = contract.ServicePlan == "MONTHLY_9" ? 9 : 1;
+            db.SalesContractItems.Add(new SalesContractItem {
+                ContractId = id, ProductPackageId = packageId, Description = qty == 9
+                    ? "Phí duy trì mỗi tháng (9 tháng)" : "Phí duy trì năm học (9 tháng)",
+                Quantity = qty, UnitPrice = maintenance, Amount = maintenance * qty,
+                CreatedAt = now, UpdatedAt = now
+            });
+            if (setup > 0) db.SalesContractItems.Add(new SalesContractItem {
+                ContractId = id, ProductPackageId = packageId, Description = "Phí khởi tạo (một lần)",
+                Quantity = 1, UnitPrice = setup, Amount = setup, CreatedAt = now, UpdatedAt = now
+            });
+            var schedules = await db.RevenueSchedules.Where(x => x.ContractId == id).OrderBy(x => x.Id).ToListAsync(ct);
+            if (schedules.Count != 1 || schedules[0].AmountReceived > 0)
+                throw new ApiConflictException("Lịch thanh toán đã thay đổi; cần Kế toán xử lý trước khi sửa phí.");
+            schedules[0].AmountDue = updatedTotal;
+            schedules[0].UpdatedAt = now;
+            contract.TotalValue = updatedTotal;
+        }
+        Audit.Add(db, http.UserId(), "EDIT_SCHOOL_CONTRACT_REVISION", nameof(SalesContract), id,
+            before, new {
+                contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+                contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
+            }, http);
         evidence.ContractId = id;
         evidence.AttachedAt = now;
         evidence.UpdatedAt = now;

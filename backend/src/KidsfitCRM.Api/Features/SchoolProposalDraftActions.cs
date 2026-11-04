@@ -56,7 +56,7 @@ public sealed partial class ChannelSalesActions
             throw new ApiConflictException("Bản nháp đã được cập nhật ở nơi khác. Vui lòng tải lại.");
         var mode = ValidateDraftMode(request.ProposalMode);
         var target = await DraftTarget(mode, request.TargetDirectorySchoolId, ct, required: false);
-        var units = BuildDraftUnits(request.Units, mode, false);
+        var units = BuildDraftUnits(request.Units, mode);
         var oldValues = JsonSerializer.Serialize(await db.SchoolProposalUnits.AsNoTracking().Where(x => x.SchoolProposalId == id).ToArrayAsync(ct));
         // Flush deletions first to avoid a temporary unique (proposal_id, sort_order) collision.
         await db.SchoolProposalUnits.Where(x => x.SchoolProposalId == id).ExecuteDeleteAsync(ct);

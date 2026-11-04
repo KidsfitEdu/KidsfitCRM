@@ -5,7 +5,7 @@ import { Eye, History, Pencil, Send, Trash2 } from 'lucide-react';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
-import { Badge } from '@/components/ui/badge';
+import { AdminStatusBadge } from '@/components/common/admin-list-ui';
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 
 type Proposal = SchoolOperationsWorkspace['proposals'][number];
@@ -27,7 +27,7 @@ type Props = {
   onSubmitDraft?: (proposal: Proposal) => void;
 };
 
-const template = 'minmax(230px,2fr) minmax(135px,1fr) minmax(140px,1fr) minmax(145px,1fr) minmax(110px,auto)';
+const template = 'minmax(260px,2fr) minmax(135px,.85fr) minmax(140px,.8fr) minmax(145px,.85fr) 232px';
 
 export function SalesProposalTable({
   proposals, page, total, pageSize, loading, preview, onPageChange, onPageSizeChange,
@@ -55,7 +55,7 @@ export function SalesProposalTable({
   </AppNativeSelect>;
   return <SalesListLayout columns={['Trường học','Người đề xuất','Trạng thái','Hạn xử lý','Thao tác']}
     template={template} page={preview ? 1 : page} pageSize={pageSize}
-    total={preview ? items.length : total} loading={loading} minWidth={850}
+    total={preview ? items.length : total} loading={loading} minWidth={1020}
     onPageChange={onPageChange} onPageSizeChange={onPageSizeChange}
     empty="Không có đề xuất trường phù hợp. Hãy thử bộ lọc khác."
     toolbar={<SalesListToolbar search={term} onSearchChange={setTerm}
@@ -64,15 +64,18 @@ export function SalesProposalTable({
       onSearch={() => {setApplied(term.trim());onSearch(term.trim());}}/>}>
     {items.map(item => <SalesListRow key={item.id} template={template}>
       <div className="min-w-0">
-        <p className="font-semibold">{item.name}</p>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {item.school_code.startsWith('SEED-SCH-') || item.school_code.startsWith('DRAFT-') ? '' : item.school_code+' · '}{item.province} · {item.ward}
+        <p className="truncate font-semibold text-foreground" title={item.name}>{item.name || 'Chưa đặt tên trường'}</p>
+        {!item.school_code.startsWith('SEED-SCH-') && !item.school_code.startsWith('DRAFT-') && (
+          <p className="mt-1 truncate text-xs text-muted-foreground" title={item.school_code}>{item.school_code}</p>
+        )}
+        <p className="mt-0.5 truncate text-xs text-muted-foreground" title={[item.province,item.ward].filter(Boolean).join(' · ')}>
+          {[item.province,item.ward].filter(Boolean).join(' · ') || 'Chưa có khu vực'}
         </p>
       </div>
-      <div>{item.submitted_by}</div>
-      <div><Badge variant="outline">{workflowLabels[item.status] ?? item.status}</Badge></div>
-      <div className="tabular-nums">{workflowDate(item.review_due_at)}</div>
-      <div className="flex justify-end gap-2">
+      <div className="min-w-0 truncate text-sm" title={item.submitted_by}>{item.submitted_by}</div>
+      <div className="flex justify-center"><AdminStatusBadge label={workflowLabels[item.status] ?? item.status} status={item.status}/></div>
+      <div className="text-center tabular-nums text-sm">{item.status === 'DRAFT' || item.status === 'NEEDS_REVISION' ? '—' : workflowDate(item.review_due_at)}</div>
+      <div className="flex min-w-0 items-center justify-end gap-1.5 whitespace-nowrap">
         <AdminIconAction icon={Eye} label={`Xem đề xuất ${item.name}`} onClick={() => onOpen(item)}/>
         {!preview && item.can_edit_draft && <>
           <AdminIconAction icon={Pencil} label={`Sửa bản nháp ${item.name}`} onClick={() => onEdit?.(item)}/>

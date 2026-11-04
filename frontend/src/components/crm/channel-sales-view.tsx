@@ -1101,6 +1101,8 @@ function ContractDialog({
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Read the form before the first await; currentTarget is cleared after the event dispatch.
+    const form = new FormData(event.currentTarget);
     try {
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
       // Recheck before uploading a file to avoid orphaned evidence on stale forms.
@@ -1114,7 +1116,6 @@ function ContractDialog({
         throw new Error('Quy mô học sinh phải là số nguyên dương.');
       if (!/^\d+$/.test(branchCount) || !Number.isSafeInteger(Number(branchCount)) || Number(branchCount) < selectedUnitIds.length)
         throw new Error('Số phân hiệu phải là số nguyên không âm và không nhỏ hơn số phân hiệu đã chọn.');
-      const form = new FormData(event.currentTarget);
       const file = form.get('contract_file');
       if (!(file instanceof File) || file.size === 0)
         throw new Error('Bắt buộc chọn file hợp đồng đã ký.');

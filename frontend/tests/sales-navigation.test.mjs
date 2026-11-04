@@ -335,3 +335,23 @@ test('Sales my schools shows extension icon for active approaches and explains d
   assert.match(source, /<ExtensionDialog key=\{extensionCustomer\.approach_registration_id \?\? extensionCustomer\.id\}/);
   assert.match(source, /\/approaches\/\$\{customer\.approach_registration_id\}\/extension-requests/);
 });
+
+
+test('Sales extension form asks only for expiry date and reason while keeping the existing API route', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function ExtensionDialog({');
+  const end = source.indexOf('function RegisterApproachDialog({', start);
+  assert.ok(start >= 0 && end > start);
+  const form = source.slice(start, end);
+  assert.match(form, /label="Xin gia hạn đến \*"/);
+  assert.match(form, /label="Lý do xin gia hạn \*"/);
+  assert.match(form, /name="requested_until" required/);
+  assert.match(form, /name="progress" required/);
+  assert.doesNotMatch(form, /name="next_appointment_at"|name="review_due_at"|name="evidence_reference"/);
+  assert.doesNotMatch(form, /Minh chứng \/ mã tài liệu|Tiến độ và lý do xin gia hạn/);
+  assert.match(form, /review_due_at: null/);
+  assert.match(form, /next_appointment_at: null/);
+  assert.match(form, /evidence_reference: null/);
+  assert.match(form, /progress: reason/);
+  assert.match(form, /extension-requests/);
+});

@@ -11,6 +11,12 @@ public static class SchoolEndpoints
     {
         group.MapSchoolOperations();
         group.MapManagerContractOperations();
+        group.MapPost("/schools", async (SaveSchoolRecordRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) =>
+            Results.Ok(new { data = new { id = await a.SaveSchoolRecord(null, request, h.UserId(), h, ct) } }))
+            .RequireAuthorization(Permissions.SchoolDirectoryManage);
+        group.MapPut("/schools/{id:long}", async (long id, SaveSchoolRecordRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) =>
+            Results.Ok(new { data = new { id = await a.SaveSchoolRecord(id, request, h.UserId(), h, ct) } }))
+            .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/schools/manual", async (CreateSchoolManualRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Results.Ok(new { data = new { id = await a.CreateManualSchool(request, h.UserId(), h, ct) } }))
             .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapPost("/schools/{id:long}/soft-delete", async (long id, ChangeSchoolDeletionRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) =>

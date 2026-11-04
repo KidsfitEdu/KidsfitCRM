@@ -9,7 +9,7 @@ const read = (path) => readFileSync(resolve(root, 'src', path), 'utf8');
 test('Admin workflows use shared branded dialog and drawer shells', () => {
   const cases = {
     'screens/Admin/Personnel/PersonnelPage.tsx': ['<AppDialog', '<AppDrawer'],
-    'screens/Admin/Schools/SchoolsPage.tsx': ['<AppDialog'],
+    'screens/Admin/Schools/SchoolsPage.tsx': ['<SchoolRecordEditor'],
     'screens/Admin/Capacities/CapacitiesPage.tsx': ['<AppDialog', '<ConfirmDialog'],
     'screens/Admin/Proposals/ProposalsPage.tsx': ['<AppDialog', '<AppDrawer'],
   };
@@ -18,6 +18,9 @@ test('Admin workflows use shared branded dialog and drawer shells', () => {
     for (const marker of markers) assert.ok(source.includes(marker), path + ': ' + marker);
     assert.doesNotMatch(source, /<Dialog(?:\s|>)/, path);
   }
+  const editor = read('components/crm/schools/school-record-editor.tsx');
+  assert.match(editor, /<AppDialog/);
+  assert.match(editor, /<SchoolBranchList/);
 });
 
 test('CRM school details and work history reuse the shared drawer shell', () => {

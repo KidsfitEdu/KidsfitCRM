@@ -40,6 +40,7 @@ type Props = {
   abilities: string[];
   onChanged: () => Promise<void>;
   adminMode?: boolean;
+  onEditSchool?: (schoolId:number)=>void;
   renderImportAction?: (openImport: () => void) => ReactNode;
   registrationIconOnly?: boolean;
   salesDirectoryMode?: boolean;
@@ -164,6 +165,7 @@ export function SchoolDirectory({
   abilities,
   onChanged,
   adminMode = false,
+  onEditSchool,
   renderImportAction,
   registrationIconOnly = false,
   salesDirectoryMode = false,
@@ -519,7 +521,7 @@ export function SchoolDirectory({
                           disabled={adminBusy}
                           aria-label={`Sửa ${s.display_name}`}
                           title="Sửa trường"
-                          onClick={() => void startEditSchool(s)}>
+                          onClick={() => onEditSchool ? onEditSchool(s.id) : void startEditSchool(s)}>
                           <Pencil className="size-4" aria-hidden="true" />
                         </AppButton>}
                         {canAdminManage && <AppButton tone="outline" size="icon-sm"

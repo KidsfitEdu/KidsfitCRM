@@ -151,13 +151,28 @@ export const channelQueryKeys = {
 
 export class ChannelRequestError extends Error {
   readonly status: number;
+  readonly errors: Record<string, string[]>;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, errors: Record<string, string[]> = {}) {
     super(message);
     this.name = 'ChannelRequestError';
     this.status = status;
+    this.errors = errors;
   }
 }
+
+const requestErrorMessage = (status: number, message?: string): string => {
+  // Empty/non-JSON error bodies (e.g. a proxy 404/405 or upstream 500)
+  // should not be disguised as field validation errors.
+  if (message?.trim() && message.trim() !== 'Không thể hoàn tất yêu cầu.') return message;
+  if (status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  if (status === 403) return 'Tài khoản không có quyền thực hiện thao tác này.';
+  if (status === 404 || status === 405)
+    return 'Không tìm thấy tài nguyên hoặc API không hỗ trợ thao tác được yêu cầu.';
+  if (status === 409) return 'Dữ liệu vừa thay đổi hoặc bị trùng. Vui lòng kiểm tra và thử lại.';
+  if (status >= 500) return 'Máy chủ gặp sự cố khi xử lý yêu cầu. Vui lòng thử lại hoặc kiểm tra log Backend.';
+  return 'Không thể hoàn tất yêu cầu. Vui lòng thử lại.';
+};
 
 export async function channelRequest<T>(
   base: string,
@@ -169,21 +184,29 @@ export async function channelRequest<T>(
   if (!(options.body instanceof FormData))
     headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(`${base}/channel-sales${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${base}/channel-sales${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new ChannelRequestError('Không thể kết nối đến Backend. Vui lòng kiểm tra máy chủ hoặc kết nối mạng.', 0);
+  }
   const payload = (await response.json().catch(() => ({}))) as {
     message?: string;
     errors?: Record<string, string[]>;
   };
   if (!response.ok) {
-    const firstError = payload.errors
-      ? Object.values(payload.errors).flat()[0]
-      : null;
+    const errors = payload.errors && typeof payload.errors === 'object'
+      ? payload.errors : {};
+    const firstError = Object.values(errors)
+      .flat()
+      .find(value => typeof value === 'string' && value.trim());
     throw new ChannelRequestError(
-      String(firstError ?? payload.message ?? 'Không thể hoàn tất yêu cầu.'),
+      requestErrorMessage(response.status, firstError ?? payload.message),
       response.status,
+      errors,
     );
   }
   return payload as T;

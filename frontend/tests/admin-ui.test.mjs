@@ -41,13 +41,22 @@ test('Admin proposals hide synthetic school codes but retain real codes and raw 
 test('All Admin views report server errors through shared toast; form errors stay inline', () => {
   for (const path of adminPages) {
     const source = read(path);
-    assert.match(source, /appNotice\.error/, path);
+    if (path.endsWith('Schools/SchoolsPage.tsx')) {
+      assert.match(source, /<SchoolRecordEditor/);
+      assert.match(read('src/components/crm/schools/school-record-editor.tsx'), /appNotice\.error/);
+    } else assert.match(source, /appNotice\.error/, path);
   }
   const proposals = read('src/screens/Admin/Proposals/ProposalsPage.tsx');
   const schools = read('src/screens/Admin/Schools/SchoolsPage.tsx');
   const capacity = read('src/screens/Admin/Capacities/CapacitiesPage.tsx');
   assert.match(proposals, /<FormError>\{reasonError\}<\/FormError>/);
-  assert.match(schools, /<FormError>\{formErrors\[k\]\}<\/FormError>/);
+  assert.match(schools, /<SchoolRecordEditor/);
+  const editor = read('src/components/crm/schools/school-record-editor.tsx');
+  assert.match(editor, /setErrors\(next\)/);
+  assert.doesNotMatch(editor, /setError\(message\)/);
+  assert.doesNotMatch(editor, /\{error&&<p/);
+  assert.match(editor, /cause instanceof ChannelRequestError && cause.status === 422/);
+  assert.match(editor, /appNotice\.error\('Không thể lưu hồ sơ trường học\.'/);
   assert.match(capacity, /<FormError id="capacity-limit-error">/);
 });
 

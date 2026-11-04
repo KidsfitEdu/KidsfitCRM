@@ -421,7 +421,6 @@ public static class ManagerContractEndpoints
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Cần tải lại file hợp đồng bổ sung.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
@@ -434,10 +433,17 @@ public static class ManagerContractEndpoints
             || (contract.OwnerUserId != http.UserId() && contract.ReportedByUserId != http.UserId() && !managerRecovery))
             throw new KeyNotFoundException();
         if (contract.Status != "NEEDS_REVISION") throw new ApiConflictException("Hợp đồng không ở bước cần bổ sung.");
-        var evidence = await db.FinancialEvidences.FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
-            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (evidence.Kind != "CONTRACT" || evidence.ContractId.HasValue || evidence.AttachedAt.HasValue
-            || evidence.UploadedByUserId != http.UserId()) throw new KeyNotFoundException();
+        FinancialEvidence? evidence = null;
+        if (request.EvidenceId.HasValue)
+        {
+            evidence = await db.FinancialEvidences.FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
+                .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+            if (evidence.Kind != "CONTRACT" || evidence.ContractId.HasValue || evidence.AttachedAt.HasValue
+                || evidence.UploadedByUserId != http.UserId()) throw new KeyNotFoundException();
+        }
+        else if (!await db.FinancialEvidences.AnyAsync(x => x.ContractId == id && x.Kind == "CONTRACT"
+            && x.AttachedAt.HasValue, ct))
+            throw ApiValidationException.For("evidence_id", "Hợp đồng chưa có file hợp lệ. Vui lòng tải lên file hợp đồng.");
         var now = DateTime.UtcNow;
         var oldFeeLines = await db.SalesContractItems.AsNoTracking()
             .Where(x => x.ContractId == id)
@@ -541,9 +547,12 @@ public static class ManagerContractEndpoints
                 contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
                 contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
             }, http);
-        evidence.ContractId = id;
-        evidence.AttachedAt = now;
-        evidence.UpdatedAt = now;
+        if (evidence is not null)
+        {
+            evidence.ContractId = id;
+            evidence.AttachedAt = now;
+            evidence.UpdatedAt = now;
+        }
         contract.Status = "PENDING_REVIEW";
         contract.RevisionReason = null;
         contract.RevisionRequestedAt = null;
@@ -559,7 +568,7 @@ public static class ManagerContractEndpoints
                 ActorUserId = http.UserId(), EventType = managerRecovery ? "MANAGER_RESUBMITTED" : "SALES_RESUBMITTED", CreatedAt = now, UpdatedAt = now });
         }
         Audit.Add(db, http.UserId(), "RESUBMIT_SCHOOL_CONTRACT", nameof(SalesContract), id,
-            new { status = "NEEDS_REVISION" }, new { contract.Status, evidence_id = evidence.Id }, http);
+            new { status = "NEEDS_REVISION" }, new { contract.Status, evidence_id = evidence?.Id, reused_existing_evidence = evidence is null }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { message = "Đã bổ sung hợp đồng, chuyển lại Quản lý kiểm tra." });

@@ -134,6 +134,58 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Sales_contract_yearly_and_monthly_fees_create_correct_item_breakdown()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var signedOn = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        foreach (var monthly in new[] { false, true })
+        {
+            var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+            var maintenance = monthly ? 1_716_000m : 11_880_000m;
+            var setup = monthly ? 4_395_600m : 3_996_000m;
+            var total = maintenance * (monthly ? 9 : 1) + setup;
+            var request = new ReportSalesContractRequest(Key(), null, signedOn, null,
+                packageId, total, null, "CONTRACT-TEST",
+                ServicePlan: monthly ? "MONTHLY_9" : "SCHOOL_YEAR",
+                StudentCount: 450, MaintenanceFee: maintenance, SetupFee: setup,
+                ContractNote: "Giá đã đối chiếu với hợp đồng");
+            var contractId = await actions.ReportSignedContract(registration, request, seller, Http(), Ct);
+            var contract = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+            Assert.Equal(total, contract.TotalValue);
+            Assert.Equal("Giá đã đối chiếu với hợp đồng", contract.ContractNote);
+            var items = await db.SalesContractItems.AsNoTracking()
+                .Where(x => x.ContractId == contractId).ToArrayAsync(Ct);
+            Assert.Equal(2, items.Length);
+            Assert.Equal(total, items.Sum(x => x.Amount));
+            Assert.Equal(maintenance * (monthly ? 9 : 1),
+                items.Single(x => x.Description.StartsWith("Phí duy trì")).Amount);
+            Assert.Equal(setup, items.Single(x => x.Description.StartsWith("Phí khởi tạo")).Amount);
+            Assert.Equal(contractId, await actions.ReportSignedContract(registration, request, seller, Http(), Ct));
+        }
+    }
+
+    [MySqlFact]
+    public async Task Sales_contract_fee_mismatch_is_rejected_before_creating_contract()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var request = new ReportSalesContractRequest(Key(), null,
+            ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+            packageId, 15_876_001m, null, "CONTRACT-TEST",
+            ServicePlan: "SCHOOL_YEAR", StudentCount: 450,
+            MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.ReportSignedContract(registration, request, seller, Http(), Ct));
+        Assert.False(await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration, Ct));
+    }
+
+    [MySqlFact]
     public async Task Sales_contract_code_is_generated_when_omitted_and_legacy_codes_are_preserved()
     {
         var seller = await Seller();

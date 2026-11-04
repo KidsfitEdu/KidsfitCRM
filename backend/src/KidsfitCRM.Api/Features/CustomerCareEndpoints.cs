@@ -192,7 +192,7 @@ public static class CustomerCareEndpoints
                 && db.UserRoles.Any(ur => ur.UserId == u.Id
                     && db.PermissionRoles.Any(pr => pr.RoleId == ur.RoleId && db.Permissions.Any(pe =>
                         pe.Id == pr.PermissionId && pe.Code == Permissions.SchoolSupportManage)))
-            orderby u.Name select new { id = u.Id, name = u.Name, organization_id = o.Id,
+            orderby u.Name select new { id = u.Id, name = u.Name, email = u.Email, organization_id = o.Id,
                 schools = db.SalesContracts.Where(c => c.CareUserId == u.Id && c.Status == "ACTIVE")
                     .Select(c => c.CustomerId).Distinct().Count(),
                 open_tickets = db.CustomerSupportCases.Count(t => t.AssignedUserId == u.Id && t.Status != "RESOLVED")

@@ -447,8 +447,9 @@ internal static class TenSchoolScenarioSeeder
             });
         foreach (var (code, care) in new[] { ("SCH0001", care1), ("SCH0002", care2) })
         {
+            var selectedContractCode = "CHK-2026-" + code[3..];
             var contract = await db.SalesContracts.SingleAsync(x =>
-                x.ContractCode == "CHK-2026-" + code[3..]);
+                x.ContractCode == selectedContractCode);
             if (await db.ContractCareHandovers.AnyAsync(x => x.ContractId == contract.Id))
                 continue;
             db.ContractCareHandovers.Add(new ContractCareHandover

@@ -151,6 +151,26 @@ public sealed partial class ChannelSalesActions
         return id;
     }, ct);
 
+    public Task<long> ReturnSchoolProposalForRevision(long id, RequestSchoolProposalRevisionRequest request,
+        long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
+    {
+        var access = await RequirePermission(actorId, Permissions.SchoolProposalReview, ct);
+        var reason = Validation.Required(request.Reason, "reason", "Cần ghi nội dung Sales phải bổ sung.", 4000);
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var proposal = await db.SchoolProposals.FromSqlInterpolated(
+            $"SELECT * FROM school_proposals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException();
+        if (proposal.IsDeleted || proposal.ProposalMode == "LEGACY" || proposal.Status != "PENDING_MANAGER"
+            || proposal.ManagerUserId != actorId || !access.CanManageOrganization(proposal.OrganizationId))
+            throw new KeyNotFoundException();
+        proposal.Status = "NEEDS_REVISION"; proposal.DecisionReason = reason;
+        proposal.Version++; proposal.UpdatedAt = DateTime.UtcNow;
+        Audit.Add(db, actorId, "REQUEST_SCHOOL_PROPOSAL_REVISION", nameof(SchoolProposal), id,
+            new { status = "PENDING_MANAGER" }, new { proposal.Status, proposal.Version, reason }, http);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        return id;
+    }, ct);
+
     private async Task<SchoolProposal> OwnedDraft(long id, long actorId, CancellationToken ct)
     {
         var proposal = await db.SchoolProposals.FromSqlInterpolated(

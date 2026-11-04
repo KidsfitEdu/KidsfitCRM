@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, History } from 'lucide-react';
+import { Eye, History, Pencil, Send, Trash2 } from 'lucide-react';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
@@ -22,13 +22,16 @@ type Props = {
   onHistory: (proposal: Proposal) => void;
   onSearch: (term: string) => void;
   onStatusChange?: (status: string) => void;
+  onEdit?: (proposal: Proposal) => void;
+  onDelete?: (proposal: Proposal) => void;
+  onSubmitDraft?: (proposal: Proposal) => void;
 };
 
 const template = 'minmax(230px,2fr) minmax(135px,1fr) minmax(140px,1fr) minmax(145px,1fr) minmax(110px,auto)';
 
 export function SalesProposalTable({
   proposals, page, total, pageSize, loading, preview, onPageChange, onPageSizeChange,
-  onOpen, onHistory, onSearch, onStatusChange,
+  onOpen, onHistory, onSearch, onStatusChange, onEdit, onDelete, onSubmitDraft,
 }: Props) {
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('ALL');
@@ -43,6 +46,7 @@ export function SalesProposalTable({
     value={status} containerClassName="w-full sm:w-48"
     onChange={event => {setStatus(event.target.value);onStatusChange?.(event.target.value);}}>
     <option value="ALL">Tất cả trạng thái</option>
+    <option value="DRAFT">Nháp</option>
     <option value="PENDING_MANAGER">Chờ Quản lý</option>
     <option value="PENDING_ADMIN">Chờ Admin</option>
     <option value="APPROVED">Đã duyệt</option>
@@ -61,7 +65,7 @@ export function SalesProposalTable({
       <div className="min-w-0">
         <p className="font-semibold">{item.name}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">
-          {item.school_code.startsWith('SEED-SCH-') ? '' : item.school_code+' · '}{item.province} · {item.ward}
+          {item.school_code.startsWith('SEED-SCH-') || item.school_code.startsWith('DRAFT-') ? '' : item.school_code+' · '}{item.province} · {item.ward}
         </p>
       </div>
       <div>{item.submitted_by}</div>
@@ -69,6 +73,11 @@ export function SalesProposalTable({
       <div className="tabular-nums">{workflowDate(item.review_due_at)}</div>
       <div className="flex justify-end gap-2">
         <AdminIconAction icon={Eye} label={`Xem đề xuất ${item.name}`} onClick={() => onOpen(item)}/>
+        {!preview && item.can_edit_draft && <>
+          <AdminIconAction icon={Pencil} label={`Sửa bản nháp ${item.name}`} onClick={() => onEdit?.(item)}/>
+          <AdminIconAction icon={Trash2} tone="danger" label={`Xóa bản nháp ${item.name}`} onClick={() => onDelete?.(item)}/>
+          <AdminIconAction icon={Send} label={`Gửi phê duyệt ${item.name}`} onClick={() => onSubmitDraft?.(item)}/>
+        </>}
         {!preview && <AdminIconAction icon={History} tone="neutral" label={`Lịch sử ${item.name}`} onClick={() => onHistory(item)}/>}
       </div>
     </SalesListRow>)}

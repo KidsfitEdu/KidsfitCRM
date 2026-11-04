@@ -582,7 +582,7 @@ internal static class CrmReviewSeeder
         {
             former = new User {
                 Code = fixture.Departure.FormerUserCode, Name = "Nhân viên kinh doanh đã nghỉ",
-                Email = "former-sales@kidsfit.example.test", Status = "INACTIVE",
+                Email = "former-sales@kidsfit.example.test", Status = "SUSPENDED",
                 CreatedAt = now.AddDays(-40), UpdatedAt = now };
             former.Password = hasher.HashPassword(former, sharedPassword);
             db.Users.Add(former);
@@ -594,18 +594,42 @@ internal static class CrmReviewSeeder
         {
             membership = new OrganizationMembership {
                 OrganizationId = kidsfit.Id, UserId = former.Id, ManagerUserId = manager.Id,
-                MembershipType = "SALES", IsPrimary = true, Status = "INACTIVE",
+                MembershipType = "SALES", IsPrimary = true, Status = "SUSPENDED",
                 CreatedAt = now.AddDays(-40), UpdatedAt = now };
             db.OrganizationMemberships.Add(membership);
             await db.SaveChangesAsync();
         }
+        // Preserve a terminated approach in history, leaving SCH0010 available for a new Sales.
+        var oldKey = "review-revoked-approach-SCH0010";
+        var oldApproach = await db.ApproachRegistrations.SingleOrDefaultAsync(x => x.IdempotencyKey == oldKey);
+        if (oldApproach is null)
+        {
+            oldApproach = new ApproachRegistration {
+                CustomerId = schoolKeys[fixture.Departure.SchoolCode].CustomerId,
+                OwnerUserId = former.Id, OwnerOrganizationId = kidsfit.Id, CreatedByUserId = former.Id,
+                Status = "REVOKED", RegisteredAt = now.AddDays(-12),
+                ProtectedUntil = now.AddDays(-7), ExpiredAt = now.AddDays(-7),
+                Source = "REVIEW_FIXTURE",
+                Note = "Trường đã được trả về danh sách sau khi nhân sự nghỉ.",
+                IdempotencyKey = oldKey, CreatedAt = now.AddDays(-12), UpdatedAt = now.AddDays(-7) };
+            db.ApproachRegistrations.Add(oldApproach);
+            await db.SaveChangesAsync();
+        }
+        if (!await db.CustomerProtections.AnyAsync(x => x.ApproachRegistrationId == oldApproach.Id))
+            db.CustomerProtections.Add(new CustomerProtection {
+                CustomerId = oldApproach.CustomerId, ApproachRegistrationId = oldApproach.Id,
+                OwnerUserId = former.Id, OwnerOrganizationId = kidsfit.Id,
+                SourceType = "APPROACH", Status = "REVOKED",
+                EffectiveFrom = oldApproach.RegisteredAt,
+                EffectiveUntil = oldApproach.ExpiredAt!.Value,
+                CreatedAt = now.AddDays(-12), UpdatedAt = now.AddDays(-7) });
         if (!await db.SchoolHandovers.AnyAsync(x => x.IdempotencyKey == "review-departure-SCH0010"))
             db.SchoolHandovers.Add(new SchoolHandover {
                 MembershipId = membership.Id, OrganizationId = kidsfit.Id,
                 UserId = former.Id, CompletedByUserId = admin.Id,
                 Reason = fixture.Departure.Reason,
                 Summary = "Đã ghi nhận nghỉ việc và giải phóng trường chưa ký SCH0010 để phân bổ lại.",
-                RevokedRegistrations = 0, AccountSuspended = true,
+                RevokedRegistrations = 1, AccountSuspended = true,
                 IdempotencyKey = "review-departure-SCH0010",
                 RequestFingerprint = Fingerprint("review-departure-SCH0010"),
                 CreatedAt = now.AddDays(-7), UpdatedAt = now });

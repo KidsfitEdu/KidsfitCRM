@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CircleDollarSign,
   FileCheck2,
+  FilePenLine,
   Handshake,
   Landmark,
   Phone,
@@ -24,6 +25,7 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
+import { SalesContractRevisions } from '@/components/roles/SalesContractRevisions';
 import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
@@ -202,6 +204,7 @@ export function ChannelSalesView({
   const [contractCustomer, setContractCustomer] =
     useState<ChannelCustomer | null>(null);
   const [checkingContract, setCheckingContract] = useState(false);
+  const [revisionContractId, setRevisionContractId] = useState<number | null>(null);
 
   const openContractReport = async (customer: ChannelCustomer) => {
     if (checkingContract) return;
@@ -464,7 +467,7 @@ export function ChannelSalesView({
                 onRegister={() => setRegisterCustomer(customer)}
                 onActivity={() => setActivityCustomer(customer)}
                 onContract={() => { void openContractReport(customer); }}
-                onRevision={() => { document.getElementById('sales-contract-revisions')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                onRevision={() => { if (customer.contract_id !== null) setRevisionContractId(customer.contract_id); }}
                 onReceipt={() => setReceiptCustomer(customer)}
               />
             ))}
@@ -549,6 +552,14 @@ export function ChannelSalesView({
             }
           }}
         />
+      )}
+      {revisionContractId !== null && apiBase && token && (
+        <SalesContractRevisions key={revisionContractId} contractId={revisionContractId}
+          apiBase={apiBase} token={token} onClose={() => setRevisionContractId(null)}
+          onChanged={async () => {
+            setExtensionRefresh(value => value + 1);
+            await onExtensionSubmitted?.();
+          }} />
       )}
       {receiptCustomer && (
         <ReceiptDialog
@@ -700,12 +711,13 @@ function CustomerRow({
         {mineMode && <>
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onOpenDetail}
             disabled={!onOpenDetail} title="Xem chi tiết trường" aria-label={`Xem chi tiết ${customer.display_name}`}><Eye className="size-4"/></Button>
-          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onActivity}
-            disabled={!canAddActivity || !customer.can_manage_approach || customer.visible_status !== 'APPROACHING'}
-            title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
+          {canAddActivity && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && (
+            <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onActivity}
+              title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
+          )}
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
-          {activeApproach && (
+          {activeApproach && !customer.contract_id && canRequestExtension && !extensionBlocked && (
             <span title={extensionHint} className="inline-flex">
               <Button type="button" size="icon" variant="outline"
                 className={`size-9 rounded-lg ${extensionBlocked ? 'border-slate-300 text-slate-500' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700'}`}
@@ -716,8 +728,17 @@ function CustomerRow({
             </span>
           )}
           {canReportContract && customer.contract_id !== null && customer.contract_status === 'NEEDS_REVISION' && (
-            <Button type="button" size="sm" variant="outline" className="border-amber-500 text-amber-800"
-              onClick={onRevision} title="Bổ sung hồ sơ theo yêu cầu Quản lý">Bổ sung hồ sơ</Button>
+
+            <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-amber-500 text-amber-800"
+
+              onClick={onRevision} title="Chỉnh sửa hợp đồng theo yêu cầu Quản lý"
+
+              aria-label={`Chỉnh sửa hợp đồng ${customer.display_name}`}>
+
+              <FilePenLine className="size-4" aria-hidden="true"/>
+
+            </Button>
+
           )}
           {canReportContract && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (
             <Button type="button" size="icon" variant="outline"
@@ -742,8 +763,17 @@ function CustomerRow({
               </Button>
             )}
             {canReportContract && customer.contract_id !== null && customer.contract_status === 'NEEDS_REVISION' && (
-              <Button type="button" size="sm" variant="outline" className="border-amber-500 text-amber-800"
-                onClick={onRevision} title="Bổ sung hồ sơ theo yêu cầu Quản lý">Bổ sung hồ sơ</Button>
+
+              <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-amber-500 text-amber-800"
+
+                onClick={onRevision} title="Chỉnh sửa hợp đồng theo yêu cầu Quản lý"
+
+                aria-label={`Chỉnh sửa hợp đồng ${customer.display_name}`}>
+
+                <FilePenLine className="size-4" aria-hidden="true"/>
+
+              </Button>
+
             )}
             {canReportContract && customer.can_manage_approach && !customer.contract_id && (
               <Button onClick={onContract} size="icon" className="size-9 rounded-lg bg-[#1b5e20] hover:bg-[#124c17]"

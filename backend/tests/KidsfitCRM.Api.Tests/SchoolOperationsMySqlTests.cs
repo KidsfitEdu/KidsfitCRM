@@ -746,12 +746,13 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var unit = await db.SchoolUnits.AsNoTracking().SingleAsync(x => x.DirectorySchoolId == s.SchoolId && x.UnitType == "MAIN");
         var request = new UpdateSchoolUnitRequest(0, unit.Name, unit.Province, "Phường đã xác minh", unit.Address,
-            "Đầu mối kiểm thử riêng tư", "Hiệu trưởng", "0900000000", "contact@example.test", null, "Đã rà soát nguồn", "Sửa theo xác nhận");
+            "Đầu mối kiểm thử riêng tư", "Hiệu trưởng", "0900000000", "contact@example.test", null, "Đã rà soát nguồn", null);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.UpdateSchoolUnit(unit.Id, request, s.Manager.UserId, Http(), Ct));
         await a.UpdateSchoolUnit(unit.Id, request, admin, Http(), Ct);
         await Assert.ThrowsAsync<ApiConflictException>(() => a.UpdateSchoolUnit(unit.Id, request with { Ward = "Ghi đè cũ" }, admin, Http(), Ct));
         var revision = await db.SchoolUnitRevisions.SingleAsync(x => x.SchoolUnitId == unit.Id);
         Assert.Contains("ContactName", revision.AfterValues);
+        Assert.Equal("Admin cập nhật thông tin trường học.", revision.Reason);
         var audit = await db.AuditLogs.SingleAsync(x => x.EntityType == nameof(SchoolUnit) && x.EntityId == unit.Id);
         Assert.DoesNotContain("0900000000", audit.NewValues);
         Assert.DoesNotContain("ContactName", audit.NewValues);

@@ -409,7 +409,7 @@ export function SchoolDirectory({
       )}
       <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
 
-        <form className={`grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6 ${salesDirectory ? 'lg:grid-cols-[minmax(0,1fr)_170px_170px_auto_44px]' : 'sm:grid-cols-[minmax(0,1fr)_200px_auto_44px]'}`
+        <form className={`grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6 ${salesDirectory ? 'lg:grid-cols-[minmax(0,1fr)_170px_170px_auto_44px]' : 'sm:grid-cols-[minmax(0,1fr)_200px_auto_44px]'}`}
           onSubmit={event => { event.preventDefault(); setSearch(term); setPage(1); }}>
           <div className="relative min-w-0">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>

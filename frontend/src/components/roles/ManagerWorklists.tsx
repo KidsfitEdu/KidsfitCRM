@@ -55,7 +55,7 @@ type Selection =
   | { kind: 'proposal'; item: Proposal }
   | { kind: 'invitation'; item: Invitation }
   | { kind: 'extension'; item: Extension }
-  | { kind: 'progress'; item: ChannelCustomer };
+  | { kind: 'progress'; item: ChannelCustomer | ProgressSchool };
 type Capacity = { id: number; name: string; organization_name: string; school_approach_limit: number; active: number };
 type School = { id: number; display_name: string; school_code: string; visible_status: string; can_register: boolean };
 type SchoolList = { data: School[]; total: number };

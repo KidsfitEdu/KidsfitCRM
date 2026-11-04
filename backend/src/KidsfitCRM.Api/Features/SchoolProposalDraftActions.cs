@@ -22,15 +22,15 @@ public sealed partial class ChannelSalesActions
             return ChannelSalesValidation.Replay(existing.Id, existing.SubmittedByUserId, actorId, existing.RequestFingerprint, hash);
         var membership = await ActiveSchoolMembership(actorId, orgId, ct);
         var mode = ValidateDraftMode(request.ProposalMode);
-        var target = await DraftTarget(mode, request.TargetDirectorySchoolId, ct);
+        var target = await DraftTarget(mode, request.TargetDirectorySchoolId, ct, required: false);
         var units = BuildDraftUnits(request.Units, mode);
         var main = units.FirstOrDefault(x => x.UnitType == "MAIN");
         var now = DateTime.UtcNow;
         var draft = new SchoolProposal {
             OrganizationId = orgId, SubmittedByUserId = actorId,
             ManagerUserId = membership.ManagerUserId ?? actorId,
-            SchoolCode = mode == "ADD_BRANCHES" ? target!.SchoolCode : "DRAFT-" + Guid.NewGuid().ToString("N").ToUpperInvariant(),
-            Name = main?.Name ?? (mode == "ADD_BRANCHES" ? await SchoolMainName(target!.Id, ct) : ""),
+            SchoolCode = mode == "ADD_BRANCHES" && target is not null ? target.SchoolCode : "DRAFT-" + Guid.NewGuid().ToString("N").ToUpperInvariant(),
+            Name = main?.Name ?? (mode == "ADD_BRANCHES" && target is not null ? await SchoolMainName(target.Id, ct) : ""),
             Province = main?.Province ?? "", Ward = main?.Ward ?? "",
             ProposalMode = mode, TargetDirectorySchoolId = target?.Id,
             Reason = "Sales lưu nháp đề xuất trường học.",
@@ -55,7 +55,7 @@ public sealed partial class ChannelSalesActions
         if (draft.Version != request.ExpectedVersion)
             throw new ApiConflictException("Bản nháp đã được cập nhật ở nơi khác. Vui lòng tải lại.");
         var mode = ValidateDraftMode(request.ProposalMode);
-        var target = await DraftTarget(mode, request.TargetDirectorySchoolId, ct);
+        var target = await DraftTarget(mode, request.TargetDirectorySchoolId, ct, required: false);
         var units = BuildDraftUnits(request.Units, mode, false);
         var oldValues = JsonSerializer.Serialize(await db.SchoolProposalUnits.AsNoTracking().Where(x => x.SchoolProposalId == id).ToArrayAsync(ct));
         // Flush deletions first to avoid a temporary unique (proposal_id, sort_order) collision.
@@ -63,8 +63,8 @@ public sealed partial class ChannelSalesActions
         foreach (var unit in units) { unit.SchoolProposalId = id; db.SchoolProposalUnits.Add(unit); }
         var main = units.FirstOrDefault(x => x.UnitType == "MAIN");
         draft.ProposalMode = mode; draft.TargetDirectorySchoolId = target?.Id;
-        draft.SchoolCode = mode == "ADD_BRANCHES" ? target!.SchoolCode : draft.SchoolCode.StartsWith("DRAFT-") ? draft.SchoolCode : "DRAFT-" + Guid.NewGuid().ToString("N").ToUpperInvariant();
-        draft.Name = main?.Name ?? (mode == "ADD_BRANCHES" ? await SchoolMainName(target!.Id, ct) : "");
+        draft.SchoolCode = mode == "ADD_BRANCHES" && target is not null ? target.SchoolCode : draft.SchoolCode.StartsWith("DRAFT-") ? draft.SchoolCode : "DRAFT-" + Guid.NewGuid().ToString("N").ToUpperInvariant();
+        draft.Name = main?.Name ?? (mode == "ADD_BRANCHES" && target is not null ? await SchoolMainName(target.Id, ct) : "");
         draft.Province = main?.Province ?? ""; draft.Ward = main?.Ward ?? "";
         draft.Version++; draft.UpdatedAt = DateTime.UtcNow;
         db.SchoolProposalRevisions.Add(new SchoolProposalRevision {
@@ -105,6 +105,7 @@ public sealed partial class ChannelSalesActions
         var draft = await OwnedDraft(id, actorId, ct);
         if (draft.Version != request.ExpectedVersion)
             throw new ApiConflictException("Bản nháp đã thay đổi. Vui lòng tải lại trước khi gửi.");
+        var previousStatus = draft.Status;
         var membership = await ActiveSchoolMembership(actorId, orgId, ct);
         var managerId = membership.ManagerUserId ?? throw ApiValidationException.For("manager", "Cần chỉ định Quản lý trực tiếp.");
         var manager = await ChannelSalesAccess.Load(db, managerId, ct);
@@ -145,7 +146,7 @@ public sealed partial class ChannelSalesActions
         draft.Status = "PENDING_MANAGER"; draft.ReviewDueAt = DateTime.UtcNow.AddHours(policy?.ManagerReviewHours ?? 72);
         draft.Version++; draft.UpdatedAt = DateTime.UtcNow;
         Audit.Add(db, actorId, "SUBMIT_SCHOOL_PROPOSAL", nameof(SchoolProposal), id,
-            new { status = "DRAFT" }, new { draft.Status, draft.ManagerUserId, draft.ReviewDueAt, units = units.Length }, http);
+            new { status = previousStatus }, new { draft.Status, draft.ManagerUserId, draft.ReviewDueAt, units = units.Length }, http);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);
@@ -155,19 +156,23 @@ public sealed partial class ChannelSalesActions
         var proposal = await db.SchoolProposals.FromSqlInterpolated(
             $"SELECT * FROM school_proposals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException();
-        if (proposal.SubmittedByUserId != actorId || proposal.IsDeleted || proposal.Status != "DRAFT"
+        if (proposal.SubmittedByUserId != actorId || proposal.IsDeleted || proposal.Status is not ("DRAFT" or "NEEDS_REVISION")
             || proposal.ProposalMode == "LEGACY") throw new KeyNotFoundException();
         return proposal;
     }
 
-    private async Task<DirectorySchool?> DraftTarget(string mode, long? targetId, CancellationToken ct)
+    private async Task<DirectorySchool?> DraftTarget(string mode, long? targetId, CancellationToken ct, bool required = true)
     {
         if (mode == "NEW_MAIN")
         {
             if (targetId.HasValue) throw ApiValidationException.For("target_directory_school_id", "Trường mới không liên kết trường chính cũ.");
             return null;
         }
-        if (!targetId.HasValue) throw ApiValidationException.For("target_directory_school_id", "Cần chọn trường chính đã có.");
+        if (!targetId.HasValue)
+        {
+            if (!required) return null;
+            throw ApiValidationException.For("target_directory_school_id", "Cần chọn trường chính đã có.");
+        }
         var target = await db.DirectorySchools.AsNoTracking().SingleOrDefaultAsync(x => x.Id == targetId && !x.IsDeleted, ct)
             ?? throw ApiValidationException.For("target_directory_school_id", "Trường chính không tồn tại hoặc đã ngừng sử dụng.");
         return target;

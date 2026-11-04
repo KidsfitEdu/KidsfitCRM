@@ -86,7 +86,9 @@ public static class SchoolEndpoints
                     join customer in db.ChannelCustomers on school.CustomerId equals customer.Id
                     where access.OrganizationIds.Length > 0 && (broad || scopedCustomers.Contains(customer.Id))
                         && (showDeleted ? school.IsDeleted : !school.IsDeleted)
-                    select new { school.Id, school.SchoolCode, school.CustomerId, school.IsDeleted, customer.DisplayName, customer.Province };
+                    select new { school.Id, school.SchoolCode, school.CustomerId, school.IsDeleted, customer.DisplayName,
+                        Province = db.SchoolUnits.Where(u => u.DirectorySchoolId == school.Id && u.UnitType == "MAIN")
+                            .Select(u => u.Province).FirstOrDefault() };
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -169,7 +171,7 @@ public static class SchoolEndpoints
                     && a.Status == "ACTIVE" && a.ProtectedUntil > now)
                 && !db.SalesContracts.Any(c => c.CustomerId == customer.Id
                     && c.Status != "CANCELLED" && c.Status != "REJECTED")
-            select new { customer.Province, unit.Ward })
+            select new { unit.Province, unit.Ward })
             .Distinct().OrderBy(x => x.Province).ThenBy(x => x.Ward).ToArrayAsync(ct);
         return Results.Ok(new { data = areas });
     }

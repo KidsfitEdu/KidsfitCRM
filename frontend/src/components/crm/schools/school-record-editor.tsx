@@ -114,8 +114,10 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
           return;
         }
       }
-      appNotice.error('Không thể lưu hồ sơ trường học.',
-        cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
+      const message = cause instanceof ChannelRequestError && (cause.status === 404 || cause.status === 405)
+        ? 'API lưu trường chưa khả dụng. Hãy cập nhật Backend chứa POST /schools và PUT /schools/{id}, sau đó khởi động lại.'
+        : cause instanceof Error ? cause.message : 'Vui lòng thử lại.';
+      appNotice.error('Không thể lưu hồ sơ trường học.', message);
     }finally{setBusy(false);}
   };
   const mainIndex=units.findIndex(x=>x.unit_type==='MAIN');

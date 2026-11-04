@@ -1,8 +1,8 @@
 'use client';
 
-import {useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {useQuery,useQueryClient} from '@tanstack/react-query';
-import {Plus,Eye} from 'lucide-react';
+import {Plus,Eye,Search,ChevronDown,Check} from 'lucide-react';
 import {AppPageHeader} from '@/components/common/app-page-header';
 import {AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass,adminTableCellClass} from '@/components/common/admin-list-ui';
 import {AppPagination} from '@/components/common/app-pagination';
@@ -16,13 +16,27 @@ type Ticket={id:number;contract_id:number;customer_id:number;subject:string;desc
   ticket_type:string;checkee_responded_at:string|null;outcome:string|null;created_at:string;school_name:string;
   activities:{id:number;content:string;activity_type:string;created_at:string;next_follow_up_at:string|null}[]};
 type TicketList={data:Ticket[];total:number;page:number;page_size:number};
-type School={id:number;school_name:string;contract_code:string};
+type School={id:number;customer_id:number;school_name:string};
 type SchoolList={data:School[];total:number};
 export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
   const allowed=!apiBase||abilities.includes('*')||abilities.includes('channel_sales.school.support.manage');
   const [draft,setDraft]=useState('');const [search,setSearch]=useState('');
   const [status,setStatus]=useState('ALL');const [page,setPage]=useState(1);const [pageSize,setPageSize]=useState(20);
-  const [creating,setCreating]=useState(false);const [schoolSearch,setSchoolSearch]=useState('');
+  const [creating,setCreating]=useState(false);
+  const [schoolSearch,setSchoolSearch]=useState('');
+  const [debouncedSchoolSearch,setDebouncedSchoolSearch]=useState('');
+  const [schoolPage,setSchoolPage]=useState(1);
+  const [selectedSchoolName,setSelectedSchoolName]=useState('');
+  const [schoolOpen,setSchoolOpen]=useState(false);
+  const [schoolError,setSchoolError]=useState('');
+  const [fieldErrors,setFieldErrors]=useState<{school?:string;subject?:string;description?:string}>({});
+  const [schoolActiveIndex,setSchoolActiveIndex]=useState(-1);
+  const schoolInputRef=useRef<HTMLInputElement>(null);
+  const listRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    const timeout=setTimeout(()=>setDebouncedSchoolSearch(schoolSearch.trim()),250);
+    return ()=>clearTimeout(timeout);
+  },[schoolSearch]);
   const [contractId,setContractId]=useState('');const [subject,setSubject]=useState('');const [description,setDescription]=useState('');
   const [selected,setSelected]=useState<Ticket|null>(null);const [progress,setProgress]=useState('');
   const [nextStatus,setNextStatus]=useState('IN_PROGRESS');const [busy,setBusy]=useState(false);const [error,setError]=useState('');
@@ -31,12 +45,39 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
     queryFn:()=>channelRequest<TicketList>(apiBase,token,'/care/tickets?page='+page+'&page_size='+pageSize
       +'&status='+status+'&search='+encodeURIComponent(search)),
     enabled:!!apiBase&&!!token&&allowed});
-  const schools=useQuery({queryKey:['care-ticket-schools',token,schoolSearch],
-    queryFn:()=>channelRequest<SchoolList>(apiBase,token,'/care/schools?page=1&page_size=50&search='+encodeURIComponent(schoolSearch)),
+  const schools=useQuery({queryKey:['care-ticket-schools',token,debouncedSchoolSearch,schoolPage],
+    queryFn:()=>channelRequest<SchoolList>(apiBase,token,
+      '/care/schools?page='+schoolPage+'&page_size=50&search='+encodeURIComponent(debouncedSchoolSearch)),
     enabled:!!apiBase&&!!token&&allowed&&creating});
+  const schoolChoices=schools.data?.data??[];
+  const duplicates=schoolChoices.filter(x=>schoolChoices.some(y=>y.id!==x.id && y.customer_id===x.customer_id));
+  const selectSchool=(school:School)=>{
+    if(duplicates.some(x=>x.customer_id===school.customer_id)){
+      setSchoolError('Trường có nhiều hợp đồng đang hỗ trợ. Vui lòng liên hệ Quản lý để xác định hợp đồng phù hợp.');
+      setContractId('');return;
+    }
+    setContractId(String(school.id));setSelectedSchoolName(school.school_name);
+    setSchoolSearch(school.school_name);setSchoolOpen(false);
+    setSchoolError('');setFieldErrors(prev=>({...prev,school:undefined}));
+  };
+  const startSearch=(value:string)=>{
+    setSchoolSearch(value);setContractId('');setSelectedSchoolName('');
+    setSchoolPage(1);setSchoolOpen(true);setSchoolActiveIndex(-1);setSchoolError('');
+  };
   const reload=async()=>{await Promise.all([client.invalidateQueries({queryKey:['care-ticket-list']}),onChanged()]);};
   const create=async()=>{
-    if(!contractId||!subject.trim()||!description.trim())return;
+    const nextErrors:{school?:string;subject?:string;description?:string}={};
+    if(!contractId)nextErrors.school='Vui lòng chọn trường cần hỗ trợ.';
+    if(!subject.trim())nextErrors.subject='Vui lòng nhập tiêu đề lỗi.';
+    else if(subject.trim().length>190)nextErrors.subject='Tiêu đề tối đa 190 ký tự.';
+    if(!description.trim())nextErrors.description='Vui lòng mô tả lỗi và các bước tái hiện.';
+    else if(description.trim().length>4000)nextErrors.description='Mô tả tối đa 4.000 ký tự.';
+    setFieldErrors(nextErrors);
+    if(Object.keys(nextErrors).length){
+      if(nextErrors.school){setSchoolOpen(true);schoolInputRef.current?.focus();}
+      else document.getElementById(nextErrors.subject?'ticket-subject':'ticket-description')?.focus();
+      return;
+    }
     setBusy(true);setError('');
     try{
       await channelRequest(apiBase,token,'/customer-support-cases',{method:'POST',body:JSON.stringify({
@@ -44,6 +85,7 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
         subject:subject.trim(),description:description.trim(),
       })});
       setCreating(false);setContractId('');setSubject('');setDescription('');setSchoolSearch('');
+      setSelectedSchoolName('');setSchoolOpen(false);setFieldErrors({});setSchoolError('');
       await reload();
     }catch(cause){setError(cause instanceof Error?cause.message:'Không tạo được ticket kỹ thuật.');}
     finally{setBusy(false);}
@@ -100,23 +142,61 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
     <AppDialog open={creating} onOpenChange={open=>{if(!busy)setCreating(open);}} title="Gửi lỗi phần mềm cho CHECKEE"
       description="CSKH đã xác định đây là lỗi hệ thống, không phải thao tác sử dụng thông thường." busy={busy}
       footer={<><AppButton tone="neutral" disabled={busy} onClick={()=>setCreating(false)}>Hủy</AppButton>
-        <AppButton busy={busy} disabled={!contractId||!subject.trim()||!description.trim()} onClick={()=>void create()}>Tạo và gửi CHECKEE</AppButton></>}>
+        <AppButton busy={busy} disabled={busy} onClick={()=>void create()}>Tạo và gửi CHECKEE</AppButton></>}>
       <div className="space-y-3 text-sm">
-        <label htmlFor="ticket-school-search" className="block font-medium">Tìm trường phụ trách</label>
-        <input id="ticket-school-search" className="w-full rounded-xl border bg-background p-3" placeholder="Tên trường / mã hợp đồng"
-          value={schoolSearch} onChange={e=>{setSchoolSearch(e.target.value);setContractId('');}}/>
-        <label className="block font-medium" htmlFor="ticket-contract">Chọn hợp đồng</label>
-        <select id="ticket-contract" className="w-full rounded-xl border bg-background p-3"
-          value={contractId} onChange={e=>setContractId(e.target.value)}>
-          <option value="">Chọn trường được phân công</option>
-          {schools.data?.data.map(x=><option key={x.id} value={x.id}>{x.school_name} · {x.contract_code}</option>)}
-        </select>
+        <label htmlFor="ticket-school-select" className="block font-medium">Chọn trường cần hỗ trợ *</label>
+        <div className="relative">
+          <div className="flex items-center rounded-xl border bg-background px-3">
+            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true"/>
+            <input ref={schoolInputRef} id="ticket-school-select" role="combobox"
+              aria-autocomplete="list" aria-expanded={schoolOpen} aria-controls="ticket-school-options"
+              aria-invalid={!!fieldErrors.school} disabled={busy}
+              className="min-w-0 flex-1 bg-transparent p-3 outline-none"
+              placeholder="Tìm và chọn trường được phân công..." value={schoolSearch}
+              onFocus={()=>setSchoolOpen(true)} onChange={e=>startSearch(e.target.value)}
+              onKeyDown={e=>{
+                if(e.key==='Escape'){setSchoolOpen(false);return;}
+                if(e.key==='ArrowDown'){e.preventDefault();setSchoolOpen(true);setSchoolActiveIndex(i=>Math.min(i+1,schoolChoices.length-1));}
+                if(e.key==='ArrowUp'){e.preventDefault();setSchoolActiveIndex(i=>Math.max(0,i-1));}
+                if(e.key==='Enter'&&schoolOpen&&schoolActiveIndex>=0&&schoolChoices[schoolActiveIndex]){
+                  e.preventDefault();selectSchool(schoolChoices[schoolActiveIndex]);
+                }
+              }}/>
+            <button type="button" disabled={busy} aria-label="Mở danh sách trường được phân công"
+              onClick={()=>setSchoolOpen(value=>!value)} className="p-2">
+              <ChevronDown className="size-4" aria-hidden="true"/>
+            </button>
+          </div>
+          {schoolOpen&&<div ref={listRef} id="ticket-school-options" role="listbox"
+            aria-label="Danh sách trường phụ trách" className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border bg-background p-1 shadow-lg">
+            {schools.isLoading||schools.isFetching&&schoolChoices.length===0
+              ?<p className="p-3 text-muted-foreground">Đang tải trường...</p>
+              :schools.isError?<p role="alert" className="p-3 text-destructive">Không tải được danh sách trường.</p>
+              :schoolChoices.length===0?<p className="p-3 text-muted-foreground">Không tìm thấy trường phù hợp.</p>
+              :schoolChoices.map((school,index)=><button key={school.id} type="button" role="option"
+                  aria-selected={contractId===String(school.id)} disabled={busy}
+                  className={'flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-muted '+(schoolActiveIndex===index?'bg-muted':'')}
+                  onMouseDown={e=>e.preventDefault()} onClick={()=>selectSchool(school)}>
+                  <span>{school.school_name}</span>
+                  {contractId===String(school.id)&&<Check className="size-4 text-emerald-600" aria-hidden="true"/>}
+                </button>)}
+            {schoolPage*50<(schools.data?.total??0)&&<button type="button"
+              className="w-full rounded-lg p-3 text-center text-sm text-emerald-700 hover:bg-muted"
+              disabled={schools.isFetching} onClick={()=>{setSchoolPage(n=>n+1);setSchoolActiveIndex(-1);}}>
+              Xem thêm trường
+            </button>}
+          </div>}
+        </div>
+        {selectedSchoolName&&contractId&&<p className="text-xs text-emerald-700">Đã chọn: {selectedSchoolName}</p>}
+        {(fieldErrors.school||schoolError)&&<p role="alert" className="text-xs text-destructive">{schoolError||fieldErrors.school}</p>}
         <label htmlFor="ticket-subject" className="block font-medium">Tiêu đề lỗi</label>
-        <input id="ticket-subject" maxLength={190} value={subject} onChange={e=>setSubject(e.target.value)}
+        <input id="ticket-subject" maxLength={190} value={subject} onChange={e=>{setSubject(e.target.value);setFieldErrors(x=>({...x,subject:undefined}));}}
           className="w-full rounded-xl border bg-background p-3"/>
+        {fieldErrors.subject&&<p role="alert" className="text-xs text-destructive">{fieldErrors.subject}</p>}
         <label htmlFor="ticket-description" className="block font-medium">Mô tả lỗi và các bước tái hiện</label>
         <textarea id="ticket-description" rows={4} maxLength={4000} value={description}
-          onChange={e=>setDescription(e.target.value)} className="w-full rounded-xl border bg-background p-3"/>
+          onChange={e=>{setDescription(e.target.value);setFieldErrors(x=>({...x,description:undefined}));}} className="w-full rounded-xl border bg-background p-3"/>
+        {fieldErrors.description&&<p role="alert" className="text-xs text-destructive">{fieldErrors.description}</p>}
         {error&&<p role="alert" className="text-destructive">{error}</p>}
       </div>
     </AppDialog>

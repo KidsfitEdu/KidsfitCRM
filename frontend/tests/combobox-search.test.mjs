@@ -1,3 +1,5 @@
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { matchesComboboxQuery, normalizeComboboxText } from '../src/lib/combobox-search.ts';
@@ -22,4 +24,20 @@ test('selection keeps numeric school id independent from visible label', () => {
   assert.equal(option.value, '25');
   assert.equal(option.label, 'Trường Mầm Non Ninh Kiều');
   assert.equal(option.label.includes('SCH0025'), false);
+});
+
+test('CSKH ticket form shows one searchable school name selector and keeps contract id internal', () => {
+  const source = readFileSync(resolve(import.meta.dirname, '../src/screens/CustomerCare/Cases/CasesPage.tsx'), 'utf8');
+  assert.match(source, /Chọn trường cần hỗ trợ \*/);
+  assert.match(source, /role="combobox"/);
+  assert.match(source, /school\.school_name/);
+  assert.match(source, /contract_id:Number\(contractId\)/);
+  assert.match(source, /eligible_contract_count > 1/);
+  assert.match(source, /queryKey:\['care-ticket-schools',token,debouncedSchoolSearch,schoolPage\]/);
+  assert.match(source, /fieldErrors\.school/);
+  assert.match(source, /fieldErrors\.subject/);
+  assert.match(source, /fieldErrors\.description/);
+  assert.doesNotMatch(source, /Tìm trường phụ trách<\/label>/);
+  assert.doesNotMatch(source, /Chọn hợp đồng<\/label>/);
+  assert.doesNotMatch(source, /school\.school_name\} · \{school\.contract_code/);
 });

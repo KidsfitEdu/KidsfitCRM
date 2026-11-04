@@ -18,6 +18,11 @@ public sealed class SchoolWorkflowPolicyVersion : EntityBase
 
 public sealed class SchoolProposal : EntityBase
 {
+    public string ProposalMode { get; set; } = "LEGACY";
+    public long? TargetDirectorySchoolId { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public long? DeletedByUserId { get; set; }
     public long OrganizationId { get; set; }
     public long SubmittedByUserId { get; set; }
     public long ManagerUserId { get; set; }
@@ -40,6 +45,24 @@ public sealed class SchoolProposal : EntityBase
     public long? DirectorySchoolId { get; set; }
     public string IdempotencyKey { get; set; } = "";
     public string RequestFingerprint { get; set; } = "";
+}
+
+// Each draft owns its own units; official school units are written only after Admin approval.
+public sealed class SchoolProposalUnit : EntityBase
+{
+    public long SchoolProposalId { get; set; }
+    public string UnitType { get; set; } = "BRANCH";
+    public int SortOrder { get; set; }
+    public string Name { get; set; } = "";
+    public string Province { get; set; } = "";
+    public string Ward { get; set; } = "";
+    public string? Address { get; set; }
+    public string? ContactName { get; set; }
+    public string? ContactPosition { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? Email { get; set; }
+    public string? SchoolPhone { get; set; }
+    public string? Note { get; set; }
 }
 
 public sealed class SchoolProposalRevision : EntityBase

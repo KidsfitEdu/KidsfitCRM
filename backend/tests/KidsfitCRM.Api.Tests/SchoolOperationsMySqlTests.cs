@@ -835,7 +835,20 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.ReleaseSchoolApproaches(
             s.Seller.MembershipId, release with { IdempotencyKey = Key() },
             s.Manager.UserId, Http(s.Manager.UserId), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.ReleaseSchoolApproaches(
+            s.Seller.MembershipId, release with { IdempotencyKey = Key() },
+            s.Peer.UserId, Http(s.Peer.UserId), Ct));
+
+        var released = Json(await ManagerContractEndpoints.ReleasedSchools(
+            Http(s.Manager.UserId), db, null, 1, 20, Ct));
+        Assert.Contains(released.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == s.OtherSchoolId);
         await actions.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Peer.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        var noLongerAvailable = Json(await ManagerContractEndpoints.ReleasedSchools(
+            Http(s.Manager.UserId), db, null, 1, 20, Ct));
+        Assert.DoesNotContain(noLongerAvailable.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == s.OtherSchoolId);
     }
 
     [MySqlFact] public async Task HandoverRevokesUnsignedClaimsButPreservesSignedProtectionAndEarnedPayout()

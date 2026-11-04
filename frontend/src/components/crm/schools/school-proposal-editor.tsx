@@ -156,15 +156,15 @@ export function SchoolProposalEditor({
     } finally { setBusy(false); }
   };
   const unitForm = (u:Unit,i:number) => <div key={i} className="grid gap-3 sm:grid-cols-2">
-    {fields.map(field=><label key={field.key} className="block min-w-0 text-sm">
+    {fields.map(field=><label key={field.key} htmlFor={`proposal-unit-${i}-${field.key}`} className="block min-w-0 text-sm">
       {field.label} {field.required&&<span className="text-destructive">*</span>}
-      <Input className="mt-1" value={u[field.key] ?? ''} maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
+      <Input id={`proposal-unit-${i}-${field.key}`} className="mt-1" value={u[field.key] ?? ''} maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
         aria-invalid={!!fieldErrors[`${i}.${field.key}`]}
         onChange={e=>editUnit(i,field.key,e.target.value)}/>
       {fieldErrors[`${i}.${field.key}`]&&<span className="mt-1 block text-xs text-destructive">{fieldErrors[`${i}.${field.key}`]}</span>}
     </label>)}
-    <label className="block text-sm sm:col-span-2">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
-      <Textarea className="mt-1" rows={3} maxLength={4000}
+    <label htmlFor={`proposal-unit-${i}-note`} className="block text-sm sm:col-span-2">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
+      <Textarea id={`proposal-unit-${i}-note`} className="mt-1" rows={3} maxLength={4000}
         placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
         value={u.note} onChange={e=>editUnit(i,'note',e.target.value)}/>
     </label>
@@ -181,8 +181,8 @@ export function SchoolProposalEditor({
     <div className="space-y-5">
       <fieldset className="space-y-2">
         <legend className="font-semibold">Loại đề xuất</legend>
-        <label className="flex items-center gap-2 text-sm"><input type="radio" name="proposal-mode" checked={mode==='NEW_MAIN'} onChange={()=>changeMode('NEW_MAIN')}/> Trường chính mới (có thể kèm phân hiệu)</label>
-        <label className="flex items-center gap-2 text-sm"><input type="radio" name="proposal-mode" checked={mode==='ADD_BRANCHES'} onChange={()=>changeMode('ADD_BRANCHES')}/> Bổ sung phân hiệu cho trường chính đã có</label>
+        <label htmlFor="proposal-mode-main" className="flex items-center gap-2 text-sm"><input id="proposal-mode-main" type="radio" name="proposal-mode" checked={mode==='NEW_MAIN'} onChange={()=>changeMode('NEW_MAIN')}/> Trường chính mới (có thể kèm phân hiệu)</label>
+        <label htmlFor="proposal-mode-branch" className="flex items-center gap-2 text-sm"><input id="proposal-mode-branch" type="radio" name="proposal-mode" checked={mode==='ADD_BRANCHES'} onChange={()=>changeMode('ADD_BRANCHES')}/> Bổ sung phân hiệu cho trường chính đã có</label>
       </fieldset>
       {mode==='NEW_MAIN'?<section className="rounded-xl border bg-muted/20 p-4 space-y-3">
         <h3 className="font-semibold">Trường chính</h3>

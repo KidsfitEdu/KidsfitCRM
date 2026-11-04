@@ -686,17 +686,17 @@ export function SchoolDirectory({
               ['name','Tên đơn vị'],['province','Tỉnh/thành'],['ward','Phường/xã'],['address','Địa chỉ'],
               ['contact_name','Người liên hệ'],['contact_position','Chức vụ'],['contact_phone','SĐT liên hệ'],
               ['school_phone','SĐT trường'],['email','Email']
-            ] as const).map(([key,label]) => <label key={key} className="text-sm">{label}
-              <Input className="mt-1" value={editForm[key] ?? ''}
+            ] as const).map(([key,label]) => <div key={key} className="text-sm">{label}
+              <Input aria-label={label} className="mt-1" value={editForm[key] ?? ''}
                 onChange={event => setEditForm(current => ({...current,[key]:event.target.value}))}/>
-            </label>)}
+            </div>)}
           </div>
-          <label className="block text-sm">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
-            <Textarea className="mt-1" rows={3} maxLength={4000}
+          <div className="block text-sm">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
+            <Textarea aria-label="Ghi chú trường hoặc phân hiệu" className="mt-1" rows={3} maxLength={4000}
               placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
               value={editForm.note ?? ''}
               onChange={event => setEditForm(current => ({...current,note:event.target.value}))}/>
-          </label>
+          </div>
           {adminError && <p role="alert" className="text-sm text-red-600">{adminError}</p>}
           <div className="flex justify-end gap-2">
             <AppButton tone="outline" disabled={adminBusy} onClick={() => setEditingUnit(null)}>Hủy</AppButton>

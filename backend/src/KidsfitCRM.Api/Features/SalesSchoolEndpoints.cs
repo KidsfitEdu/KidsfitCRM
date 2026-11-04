@@ -47,12 +47,13 @@ public static class SalesSchoolEndpoints
             .Where(r => ids.Contains(r.CustomerId) && r.OwnerUserId == actor && r.Status == "ACTIVE" && r.ProtectedUntil > now)
             .OrderByDescending(r => r.RegisteredAt).ToArrayAsync(ct);
         var contracts = await db.SalesContracts.AsNoTracking()
-            .Where(c => ids.Contains(c.CustomerId) && c.OwnerUserId == actor && c.Status == "ACTIVE")
-            .OrderByDescending(c => c.SignedOn).ToArrayAsync(ct);
+            .Where(c => ids.Contains(c.CustomerId) && c.OwnerUserId == actor && c.Status != "CANCELLED")
+            .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id).ToArrayAsync(ct);
         var protections = await db.CustomerProtections.AsNoTracking()
             .Where(p => ids.Contains(p.CustomerId) && p.OwnerUserId == actor && p.Status == "ACTIVE" && p.EffectiveUntil > now)
             .ToArrayAsync(ct);
-        var contractIds = contracts.Select(x => x.Id).ToArray();
+        // Unverified contracts are visible for workflow, but excluded from financial totals.
+        var contractIds = contracts.Where(x => x.Status == "ACTIVE").Select(x => x.Id).ToArray();
         var receipts = await db.RevenueReceipts.AsNoTracking()
             .Where(x => contractIds.Contains(x.ContractId) && x.Status == "COMPLETED")
             .GroupBy(x => x.ContractId).Select(g => new { Id = g.Key, Sum = g.Sum(x => x.Amount) })
@@ -101,11 +102,11 @@ public static class SalesSchoolEndpoints
             var manager = reg is null ? null : managerIds.FirstOrDefault(x => x.OrganizationId == reg.OwnerOrganizationId);
             var totalExtensionExhausted = reg is not null && policy is not null &&
                 reg.ProtectedUntil >= reg.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays);
-            var canRequestExtension = reg is not null && !contracted &&
+            var canRequestExtension = reg is not null && contract is null &&
                 access.Has(Permissions.ChannelSalesRegister) && !extensionPending &&
                 policy is not null && approvedCount < policy.MaxExtensionCount && !totalExtensionExhausted;
             var unavailableReason = reg is null ? "Không có lượt tiếp cận còn hiệu lực."
-                : contracted ? "Trường đã có hợp đồng, không cần gia hạn tiếp cận."
+                : contract is not null ? "Đã nộp hồ sơ hợp đồng, không cần gia hạn tiếp cận."
                 : extensionPending ? "Yêu cầu gia hạn đang chờ Quản lý bán hàng duyệt."
                 : !access.Has(Permissions.ChannelSalesRegister) ? "Tài khoản chưa có quyền xin gia hạn."
                 : manager?.ManagerUserId is null ? "Chưa có Quản lý bán hàng trực tiếp."
@@ -120,12 +121,12 @@ public static class SalesSchoolEndpoints
                 c.LifecycleStatus, reg?.Id, reg?.Status, ownerName,
                 protection?.EffectiveUntil ?? reg?.ProtectedUntil, null,
                 contract?.Id, contract?.ContractCode,
-                contract != null && canViewMoney ? contract.TotalValue : 0,
-                contract != null && canViewMoney ? receipts.GetValueOrDefault(contract.Id) : 0,
-                contract != null && canViewMoney ? commissions.GetValueOrDefault(contract.Id) : 0,
+                contracted && canViewMoney ? contract!.TotalValue : 0,
+                contracted && canViewMoney ? receipts.GetValueOrDefault(contract!.Id) : 0,
+                contracted && canViewMoney ? commissions.GetValueOrDefault(contract!.Id) : 0,
                 contract != null ? recon.GetValueOrDefault(contract.Id) : null,
                 reg != null, canRecordRevenue && contracted, address, canRequestExtension, extensionPending,
-                approvedCount, policy?.MaxExtensionCount, unavailableReason);
+                approvedCount, policy?.MaxExtensionCount, unavailableReason, contract?.Status);
         });
         return Results.Ok(new { data = rows, total, page, page_size = pageSize });
     }

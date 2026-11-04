@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, UsersRound, UserCheck, Building2, UserRoundX } from 'lucide-react';
+import { Eye, UsersRound, UserCheck, Building2, ShieldMinus } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
@@ -86,9 +86,9 @@ export function TeamPage({apiBase,token,abilities,onChanged,onSalesNavigate}:Man
      <td className={adminTableCellClass+' tabular-nums'}>{item.expiring_schools}</td>
      <td className={adminTableCellClass+' tabular-nums'}>{item.contracts_reported}</td>
      <td className={adminTableCellClass}><AdminStatusBadge status={item.status} label={item.status==='ACTIVE'?'Hoạt động':item.status==='SUSPENDED'?'Tạm dừng':item.status}/></td>
-     <td className={adminTableCellClass}><div className="flex justify-center">
+     <td className={adminTableCellClass}><div className="flex items-center justify-center gap-3 whitespace-nowrap">
       <AdminIconAction icon={Eye} label={`Xem nhân sự ${item.name}`} onClick={()=>setSelected(item)}/>
-      {connected&&canHandover&&item.status==='ACTIVE'&&<AdminIconAction icon={UserRoundX} tone="red" label={`Bàn giao khi nghỉ việc: ${item.name}`} onClick={()=>setHandoverId(item.id)}/>}
+      {connected&&canHandover&&item.status==='ACTIVE'&&<AdminIconAction icon={ShieldMinus} tone="red" label={`Thu hồi quyền tiếp cận: ${item.name}`} onClick={()=>setHandoverId(item.id)}/>}
      </div></td>
     </tr>)}</tbody>
    </table></div>
@@ -109,7 +109,7 @@ export function TeamPage({apiBase,token,abilities,onChanged,onSalesNavigate}:Man
      <p><strong>Sắp hết hạn:</strong> {selected.expiring_schools} trường</p>
      <p><strong>Hợp đồng đã báo cáo:</strong> {selected.contracts_reported}</p>
      <p><strong>Trạng thái:</strong> {selected.status}</p>
-     {connected&&canHandover&&selected.status==='ACTIVE'&&<AppButton tone="danger" onClick={()=>{setHandoverId(selected.id);setSelected(null);}}>Bàn giao khi nghỉ việc</AppButton>}
+     {connected&&canHandover&&selected.status==='ACTIVE'&&<AppButton tone="danger" onClick={()=>{setHandoverId(selected.id);setSelected(null);}}>Thu hồi quyền tiếp cận</AppButton>}
      <p className="border-t pt-3 text-muted-foreground">Thao tác phân bổ, gia hạn và xác minh hợp đồng được xử lý tại các màn nghiệp vụ tương ứng.</p>
    </div>}
   </AppDrawer>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, History, Check } from 'lucide-react';
+import { Pencil, Eye, Check } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -9,11 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
-import { FormActions } from '@/components/common/form-actions';
 import { FormError } from '@/components/common/form-error';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/components/common/admin-list-ui';
-import { fetchAdminOperations,reviewAdminProposal,editAdminProposal,fetchProposalRevisions } from '@/services/proposal.service';
+import { fetchAdminOperations,reviewAdminProposal,fetchAdminProposalProfile,type AdminProposalProfile } from '@/services/proposal.service';
+import { AdminProposalProfileEditor } from '@/components/crm/schools/admin-proposal-profile-editor';
+import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
 import { workflowDate,workflowLabels,type SchoolOperationsWorkspace } from '@/lib/school-operations';
 import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
@@ -27,8 +28,9 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
   const [busy,setBusy]=useState(false);const [reasonError,setReasonError]=useState('');
   const [selected,setSelected]=useState<number|null>(null);const [reason,setReason]=useState('');
   const [editing,setEditing]=useState<number|null>(null);
-  const [editFields,setEditFields]=useState<Record<string,string>>({});
-  const [revisions,setRevisions]=useState<{version:number;reason:string;created_at:string;actor_name:string}[]|null>(null);
+  const [detailId,setDetailId]=useState<number|null>(null);
+  const [detail,setDetail]=useState<AdminProposalProfile|null>(null);
+  const [detailLoading,setDetailLoading]=useState(false);
   const can=(permission:string)=>abilities.includes('*')||abilities.includes(permission);
   const preview=!apiBase;
   const reload=useCallback(async()=>{
@@ -44,20 +46,23 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
     try{await reviewAdminProposal(apiBase,token,id,approve,reason,duplicateReviewed);setSelected(null);setReason('');appNotice.success(approve?'Đã phê duyệt đề xuất trường.':'Đã từ chối đề xuất trường.');await reload();try{await onChanged();}catch(e){appNotice.warning('Đã lưu, nhưng chưa cập nhật được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}}
     catch(e){appNotice.error('Không lưu được quyết định đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
   };
-  const openEdit=(p:SchoolOperationsWorkspace['proposals'][number])=>{
-    setEditing(p.id);setEditFields(Object.fromEntries(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'].map(k=>[k,String(p[k as keyof typeof p]??'')])));setReason('');setReasonError('');
+  const openDetail=async(id:number)=>{
+    if(preview)return;
+    setDetailId(id);setDetail(null);setDetailLoading(true);
+    try {
+      const response=await fetchAdminProposalProfile(apiBase,token,id);
+      setDetail(response.data);
+    }catch(e){
+      appNotice.error('Không xem được chi tiết đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');
+    }finally{setDetailLoading(false);}
   };
-  const saveEdit=async(p:SchoolOperationsWorkspace['proposals'][number])=>{
-    if(!reason.trim()){setReasonError('Cần ghi lý do sửa đề xuất.');return;}
-    setReasonError('');setBusy(true);
-    try{await editAdminProposal(apiBase,token,p.id,{expected_version:p.version,school_code:editFields.school_code,name:editFields.name,province:editFields.province,ward:editFields.ward,address:editFields.address,contact_name:editFields.contact_name,contact_position:editFields.contact_position,contact_phone:editFields.contact_phone,email:editFields.email,reason});
-      setEditing(null);setReason('');appNotice.success('Đã cập nhật đề xuất và lưu lịch sử.');await reload();try{await onChanged();}catch(e){appNotice.warning('Đã lưu, nhưng chưa cập nhật được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}
-    }catch(e){appNotice.error('Không lưu được thay đổi đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
-  };
-  const showRevisions=async(id:number)=>{
-    if(preview)return;setBusy(true);
-    try{const result=await fetchProposalRevisions(apiBase,token,id);setRevisions(result.data.map(r=>({...r,created_at:r.createdAt})));}
-    catch(e){appNotice.error('Không xem được lịch sử đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
+  const profileUnits=(profile:AdminProposalProfile):SchoolProfileUnit[]=>{
+    if(profile.proposal_mode==='LEGACY')
+      return [{id:-1,unit_type:'MAIN',name:profile.name,province:profile.province,ward:profile.ward,
+        address:profile.address,contact_name:profile.contact_name,contact_position:profile.contact_position,
+        contact_phone:profile.contact_phone,email:profile.email}];
+    return [...(profile.target?[{...profile.target,id:-1}]:[]),
+      ...profile.units.map((unit,i)=>({...unit,id:unit.id??i+1}))];
   };
   const proposalOffset=((page-1)*proposalPageSize)%100;
   const proposals=operations?.pagination?.page===proposalServerPage?operations.proposals.slice(proposalOffset,proposalOffset+proposalPageSize):[];
@@ -67,7 +72,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
   <AdminListPanel>
     <AdminListToolbar search={proposalDraft} onSearchChange={setProposalDraft} onSearch={()=>{setPage(1);setSearch(proposalDraft.trim());}}
       onReset={()=>{setProposalDraft('');setSearch('');setStatusFilter('ALL');setPage(1);}}
-      placeholder="Tên trường, mã trường..." searchLabel="Tìm đề xuất trường"
+      placeholder="Tên trường, địa chỉ..." searchLabel="Tìm đề xuất trường"
       filters={<AppNativeSelect aria-label="Lọc trạng thái đề xuất" value={statusFilter} containerClassName="h-11 w-full sm:w-[200px]" onChange={e=>{setStatusFilter(e.target.value);setPage(1);}}>
         <option value="ALL">Tất cả trạng thái</option><option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option>
         <option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option>
@@ -78,14 +83,14 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
         <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Trường học</th><th className="px-5 py-4">Người đề xuất</th>
           <th className="px-5 py-4 text-center">Trạng thái</th><th className="px-5 py-4 text-center">Hạn xử lý</th><th className="px-5 py-4 text-center">Thao tác</th></tr></thead>
         <tbody>{proposals.map(p=><tr key={p.id} className="border-t border-border/70 even:bg-muted/20 hover:bg-accent">
-          <td className="px-5 py-4"><p className="font-semibold">{p.name}</p><p className="mt-1 text-xs text-muted-foreground">{p.school_code && !p.school_code.startsWith('SEED-SCH-') ? `${p.school_code} · ` : ''}{p.province} · {p.ward}</p>
+          <td className="px-5 py-4"><p className="font-semibold">{p.name}</p><p className="mt-1 text-xs text-muted-foreground">{[p.address,p.ward,p.province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</p>
             {p.possible_duplicate && <p className="mt-1 text-xs text-amber-700">Cần kiểm tra trùng</p>}</td>
           <td className="px-5 py-4"><p>{p.submitted_by}</p><p className="mt-1 text-xs text-muted-foreground">Quản lý: {p.manager_name}</p></td>
           <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status} label={workflowLabels[p.status]??p.status}/></td>
           <td className="px-5 py-4 text-center tabular-nums">{workflowDate(p.review_due_at)}</td>
           <td className="px-5 py-4"><div className="flex items-center justify-center gap-2">
-            {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>openEdit(p)}/>}
-            {!preview && can('channel_sales.school.directory.manage') && <AdminIconAction icon={History} tone="neutral" label={`Xem lịch sử ${p.name}`} onClick={()=>void showRevisions(p.id)}/>}
+            {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>setEditing(p.id)}/>}
+            {!preview && can('channel_sales.school.directory.manage') && <AdminIconAction icon={Eye} tone="neutral" label={`Xem chi tiết ${p.name}`} onClick={()=>void openDetail(p.id)}/>}
             {p.can_admin_review && !preview && <AdminIconAction icon={Check} tone="green" label={`Duyệt ${p.name}`} onClick={()=>{setSelected(p.id);setReason('');setReasonError('');}}/>}
           </div></td>
         </tr>)}</tbody>
@@ -99,8 +104,21 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
       onPageSizeChange={size=>{setProposalPageSize(size);setPage(1);}}/>}
   </AdminListPanel>
 </div>
-    <AppDrawer open={revisions!==null} onOpenChange={open=>{if(!open)setRevisions(null);}} title="Lịch sử chỉnh sửa đề xuất" description="Các lần cập nhật được lưu theo phiên bản, người sửa, thời gian và lý do.">
-      <div className="space-y-3">{revisions?.map(r=><div className="rounded-lg border p-3 text-sm" key={r.version}><strong>Phiên bản {r.version}</strong><p className="mt-1 text-muted-foreground">{r.actor_name} · {workflowDate(r.created_at)}</p><p className="mt-2">{r.reason}</p></div>)}{revisions?.length===0 && <p className="text-sm text-muted-foreground">Chưa có lần chỉnh sửa nào.</p>}</div>
+    <AppDrawer open={detailId!==null} onOpenChange={open=>{if(!open){setDetailId(null);setDetail(null);}}}
+      wide title={detail?.name??'Chi tiết đề xuất trường'} description="Thông tin trường chính, phân hiệu và người đề xuất.">
+      {detailLoading?<p className="text-sm text-muted-foreground">Đang tải chi tiết…</p>:
+        detail?<div className="space-y-5">
+          <div className="grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2">
+            <div><p className="text-xs text-muted-foreground">Người đề xuất</p><p>{detail.submitted_by}</p></div>
+            <div><p className="text-xs text-muted-foreground">Quản lý bán hàng</p><p>{detail.manager_name}</p></div>
+            <div><p className="text-xs text-muted-foreground">Trạng thái</p><p>{workflowLabels[detail.status]??detail.status}</p></div>
+            <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{workflowDate(detail.review_due_at)}</p></div>
+            <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Loại đề xuất</p>
+              <p>{detail.proposal_mode==='ADD_BRANCHES'?'Bổ sung phân hiệu vào trường hiện hữu':'Đề xuất trường chính mới'}</p></div>
+          </div>
+          {detail.proposal_mode==='ADD_BRANCHES'&&<p className="text-xs text-muted-foreground">Trường chính hiện hữu và các phân hiệu đề xuất được hiển thị cùng hồ sơ.</p>}
+          <SchoolProfileDetails units={profileUnits(detail)}/>
+        </div>:<p className="text-sm text-muted-foreground">Không tải được thông tin đề xuất.</p>}
     </AppDrawer>
     <AppDialog open={selected !== null} onOpenChange={open => {if(!open&&!busy)setSelected(null);}} busy={busy} title="Phê duyệt đề xuất trường" description="Kiểm tra thông tin và nhập căn cứ quyết định trước khi duyệt hoặc từ chối.">
       {(() => { const p=operations?.proposals.find(x=>x.id===selected); return p ? <div className="space-y-3">
@@ -111,10 +129,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
         <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={()=>setSelected(null)}>Hủy</Button><Button variant="outline" disabled={busy} onClick={()=>void updateProposal(p.id,false,false)}>Từ chối</Button><Button disabled={busy || !!p.possible_duplicate} onClick={()=>void updateProposal(p.id,true,false)}>Duyệt</Button></div>
       </div>:null; })()}
     </AppDialog>
-    <AppDialog open={editing !== null} onOpenChange={open => { if (!open && !busy) setEditing(null); }} busy={busy} title="Chỉnh sửa đề xuất trường" description="Lưu nội dung trước/sau và lý do chỉnh sửa. Chỉ áp dụng khi chờ Admin duyệt.">
-      <div className="grid gap-3 sm:grid-cols-2">{(['school_code','name','province','ward','address','contact_name','contact_position','contact_phone','email'] as const).map(k=><label key={k} className="text-xs font-medium">{({school_code:'Mã trường',name:'Tên trường',province:'Tỉnh/thành',ward:'Phường/xã',address:'Địa chỉ',contact_name:'Người liên hệ',contact_position:'Chức vụ',contact_phone:'Số điện thoại',email:'Email'} as Record<string,string>)[k]}<Input className="mt-1" value={editFields[k]??''} onChange={e=>setEditFields(o=>({...o,[k]:e.target.value}))}/></label>)}</div>
-      <label htmlFor="admin-proposal-edit-reason" className="text-sm font-medium">Lý do chỉnh sửa<Input id="admin-proposal-edit-reason" className="mt-1" value={reason} onChange={e=>{setReason(e.target.value);setReasonError('');}}/><FormError>{reasonError}</FormError></label>
-      <FormActions busy={busy} onCancel={()=>setEditing(null)} onSave={()=>{const p=operations?.proposals.find(x=>x.id===editing);if(p)void saveEdit(p);}} saveLabel="Lưu thay đổi"/>
-    </AppDialog>
+    <AdminProposalProfileEditor open={editing!==null} proposalId={editing} apiBase={apiBase} token={token}
+      onClose={()=>setEditing(null)} onSaved={async()=>{await reload();await onChanged();}}/>
   </AdminPageStatus>;
 }

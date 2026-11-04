@@ -172,3 +172,17 @@ test('Sales consultation update has one content input and never invents a classi
   assert.doesNotMatch(dialog, /name="outcome"|name="activity_type"|name="occurred_at"|name="next_follow_up_at"/);
   assert.doesNotMatch(dialog, /outcome: 'INTERESTED'/);
 });
+
+test('Sales contract report does not ask for a contract code', () => {
+  const view = read('src/components/crm/channel-sales-view.tsx');
+  const start = view.indexOf('function ContractDialog({');
+  const end = view.indexOf('function ReceiptDialog({', start);
+  assert.ok(start >= 0 && end > start);
+  const form = view.slice(start, end);
+  assert.doesNotMatch(form, /name="contract_code"|contract_code: text\(form/);
+  assert.match(form, /name="contract_file"/);
+  assert.match(form, /label="Gửi hợp đồng xác minh"/);
+  const model = read('src/lib/channel-sales.ts');
+  const payload = model.slice(model.indexOf('export type ReportContractInput ='), model.indexOf('export type RevenueReceiptInput ='));
+  assert.doesNotMatch(payload, /contract_code:/);
+});

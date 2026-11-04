@@ -126,7 +126,9 @@ public static class CustomerCareEndpoints
                 t.CheckeeRespondedAt, t.Outcome, t.CreatedAt,
                 school_name = db.ChannelCustomers.Where(c => c.Id == t.CustomerId).Select(c => c.DisplayName).First(),
                 activities = db.CustomerActivities.Where(a => a.SupportCaseId == t.Id).OrderBy(a => a.CreatedAt)
-                    .Select(a => new { a.Id, a.Content, a.ActivityType, a.CreatedAt, a.NextFollowUpAt }).ToArray(),
+                    .Select(a => new { a.Id, a.Content, a.ActivityType, a.CreatedAt, a.NextFollowUpAt,
+                        author_name = db.Users.Where(u => u.Id == a.UserId).Select(u => u.Name).FirstOrDefault(),
+                        author_role = a.ActivityType == "CHECKEE_SUPPORT" ? "CHECKEE" : "CSKH" }).ToArray(),
             }).ToArrayAsync(ct);
         return Results.Ok(new { data = rows, total, page = p, page_size = size });
     }

@@ -2,6 +2,10 @@ namespace KidsfitCRM.Api.Domain;
 
 public sealed class DirectorySchool : EntityBase
 {
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public long? DeletedByUserId { get; set; }
+    public string? DeleteReason { get; set; }
     public string SchoolCode { get; set; } = "";
     public long CustomerId { get; set; }
 }

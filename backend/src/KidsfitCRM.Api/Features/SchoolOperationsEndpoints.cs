@@ -346,7 +346,7 @@ public static class SchoolOperationsEndpoints
         return Results.Ok(new
         {
             period = selected, server_time = now,
-            available_schools = await db.DirectorySchools.CountAsync(s => !db.CustomerProtections.Any(p => p.CustomerId == s.CustomerId && p.Status == "ACTIVE" && p.EffectiveUntil > now), ct),
+            available_schools = await db.DirectorySchools.CountAsync(s => !s.IsDeleted && !db.CustomerProtections.Any(p => p.CustomerId == s.CustomerId && p.Status == "ACTIVE" && p.EffectiveUntil > now), ct),
             expired_approaches = await registrations.CountAsync(x => x.ProtectedUntil <= now && x.RegisteredAt >= start && x.RegisteredAt < end && (x.Status == "ACTIVE" || x.Status == "EXPIRED"), ct),
             active_contracts = await contracts.CountAsync(x => x.Status == "ACTIVE", ct),
             collected_revenue = canMoney ? (decimal?)revenue : null, refunded_revenue = canMoney ? (decimal?)refunded : null, net_collected_revenue = canMoney ? (decimal?)(revenue - refunded) : null,

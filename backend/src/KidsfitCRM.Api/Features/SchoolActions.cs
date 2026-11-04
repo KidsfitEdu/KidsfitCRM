@@ -38,6 +38,7 @@ public sealed partial class ChannelSalesActions
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await LockSchoolOrganization(centralId, ct);
         var existing = await db.DirectorySchools.SingleOrDefaultAsync(x => x.SchoolCode == code, ct);
+        if (existing?.IsDeleted == true) throw new ApiConflictException("Trường đã ngừng sử dụng. Admin cần khôi phục thay vì tạo trùng.");
         if (kind == "MAIN" && existing is not null) throw new ApiConflictException("Mã trường đã có trong danh bạ.");
         if (kind == "BRANCH" && existing is null) throw new ApiConflictException("Cần tạo trường chính trước khi thêm phân hiệu.");
         if (kind == "MAIN" && await db.SchoolUnits.AnyAsync(x => x.UnitType == "MAIN" && x.Name == name && x.Province == province && x.Ward == ward, ct))
@@ -93,6 +94,8 @@ public sealed partial class ChannelSalesActions
         var batch = new SchoolImportBatch { IdempotencyKey = idempotencyKey, FileHash = workbook.FileHash, ActorUserId = actorId, OrganizationId = organizationId, CreatedAt = now, UpdatedAt = now };
         var codes = workbook.Rows.Select(x => x.SchoolCode).Distinct().ToArray();
         var schools = await db.DirectorySchools.Where(x => codes.Contains(x.SchoolCode)).ToDictionaryAsync(x => x.SchoolCode, ct);
+        if (schools.Values.Any(x => x.IsDeleted))
+            throw new ApiConflictException("File chứa trường đã ngừng sử dụng. Admin phải khôi phục trường trước khi nhập lại.");
         var ids = schools.Values.Select(x => x.Id).ToArray();
         var existingUnits = await db.SchoolUnits.Where(x => ids.Contains(x.DirectorySchoolId)).Select(x => new { x.DirectorySchoolId, x.ContentHash }).ToArrayAsync(ct);
         var unitKeys = existingUnits.Select(x => (x.DirectorySchoolId, x.ContentHash)).ToHashSet();

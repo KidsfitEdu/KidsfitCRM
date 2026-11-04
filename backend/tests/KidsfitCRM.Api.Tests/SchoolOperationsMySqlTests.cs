@@ -64,6 +64,56 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task AdminSchoolArchiveHidesDirectoryButCanRestoreWithoutLosingHistory()
+    {
+        var scenario = await Arrange();
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        await actions.ChangeSchoolDeletion(scenario.SchoolId, "Dữ liệu tạm ngừng triển khai", true, admin, Http(admin), Ct);
+        db.ChangeTracker.Clear();
+        var archived = await db.DirectorySchools.AsNoTracking().SingleAsync(x => x.Id == scenario.SchoolId, Ct);
+        Assert.True(archived.IsDeleted);
+        Assert.Equal(admin, archived.DeletedByUserId);
+        Assert.NotNull(archived.DeletedAt);
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId,
+                Http(scenario.Seller.UserId), Ct));
+        var schoolCode = await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId)
+            .Select(x => x.SchoolCode).SingleAsync(Ct);
+        var ordinaryList = Json(await SchoolEndpoints.List(Http(admin), db, schoolCode, 1, Ct));
+        Assert.Empty(ordinaryList.GetProperty("data").EnumerateArray());
+        var deletedList = Json(await SchoolEndpoints.List(Http(admin), db, schoolCode, 1, Ct, includeDeleted: true));
+        Assert.Contains(deletedList.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.SchoolId);
+        await actions.ChangeSchoolDeletion(scenario.SchoolId, null, false, admin, Http(admin), Ct);
+        db.ChangeTracker.Clear();
+        Assert.False(await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId).Select(x => x.IsDeleted).SingleAsync(Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.Action == "SOFT_DELETE_SCHOOL" && x.EntityId == scenario.SchoolId, Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.Action == "RESTORE_SCHOOL" && x.EntityId == scenario.SchoolId, Ct));
+    }
+
+    [MySqlFact] public async Task AdminSchoolArchiveBlocksActiveApproachAndValidatesReason()
+    {
+        var scenario = await Arrange();
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        // Confirmation-only UI supplies no reason; the server provides a default audit reason.
+        await actions.ChangeSchoolDeletion(scenario.OtherSchoolId, null, true, admin, Http(admin), Ct);
+        db.ChangeTracker.Clear();
+        Assert.Equal("Admin xác nhận xóa mềm trường học.",
+            await db.DirectorySchools.Where(x => x.Id == scenario.OtherSchoolId)
+                .Select(x => x.DeleteReason).SingleAsync(Ct));
+        await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId,
+            Http(scenario.Seller.UserId), Ct);
+        var conflict = await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.ChangeSchoolDeletion(scenario.SchoolId, "Chặn khi đang tư vấn", true, admin, Http(admin), Ct));
+        Assert.Contains("nhân viên hoặc CTV tiếp cận", conflict.Message);
+        db.ChangeTracker.Clear();
+        Assert.False(await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId).Select(x => x.IsDeleted).SingleAsync(Ct));
+    }
+
     [MySqlFact] public async Task AdminPartnerCrudIsScopedAuditedAndNeverDeletesOrganization()
     {
         var actor = await User("admin@kidsfit.vn");

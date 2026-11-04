@@ -31,7 +31,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         try
         {
-            if (request.CustomerId.HasValue && await db.DirectorySchools.AnyAsync(x => x.CustomerId == request.CustomerId.Value, cancellationToken))
+            if (request.CustomerId.HasValue && await db.DirectorySchools.AnyAsync(
+                x => x.CustomerId == request.CustomerId.Value && x.IsDeleted, cancellationToken))
+                throw new ApiConflictException("Trường đã ngừng sử dụng và không thể đăng ký tiếp cận.");
+            if (request.CustomerId.HasValue && await db.DirectorySchools.AnyAsync(
+                x => x.CustomerId == request.CustomerId.Value, cancellationToken))
             {
                 await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE user_id = {actorId} AND organization_id = {organizationId} FOR UPDATE").SingleAsync(cancellationToken);
                 var schoolReplay = await db.ApproachRegistrations.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
@@ -44,7 +48,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
 
             if (customer is null) throw new KeyNotFoundException();
             if (request.CustomerId.HasValue && !await access.Customers(db).AnyAsync(x => x.Id == customer.Id, cancellationToken)
-                && !await db.DirectorySchools.AnyAsync(x => x.CustomerId == customer.Id, cancellationToken)) throw new KeyNotFoundException();
+                && !await db.DirectorySchools.AnyAsync(x => x.CustomerId == customer.Id && !x.IsDeleted, cancellationToken)) throw new KeyNotFoundException();
             var replayAfterLock = await db.ApproachRegistrations.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
             if (replayAfterLock is not null)
             {

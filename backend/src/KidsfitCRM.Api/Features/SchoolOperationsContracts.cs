@@ -18,6 +18,7 @@ public sealed record ResolveSchoolDisputeRequest(string? Decision, string? Reaso
 public sealed record DeferSchoolRequest(string? IdempotencyKey, long SchoolId, long OrganizationId, string? Reason, DateTime? ReviewAt);
 public sealed record CompleteSchoolHandoverRequest(string? IdempotencyKey, string? Reason, string? Summary, bool SuspendAccount);
 public sealed record ReactivateSchoolMembershipRequest(string? Reason, bool ReactivateAccount = false);
+public sealed record ChangeSchoolDeletionRequest(string? Reason);
 public sealed record UpdateSchoolUnitRequest(int ExpectedVersion, string? Name, string? Province, string? Ward,
     string? Address, string? ContactName, string? ContactPosition, string? ContactPhone, string? Email,
     string? SchoolPhone, string? Note, string? Reason);

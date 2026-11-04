@@ -13,6 +13,10 @@ public sealed partial class KidsfitDbContext
     private static void ConfigureSchools(ModelBuilder b)
     {
         b.Entity<OrganizationMembership>().Property(x => x.SchoolApproachLimit).HasDefaultValue(10);
+        b.Entity<DirectorySchool>().Property(x => x.DeleteReason).HasMaxLength(2000);
+        b.Entity<DirectorySchool>().Property(x => x.IsDeleted).HasDefaultValue(false);
+        b.Entity<DirectorySchool>().HasIndex(x => x.IsDeleted);
+        Restrict<DirectorySchool, User>(b, x => x.DeletedByUserId);
         b.Entity<DirectorySchool>().Property(x => x.SchoolCode).HasMaxLength(64).UseCollation("utf8mb4_bin");
         b.Entity<DirectorySchool>().HasIndex(x => x.SchoolCode).IsUnique();
         b.Entity<DirectorySchool>().HasIndex(x => x.CustomerId).IsUnique();

@@ -1,40 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { SchoolUnitFields, SchoolBranchList, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit } from './school-units-editor';
 import { channelRequest } from '@/lib/channel-operations';
 
-type Unit = {
-  unit_type: 'MAIN' | 'BRANCH'; name: string; province: string; ward: string;
-  address: string; contact_name: string; contact_position: string;
-  contact_phone: string; email: string; school_phone: string; note: string;
-};
+type Unit = SchoolFormUnit;
 type MainSchool = { id: number; school_code: string; name: string; province: string; ward: string };
 type DraftDetail = {
   id: number; version: number; proposal_mode: 'NEW_MAIN' | 'ADD_BRANCHES';
   target_directory_school_id: number | null; target?: MainSchool | null; units: Unit[];
 };
 
-const emptyUnit = (type: Unit['unit_type'], province = ''): Unit => ({
-  unit_type: type, name: '', province, ward: '', address: '',
-  contact_name: '', contact_position: '', contact_phone: '',
-  email: '', school_phone: '', note: '',
-});
-const fields: { key: keyof Omit<Unit, 'unit_type'>; label: string; required?: boolean }[] = [
-  { key: 'name', label: 'Tên trường/phân hiệu', required: true },
-  { key: 'province', label: 'Tỉnh/thành', required: true },
-  { key: 'ward', label: 'Phường/xã', required: true },
-  { key: 'address', label: 'Địa chỉ' },
-  { key: 'contact_name', label: 'Người liên hệ' },
-  { key: 'contact_position', label: 'Chức vụ' },
-  { key: 'contact_phone', label: 'SĐT liên hệ' },
-  { key: 'email', label: 'Email' },
-  { key: 'school_phone', label: 'SĐT trường' },
-];
+const emptyUnit = emptySchoolUnit;
+const fields = schoolUnitFields;
 
 export function SchoolProposalEditor({
   open, draftId, apiBase, token, onClose, onSaved,
@@ -150,20 +131,7 @@ export function SchoolProposalEditor({
       setError(cause instanceof Error ? cause.message : 'Không lưu được bản nháp.');
     } finally { setBusy(false); }
   };
-  const unitForm = (u:Unit,i:number) => <div key={i} className="grid gap-3 sm:grid-cols-2">
-    {fields.map(field=><div key={field.key} className="block min-w-0 text-sm">
-      {field.key === 'name' && u.unit_type === 'MAIN' ? 'Tên trường' : field.label} {field.required&&<span className="text-destructive">*</span>}
-      <Input id={`proposal-unit-${i}-${field.key}`} className="mt-1" value={u[field.key] ?? ''} maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
-        aria-label={field.key === 'name' && u.unit_type === 'MAIN' ? 'Tên trường' : field.label} aria-invalid={!!fieldErrors[`${i}.${field.key}`]}
-        onChange={e=>editUnit(i,field.key,e.target.value)}/>
-      {fieldErrors[`${i}.${field.key}`]&&<span className="mt-1 block text-xs text-destructive">{fieldErrors[`${i}.${field.key}`]}</span>}
-    </div>)}
-    <div className="block text-sm sm:col-span-2">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
-      <Textarea aria-label="Ghi chú" id={`proposal-unit-${i}-note`} className="mt-1" rows={3} maxLength={4000}
-        placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
-        value={u.note} onChange={e=>editUnit(i,'note',e.target.value)}/>
-    </div>
-  </div>;
+  const unitForm = (u:Unit,i:number) => <SchoolUnitFields unit={u} index={i} onFieldChange={editUnit} errors={fieldErrors} prefix="proposal-unit"/>;
 
   return <AppDialog open={open} onOpenChange={value=>{if(!value&&!busy)onClose()}}
     busy={busy} title={draftId===null?'Đề xuất trường học':'Chỉnh sửa hồ sơ trường'}
@@ -191,30 +159,9 @@ export function SchoolProposalEditor({
         </div>
         {fieldErrors.target&&<p className="text-xs text-destructive">{fieldErrors.target}</p>}
       </section>}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-semibold">Danh sách phân hiệu ({units.filter(x=>x.unit_type==='BRANCH').length})</h3>
-          <AppButton tone="outline" size="sm" onClick={addBranch} disabled={units.length>=50}>
-            <Plus className="size-4"/> Thêm phân hiệu
-          </AppButton>
-        </div>
-        {units.map((u,i)=>u.unit_type==='BRANCH'&&<div key={i} className="rounded-xl border">
-          <div className="flex items-center justify-between gap-2 p-3">
-            <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left font-medium"
-              onClick={()=>setExpanded(values=>values.includes(i)?values.filter(x=>x!==i):[...values,i])}>
-              {expanded.includes(i)?<ChevronUp className="size-4"/>:<ChevronDown className="size-4"/>}
-              <span className="truncate">{u.name||`Phân hiệu ${i+(mode==='NEW_MAIN'?0:1)}`}</span>
-            </button>
-            <button type="button" title="Xóa phân hiệu khỏi bản nháp" aria-label="Xóa phân hiệu"
-              onClick={()=>removeBranch(i)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10">
-              <Trash2 className="size-4"/>
-            </button>
-          </div>
-          {expanded.includes(i)&&<div className="border-t p-4">{unitForm(u,i)}</div>}
-        </div>)}
-        {units.every(u=>u.unit_type!=='BRANCH')&&<p className="text-sm text-muted-foreground">Chưa có phân hiệu. Có thể lưu trường chính trước.</p>}
-        {fieldErrors.units&&<p className="text-sm text-destructive">{fieldErrors.units}</p>}
-      </section>
+      <SchoolBranchList units={units} expanded={expanded} onExpandedChange={setExpanded}
+        onAdd={addBranch} onRemove={removeBranch} onFieldChange={editUnit}
+        errors={fieldErrors} prefix="proposal-branch"/>
       {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>}
   </AppDialog>;

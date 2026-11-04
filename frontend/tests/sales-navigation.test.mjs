@@ -302,3 +302,16 @@ test('Contract reporting and revisions share one validator and retain existing s
   assert.doesNotMatch(editor, /Vui lòng chọn file hợp đồng đã chỉnh sửa/);
   assert.match(editor, /existingEvidence: detail\.evidence\.length > 0/);
 });
+
+test('Sales proposal list keeps school codes searchable but hides them from table rows', () => {
+  const source = read('src/components/roles/SalesProposalTable.tsx');
+  assert.match(source, /normalize\(\[x\.name,x\.school_code,x\.submitted_by,x\.province,x\.ward\]/);
+  assert.doesNotMatch(source, /title=\{item\.school_code\}|\{item\.school_code\}<\/p>/);
+  assert.match(source, /placeholder="Tên trường, khu vực, người đề xuất\.\.\."/);
+  assert.match(source, /centerColumns=\{\[3\]\}/);
+  assert.match(source, /minWidth=\{960\}/);
+  assert.match(source, /min-w-0 text-left text-sm text-muted-foreground/);
+  assert.match(source, /minmax\(220px,1\.2fr\) minmax\(180px,1\.3fr\)/);
+  assert.match(source, /<SalesListLayout/);
+  assert.match(source, /<SalesListRow/);
+});

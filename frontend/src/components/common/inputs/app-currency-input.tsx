@@ -1,11 +1,12 @@
 'use client';
 
+import type { ComponentProps } from 'react';
 import { Input } from '@/components/ui/input';
 
 /** Controlled VND amount: the UI groups thousands, while value stays unformatted digits. */
 export function AppCurrencyInput({
   value, onValueChange, ...props
-}: Omit<React.ComponentProps<typeof Input>, 'type' | 'value' | 'onChange' | 'inputMode'> & {
+}: Omit<ComponentProps<typeof Input>, 'type' | 'value' | 'onChange' | 'inputMode'> & {
   value: string;
   onValueChange: (rawDigits: string) => void;
 }) {

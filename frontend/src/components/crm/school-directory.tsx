@@ -25,6 +25,7 @@ import { AppPageHeader } from '@/components/common/app-page-header';
 import { SCHOOL_ROWS_PER_PAGE } from '@/lib/school-page-window';
 import { AppEmptyState } from '@/components/common/app-empty-state';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
@@ -225,7 +226,7 @@ export function SchoolDirectory({
       address: unit.address ?? '', contact_name: unit.contact_name ?? '',
       contact_position: unit.contact_position ?? '', contact_phone: unit.contact_phone ?? '',
       school_phone: unit.school_phone ?? '', email: unit.email ?? '',
-      note: unit.note ?? '', reason: '',
+      note: unit.note ?? '',
     });
   };
   const startEditSchool = async (school: School) => {
@@ -246,8 +247,8 @@ export function SchoolDirectory({
   };
   const saveEditor = async () => {
     if (!editingUnit || adminBusy) return;
-    if (!editForm.name?.trim() || !editForm.province?.trim() || !editForm.ward?.trim() || !editForm.reason?.trim()) {
-      setAdminError('Cần điền tên, tỉnh/thành, phường/xã và lý do chỉnh sửa.'); return;
+    if (!editForm.name?.trim() || !editForm.province?.trim() || !editForm.ward?.trim()) {
+      setAdminError('Cần điền tên, tỉnh/thành và phường/xã.'); return;
     }
     setAdminBusy(true); setAdminError('');
     try {
@@ -652,12 +653,18 @@ export function SchoolDirectory({
             {([
               ['name','Tên đơn vị'],['province','Tỉnh/thành'],['ward','Phường/xã'],['address','Địa chỉ'],
               ['contact_name','Người liên hệ'],['contact_position','Chức vụ'],['contact_phone','SĐT liên hệ'],
-              ['school_phone','SĐT trường'],['email','Email'],['note','Ghi chú'],['reason','Lý do sửa']
+              ['school_phone','SĐT trường'],['email','Email']
             ] as const).map(([key,label]) => <label key={key} className="text-sm">{label}
               <Input className="mt-1" value={editForm[key] ?? ''}
                 onChange={event => setEditForm(current => ({...current,[key]:event.target.value}))}/>
             </label>)}
           </div>
+          <label className="block text-sm">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
+            <Textarea className="mt-1" rows={3} maxLength={4000}
+              placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
+              value={editForm.note ?? ''}
+              onChange={event => setEditForm(current => ({...current,note:event.target.value}))}/>
+          </label>
           {adminError && <p role="alert" className="text-sm text-red-600">{adminError}</p>}
           <div className="flex justify-end gap-2">
             <AppButton tone="outline" disabled={adminBusy} onClick={() => setEditingUnit(null)}>Hủy</AppButton>

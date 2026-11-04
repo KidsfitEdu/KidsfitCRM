@@ -29,6 +29,15 @@ test('Shared school fields keep per-input feedback for both Admin and Sales', ()
   const sales = read('components/crm/schools/school-proposal-editor.tsx');
   assert.match(sales, /<SchoolBranchList/);
   assert.match(sales, /<SchoolUnitFields/);
+  const adminDirectory = read('components/crm/schools/school-record-editor.tsx');
+  const adminProposal = read('components/crm/schools/admin-proposal-profile-editor.tsx');
+  assert.match(adminDirectory, /<SchoolMainSection/);
+  assert.match(adminProposal, /<SchoolMainSection/);
+  assert.doesNotMatch(adminDirectory, /official-school-code|Mã trường chính/);
+  assert.doesNotMatch(adminDirectory, /school_code:code/);
+  assert.doesNotMatch(adminProposal, /Mã trường chính|school_code/);
+  assert.match(shared, /label: 'Tên trường'/);
+  assert.doesNotMatch(shared, /Tên trường\\/phân hiệu/);
 });
 
 test('Sales approach registration produces one success toast after synchronization', () => {

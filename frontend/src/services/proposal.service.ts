@@ -34,7 +34,10 @@ export function fetchAdminProposalProfile(apiBase:string,token:string,id:number)
 export function updateAdminProposalProfile(apiBase:string,token:string,id:number,payload:{
   expected_version:number; reason?:string; units:AdminProposalUnit[];
 }) {
+  // Keep compatibility with older deployed API versions that still require a
+  // reason. This is an internal audit description, not a user-entered field.
+  const reason = payload.reason?.trim() || 'Admin cập nhật thông tin đề xuất trường.';
   return channelRequest(apiBase,token,`/school-proposals/${id}/admin-profile`,{
-    method:'PUT',body:JSON.stringify(payload),
+    method:'PUT',body:JSON.stringify({...payload,reason}),
   });
 }

@@ -790,10 +790,10 @@ function CapacityForm({
 }
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block space-y-1.5 text-sm">
+    <div className="block space-y-1.5 text-sm">
       <span className="font-medium">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 function ErrorText({ children }: { children: ReactNode }) {

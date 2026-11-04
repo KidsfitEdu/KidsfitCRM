@@ -7,6 +7,7 @@ public sealed partial class KidsfitDbContext
 {
     public DbSet<SchoolWorkflowPolicyVersion> SchoolWorkflowPolicies => Set<SchoolWorkflowPolicyVersion>();
     public DbSet<SchoolProposal> SchoolProposals => Set<SchoolProposal>();
+    public DbSet<SchoolProposalUnit> SchoolProposalUnits => Set<SchoolProposalUnit>();
     public DbSet<SchoolProposalAlert> SchoolProposalAlerts => Set<SchoolProposalAlert>();
     public DbSet<SchoolProposalRevision> SchoolProposalRevisions => Set<SchoolProposalRevision>();
     public DbSet<SchoolInvitation> SchoolInvitations => Set<SchoolInvitation>();
@@ -60,6 +61,23 @@ public sealed partial class KidsfitDbContext
         Restrict<SchoolProposalAlert, SchoolProposal>(b, x => x.SchoolProposalId);
         Restrict<SchoolProposalAlert, User>(b, x => x.RecipientUserId);
         b.Entity<SchoolProposal>().Property(x => x.Version).IsConcurrencyToken();
+        b.Entity<SchoolProposal>().Property(x => x.ProposalMode).HasMaxLength(32).HasDefaultValue("LEGACY");
+        b.Entity<SchoolProposal>().HasIndex(x => new { x.SubmittedByUserId, x.Status, x.IsDeleted });
+        b.Entity<SchoolProposalUnit>().Property(x => x.UnitType).HasMaxLength(16);
+        b.Entity<SchoolProposalUnit>().Property(x => x.Name).HasMaxLength(500);
+        b.Entity<SchoolProposalUnit>().Property(x => x.Province).HasMaxLength(100);
+        b.Entity<SchoolProposalUnit>().Property(x => x.Ward).HasMaxLength(100);
+        b.Entity<SchoolProposalUnit>().Property(x => x.Address).HasMaxLength(500);
+        b.Entity<SchoolProposalUnit>().Property(x => x.ContactName).HasMaxLength(500);
+        b.Entity<SchoolProposalUnit>().Property(x => x.ContactPosition).HasMaxLength(120);
+        b.Entity<SchoolProposalUnit>().Property(x => x.ContactPhone).HasMaxLength(40);
+        b.Entity<SchoolProposalUnit>().Property(x => x.Email).HasMaxLength(190);
+        b.Entity<SchoolProposalUnit>().Property(x => x.SchoolPhone).HasMaxLength(40);
+        b.Entity<SchoolProposalUnit>().Property(x => x.Note).HasColumnType("text");
+        b.Entity<SchoolProposalUnit>().HasIndex(x => new { x.SchoolProposalId, x.SortOrder }).IsUnique();
+        Restrict<SchoolProposalUnit, SchoolProposal>(b, x => x.SchoolProposalId);
+        Restrict<SchoolProposal, DirectorySchool>(b, x => x.TargetDirectorySchoolId);
+        Restrict<SchoolProposal, User>(b, x => x.DeletedByUserId);
         b.Entity<SchoolProposalRevision>().HasIndex(x => new { x.SchoolProposalId, x.Version }).IsUnique();
         Restrict<SchoolProposalRevision, SchoolProposal>(b, x => x.SchoolProposalId);
         Restrict<SchoolProposalRevision, User>(b, x => x.ActorUserId);

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { Input } from '@/components/ui/input';
 import { SchoolBranchList, SchoolMainSection, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit } from '@/components/crm/schools/school-units-editor';
 import { fetchAdminProposalProfile, updateAdminProposalProfile, type AdminProposalProfile, type AdminProposalUnit } from '@/services/proposal.service';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -29,7 +28,6 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
   const [profile,setProfile]=useState<AdminProposalProfile|null>(null);
   const [units,setUnits]=useState<SchoolFormUnit[]>([]);
   const [expanded,setExpanded]=useState<number[]>([]);
-  const [reason,setReason]=useState('');
   const [errors,setErrors]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(false);
@@ -37,7 +35,7 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
   useEffect(()=>{
     if(!open || proposalId===null)return;
     let active=true;
-    setLoading(true);setProfile(null);setUnits([]);setExpanded([]);setReason('');setErrors({});
+    setLoading(true);setProfile(null);setUnits([]);setExpanded([]);setErrors({});
     void fetchAdminProposalProfile(apiBase,token,proposalId).then(({data})=>{
       if(!active)return;
       setProfile(data);
@@ -68,7 +66,6 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
   };
   const validate=()=>{
     const next:Record<string,string>={};
-    if(!reason.trim())next.reason='Cần nhập lý do chỉnh sửa.';
     if(units.length===0||units.length>50)next.units='Hồ sơ phải chứa từ 1 đến 50 đơn vị.';
     const seen=new Set<string>();
     units.forEach((unit,i)=>{
@@ -102,7 +99,6 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
     try {
       await updateAdminProposalProfile(apiBase,token,proposalId,{
         expected_version:profile.version,
-        reason:reason.trim(),
         units:units.map(({unit_type,name,province,ward,address,contact_name,contact_position,contact_phone,email,school_phone,note})=>({
           unit_type,name:name.trim(),province:province.trim(),ward:ward.trim(),
           address,contact_name,contact_position,contact_phone,email,school_phone,note,
@@ -116,7 +112,7 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
         const mapped:Record<string,string>={};
         for(const [field,messages] of Object.entries(error.errors)){
           const key=field.toLowerCase().replace(/^units\[(\d+)\]\./,'$1.');
-          if(key==='reason'||key==='units'||/^\d+\.(name|province|ward|email|contact_phone|school_phone)$/.test(key))
+          if(key==='units'||/^\d+\.(name|province|ward|email|contact_phone|school_phone)$/.test(key))
             mapped[key]=messages[0]??'Thông tin không hợp lệ.';
         }
         if(Object.keys(mapped).length){setErrors(mapped);return;}
@@ -148,12 +144,6 @@ export function AdminProposalProfileEditor({open,proposalId,apiBase,token,onClos
       <SchoolBranchList units={units} expanded={expanded} onExpandedChange={setExpanded}
         onAdd={addBranch} onRemove={removeBranch} onFieldChange={change}
         errors={errors} allowAdd={!isLegacy} prefix="admin-proposal-branch"/>
-      <label className="block text-sm font-medium" htmlFor="admin-proposal-profile-reason">
-        Lý do chỉnh sửa *
-        <Input id="admin-proposal-profile-reason" value={reason} className="mt-1" maxLength={2000}
-          aria-invalid={!!errors.reason} onChange={e=>{setReason(e.target.value);setErrors(previous=>({...previous,reason:''}));}}/>
-        {errors.reason&&<span className="mt-1 block text-xs text-destructive">{errors.reason}</span>}
-      </label>
     </div>:<p className="text-sm text-muted-foreground">Không tải được hồ sơ. Hãy đóng và thử lại.</p>}
   </AppDialog>;
 }

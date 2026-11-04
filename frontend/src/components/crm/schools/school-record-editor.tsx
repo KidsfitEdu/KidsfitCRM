@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Input } from '@/components/ui/input';
-import { channelRequest } from '@/lib/channel-operations';
+import { ChannelRequestError, channelRequest } from '@/lib/channel-operations';
 import { appNotice } from '@/components/common/app-toast-provider';
 import {
   SchoolBranchList, SchoolUnitFields, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit,
@@ -23,7 +23,6 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
   const [units,setUnits]=useState<SchoolFormUnit[]>([emptySchoolUnit('MAIN')]);
   const [expanded,setExpanded]=useState<number[]>([]);
   const [errors,setErrors]=useState<Record<string,string>>({});
-  const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(false);
   const request = <T,>(path:string,options?:RequestInit)=>
@@ -31,14 +30,14 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
 
   useEffect(()=>{
     if(!open)return;
-    setCode('');setUnits([emptySchoolUnit('MAIN')]);setExpanded([]);setErrors({});setError('');
+    setCode('');setUnits([emptySchoolUnit('MAIN')]);setExpanded([]);setErrors({});
     if(schoolId===null)return;
     let active=true;setLoading(true);
     void request<Detail>(`/schools/${schoolId}`).then(detail=>{
       if(!active)return;
       setCode(detail.school_code);
       setUnits(detail.units.map(unit=>({...emptySchoolUnit(unit.unit_type),...unit,expected_version:unit.version})));
-    }).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Không tải được hồ sơ.');})
+    }).catch(cause=>{if(active)appNotice.error('Không thể tải hồ sơ trường học.',cause instanceof Error?cause.message:'Vui lòng thử lại.');})
       .finally(()=>{if(active)setLoading(false);});
     return()=>{active=false;};
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,14 +81,13 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
     if(Object.keys(next).length) {
       const index=Number(Object.keys(next).find(k=>/^\d+\./.test(k))?.split('.')[0]);
       if(Number.isInteger(index)&&units[index]?.unit_type==='BRANCH')setExpanded(prev=>[...new Set([...prev,index])]);
-      setError('Vui lòng kiểm tra thông tin bắt buộc và dữ liệu trùng.');
       return false;
     }
     return true;
   };
   const save=async()=>{
     if(!validate()||busy||loading)return;
-    setBusy(true);setError('');
+    setBusy(true);
     try {
       await request(schoolId===null?'/schools':`/schools/${schoolId}`,{
         method:schoolId===null?'POST':'PUT',
@@ -98,9 +96,26 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
       await onSaved();
       onClose();
     }catch(cause){
-      const message=cause instanceof Error?cause.message:'Không lưu được hồ sơ trường học.';
-      setError(message);
-      appNotice.error('Không thể lưu hồ sơ trường học.',message);
+      // Only input-specific 422 errors are rendered inline. All other failures use one toast.
+      if (cause instanceof ChannelRequestError && cause.status === 422) {
+        const mapped:Record<string,string> = {};
+        for (const [field,messages] of Object.entries(cause.errors)) {
+          const normalized = field.toLowerCase().replace(/^units\\[(\\d+)\\]\\./, '$1.');
+          if (normalized === 'school_code' || normalized === 'units' || /^\\d+\\.(name|province|ward|address|contact_name|contact_position|contact_phone|email|school_phone|note)$/.test(normalized))
+            mapped[normalized] = messages[0] ?? 'Thông tin không hợp lệ.';
+          else if (normalized === 'name' || normalized === 'province' || normalized === 'ward')
+            mapped[`0.${normalized}`] = messages[0] ?? 'Thông tin không hợp lệ.';
+        }
+        if (Object.keys(mapped).length) {
+          setErrors(mapped);
+          const branchIndex = Number(Object.keys(mapped).find(k => /^\\d+\\./.test(k))?.split('.')[0]);
+          if (Number.isInteger(branchIndex) && units[branchIndex]?.unit_type === 'BRANCH')
+            setExpanded(current => [...new Set([...current,branchIndex])]);
+          return;
+        }
+      }
+      appNotice.error('Không thể lưu hồ sơ trường học.',
+        cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
     }finally{setBusy(false);}
   };
   const mainIndex=units.findIndex(x=>x.unit_type==='MAIN');
@@ -129,7 +144,6 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
       <SchoolBranchList units={units} expanded={expanded} onExpandedChange={setExpanded}
         onAdd={addBranch} onRemove={removeBranch} onFieldChange={change}
         errors={errors} lockedExisting prefix="official-branch"/>
-      {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>}
   </AppDialog>;
 }

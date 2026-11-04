@@ -229,7 +229,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             Http(scenario.Seller.UserId), Ct);
         var conflict = await Assert.ThrowsAsync<ApiConflictException>(() =>
             actions.ChangeSchoolDeletion(scenario.SchoolId, "Chặn khi đang tư vấn", true, admin, Http(admin), Ct));
-        Assert.Contains("nhân viên hoặc CTV tiếp cận", conflict.Message);
+        Assert.Contains("quyền bảo vệ khách hàng", conflict.Message);
         db.ChangeTracker.Clear();
         Assert.False(await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId).Select(x => x.IsDeleted).SingleAsync(Ct));
     }

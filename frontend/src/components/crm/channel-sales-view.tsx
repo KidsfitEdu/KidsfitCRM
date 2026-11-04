@@ -508,8 +508,17 @@ export function ChannelSalesView({
           packages={workspace.packages}
           onClose={() => setContractCustomer(null)}
           onSubmit={async (input) => {
-            await onReportContract(contractCustomer, input);
-            setContractCustomer(null);
+            try {
+              await onReportContract(contractCustomer, input);
+              setContractCustomer(null);
+            } catch (cause) {
+              const message = cause instanceof Error ? cause.message : '';
+              if (message.includes('đã báo cáo hợp đồng')) {
+                setExtensionRefresh(value => value + 1);
+                setContractCustomer(null);
+              }
+              throw cause;
+            }
           }}
         />
       )}

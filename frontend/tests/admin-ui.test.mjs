@@ -53,7 +53,10 @@ test('All Admin views report server errors through shared toast; form errors sta
   assert.match(schools, /<SchoolRecordEditor/);
   const editor = read('src/components/crm/schools/school-record-editor.tsx');
   assert.match(editor, /setErrors\(next\)/);
-  assert.match(editor, /role="alert"/);
+  assert.doesNotMatch(editor, /setError\\(message\\)/);
+  assert.doesNotMatch(editor, /\\{error&&<p/);
+  assert.match(editor, /cause instanceof ChannelRequestError && cause.status === 422/);
+  assert.match(editor, /appNotice\\.error\\('Không thể lưu hồ sơ trường học\\.'/);
   assert.match(capacity, /<FormError id="capacity-limit-error">/);
 });
 

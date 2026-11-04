@@ -16,6 +16,7 @@ export type ChannelCustomer = {
   protected_until: string | null;
   next_follow_up_at: string | null;
   contract_id: number | null;
+  contract_status?: string | null;
   contract_code: string | null;
   contract_value: number;
   collected_revenue: number;

@@ -151,10 +151,11 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
                 packageId, total, null, "CONTRACT-TEST",
                 ServicePlan: monthly ? "MONTHLY_9" : "SCHOOL_YEAR",
                 StudentCount: 450, MaintenanceFee: maintenance, SetupFee: setup,
-                ContractNote: "Giá đã đối chiếu với hợp đồng");
+                ContractNote: "Giá đã đối chiếu với hợp đồng", BranchCount: 3);
             var contractId = await actions.ReportSignedContract(registration, request, seller, Http(), Ct);
             var contract = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
             Assert.Equal(total, contract.TotalValue);
+            Assert.Equal(3, contract.BranchCount);
             Assert.Equal("Giá đã đối chiếu với hợp đồng", contract.ContractNote);
             var items = await db.SalesContractItems.AsNoTracking()
                 .Where(x => x.ContractId == contractId).ToArrayAsync(Ct);
@@ -165,6 +166,24 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
             Assert.Equal(setup, items.Single(x => x.Description.StartsWith("Phí khởi tạo")).Amount);
             Assert.Equal(contractId, await actions.ReportSignedContract(registration, request, seller, Http(), Ct));
         }
+    }
+
+    [MySqlFact]
+    public async Task Sales_contract_rejects_negative_branch_count_without_creating_contract()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var request = new ReportSalesContractRequest(Key(), null,
+            ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+            packageId, 15_876_000m, null, "CONTRACT-TEST",
+            ServicePlan: "SCHOOL_YEAR", StudentCount: 450,
+            MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m, BranchCount: -1);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.ReportSignedContract(registration, request, seller, Http(), Ct));
+        Assert.False(await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration, Ct));
     }
 
     [MySqlFact]

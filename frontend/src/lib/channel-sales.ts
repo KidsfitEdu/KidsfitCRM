@@ -106,6 +106,8 @@ export type ReportContractInput = {
   service_plan?: 'SCHOOL_YEAR' | 'MONTHLY_9';
   student_count?: number;
   school_unit_ids?: number[];
+  maintenance_fee?: number;
+  setup_fee?: number;
 };
 
 export type RevenueReceiptInput = {

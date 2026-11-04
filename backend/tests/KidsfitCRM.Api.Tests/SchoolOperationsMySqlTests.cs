@@ -762,6 +762,50 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Single(await db.AuditLogs.Where(x => x.EntityType == nameof(SchoolExtensionRequest) && x.EntityId == id && x.Action == "REVIEW_SCHOOL_EXTENSION").ToArrayAsync());
     }
 
+    [MySqlFact] public async Task ManagerApprovesExtensionByConfirmationAndRejectsOnlyWithReason()
+    {
+        var s = await Arrange();
+        await Policy(s.OrgId);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var first = await actions.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
+        var original = (await db.ApproachRegistrations.FindAsync(first))!.ProtectedUntil;
+        var extensionId = await actions.RequestSchoolExtension(first,
+            new RequestSchoolExtensionRequest(Key(), null, null, null, "Đã trao đổi với nhà trường", null),
+            s.Seller.UserId, Http(), Ct);
+        var request = await db.SchoolExtensionRequests.AsNoTracking().SingleAsync(x => x.Id == extensionId, Ct);
+        var approve = new ReviewSchoolExtensionRequest(true, null, null, null);
+        await actions.ReviewSchoolExtension(extensionId, approve, s.Manager.UserId, Http(), Ct);
+        await actions.ReviewSchoolExtension(extensionId, approve, s.Manager.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        var approved = await db.SchoolExtensionRequests.AsNoTracking().SingleAsync(x => x.Id == extensionId, Ct);
+        Assert.Equal("APPROVED", approved.Status);
+        Assert.Equal("Quản lý duyệt gia hạn theo chính sách CRM.", approved.DecisionReason);
+        Assert.Equal(request.RequestedUntil, approved.ApprovedUntil);
+        Assert.Equal(approved.ApprovedUntil, approved.NextReviewAt);
+        Assert.True(approved.ApprovedUntil > original);
+        Assert.Equal(approved.ApprovedUntil, await db.ApproachRegistrations.Where(x => x.Id == first)
+            .Select(x => x.ProtectedUntil).SingleAsync(Ct));
+        Assert.Single(await db.AuditLogs.Where(x => x.EntityType == nameof(SchoolExtensionRequest)
+            && x.EntityId == extensionId && x.Action == "REVIEW_SCHOOL_EXTENSION").ToArrayAsync(Ct));
+
+        var second = await actions.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct);
+        var secondId = await actions.RequestSchoolExtension(second,
+            new RequestSchoolExtensionRequest(Key(), null, null, null, "Đang tư vấn trường khác", null),
+            s.Seller.UserId, Http(), Ct);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.ReviewSchoolExtension(secondId,
+                new ReviewSchoolExtensionRequest(false, null, null, "  "), s.Manager.UserId, Http(), Ct));
+        await actions.ReviewSchoolExtension(secondId,
+            new ReviewSchoolExtensionRequest(false, null, null, "Không đủ tiến độ tiếp cận"),
+            s.Manager.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        Assert.Equal("REJECTED", await db.SchoolExtensionRequests.Where(x => x.Id == secondId)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("ACTIVE", await db.ApproachRegistrations.Where(x => x.Id == second)
+            .Select(x => x.Status).SingleAsync(Ct));
+    }
+
     [MySqlFact] public async Task ProposalWorkspaceScopesContactsAndBoardReceivesOverdueWork()
     {
         var s = await Arrange(); var board = await User("board@kidsfit.vn");

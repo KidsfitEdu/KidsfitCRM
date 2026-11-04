@@ -188,7 +188,6 @@ export function SchoolDirectory({
   const [importKey, setImportKey] = useState(key);
   const [importOpen, setImportOpen] = useState(false);
   const [capacity, setCapacity] = useState<Capacity | null>(null);
-  const [notice, setNotice] = useState('');
   const client = useQueryClient();
   const demo = !apiBase;
   const can = (code: string) => !demo && (abilities.includes('*') || abilities.includes(code));
@@ -294,10 +293,10 @@ export function SchoolDirectory({
     onSuccess: async () => {
       await syncAfterSave();
       if (adminMode) appNotice.success('Đã lưu thay đổi trường học và lịch sử xử lý.');
-      else setNotice('Đã lưu thay đổi và lịch sử xử lý.');
+      else appNotice.success('Đã lưu thay đổi và lịch sử xử lý.');
     },
     onError: (error) => {
-      if (adminMode) appNotice.error('Không lưu được thay đổi trường học.', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+      appNotice.error('Không lưu được thay đổi trường học.', error instanceof Error ? error.message : 'Vui lòng thử lại.');
     },
   });
   const upload = useMutation({
@@ -328,7 +327,7 @@ export function SchoolDirectory({
       setPreview(null);
       const message = `Đã nhập ${result.data?.schools_created ?? 0} trường mới và ${result.data?.units_created ?? 0} đơn vị mới. Dữ liệu cũ được giữ nguyên.`;
       if (adminMode) appNotice.success('Import Excel thành công.', message);
-      else setNotice(message);
+      else appNotice.success('Đã nhập danh sách trường học.', message);
     },
     onError: (error) => {
       if (adminMode) appNotice.error('Không thể xử lý file Excel.', error instanceof Error ? error.message : 'Vui lòng kiểm tra file và thử lại.');
@@ -352,16 +351,9 @@ export function SchoolDirectory({
             description="Quản lý trường chính, phân hiệu và quyền bảo vệ khách hàng"
             actions={renderImportAction?.(openImport)}/>
         : renderImportAction?.(openImport)}
-      {!adminMode && notice && (
-        <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-          {notice}
-        </output>
-      )}
-      {!adminMode && (schools.error || mutation.error || capacities.error) && (
+      {!adminMode && (schools.error || capacities.error) && (
         <ErrorText>
-          {schools.error?.message ??
-            mutation.error?.message ??
-            capacities.error?.message}
+          {schools.error?.message ?? capacities.error?.message}
         </ErrorText>
       )}
       {!adminMode && !!capacities.data?.data.length && (

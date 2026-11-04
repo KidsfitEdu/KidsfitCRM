@@ -121,7 +121,8 @@ internal static class TenSchoolScenarioSeeder
                     Address = sourceMain?.Address, ContactName = sourceMain?.ContactName,
                     ContactPosition = sourceMain?.ContactPosition,
                     Phone = sourceMain?.SchoolPhone, Email = sourceMain?.Email,
-                    Source = "SCHOOL_DIRECTORY", LifecycleStatus = "PROSPECT",
+                    Source = "SCHOOL_DIRECTORY",
+                    LifecycleStatus = sample.Code is "SCH0001" or "SCH0002" ? "CONTRACTED" : "PROSPECT",
                     VerificationStatus = "VERIFIED", CreatedByUserId = admin.Id,
                     OrganizationId = kidsfit.Id, CreatedAt = now, UpdatedAt = now
                 };
@@ -197,9 +198,13 @@ internal static class TenSchoolScenarioSeeder
                 {
                     CustomerId = customerId, OwnerUserId = stage.Owner,
                     OwnerOrganizationId = stage.Org, CreatedByUserId = stage.Owner,
-                    Status = "CONVERTED", RegisteredAt = now.AddDays(-24),
-                    ProtectedUntil = now.AddDays(-19), Source = "TRAINING_SCENARIO",
-                    IdempotencyKey = approachKey, CreatedAt = now.AddDays(-24), UpdatedAt = now
+                    Status = stage.Status == "ACTIVE" ? "CONVERTED" : "ACTIVE",
+                    RegisteredAt = stage.Status == "ACTIVE" ? now.AddDays(-24) : now.AddDays(-4),
+                    ProtectedUntil = stage.Status == "ACTIVE" ? now.AddDays(-19) : now.AddDays(1),
+                    Source = "TRAINING_SCENARIO",
+                    IdempotencyKey = approachKey,
+                    CreatedAt = stage.Status == "ACTIVE" ? now.AddDays(-24) : now.AddDays(-4),
+                    UpdatedAt = now
                 };
                 db.ApproachRegistrations.Add(approach);
                 await db.SaveChangesAsync();
@@ -214,11 +219,12 @@ internal static class TenSchoolScenarioSeeder
                     CustomerId = customerId, ApproachRegistrationId = approach.Id,
                     OwnerUserId = stage.Owner, OwnerOrganizationId = stage.Org,
                     ReportedByUserId = stage.Owner, OwnerPersonnelType = stage.Org == partner.Id ? "COLLABORATOR" : "SALES",
-                    ContractCode = contractCode, SignedOn = DateOnly.FromDateTime(now.AddDays(-14)),
+                    ContractCode = contractCode,
+                    SignedOn = DateOnly.FromDateTime(stage.Status == "ACTIVE" ? now.AddDays(-21) : now.AddDays(-3)),
                     TotalValue = stage.Value, Currency = "VND", Status = stage.Status,
                     ServicePlan = "SCHOOL_YEAR", StudentCount = 350, SchoolUnitIdsJson = "[]",
                     RequiresSchoolVerification = true, VerifiedAt = verified,
-                    ManagerReviewedAt = stage.Status is "PENDING_REVIEW" or "NEEDS_REVISION" ? null : now.AddDays(-12),
+                    ManagerReviewedAt = stage.Status is "PENDING_REVIEW" or "NEEDS_REVISION" ? null : now.AddDays(-2),
                     ManagerReviewedByUserId = stage.Status is "PENDING_REVIEW" or "NEEDS_REVISION" ? null : stage.Manager,
                     ProtectionStartsAt = stage.Status == "ACTIVE" ? verified!.Value : now,
                     ProtectionUntil = stage.Status == "ACTIVE" ? verified!.Value.AddYears(5) : now,
@@ -226,7 +232,7 @@ internal static class TenSchoolScenarioSeeder
                     CareOrganizationId = stage.Status == "ACTIVE" ? kidsfit.Id : null,
                     EvidenceReference = "Tài liệu tình huống đào tạo (không phải hợp đồng pháp lý)",
                     IdempotencyKey = "ten-school-contract-" + stage.Code,
-                    CreatedAt = now.AddDays(-14), UpdatedAt = now
+                    CreatedAt = stage.Status == "ACTIVE" ? now.AddDays(-21) : now.AddDays(-3), UpdatedAt = now
                 };
                 db.SalesContracts.Add(contract);
                 await db.SaveChangesAsync();
@@ -237,14 +243,26 @@ internal static class TenSchoolScenarioSeeder
                     UnitPrice = stage.Value, Amount = stage.Value,
                     CreatedAt = now, UpdatedAt = now
                 });
-                db.RevenueSchedules.Add(new RevenueSchedule
-                {
-                    ContractId = contract.Id, DueOn = DateOnly.FromDateTime(now.AddDays(25)),
-                    AmountDue = stage.Value, AmountReceived = 0m, Status = "PENDING",
-                    CreatedAt = now, UpdatedAt = now
-                });
+                if (stage.Status == "ACTIVE")
+                    db.RevenueSchedules.Add(new RevenueSchedule
+                    {
+                        ContractId = contract.Id, DueOn = DateOnly.FromDateTime(now.AddDays(25)),
+                        AmountDue = stage.Value, AmountReceived = 0m, Status = "PENDING",
+                        CreatedAt = now, UpdatedAt = now
+                    });
                 await db.SaveChangesAsync();
             }
+            if (stage.Status != "ACTIVE" &&
+                !await db.CustomerProtections.AnyAsync(x => x.ApproachRegistrationId == approach.Id))
+                db.CustomerProtections.Add(new CustomerProtection
+                {
+                    ApproachRegistrationId = approach.Id, CustomerId = customerId,
+                    OwnerUserId = stage.Owner, OwnerOrganizationId = stage.Org,
+                    SourceType = "APPROACH", Status = "ACTIVE",
+                    EffectiveFrom = approach.RegisteredAt,
+                    EffectiveUntil = approach.ProtectedUntil,
+                    CreatedAt = now, UpdatedAt = now
+                });
             if (stage.Status == "ACTIVE" &&
                 !await db.CustomerProtections.AnyAsync(x => x.ContractId == contract.Id))
                 db.CustomerProtections.Add(new CustomerProtection
@@ -263,7 +281,7 @@ internal static class TenSchoolScenarioSeeder
                 {
                     CustomerId = customerId, ContractId = contract.Id,
                     CheckeeOrganizationId = checkee.Id, Status = stage.Case,
-                    OpenedAt = now.AddDays(-12),
+                    OpenedAt = stage.Status == "ACTIVE" ? now.AddDays(-12) : now.AddDays(-2),
                     ResolvedAt = stage.Case == "CONFIRMED" ? now.AddDays(-10) : null,
                     CreatedAt = now, UpdatedAt = now
                 };

@@ -13,6 +13,12 @@ public static class SchoolOperationsEndpoints
         group.MapGet("/school-operations/report", Report).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-workflow-policies", PolicyListPage).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-operations/{kind}/{id:long}/history", History).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/school-proposals/{id:long}/admin-profile", AdminProposalProfile)
+            .RequireAuthorization(Permissions.SchoolDirectoryManage);
+        group.MapPut("/school-proposals/{id:long}/admin-profile",
+            async (long id, UpdateAdminProposalProfileRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) =>
+                Saved(await a.UpdateAdminProposalProfile(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/school-proposals/{id:long}/revisions", ProposalRevisions).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/school-units/{id:long}/history", UnitHistory).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/schools/{id:long}/rights", Rights).RequireAuthorization(Permissions.ChannelSalesView);
@@ -128,6 +134,49 @@ public static class SchoolOperationsEndpoints
         } });
     }
 
+    private static async Task<IResult> AdminProposalProfile(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.All || !access.Has(Permissions.SchoolDirectoryManage)
+            || !await db.Organizations.AnyAsync(o => o.Code == "KIDSFIT"
+                && o.Status == "ACTIVE" && access.OrganizationIds.Contains(o.Id), ct))
+            throw new KeyNotFoundException();
+
+        var proposal = await db.SchoolProposals.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == id && !x.IsDeleted && x.Status != "DRAFT" && x.Status != "NEEDS_REVISION", ct) ?? throw new KeyNotFoundException();
+        var units = await db.SchoolProposalUnits.AsNoTracking()
+            .Where(u => u.SchoolProposalId == id).OrderBy(u => u.SortOrder)
+            .Select(u => new {
+                id = u.Id, unit_type = u.UnitType, name = u.Name, province = u.Province,
+                ward = u.Ward, address = u.Address, contact_name = u.ContactName,
+                contact_position = u.ContactPosition, contact_phone = u.ContactPhone,
+                email = u.Email, school_phone = u.SchoolPhone, note = u.Note
+            }).ToArrayAsync(ct);
+        var target = proposal.TargetDirectorySchoolId.HasValue
+            ? await db.SchoolUnits.AsNoTracking()
+                .Where(u => u.DirectorySchoolId == proposal.TargetDirectorySchoolId && u.UnitType == "MAIN")
+                .Select(u => new {
+                    id = u.Id, unit_type = u.UnitType, name = u.Name, province = u.Province,
+                    ward = u.Ward, address = u.Address, contact_name = u.ContactName,
+                    contact_position = u.ContactPosition, contact_phone = u.ContactPhone,
+                    email = u.Email, school_phone = u.SchoolPhone, note = u.Note
+                }).SingleOrDefaultAsync(ct)
+            : null;
+        return Results.Ok(new { data = new {
+            id = proposal.Id, version = proposal.Version, status = proposal.Status,
+            proposal_mode = proposal.ProposalMode, target_directory_school_id = proposal.TargetDirectorySchoolId,
+            name = proposal.Name, province = proposal.Province, ward = proposal.Ward,
+            address = proposal.Address, contact_name = proposal.ContactName,
+            contact_position = proposal.ContactPosition, contact_phone = proposal.ContactPhone, email = proposal.Email,
+            reason = proposal.Reason, review_due_at = proposal.ReviewDueAt,
+            decision_reason = proposal.DecisionReason,
+            submitted_by = await db.Users.Where(u => u.Id == proposal.SubmittedByUserId).Select(u => u.Name).SingleAsync(ct),
+            manager_name = await db.Users.Where(u => u.Id == proposal.ManagerUserId).Select(u => u.Name).SingleAsync(ct),
+            can_edit = proposal.Status == "PENDING_ADMIN",
+            units, target
+        } });
+    }
+
     // Dedicated policy list avoids the 100-row snapshot cap in the general workspace API.
     public static async Task<IResult> PolicyListPage(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
@@ -203,7 +252,7 @@ public static class SchoolOperationsEndpoints
         if (disputeStatus is not ("" or "OPEN" or "RESOLVED"))
             throw ApiValidationException.For("dispute_status", "Trạng thái tranh chấp không hợp lệ.");
         var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status)
-            && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term)
+            && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term) || (x.Address != null && x.Address.Contains(term)) || x.Province.Contains(term) || x.Ward.Contains(term)
                 || db.Users.Any(u => (u.Id == x.ManagerUserId || u.Id == x.SubmittedByUserId) && u.Name.Contains(term))));
         if (overdueOnly)
             proposalQuery = proposalQuery.Where(x =>

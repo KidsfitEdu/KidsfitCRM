@@ -26,8 +26,11 @@ public sealed partial class ChannelSalesActions
             .Select(x => (long?)x.Id).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.All || !access.InOrganization(centralId)) throw new KeyNotFoundException();
 
-        var code = Validation.Required(request.SchoolCode, "school_code", "Cần mã trường chính.", 64).ToUpperInvariant();
-        if (!System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Z0-9][A-Z0-9_-]*$"))
+        // The UI never asks Admin for a code. Existing identifiers remain immutable;
+        // new official schools receive an opaque, collision-resistant server code.
+        var requestedCode = string.IsNullOrWhiteSpace(request.SchoolCode) ? null
+            : Validation.Required(request.SchoolCode, "school_code", "Mã trường không hợp lệ.", 64).ToUpperInvariant();
+        if (requestedCode is not null && !System.Text.RegularExpressions.Regex.IsMatch(requestedCode, "^[A-Z0-9][A-Z0-9_-]*$"))
             throw ApiValidationException.For("school_code", "Mã trường không hợp lệ.");
         var inputs = request.Units ?? Array.Empty<SchoolRecordUnitInput>();
         if (inputs.Length == 0 || inputs.Length > 50 || inputs.Count(x => x.UnitType?.ToUpperInvariant() == "MAIN") != 1)
@@ -52,12 +55,13 @@ public sealed partial class ChannelSalesActions
                 $"SELECT * FROM directory_schools WHERE id = {schoolId.Value} FOR UPDATE").SingleOrDefaultAsync(ct)
                 ?? throw new KeyNotFoundException();
             if (school.IsDeleted) throw new ApiConflictException("Trường đã ngừng sử dụng; cần khôi phục trước khi sửa.");
-            if (school.SchoolCode != code) throw new ApiConflictException("Không được thay đổi mã trường chính khi chỉnh sửa.");
+            if (requestedCode is not null && school.SchoolCode != requestedCode) throw new ApiConflictException("Không được thay đổi mã trường chính khi chỉnh sửa.");
             customer = await LockCustomer(school.CustomerId, ct) ?? throw new KeyNotFoundException();
         }
         else
         {
             if (inputs.Any(x => x.Id.HasValue)) throw ApiValidationException.For("units", "Trường mới không có ID đơn vị.");
+            var code = requestedCode ?? "SCH-M" + Guid.NewGuid().ToString("N").ToUpperInvariant();
             if (await db.DirectorySchools.AnyAsync(x => x.SchoolCode == code, ct))
                 throw new ApiConflictException("Mã trường chính đã tồn tại.");
             var main = inputs.Single(x => x.UnitType == "MAIN");

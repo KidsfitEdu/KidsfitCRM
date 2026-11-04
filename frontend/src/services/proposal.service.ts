@@ -14,3 +14,27 @@ export type ProposalRevision = {version:number;reason:string;createdAt:string;ac
 export function fetchProposalRevisions(apiBase:string,token:string,id:number) {
   return channelRequest<{data:ProposalRevision[]}>(apiBase,token,'/school-proposals/'+id+'/revisions');
 }
+
+export type AdminProposalUnit = {
+  id?:number; unit_type:'MAIN'|'BRANCH'; name:string; province:string; ward:string;
+  address:string|null; contact_name:string|null; contact_position:string|null;
+  contact_phone:string|null; email:string|null; school_phone:string|null; note:string|null;
+};
+export type AdminProposalProfile = {
+  id:number; version:number; status:string; proposal_mode:'LEGACY'|'NEW_MAIN'|'ADD_BRANCHES';
+  target_directory_school_id:number|null; name:string; province:string; ward:string;
+  address:string|null; contact_name:string|null; contact_position:string|null;
+  contact_phone:string|null; email:string|null; reason:string;
+  review_due_at:string; decision_reason:string|null; submitted_by:string;
+  manager_name:string; can_edit:boolean; units:AdminProposalUnit[]; target:AdminProposalUnit|null;
+};
+export function fetchAdminProposalProfile(apiBase:string,token:string,id:number) {
+  return channelRequest<{data:AdminProposalProfile}>(apiBase,token,`/school-proposals/${id}/admin-profile`);
+}
+export function updateAdminProposalProfile(apiBase:string,token:string,id:number,payload:{
+  expected_version:number; reason:string; units:AdminProposalUnit[];
+}) {
+  return channelRequest(apiBase,token,`/school-proposals/${id}/admin-profile`,{
+    method:'PUT',body:JSON.stringify(payload),
+  });
+}

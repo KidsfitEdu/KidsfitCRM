@@ -20,7 +20,7 @@ export const emptySchoolUnit = (type: SchoolFormUnit['unit_type'], province = ''
 });
 
 export const schoolUnitFields: { key: keyof Omit<SchoolFormUnit, 'id' | 'expected_version' | 'unit_type'>; label: string; required?: boolean }[] = [
-  { key: 'name', label: 'Tên trường/phân hiệu', required: true },
+  { key: 'name', label: 'Tên trường', required: true },
   { key: 'province', label: 'Tỉnh/thành', required: true },
   { key: 'ward', label: 'Phường/xã', required: true },
   { key: 'address', label: 'Địa chỉ' },
@@ -38,7 +38,7 @@ export function SchoolUnitFields({unit,index,onFieldChange,errors={},prefix='sch
 }) {
   return <div className="grid gap-3 sm:grid-cols-2">
     {schoolUnitFields.map(field => <label key={field.key} className="block min-w-0 text-sm" htmlFor={`${prefix}-${index}-${field.key}`}>
-      {field.key==='name' && unit.unit_type==='MAIN'?'Tên trường':field.label} {field.required&&<span className="text-destructive">*</span>}
+      {field.label} {field.required&&<span className="text-destructive">*</span>}
       <Input id={`${prefix}-${index}-${field.key}`} className="mt-1" value={unit[field.key]??''}
         maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
         aria-invalid={!!errors[`${index}.${field.key}`]}
@@ -52,6 +52,18 @@ export function SchoolUnitFields({unit,index,onFieldChange,errors={},prefix='sch
         value={unit.note} onChange={e=>onFieldChange(index,'note',e.target.value)}/>
     </label>
   </div>;
+}
+
+/** Shared main-school panel for Admin directory and proposal editors. Never displays school codes. */
+export function SchoolMainSection({unit,index,onFieldChange,errors={},prefix='school'}:{
+  unit:SchoolFormUnit; index:number;
+  onFieldChange:(index:number,key:keyof SchoolFormUnit,value:string)=>void;
+  errors?:Record<string,string>; prefix?:string;
+}) {
+  return <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
+    <h3 className="font-semibold">Trường chính</h3>
+    <SchoolUnitFields unit={unit} index={index} onFieldChange={onFieldChange} errors={errors} prefix={prefix}/>
+  </section>;
 }
 
 export function SchoolBranchList({units,expanded,onExpandedChange,onAdd,onRemove,onFieldChange,errors={},lockedExisting=false,prefix='school'}:{

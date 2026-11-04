@@ -649,7 +649,7 @@ export function SchoolDirectory({
             </>
           )}
         </AppDialog>
-      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={detail.data?.school_code ?? ''} wide>
+      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={adminMode ? 'Thông tin trường chính và các phân hiệu' : (detail.data?.school_code ?? '')} wide>
           {detail.error && <ErrorText>{detail.error.message}</ErrorText>}
           {detail.isPending ? (
             <p>Đang tải hồ sơ…</p>

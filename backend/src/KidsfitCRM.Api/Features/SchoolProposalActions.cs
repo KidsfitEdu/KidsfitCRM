@@ -203,11 +203,14 @@ public sealed partial class ChannelSalesActions
                 throw new ApiConflictException("Mã trường đã có trong danh bạ. Cần đối chiếu hồ sơ hiện có thay vì tạo bản sao.");
             if (!request.DuplicateReviewed && await db.SchoolUnits.AnyAsync(x => x.UnitType == "MAIN" && x.Name == proposal.Name && x.Province == proposal.Province && x.Ward == proposal.Ward, ct))
                 throw new ApiConflictException("Có trường cùng tên và khu vực. Admin cần xác minh đây là đơn vị khác và xác nhận đã kiểm tra trùng.");
+            var legacyMain = await db.SchoolProposalUnits.AsNoTracking()
+                .Where(u => u.SchoolProposalId == proposal.Id && u.UnitType == "MAIN")
+                .OrderBy(u => u.SortOrder).FirstOrDefaultAsync(ct);
             var customer = new ChannelCustomer
             {
                 Code = "CUS-" + Guid.NewGuid().ToString("N")[..20].ToUpperInvariant(), DisplayName = proposal.Name,
                 CustomerType = "ORGANIZATION", Province = proposal.Province, Address = proposal.Address,
-                ContactName = proposal.ContactName, ContactPosition = proposal.ContactPosition, Phone = proposal.ContactPhone,
+                ContactName = proposal.ContactName, ContactPosition = proposal.ContactPosition, Phone = legacyMain?.SchoolPhone ?? proposal.ContactPhone,
                 Email = proposal.Email, Source = "SCHOOL_PROPOSAL", VerificationStatus = "VERIFIED",
                 CreatedByUserId = actorId, OrganizationId = centralOrg!.Value, CreatedAt = now, UpdatedAt = now,
             };
@@ -220,7 +223,8 @@ public sealed partial class ChannelSalesActions
                 DirectorySchoolId = school.Id, ContentHash = SchoolWorkbookReader.ProposedMainFingerprint(proposal.SchoolCode, proposal.Name, proposal.Province, proposal.Ward,
                     proposal.Address, proposal.ContactName, proposal.ContactPosition, proposal.ContactPhone, proposal.Email), UnitType = "MAIN", Name = proposal.Name,
                 Province = proposal.Province, Ward = proposal.Ward, Address = proposal.Address, ContactName = proposal.ContactName,
-                ContactPosition = proposal.ContactPosition, ContactPhone = proposal.ContactPhone, Email = proposal.Email, SourceRow = 0,
+                ContactPosition = proposal.ContactPosition, ContactPhone = proposal.ContactPhone, Email = proposal.Email,
+                SchoolPhone = legacyMain?.SchoolPhone, Note = legacyMain?.Note, SourceRow = 0,
                 CreatedAt = now, UpdatedAt = now,
             });
             proposal.DirectorySchoolId = school.Id;

@@ -1883,6 +1883,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("care_user_id");
 
+                    b.Property<string>("ContractNote")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)")
+                        .HasColumnName("contract_note");
+
                     b.Property<string>("ContractCode")
                         .IsRequired()
                         .HasMaxLength(64)

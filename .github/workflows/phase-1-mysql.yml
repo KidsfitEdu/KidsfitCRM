@@ -68,6 +68,20 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
             SELECT COUNT(*) FROM customer_support_cases WHERE ticket_type='SYSTEM_ERROR';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM approach_registrations WHERE status='ACTIVE';" | grep -x 6
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM customer_protections WHERE status='ACTIVE';" | grep -x 8
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(DISTINCT care_user_id) FROM sales_contracts WHERE status='ACTIVE';" | grep -x 2
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM school_proposals;" | grep -x 3
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM school_disputes;" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM revenue_receipts;" | grep -x 2
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
+            SELECT COUNT(*) FROM school_units WHERE contact_name IS NOT NULL OR email IS NOT NULL OR contact_phone IS NOT NULL;" | grep -x 0
+          mysql -h127.0.0.1 -uroot -N crm_ten_schools_ci -e "
             SELECT COUNT(*) FROM commission_policy_versions WHERE status='ACTIVE' AND rate_percent=30;" | grep -x 0
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_ten_schools_ci;"
       - name: Separate synthetic backup and restore smoke test

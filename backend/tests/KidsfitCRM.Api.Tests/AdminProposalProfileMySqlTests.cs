@@ -9,7 +9,7 @@ namespace KidsfitCRM.Api.Tests;
 public sealed class AdminProposalProfileMySqlTests(ChannelMySqlFixture fixture) : IClassFixture<ChannelMySqlFixture>
 {
     private static SchoolProposalUnitInput Unit(string kind,string name,string? ward="Phường thử nghiệm") =>
-        new(kind,name,"Cần Thơ",ward,null,null,null,null,null,null,null,null);
+        new(kind,name,"Cần Thơ",ward,null,null,null,null,null,null,null);
 
     [MySqlFact]
     public async Task AdminEditsPendingMainAndBranchesWithoutChangingOfficialDirectory()

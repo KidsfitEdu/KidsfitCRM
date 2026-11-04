@@ -156,18 +156,18 @@ export function SchoolProposalEditor({
     } finally { setBusy(false); }
   };
   const unitForm = (u:Unit,i:number) => <div key={i} className="grid gap-3 sm:grid-cols-2">
-    {fields.map(field=><label key={field.key} htmlFor={`proposal-unit-${i}-${field.key}`} className="block min-w-0 text-sm">
+    {fields.map(field=><div key={field.key} className="block min-w-0 text-sm">
       {field.label} {field.required&&<span className="text-destructive">*</span>}
       <Input id={`proposal-unit-${i}-${field.key}`} className="mt-1" value={u[field.key] ?? ''} maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
-        aria-invalid={!!fieldErrors[`${i}.${field.key}`]}
+        aria-label={field.label} aria-invalid={!!fieldErrors[`${i}.${field.key}`]}
         onChange={e=>editUnit(i,field.key,e.target.value)}/>
       {fieldErrors[`${i}.${field.key}`]&&<span className="mt-1 block text-xs text-destructive">{fieldErrors[`${i}.${field.key}`]}</span>}
-    </label>)}
-    <label htmlFor={`proposal-unit-${i}-note`} className="block text-sm sm:col-span-2">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
-      <Textarea id={`proposal-unit-${i}-note`} className="mt-1" rows={3} maxLength={4000}
+    </div>)}
+    <div className="block text-sm sm:col-span-2">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
+      <Textarea aria-label="Ghi chú" id={`proposal-unit-${i}-note`} className="mt-1" rows={3} maxLength={4000}
         placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
         value={u.note} onChange={e=>editUnit(i,'note',e.target.value)}/>
-    </label>
+    </div>
   </div>;
 
   return <AppDialog open={open} onOpenChange={value=>{if(!value&&!busy)onClose()}}

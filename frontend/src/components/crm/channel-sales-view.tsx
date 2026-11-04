@@ -1046,7 +1046,7 @@ function ContractDialog({
     try {
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
       if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
-      if (unitsError) throw new Error(unitsError);
+      // The reported count can be entered even when the directory unit lookup fails.
       if (total === null) throw new Error('Phí duy trì và phí khởi tạo phải là số nguyên không âm, tổng giá trị hợp đồng phải lớn hơn 0.');
       if (!Number.isSafeInteger(Number(studentCount)) || Number(studentCount) <= 0)
         throw new Error('Quy mô học sinh phải là số nguyên dương.');
@@ -1124,15 +1124,17 @@ function ContractDialog({
           <legend className="px-1 text-sm font-semibold">Chọn phân hiệu triển khai</legend>
           <div className="space-y-2">{units.map(unit => <label key={unit.id} className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={selectedUnitIds.includes(unit.id)}
-              onChange={e=>setSelectedUnitIds(ids=>{
-                const next = e.target.checked ? [...ids,unit.id] : ids.filter(id=>id!==unit.id);
+              onChange={e=>{
+                const next = e.target.checked
+                  ? [...selectedUnitIds,unit.id]
+                  : selectedUnitIds.filter(id=>id!==unit.id);
+                setSelectedUnitIds(next);
                 if (!branchCountTouched || Number(branchCount) < next.length) setBranchCount(String(next.length));
-                return next;
-              })}/>
+              }}/>
             {unit.name}
           </label>)}</div>
         </fieldset>}
-        {unitsError && <p role="alert" className="text-sm text-destructive">{unitsError}</p>}
+        {unitsError && <p role="status" className="text-sm text-muted-foreground">Chưa tải được danh sách phân hiệu; vẫn có thể nhập số phân hiệu theo hợp đồng.</p>}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
             <AppCurrencyInput aria-label="Phí duy trì" required

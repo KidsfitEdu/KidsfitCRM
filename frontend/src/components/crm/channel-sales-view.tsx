@@ -618,6 +618,7 @@ function CustomerRow({
   const activeApproach = mineMode && customer.visible_status === 'APPROACHING' &&
     Boolean(customer.approach_registration_id && customer.protected_until &&
       new Date(customer.protected_until).getTime() > Date.now());
+  const showExtension = activeApproach && customer.contract_id === null;
   const extensionBlocked = !canRequestExtension || Boolean(customer.extension_pending);
   const extensionHint = customer.extension_pending
     ? 'Yêu cầu gia hạn đang chờ Quản lý bán hàng duyệt.'
@@ -718,11 +719,12 @@ function CustomerRow({
           )}
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
-          {activeApproach && !customer.contract_id && canRequestExtension && !extensionBlocked && (
-            <span title={extensionHint} className="inline-flex">
+          {showExtension && (
+            <span title={extensionHint} className="inline-flex" tabIndex={extensionBlocked ? 0 : undefined}
+              aria-label={extensionBlocked ? `${extensionHint} - ${customer.display_name}` : undefined}>
               <Button type="button" size="icon" variant="outline"
-                className={`size-9 rounded-lg ${extensionBlocked ? 'border-slate-300 text-slate-500' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700'}`}
-                disabled={extensionBlocked} onClick={onExtension}
+                className={`size-9 rounded-lg ${extensionBlocked ? 'cursor-not-allowed border-slate-300 text-slate-500 opacity-60' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700 hover:bg-amber-50'}`}
+                disabled={extensionBlocked} onClick={onExtension} title={extensionHint}
                 aria-label={`${extensionHint} - ${customer.display_name}`}>
                 <CalendarClock className="size-4" aria-hidden="true"/>
               </Button>

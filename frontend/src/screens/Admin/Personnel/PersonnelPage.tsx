@@ -52,7 +52,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const [createOpen,setCreateOpen] = useState(false);
   const [createForm,setCreateForm] = useState(blankCreate);
   const [edit,setEdit] = useState<Person|null>(null);
-  const [editForm,setEditForm] = useState({name:'',phone:'',role_code:'SALES',manager_user_id:'',reason:''});
+  const [editForm,setEditForm] = useState({name:'',phone:'',role_code:'SALES',manager_user_id:''});
   const [partnerDetail,setPartnerDetail] = useState<Partner|null>(null);
   const [partner,setPartner] = useState<Partner|null>(null);
   const [partnerOpen,setPartnerOpen] = useState(false);
@@ -113,19 +113,18 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const openEdit=(p:Person)=>{
     setEdit(p);
     setEditForm({name:p.name,phone:p.phone??'',role_code:editableRoles.includes(p.membership_type)?p.membership_type:'SALES',
-      manager_user_id:p.manager_user_id?String(p.manager_user_id):'',reason:''});
+      manager_user_id:p.manager_user_id?String(p.manager_user_id):''});
     setErrors({});
   };
   const submitEdit=()=>{
     if(!edit)return;
     const err:Record<string,string>={};
     if(!editForm.name.trim())err.name='Cần họ tên.';
-    if(!editForm.reason.trim())err.reason='Cần lý do thay đổi.';
     if(editForm.role_code==='SALES' && !editForm.manager_user_id)err.manager_user_id='Chọn Quản lý trực tiếp.';
     setErrors(err);if(Object.keys(err).length)return;
     void run(()=>updateAdminTeamMember(apiBase,token,edit.id,{
       name:editForm.name.trim(),phone:editForm.phone.trim()||null,role_code:editForm.role_code,
-      manager_user_id:editForm.manager_user_id?Number(editForm.manager_user_id):null,reason:editForm.reason.trim(),
+      manager_user_id:editForm.manager_user_id?Number(editForm.manager_user_id):null,
     }),'Đã cập nhật nhân sự.',()=>setEdit(null));
   };
   const openPartner=(p:Partner|null)=>{
@@ -334,12 +333,6 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
             </AppNativeSelect>
             <FormError>{errors.manager_user_id}</FormError>
           </div>}
-          <div className="min-w-0 space-y-1.5 text-sm font-medium sm:col-span-2">
-            <label htmlFor="admin-edit-reason">Lý do thay đổi *</label>
-            <Input id="admin-edit-reason" className="h-11" value={editForm.reason}
-              onChange={e=>setEditForm(v=>({...v,reason:e.target.value}))}/>
-            <FormError>{errors.reason}</FormError>
-          </div>
         </div>
       </AppDialog>
       <AppDialog open={partnerOpen} onOpenChange={open=>{if(!busy)setPartnerOpen(open);}}

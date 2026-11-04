@@ -38,7 +38,10 @@ public static class AdminPersonnelEndpoints
         var actor = http.UserId();
         await Admin(db, actor, ct);
         var name = Validation.Required(request.Name, "name", "Cần họ tên nhân sự.", 190);
-        var reason = Validation.Required(request.Reason, "reason", "Cần lý do cập nhật tài khoản.", 2000);
+        // The Admin edit form no longer requests a reason; retain server-side audit details.
+        var reason = string.IsNullOrWhiteSpace(request.Reason)
+            ? "Admin cập nhật thông tin nhân sự."
+            : Validation.Required(request.Reason, "reason", "Lý do cập nhật tài khoản không hợp lệ.", 2000);
         var phone = request.Phone?.Trim();
         if (phone?.Length > 40) throw ApiValidationException.For("phone", "Số điện thoại tối đa 40 ký tự.");
         if (phone is { Length: 0 }) phone = null;

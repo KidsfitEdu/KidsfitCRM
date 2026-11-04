@@ -1134,7 +1134,7 @@ function ContractDialog({
             {unit.name}
           </label>)}</div>
         </fieldset>}
-        {unitsError && <p role="status" className="text-sm text-muted-foreground">Chưa tải được danh sách phân hiệu; vẫn có thể nhập số phân hiệu theo hợp đồng.</p>}
+        {unitsError && <output className="block text-sm text-muted-foreground">Chưa tải được danh sách phân hiệu; vẫn có thể nhập số phân hiệu theo hợp đồng.</output>}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
             <AppCurrencyInput aria-label="Phí duy trì" required

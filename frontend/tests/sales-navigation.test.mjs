@@ -230,3 +230,19 @@ test('Shared currency input keeps the caret stable while grouping VND digits', (
   assert.match(source, /15\)/);
   assert.doesNotMatch(source, /toLocaleString/);
 });
+
+test('Sales contract errors appear only in shared toast and duplicate report opening is guarded', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const contractStart = source.indexOf('function ContractDialog({');
+  const contractEnd = source.indexOf('function ReceiptDialog({', contractStart);
+  assert.ok(contractStart >= 0 && contractEnd > contractStart);
+  const contract = source.slice(contractStart, contractEnd);
+  assert.match(contract, /appNotice\.error\('Không thể gửi hợp đồng xác minh\.'/);
+  assert.doesNotMatch(contract, /setError\(message\)/);
+  assert.match(contract, /<DialogFooter saving=\{saving\} error="" onClose=\{onClose\} label="Gửi hợp đồng xác minh"\/>/);
+  assert.match(contract, /latest\.contracts\.length > 0/);
+  assert.match(source, /const openContractReport = async/);
+  assert.match(source, /profile\.contracts\.length > 0/);
+  assert.match(source, /onContract=\{\(\) => \{ void openContractReport\(customer\); \}\}/);
+  assert.match(source, /customer\.can_manage_approach && !customer\.contract_id/);
+});

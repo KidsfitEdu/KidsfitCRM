@@ -1904,6 +1904,10 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("varchar(32)")
                         .HasColumnName("service_plan");
 
+                    b.Property<int?>("BranchCount")
+                        .HasColumnType("int")
+                        .HasColumnName("branch_count");
+
                     b.Property<int?>("StudentCount")
                         .HasColumnType("int")
                         .HasColumnName("student_count");

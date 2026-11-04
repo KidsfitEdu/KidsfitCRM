@@ -115,7 +115,7 @@ function RevisionEditor({
     event.preventDefault();
     if (busy) return;
     const issues: Partial<Record<FieldKey, string>> = {};
-    const date = /^\\d{4}-\\d{2}-\\d{2}$/.test(signedOn) ? new Date(signedOn + 'T00:00:00') : null;
+    const date = /^\\d{4}-\\d{2}-\\d{2}$/.test(signedOn) ? new Date(signedOn + 'T00:00:00Z') : null;
     if (!date || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== signedOn ||
         signedOn > today)
       issues.signed_on = 'Vui lòng chọn ngày ký hợp đồng hợp lệ, không ở tương lai.';

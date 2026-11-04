@@ -38,6 +38,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { channelDate, channelRequest } from '@/lib/channel-operations';
+import { validateContract, type ContractErrors, type ContractField } from '@/lib/contract-validation';
 import type {
   ChannelCustomer,
   ChannelSalesWorkspace,
@@ -1092,15 +1093,7 @@ function ActivityDialog({
         <DialogFooter
           saving={saving}
           error={error}
-          onClose={onClose}
-          label="Lưu kết quả"
-        />
-      </form>
-    </SalesFormDialog>
-  );
-}
-
-function ContractDialog({
+          ofunction ContractDialog({
   customer, packages, apiBase, token, onClose, onSubmit,
 }: {
   customer: ChannelCustomer;
@@ -1120,6 +1113,17 @@ function ContractDialog({
   const [branchCountTouched, setBranchCountTouched] = useState(false);
   const [unitsError, setUnitsError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [signedOn, setSignedOn] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  });
+  const [note, setNote] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [errors, setErrors] = useState<ContractErrors>({});
+  const clearError = (key: ContractField) => setErrors(old => {
+    if (!old[key]) return old;
+    const next = { ...old }; delete next[key]; return next;
+  });
   const [requestKey] = useState(() => idempotencyKey('contract'));
   const multiplier = plan === 'MONTHLY_9' ? 9 : 1;
   const maintenance = Number(maintenanceFee);
@@ -1144,28 +1148,27 @@ function ContractDialog({
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Read the form before the first await; currentTarget is cleared after the event dispatch.
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
     try {
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
-      // Recheck before uploading a file to avoid orphaned evidence on stale forms.
+      if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
+      const issues = validateContract({
+        signedOn, plan, students: studentCount, branches: branchCount,
+        selectedUnitCount: selectedUnitIds.length, maintenance: maintenanceFee,
+        setup: setupFee, note, file, existingEvidence: false,
+      });
+      setErrors(issues);
+      const first = Object.keys(issues)[0] as ContractField | undefined;
+      if (first) {
+        const field = formElement.querySelector<HTMLElement>(`[data-field="${first}"]`);
+        field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        field?.focus({ preventScroll: true });
+        return;
+      }
       const latest = await channelRequest<SalesSchoolProfile>(apiBase, token, `/customers/${customer.id}`);
       if (latest.contracts.length > 0)
         throw new Error('Trường đã có hồ sơ hợp đồng. Vui lòng theo dõi hồ sơ xác minh hoặc bổ sung theo yêu cầu.');
-      if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
-      // The reported count can be entered even when the directory unit lookup fails.
-      if (total === null) throw new Error('Phí duy trì và phí khởi tạo phải là số nguyên không âm, tổng giá trị hợp đồng phải lớn hơn 0.');
-      if (!Number.isSafeInteger(Number(studentCount)) || Number(studentCount) <= 0)
-        throw new Error('Quy mô học sinh phải là số nguyên dương.');
-      if (!/^\d+$/.test(branchCount) || !Number.isSafeInteger(Number(branchCount)) || Number(branchCount) < selectedUnitIds.length)
-        throw new Error('Số phân hiệu phải là số nguyên không âm và không nhỏ hơn số phân hiệu đã chọn.');
-      const file = form.get('contract_file');
-      if (!(file instanceof File) || file.size === 0)
-        throw new Error('Bắt buộc chọn file hợp đồng đã ký.');
-      if (file.size > 5 * 1024 * 1024)
-        throw new Error('File hợp đồng tối đa 5 MB.');
-      if (!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.type))
-        throw new Error('Hợp đồng phải là PDF, JPG, PNG hoặc WEBP.');
+      if (total === null || !file) return;
       setSaving(true);
       const upload = new FormData();
       upload.set('kind', 'CONTRACT');
@@ -1174,7 +1177,7 @@ function ContractDialog({
         '/evidence', {method: 'POST', body: upload});
       await onSubmit({
         idempotency_key: requestKey,
-        signed_on: text(form, 'signed_on'),
+        signed_on: signedOn,
         product_package_id: packages[0].id,
         service_plan: plan,
         student_count: Number(studentCount),
@@ -1182,7 +1185,7 @@ function ContractDialog({
         branch_count: Number(branchCount),
         maintenance_fee: maintenance,
         setup_fee: setup,
-        contract_note: text(form, 'contract_note').trim() || undefined,
+        contract_note: note.trim() || undefined,
         total_value: total,
         evidence_id: response.data.id,
       });
@@ -1195,34 +1198,38 @@ function ContractDialog({
   return <SalesFormDialog title="Báo cáo hợp đồng"
     subtitle="Nhập chi phí theo hợp đồng đã ký. CHECKEE sẽ xác minh hồ sơ và giá trị thực tế."
     onClose={onClose}>
-    <form onSubmit={submit}>
+    <form onSubmit={submit} noValidate>
       <CustomerHighlight customer={customer}/>
       <div className="mt-4 space-y-4">
         <Field label="Ngày ký hợp đồng *">
-          <Input name="signed_on" type="date" required defaultValue={new Date().toISOString().slice(0,10)}/>
+          <Input name="signed_on" type="date" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e=>{setSignedOn(e.target.value);clearError("signed_on");}}/>
+          {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
         </Field>
         <fieldset className="space-y-2">
           <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="service_plan_choice" value="SCHOOL_YEAR"
-              checked={plan==='SCHOOL_YEAR'} onChange={()=>setPlan('SCHOOL_YEAR')}/>
+              checked={plan==='SCHOOL_YEAR'} onChange={()=>{setPlan('SCHOOL_YEAR');clearError('service_plan');}}/>
             Gói năm học (9 tháng, tặng 3 tháng hè)
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="service_plan_choice" value="MONTHLY_9"
-              checked={plan==='MONTHLY_9'} onChange={()=>setPlan('MONTHLY_9')}/>
+              checked={plan==='MONTHLY_9'} onChange={()=>{setPlan('MONTHLY_9');clearError('service_plan');}}/>
             Gói hàng tháng (9 tháng)
           </label>
+          {errors.service_plan && <p role="alert" className="text-xs text-red-700">{errors.service_plan}</p>}
         </fieldset>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Quy mô học sinh *">
-            <Input aria-label="Quy mô học sinh" type="number" min={1} max={100000}
-              required value={studentCount} onChange={e=>setStudentCount(e.target.value)}
+            <Input aria-label="Quy mô học sinh" data-field="student_count" aria-invalid={!!errors.student_count} type="number" min={1} max={100000}
+              value={studentCount} onChange={e=>{setStudentCount(e.target.value);clearError("student_count");}}
               placeholder="Ví dụ: 450"/>
+            {errors.student_count && <p role="alert" className="text-xs text-red-700">{errors.student_count}</p>}
           </Field>
           <Field label="Số phân hiệu triển khai">
-            <Input aria-label="Số phân hiệu triển khai" type="number" inputMode="numeric" min={0} max={100000}
-              required value={branchCount} onChange={e=>{setBranchCount(e.target.value);setBranchCountTouched(true);}}/>
+            <Input aria-label="Số phân hiệu triển khai" data-field="branch_count" aria-invalid={!!errors.branch_count} type="number" inputMode="numeric" min={0} max={100000}
+              value={branchCount} onChange={e=>{setBranchCount(e.target.value);setBranchCountTouched(true);clearError("branch_count");}}/>
+            {errors.branch_count && <p role="alert" className="text-xs text-red-700">{errors.branch_count}</p>}
           </Field>
         </div>
         {units.length>0 && <fieldset className="rounded-xl border p-3">
@@ -1235,6 +1242,7 @@ function ContractDialog({
                   : selectedUnitIds.filter(id=>id!==unit.id);
                 setSelectedUnitIds(next);
                 if (!branchCountTouched || Number(branchCount) < next.length) setBranchCount(String(next.length));
+                clearError('branch_count');
               }}/>
             {unit.name}
           </label>)}</div>
@@ -1242,12 +1250,14 @@ function ContractDialog({
         {unitsError && <output className="block text-sm text-muted-foreground">Chưa tải được danh sách phân hiệu; vẫn có thể nhập số phân hiệu theo hợp đồng.</output>}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
-            <AppCurrencyInput aria-label="Phí duy trì" required
-              value={maintenanceFee} onValueChange={setMaintenanceFee} placeholder="Ví dụ: 1.000.000"/>
+            <AppCurrencyInput aria-label="Phí duy trì" data-field="maintenance_fee" aria-invalid={!!errors.maintenance_fee}
+              value={maintenanceFee} onValueChange={v=>{setMaintenanceFee(v);clearError("maintenance_fee");clearError("total_value");}} placeholder="Ví dụ: 1.000.000"/>
+            {errors.maintenance_fee && <p role="alert" className="text-xs text-red-700">{errors.maintenance_fee}</p>}
           </Field>
           <Field label="Phí khởi tạo (VNĐ) *">
-            <AppCurrencyInput aria-label="Phí khởi tạo" required
-              value={setupFee} onValueChange={setSetupFee} placeholder="Ví dụ: 2.000.000"/>
+            <AppCurrencyInput aria-label="Phí khởi tạo" data-field="setup_fee" aria-invalid={!!errors.setup_fee}
+              value={setupFee} onValueChange={v=>{setSetupFee(v);clearError("setup_fee");clearError("total_value");}} placeholder="Ví dụ: 2.000.000"/>
+            {errors.setup_fee && <p role="alert" className="text-xs text-red-700">{errors.setup_fee}</p>}
           </Field>
         </div>
         <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
@@ -1266,20 +1276,30 @@ function ContractDialog({
               {total===null ? '—' : formatVnd(total)}
             </strong>
           </div>
+          {errors.total_value && <p role="alert" className="text-xs text-red-700">{errors.total_value}</p>}
         </div>
         <Field label="Ghi chú hợp đồng (không bắt buộc)">
-          <textarea name="contract_note" aria-label="Ghi chú hợp đồng" maxLength={4000}
-            rows={3} className={textareaClass}
+          <textarea name="contract_note" data-field="contract_note" aria-label="Ghi chú hợp đồng"
+            aria-invalid={!!errors.contract_note} value={note} onChange={e=>{setNote(e.target.value);clearError("contract_note");}}
+            maxLength={4000} rows={3} className={textareaClass}
             placeholder="Nhập thông tin cần xác minh thêm (nếu có)..."/>
+          {errors.contract_note && <p role="alert" className="text-xs text-red-700">{errors.contract_note}</p>}
         </Field>
         <div>
           <Field label="File hợp đồng đã ký *">
-            <Input name="contract_file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required/>
+            <Input name="contract_file" data-field="contract_file" aria-invalid={!!errors.contract_file} type="file"
+              accept=".pdf,image/jpeg,image/png,image/webp" onChange={e=>{setFile(e.target.files?.[0] ?? null);clearError("contract_file");}}/>
+            {errors.contract_file && <p role="alert" className="text-xs text-red-700">{errors.contract_file}</p>}
           </Field>
           <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
         </div>
       </div>
       <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
+    </form>
+  </SalesFormDialog>;
+}
+
+aving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
     </form>
   </SalesFormDialog>;
 }

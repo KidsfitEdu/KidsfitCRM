@@ -55,12 +55,14 @@ type Selection =
   | { kind: 'proposal'; item: Proposal }
   | { kind: 'invitation'; item: Invitation }
   | { kind: 'extension'; item: Extension }
-  | { kind: 'progress'; item: ChannelCustomer };
+  | { kind: 'progress'; item: ChannelCustomer | ProgressSchool };
 type Capacity = { id: number; name: string; organization_name: string; school_approach_limit: number; active: number };
 type School = { id: number; display_name: string; school_code: string; visible_status: string; can_register: boolean };
 type SchoolList = { data: School[]; total: number };
 type ReleasedSchool={id:number;customer_id:number;school_code:string;school_name:string;released_at:string};
 type ReleasedResult={data:ReleasedSchool[];total:number;page:number;page_size:number};
+type ProgressSchool=Pick<ChannelCustomer,'id'|'code'|'display_name'|'visible_status'|'owner_user_name'|'protected_until'|'next_follow_up_at'|'contract_code'> & {owner_user_id:number};
+type ProgressResult={data:ProgressSchool[];total:number;page:number;page_size:number;staff:{id:number;name:string}[]};
 type HistoryResult = { data: { id: number; action: string; actor_name: string; created_at: string; new_values: string | null }[] };
 
 const headings: Record<ManagerWorklistSection, { title: string; description: string; placeholder: string }> = {
@@ -80,6 +82,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
+  const [staffFilter, setStaffFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -108,9 +111,25 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     placeholderData: previous => previous,
   });
   const customers = useQuery({
-    queryKey: [...channelQueryKeys.all, 'manager-progress-customers'],
-    queryFn: () => preview ? Promise.resolve(demoChannelSalesWorkspace) : api<ChannelSalesWorkspace>('/workspace'),
+    queryKey: [...channelQueryKeys.all, 'manager-progress-schools', page, pageSize, search, filter, staffFilter],
+    queryFn: () => {
+      if (preview) {
+        const data = demoChannelSalesWorkspace.data.filter(c =>
+          (filter === 'ALL' || c.visible_status === filter) &&
+          (staffFilter === 'ALL' || c.owner_user_name === staffFilter) &&
+          [c.display_name, c.owner_user_name ?? '', c.code].join(' ').toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')));
+        return Promise.resolve({data:data.slice((page-1)*pageSize,page*pageSize).map(c=>({...c,owner_user_id:0})),
+          total:data.length,page,page_size:pageSize,
+          staff:[...new Set(demoChannelSalesWorkspace.data.map(c=>c.owner_user_name).filter((name):name is string=>!!name))]
+            .map(name=>({id:0,name}))});
+      }
+      const params=new URLSearchParams({page:String(page),page_size:String(pageSize),status:filter});
+      if(search.trim())params.set('search',search.trim());
+      if(staffFilter!=='ALL')params.set('owner_user_id',staffFilter);
+      return api<ProgressResult>('/manager/progress-schools?'+params);
+    },
     enabled: section === 'progress' && (preview || !!token),
+    placeholderData: previous=>previous,
   });
   const availableSchools = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-available-schools'],
@@ -283,16 +302,12 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const windowRows = section === 'proposals' ? proposalRows.slice(offset, offset + pageSize)
     : section === 'allocations' ? invitationRows.slice(offset, offset + pageSize)
       : extensionRows.slice(offset, offset + pageSize);
-  const progressRows = (customers.data?.data ?? []).filter(c =>
-    (filter === 'ALL' || c.visible_status === filter) &&
-    [c.display_name, c.owner_user_name ?? '', c.code].join(' ').toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'))
-  );
-  const progressPage = progressRows.slice((page - 1) * pageSize, page * pageSize);
-  const total = section === 'progress' ? progressRows.length : serverTotal;
+  const progressPage = customers.data?.data ?? [];
+  const total = section === 'progress' ? (customers.data?.total ?? 0) : serverTotal;
   const busy = section === 'progress' ? customers.isPending : operations.isPending;
   const failed = section === 'progress' ? customers.error : operations.error;
   const config = headings[section];
-  const reset = () => { setDraft(''); setSearch(''); setFilter('ALL'); setPage(1); };
+  const reset = () => { setDraft(''); setSearch(''); setFilter('ALL'); setStaffFilter('ALL'); setPage(1); };
 
   return <div className="space-y-5">
     <AppPageHeader eyebrow={'QUẢN LÝ BÁN HÀNG / ' + config.title.toLocaleUpperCase('vi')}
@@ -323,6 +338,13 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
         onSearch={() => { setSearch(draft.trim()); setPage(1); }}
         onReset={reset} searchLabel={'Tìm kiếm ' + config.title.toLocaleLowerCase('vi')} placeholder={config.placeholder}
         filters={<div className="flex flex-wrap gap-2">
+          {section === 'progress' && <AppNativeSelect aria-label="Lọc nhân viên Sales/CTV"
+            containerClassName="w-[210px]" value={staffFilter}
+            onChange={e => {setStaffFilter(e.target.value);setPage(1);}}>
+            <option value="ALL">Tất cả Sales/CTV</option>
+            {(customers.data?.staff ?? []).map(member =>
+              <option key={member.id+'-'+member.name} value={preview ? member.name : String(member.id)}>{member.name}</option>)}
+          </AppNativeSelect>}
           <AppNativeSelect aria-label="Lọc trạng thái" containerClassName="w-[192px]" value={filter}
             onChange={e => {setFilter(e.target.value);setPage(1);}}>
             <option value="ALL">Tất cả trạng thái</option>
@@ -336,7 +358,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
               <option value="PENDING">Chờ duyệt</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option>
               <option value="EXPIRED">Hết hạn</option>
             </> : <>
-              <option value="AVAILABLE">Chưa đăng ký</option><option value="APPROACHING">Đang tiếp cận</option><option value="CONTRACTED">Đã ký hợp đồng</option>
+              <option value="APPROACHING">Đang tiếp cận</option><option value="CONTRACTED">Đã ký hợp đồng</option>
             </>}
           </AppNativeSelect>
         </div>}/>

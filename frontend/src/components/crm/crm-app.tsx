@@ -181,7 +181,11 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
         <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
-          {demoAccount && <p className="rounded-xl border border-amber-300 p-3 text-sm">Bản xem trước tĩnh, chỉ đọc. Hãy kết nối Backend để thay đổi dữ liệu thực.</p>}
+          {demoAccount && <p className="rounded-xl border border-amber-300 p-3 text-sm">Môi trường xem trước · Dữ liệu nghiệp vụ mô phỏng, chỉ đọc. Kết nối Backend để thực hiện thao tác.</p>}
+          {apiBase && process.env.NEXT_PUBLIC_TRAINING_MODE === 'true' &&
+            <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/20 dark:text-amber-200">
+              Môi trường thử nghiệm · Hợp đồng, thanh toán, nhật ký và ticket là tình huống mô phỏng, không phải giao dịch thật.
+            </p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <Suspense fallback={<p>Đang tải màn hình…</p>}>
             {isAdmin && <AdminWorkspace section={currentView as import('@/screens/Admin/AdminWorkspace').AdminSection} {...roleProps}/>}

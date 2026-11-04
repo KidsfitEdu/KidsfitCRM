@@ -20,6 +20,7 @@ Set these configuration values via private environment variables or a local secr
 - `Seed__DemoPassword=<test-only password from the operator's private environment>`
 - `Seed__SchoolWorkbookPath=<absolute local path to CRM_10_Truong_Hoc.xlsx>` (optional, strongly preferred for exact source contact fields)
 - `ConnectionStrings__MySql=<isolated MySQL 8.4 connection string>`
+- `NEXT_PUBLIC_TRAINING_MODE=true` on the connected Frontend to mark simulated contracts, receipts and tickets at workspace level.
 - Proper separate nonproduction JWT signing key and other connection settings.
 
 From the repository root, on an isolated DB only:

@@ -128,9 +128,17 @@ public sealed partial class ChannelSalesActions
             x.ApproachRegistrationId == registrationId && x.Status == "APPROVED", ct);
         if (approvedCount >= policy.MaxExtensionCount)
             throw new ApiConflictException("Đã đạt số lần gia hạn tối đa theo chính sách.");
-        var requestedUntil = SchoolFuture(request.RequestedUntil, "requested_until", registration.ProtectedUntil);
-        if (requestedUntil > registration.ProtectedUntil.AddDays(policy.MaxExtensionDays)
-            || requestedUntil > registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays))
+        // The CRM proposes the maximum valid period from the active organization's policy.
+        // Explicit dates from older clients remain accepted, subject to the same constraints.
+        var maxPerRequest = registration.ProtectedUntil.AddDays(policy.MaxExtensionDays);
+        var maxCumulative = registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays);
+        var maximumUntil = maxPerRequest < maxCumulative ? maxPerRequest : maxCumulative;
+        if (maximumUntil <= registration.ProtectedUntil)
+            throw new ApiConflictException("Đã hết thời gian gia hạn theo chính sách.");
+        var requestedUntil = request.RequestedUntil.HasValue
+            ? SchoolFuture(request.RequestedUntil, "requested_until", registration.ProtectedUntil)
+            : maximumUntil;
+        if (requestedUntil > maximumUntil)
             throw ApiValidationException.For("requested_until", "Thời gian xin gia hạn vượt giới hạn chính sách.");
         var due = SchoolDeadline(now, policy.ManagerReviewHours, request.ReviewDueAt);
         var extension = new SchoolExtensionRequest

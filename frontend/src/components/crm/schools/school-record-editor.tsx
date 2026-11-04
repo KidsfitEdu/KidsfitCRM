@@ -5,6 +5,7 @@ import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Input } from '@/components/ui/input';
 import { channelRequest } from '@/lib/channel-operations';
+import { appNotice } from '@/components/common/app-toast-provider';
 import {
   SchoolBranchList, SchoolUnitFields, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit,
 } from './school-units-editor';
@@ -97,7 +98,9 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
       await onSaved();
       onClose();
     }catch(cause){
-      setError(cause instanceof Error?cause.message:'Không lưu được hồ sơ trường học.');
+      const message=cause instanceof Error?cause.message:'Không lưu được hồ sơ trường học.';
+      setError(message);
+      appNotice.error('Không thể lưu hồ sơ trường học.',message);
     }finally{setBusy(false);}
   };
   const mainIndex=units.findIndex(x=>x.unit_type==='MAIN');

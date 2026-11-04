@@ -275,15 +275,15 @@ test('Sales contract revision uses one modal scrollbar and validates every field
   assert.doesNotMatch(source, /overflow-y-auto pr-1/);
   assert.match(source, /setErrors\(issues\)/);
   assert.match(source, /data-field="contract_file"/);
-  assert.match(source, /issues\.signed_on/);
-  assert.match(source, /issues\.student_count/);
-  assert.match(source, /issues\.branch_count/);
-  assert.match(source, /issues\.maintenance_fee/);
-  assert.match(source, /issues\.setup_fee/);
-  assert.match(source, /issues\.total_value/);
-  assert.match(source, /issues\.contract_file/);
+  assert.match(source, /errors\.signed_on/);
+  assert.match(source, /errors\.student_count/);
+  assert.match(source, /errors\.branch_count/);
+  assert.match(source, /errors\.maintenance_fee/);
+  assert.match(source, /errors\.setup_fee/);
+  assert.match(source, /errors\.total_value/);
+  assert.match(source, /errors\.contract_file/);
   assert.match(source, /scrollIntoView/);
-  assert.match(source, /file\.size > 5 \* 1024 \* 1024/);
+  assert.match(source, /const issues = validateContract/);
   assert.doesNotMatch(source, /type="file"[^\n]*required/);
 });
 

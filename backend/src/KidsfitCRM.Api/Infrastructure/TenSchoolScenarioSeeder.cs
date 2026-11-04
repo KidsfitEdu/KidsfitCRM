@@ -363,6 +363,73 @@ internal static class TenSchoolScenarioSeeder
                 Status = "OPEN", IdempotencyKey = "ten-school-checkee-support-2",
                 CreatedAt = now.AddHours(-3), UpdatedAt = now
             });
+        // Manager/Admin proposal queues are intentionally separate from the official
+        // ten-school directory: proposing an already imported school would be misleading.
+        var proposals = new[]
+        {
+            (Code:"TRAIN-PROP-01",Name:"Trường Mầm Non Sáng Tạo",Owner:ctv.Id,
+                Org:partner.Id,Manager:partnerManager.Id,Status:"PENDING_MANAGER",Hours:-2),
+            (Code:"TRAIN-PROP-02",Name:"Trường Mầm Non Phương Nam",Owner:sales.Id,
+                Org:kidsfit.Id,Manager:manager.Id,Status:"PENDING_ADMIN",Hours:20),
+            (Code:"TRAIN-PROP-03",Name:"Trường Mầm Non Bình An",Owner:sales.Id,
+                Org:kidsfit.Id,Manager:manager.Id,Status:"REJECTED",Hours:-24)
+        };
+        foreach (var p in proposals)
+        {
+            if (await db.SchoolProposals.AnyAsync(x => x.SchoolCode == p.Code)) continue;
+            db.SchoolProposals.Add(new SchoolProposal
+            {
+                OrganizationId = p.Org, SubmittedByUserId = p.Owner,
+                ManagerUserId = p.Manager, SchoolCode = p.Code, Name = p.Name,
+                Province = "Cần Thơ", Ward = "Phường Ninh Kiều",
+                Reason = "Đề nghị xác minh và bổ sung trường mới vào danh bạ.",
+                Status = p.Status, ReviewDueAt = now.AddHours(p.Hours),
+                ReviewedByUserId = p.Status == "PENDING_MANAGER" ? null : p.Manager,
+                ManagerReviewedAt = p.Status == "PENDING_MANAGER" ? null : now.AddDays(-1),
+                DecisionReason = p.Status == "REJECTED"
+                    ? "Chưa xác định được thông tin pháp lý đầy đủ." : null,
+                IdempotencyKey = "ten-school-proposal-" + p.Code,
+                RequestFingerprint = Hash("ten-school-proposal:" + p.Code),
+                CreatedAt = now.AddDays(-3), UpdatedAt = now
+            });
+        }
+        if (!await db.SchoolDisputes.AnyAsync(x =>
+            x.IdempotencyKey == "ten-school-dispute-SCH0007"))
+            db.SchoolDisputes.Add(new SchoolDispute
+            {
+                CustomerId = schools["SCH0007"].CustomerId, OrganizationId = kidsfit.Id,
+                OpenedByUserId = manager.Id, Reason = "Cần xác nhận lịch sử đăng ký tiếp cận giữa các nhân sự.",
+                EvidenceReference = "Nhật ký tiếp cận trong hệ thống",
+                Status = "OPEN", IdempotencyKey = "ten-school-dispute-SCH0007",
+                CreatedAt = now.AddHours(-4), UpdatedAt = now
+            });
+        if (!await db.SchoolDeferrals.AnyAsync(x =>
+            x.IdempotencyKey == "ten-school-deferral-SCH0010"))
+            db.SchoolDeferrals.Add(new SchoolDeferral
+            {
+                DirectorySchoolId = schools["SCH0010"].SchoolId,
+                OrganizationId = kidsfit.Id, ManagerUserId = manager.Id,
+                Reason = "Đang tìm người phù hợp để liên hệ với trường.",
+                ReviewAt = now.AddDays(4), Status = "OPEN",
+                IdempotencyKey = "ten-school-deferral-SCH0010",
+                CreatedAt = now, UpdatedAt = now
+            });
+        foreach (var (code, care) in new[] { ("SCH0001", care1), ("SCH0002", care2) })
+        {
+            var contract = await db.SalesContracts.SingleAsync(x =>
+                x.ContractCode == "CHK-2026-" + code[3..]);
+            if (await db.ContractCareHandovers.AnyAsync(x => x.ContractId == contract.Id))
+                continue;
+            db.ContractCareHandovers.Add(new ContractCareHandover
+            {
+                ContractId = contract.Id, AssignedUserId = care.Id,
+                CareOrganizationId = kidsfit.Id, ActorUserId = admin.Id,
+                Reason = "Phân công hỗ trợ trường sau khi hợp đồng được xác minh.",
+                IdempotencyKey = "ten-school-care-handover-" + code,
+                RequestFingerprint = Hash("ten-school-care:" + code),
+                CreatedAt = now.AddDays(-3), UpdatedAt = now
+            });
+        }
         await db.SaveChangesAsync();
     }
 }

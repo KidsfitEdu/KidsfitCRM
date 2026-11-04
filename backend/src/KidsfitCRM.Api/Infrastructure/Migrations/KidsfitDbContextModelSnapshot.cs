@@ -2345,7 +2345,7 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("manager_user_id");
 
-                    b.Property<DateTime>("NextAppointmentAt")
+                    b.Property<DateTime?>("NextAppointmentAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("next_appointment_at");
 

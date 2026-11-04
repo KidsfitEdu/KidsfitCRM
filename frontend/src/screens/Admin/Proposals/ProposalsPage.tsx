@@ -57,7 +57,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
     }finally{setDetailLoading(false);}
   };
   const profileUnits=(profile:AdminProposalProfile):SchoolProfileUnit[]=>{
-    if(profile.proposal_mode==='LEGACY')
+    if(profile.proposal_mode==='LEGACY' && profile.units.length===0)
       return [{id:-1,unit_type:'MAIN',name:profile.name,province:profile.province,ward:profile.ward,
         address:profile.address,contact_name:profile.contact_name,contact_position:profile.contact_position,
         contact_phone:profile.contact_phone,email:profile.email}];

@@ -28,7 +28,10 @@ public sealed partial class ChannelSalesActions
         var name = Validation.Required(request.Name, "name", "Cần tên trường.", 500);
         var province = Validation.Required(request.Province, "province", "Cần tỉnh/thành phố.", 100);
         var ward = Validation.Required(request.Ward, "ward", "Cần phường/xã.", 100);
-        var reason = Validation.Required(request.Reason, "reason", "Cần ghi lý do tạo thủ công.", 2000);
+        // The Admin create form does not require a manual reason; preserve audit evidence.
+        var reason = string.IsNullOrWhiteSpace(request.Reason)
+            ? "Admin tạo trường học thủ công."
+            : Validation.Required(request.Reason, "reason", "Lý do tạo trường không hợp lệ.", 2000);
         var address = CleanOptional(request.Address, 500);
         var contactName = CleanOptional(request.ContactName, 500);
         var contactPosition = CleanOptional(request.ContactPosition, 120);

@@ -73,6 +73,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             .Select(x => new { x.Province, x.Ward }).SingleAsync(Ct);
         var firstCode = await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId)
             .Select(x => x.SchoolCode).SingleAsync(Ct);
+        // Region filters must use the canonical MAIN school unit even when customer data differs.
+        await db.ChannelCustomers.Where(x => x.Id == scenario.CustomerId)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.Province, "Tỉnh từ hồ sơ khách hàng"), Ct);
         var before = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
             province: main.Province, ward: main.Ward, availableOnly: true));
         Assert.Contains(before.GetProperty("data").EnumerateArray(),
@@ -81,6 +84,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Contains(areas.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("province").GetString() == main.Province
                 && x.GetProperty("ward").GetString() == main.Ward);
+        var differentCustomerArea = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
+            province: "Tỉnh từ hồ sơ khách hàng", availableOnly: true));
+        Assert.Empty(differentCustomerArea.GetProperty("data").EnumerateArray());
         var filtered = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
             province: "Khu vực không tồn tại", availableOnly: true));
         Assert.Empty(filtered.GetProperty("data").EnumerateArray());

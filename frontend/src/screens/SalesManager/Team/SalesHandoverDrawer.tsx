@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, UserRoundX } from 'lucide-react';
+import { ArrowRight, ShieldMinus } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -24,7 +24,6 @@ export function SalesHandoverDrawer({apiBase,token,membershipId,onClose,onChange
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [reason,setReason]=useState('');
-  const [summary,setSummary]=useState('');
   const [confirm,setConfirm]=useState(false);
   const [busy,setBusy]=useState(false);
   const [success,setSuccess]=useState('');
@@ -35,31 +34,31 @@ export function SalesHandoverDrawer({apiBase,token,membershipId,onClose,onChange
     finally{setLoading(false);}
   },[apiBase,token]);
   useEffect(()=>{
-    if(membershipId===null){setPreview(null);setReason('');setSummary('');setSuccess('');setError('');return;}
+    if(membershipId===null){setPreview(null);setReason('');setSuccess('');setError('');return;}
     void load(membershipId);
   },[membershipId,load]);
   const submit=async()=>{
     if(membershipId===null||!reason.trim()||!preview?.summary.can_handover||busy)return;
     setBusy(true);setError('');
     try{
-      await channelRequest(apiBase,token,'/school-handovers/'+membershipId,{method:'POST',body:JSON.stringify({
-        idempotency_key:crypto.randomUUID(),reason:reason.trim(),summary:summary.trim()||null,suspend_account:false,
+      await channelRequest(apiBase,token,'/school-approach-releases/'+membershipId,{method:'POST',body:JSON.stringify({
+        idempotency_key:crypto.randomUUID(),reason:reason.trim(),
       })});
       setConfirm(false);
-      setSuccess('Đã bàn giao. Trường chưa ký được giải phóng theo quy tắc; hợp đồng và quyền hưởng hoa hồng giữ nguyên.');
+      setSuccess('Đã thu hồi quyền tiếp cận đủ điều kiện, hủy lời mời phân bổ và gia hạn đang chờ. Hợp đồng, hoa hồng và tài khoản Sales giữ nguyên.');
       await onChanged();
       await load(membershipId);
-    }catch(e){setConfirm(false);setError(e instanceof Error?e.message:'Không thể bàn giao Sales.');}
+    }catch(e){setConfirm(false);setError(e instanceof Error?e.message:'Không thể thu hồi quyền tiếp cận.');}
     finally{setBusy(false);}
   };
   return <>
     <AppDrawer wide open={membershipId!==null} onOpenChange={open=>{if(!open&&!busy)onClose();}}
-      title="Bàn giao khi Sales nghỉ việc" description={preview?.member.name??'Kiểm tra hồ sơ trước khi ngưng hoạt động'}
+      title="Thu hồi quyền tiếp cận của Sales" description={preview?.member.name??'Kiểm tra các trường và yêu cầu đang chờ'}
       busy={busy} footer={<div className="flex flex-wrap justify-end gap-2">
         <AppButton tone="neutral" disabled={busy} onClick={onClose}>Đóng</AppButton>
         {success?<AppButton leadingIcon={<ArrowRight className="size-4"/>} onClick={onAllocate}>Phân bổ trường</AppButton>:
-          <AppButton tone="danger" disabled={loading||busy||!preview?.summary.can_handover||!reason.trim()}
-            leadingIcon={<UserRoundX className="size-4"/>} onClick={()=>setConfirm(true)}>Bàn giao và ngưng</AppButton>}
+          <AppButton tone="danger" disabled={loading||busy||!preview?.summary.can_handover||!reason.trim()||!((preview.summary.revoke_approaches+preview.summary.pending_invitations+preview.summary.pending_extensions)>0)}
+            leadingIcon={<ShieldMinus className="size-4"/>} onClick={()=>setConfirm(true)}>Thu hồi quyền tiếp cận</AppButton>}
       </div>}>
       <div className="space-y-5 text-sm">
         {loading&&<output className="block text-muted-foreground">Đang kiểm tra trường, hợp đồng và lịch hẹn…</output>}
@@ -100,16 +99,12 @@ export function SalesHandoverDrawer({apiBase,token,membershipId,onClose,onChange
               <p className="text-xs text-muted-foreground">Hiển thị 100 hợp đồng gần nhất; tổng số được tính đầy đủ.</p>}
           </section>
           {!success&&preview.summary.can_handover&&<>
-            <label className="block font-semibold" htmlFor="resign-reason">Lý do nghỉ / ngưng hoạt động</label>
-            <textarea id="resign-reason" className="w-full rounded-xl border bg-background p-3" rows={2} maxLength={2000}
-              value={reason} onChange={e=>setReason(e.target.value)} placeholder="Bắt buộc ghi căn cứ bàn giao"/>
-            <label className="block font-semibold" htmlFor="resign-summary">Liên hệ, lịch hẹn và cam kết còn lại</label>
-            <textarea id="resign-summary" className="w-full rounded-xl border bg-background p-3" rows={3} maxLength={4000}
-              value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Bổ sung nội dung cần bàn giao (nếu có)"/>
-            <p className="text-xs text-muted-foreground">Quản lý ngưng quyền trong tổ chức, không khóa tài khoản toàn hệ thống. Lời mời và gia hạn chờ bị hủy; hợp đồng, lịch sử và hoa hồng giữ nguyên.</p>
+            <label className="block font-semibold" htmlFor="release-reason">Lý do thu hồi quyền tiếp cận *</label>
+            <textarea id="release-reason" className="w-full rounded-xl border bg-background p-3" rows={2} maxLength={2000}
+              value={reason} onChange={e=>setReason(e.target.value)} placeholder="Nhập lý do thu hồi"/>
           </>}
           {preview.handovers.length>0&&<section className="space-y-2">
-            <h3 className="font-semibold">Lịch sử bàn giao</h3>
+            <h3 className="font-semibold">Lịch sử thu hồi / bàn giao</h3>
             {preview.handovers.map(h=><p key={h.id} className="border-b py-2">
               {channelDate(h.created_at)} · {h.reason} · {h.revoked_registrations} lượt tiếp cận thu hồi
             </p>)}
@@ -118,8 +113,8 @@ export function SalesHandoverDrawer({apiBase,token,membershipId,onClose,onChange
       </div>
     </AppDrawer>
     <ConfirmDialog open={confirm} onOpenChange={setConfirm} busy={busy} destructive
-      title="Xác nhận bàn giao và ngưng Sales" confirmLabel="Xác nhận bàn giao"
-      description={'Thu hồi '+(preview?.summary.revoke_approaches??0)+' lượt tiếp cận chưa gắn hợp đồng và ngưng quyền của nhân sự. Các hợp đồng và hoa hồng hợp lệ vẫn được giữ nguyên.'}
+      title="Xác nhận thu hồi quyền tiếp cận" confirmLabel="Xác nhận thu hồi"
+      description={'Thu hồi '+(preview?.summary.revoke_approaches??0)+' lượt tiếp cận đủ điều kiện, hủy '+(preview?.summary.pending_invitations??0)+' lời mời phân bổ và '+(preview?.summary.pending_extensions??0)+' gia hạn đang chờ. Không khóa Sales; hợp đồng và hoa hồng giữ nguyên.'}
       onConfirm={()=>void submit()}/>
   </>;
 }

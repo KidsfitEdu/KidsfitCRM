@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { Input } from '@/components/ui/input';
 import { ChannelRequestError, channelRequest } from '@/lib/channel-operations';
 import { appNotice } from '@/components/common/app-toast-provider';
 import {
-  SchoolBranchList, SchoolUnitFields, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit,
+  SchoolBranchList, SchoolMainSection, emptySchoolUnit, schoolUnitFields, type SchoolFormUnit,
 } from './school-units-editor';
 
 type Detail = {
@@ -19,7 +18,6 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
   open:boolean; schoolId:number|null; apiBase:string; token:string;
   onClose:()=>void; onSaved:()=>Promise<void>;
 }) {
-  const [code,setCode]=useState('');
   const [units,setUnits]=useState<SchoolFormUnit[]>([emptySchoolUnit('MAIN')]);
   const [expanded,setExpanded]=useState<number[]>([]);
   const [errors,setErrors]=useState<Record<string,string>>({});
@@ -30,12 +28,11 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
 
   useEffect(()=>{
     if(!open)return;
-    setCode('');setUnits([emptySchoolUnit('MAIN')]);setExpanded([]);setErrors({});
+    setUnits([emptySchoolUnit('MAIN')]);setExpanded([]);setErrors({});
     if(schoolId===null)return;
     let active=true;setLoading(true);
     void request<Detail>(`/schools/${schoolId}`).then(detail=>{
       if(!active)return;
-      setCode(detail.school_code);
       setUnits(detail.units.map(unit=>({...emptySchoolUnit(unit.unit_type),...unit,expected_version:unit.version})));
     }).catch(cause=>{if(active)appNotice.error('Không thể tải hồ sơ trường học.',cause instanceof Error?cause.message:'Vui lòng thử lại.');})
       .finally(()=>{if(active)setLoading(false);});
@@ -59,8 +56,6 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
   };
   const validate=()=>{
     const next:Record<string,string>={};
-    if(!code.trim())next.school_code='Cần mã trường chính.';
-    if(!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(code.trim()))next.school_code='Mã trường chỉ gồm chữ Latin, số, gạch ngang hoặc gạch dưới.';
     if(units.length===0||units.length>50||units.filter(x=>x.unit_type==='MAIN').length!==1)next.units='Cần một trường chính và tối đa 49 phân hiệu.';
     const seen=new Set<string>();
     units.forEach((u,i)=>{
@@ -91,7 +86,7 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
     try {
       await request(schoolId===null?'/schools':`/schools/${schoolId}`,{
         method:schoolId===null?'POST':'PUT',
-        body:JSON.stringify({school_code:code.trim().toUpperCase(),units}),
+        body:JSON.stringify({units}),
       });
       await onSaved();
       onClose();
@@ -101,7 +96,7 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
         const mapped:Record<string,string> = {};
         for (const [field,messages] of Object.entries(cause.errors)) {
           const normalized = field.toLowerCase().replace(/^units\[(\d+)\]\./, '$1.');
-          if (normalized === 'school_code' || normalized === 'units' || /^\d+\.(name|province|ward|address|contact_name|contact_position|contact_phone|email|school_phone|note)$/.test(normalized))
+          if (normalized === 'units' || /^\d+\.(name|province|ward|address|contact_name|contact_position|contact_phone|email|school_phone|note)$/.test(normalized))
             mapped[normalized] = messages[0] ?? 'Thông tin không hợp lệ.';
           else if (normalized === 'name' || normalized === 'province' || normalized === 'ward')
             mapped[`0.${normalized}`] = messages[0] ?? 'Thông tin không hợp lệ.';
@@ -117,10 +112,6 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
       const message = cause instanceof ChannelRequestError && (cause.status === 404 || cause.status === 405)
         ? 'API lưu trường chưa khả dụng. Hãy cập nhật Backend chứa POST /schools và PUT /schools/{id}, sau đó khởi động lại.'
         : cause instanceof Error ? cause.message : 'Vui lòng thử lại.';
-      if (cause instanceof ChannelRequestError && cause.status === 409 && /mã trường.*(đã tồn tại|đã có|trùng)/i.test(message)) {
-        setErrors(current => ({...current,school_code:message}));
-        return;
-      }
       appNotice.error('Không thể lưu hồ sơ trường học.', message);
     }finally{setBusy(false);}
   };
@@ -135,18 +126,8 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
     </>}>
     {loading?<p className="py-8 text-sm text-muted-foreground">Đang tải hồ sơ...</p>:
     <div className="space-y-5">
-      <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
-        <h3 className="font-semibold">Trường chính</h3>
-        <label htmlFor="official-school-code" className="block text-sm">
-          Mã trường chính <span className="text-destructive">*</span>
-          <Input id="official-school-code" className="mt-1" value={code}
-            disabled={schoolId!==null} maxLength={64} aria-invalid={!!errors.school_code}
-            onChange={e=>{setCode(e.target.value);setErrors(old=>({...old,school_code:''}));}}/>
-          {errors.school_code&&<span className="mt-1 block text-xs text-destructive">{errors.school_code}</span>}
-        </label>
-        {mainIndex>=0&&<SchoolUnitFields unit={units[mainIndex]} index={mainIndex}
-          onFieldChange={change} errors={errors} prefix="official-school"/>}
-      </section>
+      {mainIndex>=0&&<SchoolMainSection unit={units[mainIndex]} index={mainIndex}
+        onFieldChange={change} errors={errors} prefix="official-school"/>}
       <SchoolBranchList units={units} expanded={expanded} onExpandedChange={setExpanded}
         onAdd={addBranch} onRemove={removeBranch} onFieldChange={change}
         errors={errors} lockedExisting prefix="official-branch"/>

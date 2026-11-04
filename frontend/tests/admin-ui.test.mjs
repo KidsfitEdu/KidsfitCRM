@@ -31,14 +31,14 @@ test('Admin page headers do not expose manual refresh buttons', () => {
 
 test('Admin proposal list hides school codes and reuses official school profile UI', () => {
   const source = read('src/screens/Admin/Proposals/ProposalsPage.tsx');
-  assert.doesNotMatch(source, /p\\.school_code/);
-  assert.match(source, /\\[p\\.address,p\\.ward,p\\.province\\]/);
-  assert.match(source, /icon=\\{Eye\\}/);
-  assert.doesNotMatch(source, /icon=\\{History\\}/);
+  assert.doesNotMatch(source, /p\.school_code/);
+  assert.match(source, /\[p\.address,p\.ward,p\.province\]/);
+  assert.match(source, /icon=\{Eye\}/);
+  assert.doesNotMatch(source, /icon=\{History\}/);
   assert.match(source, /<SchoolProfileDetails/);
   assert.match(source, /<AdminProposalProfileEditor/);
-  assert.match(source, /workflowLabels\\[p.status\\]/);
-  assert.match(source, /appNotice\\.success\\(approve\\?/);
+  assert.match(source, /workflowLabels\[p.status\]/);
+  assert.match(source, /appNotice\.success\(approve\?/);
   const editor = read('src/components/crm/schools/admin-proposal-profile-editor.tsx');
   assert.match(editor, /<SchoolUnitFields/);
   assert.match(editor, /<SchoolBranchList/);

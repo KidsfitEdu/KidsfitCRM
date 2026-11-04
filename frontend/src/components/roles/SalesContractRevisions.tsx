@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, FileUp, SquarePen } from 'lucide-react';
+import { useEffect, useState, type SyntheticEvent } from 'react';
+import { FileUp } from 'lucide-react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
@@ -9,7 +9,6 @@ import { appNotice } from '@/components/common/app-toast-provider';
 import { channelRequest } from '@/lib/channel-operations';
 
 type Revision = { id: number; contract_code: string; school_name: string; reason: string | null };
-type RevisionList = { data: Revision[]; total: number };
 type ContractDetail = {
   data: {
     id: number; customer_id: number; status: string; can_resubmit: boolean;
@@ -20,103 +19,57 @@ type ContractDetail = {
   };
   school_units: { id: number; name: string }[];
 };
-type Props = { apiBase: string; token: string; abilities: string[]; onChanged: () => Promise<void> };
+type Props = { apiBase: string; token: string; contractId: number; onClose: () => void; onChanged: () => Promise<void> };
 
-/** Returned contracts can be corrected in place, without creating a second contract. */
-export function SalesContractRevisions({ apiBase, token, abilities, onChanged }: Props) {
-  const [rows, setRows] = useState<Revision[]>([]);
-  const [error, setError] = useState('');
-  const [selected, setSelected] = useState<Revision | null>(null);
+/** Single correction dialog opened from the contract icon in My Schools. */
+export function SalesContractRevisions({ apiBase, token, contractId, onClose, onChanged }: Props) {
   const [detail, setDetail] = useState<ContractDetail | null>(null);
   const [unitOptions, setUnitOptions] = useState<{ id: number; name: string }[]>([]);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [actionError, setActionError] = useState('');
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [version, setVersion] = useState(0);
-  const enabled = !!apiBase && !!token &&
-    (abilities.includes('*') || abilities.includes('channel_sales.contract.report'));
-
-  const load = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const response = await channelRequest<RevisionList>(apiBase, token, '/school-contracts/my-revisions');
-      setRows(response.data);
-      setError('');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không tải được hợp đồng cần chỉnh sửa.');
-    }
-  }, [apiBase, token, enabled]);
-
-  useEffect(() => { void load(); }, [load, version]);
-
-  const open = async (row: Revision) => {
-    setSelected(row);
-    setDetail(null);
-    setUnitOptions([]);
-    setActionError('');
-    setLoadingDetail(true);
-    try {
-      const result = await channelRequest<ContractDetail>(apiBase, token,
-        `/school-contracts/${row.id}/review-detail`);
-      if (result.data.status !== 'NEEDS_REVISION' || !result.data.can_resubmit)
-        throw new Error('Hợp đồng không còn ở trạng thái cho phép chỉnh sửa.');
-      setDetail(result);
+  const [actionError, setActionError] = useState('');
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
       try {
-        const units = await channelRequest<{ data: { id: number; name: string }[] }>(
-          apiBase, token, `/contract-school-units/${result.data.customer_id}`);
-        setUnitOptions(units.data);
-      } catch {
-        setUnitOptions(result.school_units);
+        const result = await channelRequest<ContractDetail>(apiBase, token,
+          `/school-contracts/${contractId}/review-detail`);
+        if (result.data.status !== 'NEEDS_REVISION' || !result.data.can_resubmit)
+          throw new Error('Hợp đồng không còn ở trạng thái cho phép chỉnh sửa.');
+        if (!alive) return;
+        setDetail(result);
+        try {
+          const units = await channelRequest<{ data: { id: number; name: string }[] }>(
+            apiBase, token, `/contract-school-units/${result.data.customer_id}`);
+          if (alive) setUnitOptions(units.data);
+        } catch {
+          if (alive) setUnitOptions(result.school_units);
+        }
+      } catch (cause) {
+        if (alive) setError(cause instanceof Error ? cause.message : 'Không tải được hồ sơ cần sửa.');
       }
-    } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : 'Không tải được hồ sơ cần sửa.');
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
+    })();
+    return () => { alive = false; };
+  }, [apiBase, token, contractId]);
 
-  if (!enabled) return null;
-
-  return <>
-    {error && <p role="alert" className="rounded-lg border border-red-200 p-3 text-sm text-red-700">{error}</p>}
-    {rows.length > 0 && <section id="sales-contract-revisions"
-      aria-label="Hợp đồng cần chỉnh sửa"
-      className="overflow-hidden rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/10">
-      <header className="flex items-center gap-2 border-b border-amber-200 p-4">
-        <AlertCircle className="size-5 text-amber-700" aria-hidden="true" />
-        <h3 className="font-semibold text-amber-900 dark:text-amber-200">Hợp đồng cần chỉnh sửa ({rows.length})</h3>
-      </header>
-      <div className="divide-y divide-amber-200/60">
-        {rows.map(row => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">{row.school_name} · {row.contract_code}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{row.reason ?? 'Quản lý yêu cầu chỉnh sửa hợp đồng.'}</p>
-          </div>
-          <AppButton type="button" tone="outline" leadingIcon={<SquarePen className="size-4" />}
-            onClick={() => void open(row)}>Chỉnh sửa hợp đồng</AppButton>
-        </div>)}
-      </div>
-    </section>}
-    <AppDialog open={selected !== null} onOpenChange={isOpen => { if (!isOpen && !busy) { setSelected(null); setDetail(null); } }}
-      title="Chỉnh sửa và gửi lại hợp đồng"
-      description={selected ? `${selected.school_name} · ${selected.contract_code}` : ''}
-      busy={busy}>
-      {loadingDetail && <p className="text-sm text-muted-foreground">Đang tải thông tin hợp đồng...</p>}
-      {actionError && !detail && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
-      {detail && selected && <RevisionEditor key={selected.id} apiBase={apiBase} token={token}
-        revision={selected} detail={detail} unitOptions={unitOptions}
-        busy={busy} setBusy={setBusy} actionError={actionError} setActionError={setActionError}
-        onClose={() => { setSelected(null); setDetail(null); }}
-        onDone={async () => {
-          setSelected(null); setDetail(null);
-          setVersion(value => value + 1);
-          appNotice.success('Đã gửi lại hợp đồng cho Quản lý kiểm tra.');
-          try { await onChanged(); } catch {
-            appNotice.warning('Đã gửi hợp đồng nhưng chưa tải lại được danh sách.');
-          }
-        }} />}
-    </AppDialog>
-  </>;
+  return <AppDialog open={true} onOpenChange={open => { if (!open && !busy) onClose(); }}
+    title="Chỉnh sửa hợp đồng" description="Cập nhật hồ sơ đã gửi và gửi lại Quản lý xác minh."
+    busy={busy}>
+    {!detail && !error && <p className="text-sm text-muted-foreground">Đang tải dữ liệu hợp đồng...</p>}
+    {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+    {detail && <RevisionEditor apiBase={apiBase} token={token}
+      revision={{ id: contractId, contract_code: '', school_name: '', reason: detail.data.revision_reason }}
+      detail={detail} unitOptions={unitOptions}
+      busy={busy} setBusy={setBusy} actionError={actionError} setActionError={setActionError}
+      onClose={onClose}
+      onDone={async () => {
+        appNotice.success('Đã gửi lại hợp đồng cho Quản lý kiểm tra.');
+        onClose();
+        try { await onChanged(); } catch {
+          appNotice.warning('Đã gửi hợp đồng nhưng chưa tải lại được danh sách.');
+        }
+      }} />}
+  </AppDialog>;
 }
 
 function RevisionEditor({

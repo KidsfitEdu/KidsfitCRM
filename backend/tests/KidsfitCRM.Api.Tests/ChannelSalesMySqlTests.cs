@@ -192,6 +192,27 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Consultation_note_only_records_server_timestamp_actor_and_no_assumed_outcome()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var registrationId = await new ChannelSalesActions(db).RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var before = DateTime.UtcNow;
+        var id = await new ChannelSalesActions(db).AddActivity(
+            registrationId, new AddCustomerActivityRequest(null, "Đã trao đổi về nhu cầu của trường.", null),
+            seller, Http(), Ct);
+        var after = DateTime.UtcNow;
+        var activity = await db.CustomerActivities.AsNoTracking().SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("NOTE", activity.ActivityType);
+        Assert.Null(activity.Outcome);
+        Assert.Equal(seller, activity.UserId);
+        Assert.Equal("Đã trao đổi về nhu cầu của trường.", activity.Content);
+        Assert.InRange(activity.OccurredAt, before.AddSeconds(-1), after.AddSeconds(1));
+        Assert.Null(activity.NextFollowUpAt);
+        Assert.Equal(registrationId, activity.ApproachRegistrationId);
+    }
+
+    [MySqlFact]
     public async Task Scope_hides_peer_sales_partner_data_and_suspended_memberships()
     {
         var owner = await Seller();

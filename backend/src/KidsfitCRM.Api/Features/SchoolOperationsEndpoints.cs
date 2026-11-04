@@ -242,16 +242,18 @@ public static class SchoolOperationsEndpoints
                 activities = db.CustomerActivities.Where(t => t.SupportCaseId == x.Id).OrderBy(t => t.CreatedAt).Select(t => new { t.Id, t.Content, t.OccurredAt, t.NextFollowUpAt }).ToArray(),
             }).ToArrayAsync(ct),
             team = await (from m in db.OrganizationMemberships join u in db.Users on m.UserId equals u.Id
-                          where canTeam && (a.All || (a.Organization && a.OrganizationIds.Contains(m.OrganizationId)))
+                          where canTeam && (a.All || (a.Organization && a.OrganizationIds.Contains(m.OrganizationId)
+                              && m.ManagerUserId == a.UserId))
                           orderby u.Name select new { m.Id, m.UserId, m.OrganizationId, m.MembershipType, m.Status, u.Name, account_status = u.Status,
                               can_reactivate = (m.Status == "SUSPENDED" || u.Status == "SUSPENDED") && m.UserId != a.UserId && a.Has(Permissions.SchoolHandoverManage)
-                                  && (a.All || (a.Organization && a.OrganizationIds.Contains(m.OrganizationId))) && (a.Has(Permissions.ChannelSalesIdentityManage) || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR")
+                                  && (a.All || (a.Organization && a.OrganizationIds.Contains(m.OrganizationId)
+                                      && m.ManagerUserId == a.UserId)) && (a.Has(Permissions.ChannelSalesIdentityManage) || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR")
                                   && (u.Status == "ACTIVE" || (a.All && a.Has(Permissions.ChannelSalesIdentityManage))),
                               can_receive_school = m.Status == "ACTIVE" && u.Status == "ACTIVE" && db.UserRoles.Any(ur => ur.UserId == u.Id
                                   && db.PermissionRoles.Any(pr => pr.RoleId == ur.RoleId && db.Permissions.Any(p => p.Id == pr.PermissionId && p.Code == Permissions.ChannelSalesRegister))),
                               can_receive_care = m.Status == "ACTIVE" && u.Status == "ACTIVE" && db.UserRoles.Any(ur => ur.UserId == u.Id
                                   && db.PermissionRoles.Any(pr => pr.RoleId == ur.RoleId && db.Permissions.Any(p => p.Id == pr.PermissionId && p.Code == Permissions.SchoolSupportManage))),
-                              can_handover = m.UserId != a.UserId && a.Has(Permissions.SchoolHandoverManage) && (a.Has(Permissions.ChannelSalesIdentityManage) || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR") }).Take(200).ToArrayAsync(ct),
+                              can_handover = m.Status == "ACTIVE" && m.UserId != a.UserId && a.Has(Permissions.SchoolHandoverManage) && (a.Has(Permissions.ChannelSalesIdentityManage) || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR") }).Take(200).ToArrayAsync(ct),
             contracts = await contractQuery.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new { x.Id, x.ContractCode, x.CustomerId, x.Status, x.CareUserId, x.CareOrganizationId, x.VerifiedAt,
                 care_name = db.Users.Where(u => u.Id == x.CareUserId).Select(u => u.Name).FirstOrDefault(),
                 can_create_support = x.Status == "ACTIVE" && x.VerifiedAt != null && x.CareUserId.HasValue && x.CareOrganizationId.HasValue && a.Has(Permissions.SchoolSupportManage)

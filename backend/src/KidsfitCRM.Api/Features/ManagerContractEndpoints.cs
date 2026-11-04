@@ -21,6 +21,10 @@ public static class ManagerContractEndpoints
         group.MapGet("/school-contracts/reviews", List).RequireAuthorization(Permissions.SchoolContractReview);
         group.MapGet("/school-contracts/my-revisions", MyRevisions).RequireAuthorization(Permissions.ChannelSalesReportContract);
         group.MapGet("/manager/team", Team).RequireAuthorization(Permissions.ChannelSalesTeamManage);
+        group.MapGet("/manager/team/{id:long}/handover-preview", HandoverPreview)
+            .RequireAuthorization(Permissions.SchoolHandoverManage);
+        group.MapGet("/manager/released-schools", ReleasedSchools)
+            .RequireAuthorization(Permissions.SchoolAllocationManage);
         group.MapGet("/manager/overview", Overview).RequireAuthorization(Permissions.SchoolAllocationManage);
         group.MapGet("/school-contracts/{id:long}/review-detail", Detail).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/school-contracts/{id:long}/request-revision", ReturnForRevision)
@@ -31,7 +35,10 @@ public static class ManagerContractEndpoints
 
     private static IQueryable<SalesContract> ManagerScope(KidsfitDbContext db, ChannelSalesAccess access) =>
         db.SalesContracts.Where(c => c.RequiresSchoolVerification &&
-            (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId))));
+            (access.All || (access.Organization && access.OrganizationIds.Contains(c.OwnerOrganizationId)
+                && db.OrganizationMemberships.Any(m => m.OrganizationId == c.OwnerOrganizationId
+                    && m.UserId == c.OwnerUserId && m.ManagerUserId == access.UserId
+                    && (m.Status == "ACTIVE" || m.Status == "SUSPENDED")))));
 
     internal static async Task<IResult> Overview(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
@@ -120,6 +127,103 @@ public static class ManagerContractEndpoints
                 organizations = await members.Select(m => m.OrganizationId).Distinct().CountAsync(ct),
             }
         });
+    }
+
+
+    /// <summary>Read-only departure preview. The command rechecks eligibility under locks.</summary>
+    internal static async Task<IResult> HandoverPreview(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.SchoolHandoverManage)) throw new KeyNotFoundException();
+        var actor = http.UserId();
+        var member = await db.OrganizationMemberships.AsNoTracking()
+            .Where(m => m.Id == id && m.UserId != actor
+                && (m.MembershipType == "SALES" || m.MembershipType == "CHANNEL_SALES"
+                    || m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR")
+                && (access.All || (access.Organization && access.OrganizationIds.Contains(m.OrganizationId)
+                    && m.ManagerUserId == actor)))
+            .Select(m => new {
+                m.Id, m.UserId, m.OrganizationId, m.Status,
+                name = db.Users.Where(u => u.Id == m.UserId).Select(u => u.Name).First(),
+                account_status = db.Users.Where(u => u.Id == m.UserId).Select(u => u.Status).First()
+            }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        var now = DateTime.UtcNow;
+        var claims = await db.ApproachRegistrations.AsNoTracking()
+            .Where(r => r.OwnerUserId == member.UserId && r.OwnerOrganizationId == member.OrganizationId
+                && r.Status == "ACTIVE")
+            .OrderBy(r => r.CustomerId)
+            .Select(r => new {
+                r.Id, r.CustomerId, r.ProtectedUntil, r.RegisteredAt,
+                school_name = db.ChannelCustomers.Where(c => c.Id == r.CustomerId).Select(c => c.DisplayName).First(),
+                has_contract = db.SalesContracts.Any(c => c.ApproachRegistrationId == r.Id
+                    && c.Status != "CANCELLED" && c.Status != "REJECTED"),
+                next_follow_up_at = db.CustomerActivities.Where(a => a.CustomerId == r.CustomerId
+                    && a.UserId == member.UserId && a.NextFollowUpAt != null)
+                    .OrderByDescending(a => a.CreatedAt).Select(a => a.NextFollowUpAt).FirstOrDefault()
+            }).ToArrayAsync(ct);
+        var contractQuery = db.SalesContracts.AsNoTracking()
+            .Where(c => c.OwnerUserId == member.UserId && c.OwnerOrganizationId == member.OrganizationId);
+        var contractTotal = await contractQuery.CountAsync(ct);
+        var contracts = await contractQuery.OrderByDescending(c => c.CreatedAt).Take(100)
+            .Select(c => new {
+                c.Id, c.ContractCode, c.Status, c.VerifiedAt,
+                school_name = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.DisplayName).First()
+            }).ToArrayAsync(ct);
+        var handovers = await db.SchoolHandovers.AsNoTracking().Where(h => h.MembershipId == member.Id)
+            .OrderByDescending(h => h.CreatedAt).Take(20)
+            .Select(h => new { h.Id, h.CreatedAt, h.Reason, h.Summary, h.RevokedRegistrations }).ToArrayAsync(ct);
+        return Results.Ok(new {
+            member,
+            summary = new {
+                active_claims = claims.Length,
+                revoke_approaches = claims.Count(x => !x.has_contract),
+                protected_contract_approaches = claims.Count(x => x.has_contract),
+                pending_invitations = await db.SchoolInvitations.CountAsync(x => x.AssigneeUserId == member.UserId
+                    && x.OrganizationId == member.OrganizationId && x.Status == "PENDING", ct),
+                pending_extensions = await db.SchoolExtensionRequests.CountAsync(x => x.RequestedByUserId == member.UserId
+                    && x.OrganizationId == member.OrganizationId && x.Status == "PENDING", ct),
+                contracts = contractTotal,
+                awaiting_verification = await contractQuery.CountAsync(c => c.Status != "ACTIVE"
+                    && c.Status != "CANCELLED" && c.Status != "REJECTED", ct),
+                can_handover = member.Status == "ACTIVE"
+            },
+            claims, contracts, handovers
+        });
+    }
+
+    /// <summary>Recently revoked and currently available schools, scoped to a direct team.</summary>
+    internal static async Task<IResult> ReleasedSchools(HttpContext http, KidsfitDbContext db,
+        string? search, int? page, int? page_size, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.SchoolAllocationManage)) throw new KeyNotFoundException();
+        var now = DateTime.UtcNow;
+        var cutoff = now.AddDays(-30);
+        var term = (search ?? "").Trim();
+        if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
+        var revokedCustomers = db.ApproachRegistrations.AsNoTracking()
+            .Where(r => r.Status == "REVOKED" && r.UpdatedAt >= cutoff
+                && (access.All || (access.Organization && access.OrganizationIds.Contains(r.OwnerOrganizationId)
+                    && db.OrganizationMemberships.Any(m => m.UserId == r.OwnerUserId
+                        && m.OrganizationId == r.OwnerOrganizationId && m.ManagerUserId == access.UserId))))
+            .Select(r => r.CustomerId);
+        var available = db.DirectorySchools.AsNoTracking()
+            .Where(s => revokedCustomers.Contains(s.CustomerId)
+                && !db.CustomerProtections.Any(p => p.CustomerId == s.CustomerId && p.Status == "ACTIVE"
+                    && p.EffectiveUntil > now))
+            .Where(s => term == "" || s.SchoolCode.Contains(term)
+                || db.ChannelCustomers.Any(c => c.Id == s.CustomerId && c.DisplayName.Contains(term)));
+        var p = Math.Clamp(page ?? 1, 1, 10000);
+        var size = Math.Clamp(page_size ?? 20, 1, 100);
+        var total = await available.CountAsync(ct);
+        var rows = await available.OrderBy(s => s.SchoolCode).ThenBy(s => s.Id)
+            .Skip((p - 1) * size).Take(size).Select(s => new {
+                id = s.Id, s.CustomerId, s.SchoolCode,
+                school_name = db.ChannelCustomers.Where(c => c.Id == s.CustomerId).Select(c => c.DisplayName).First(),
+                released_at = db.ApproachRegistrations.Where(r => r.CustomerId == s.CustomerId
+                    && r.Status == "REVOKED" && r.UpdatedAt >= cutoff).Max(r => (DateTime?)r.UpdatedAt)
+            }).ToArrayAsync(ct);
+        return Results.Ok(new { data = rows, total, page = p, page_size = size });
     }
 
     internal static async Task<IResult> MyRevisions(HttpContext http, KidsfitDbContext db, CancellationToken ct)
@@ -240,7 +344,11 @@ public static class ManagerContractEndpoints
                     && access.Has(Permissions.SchoolContractReview)
                     && access.CanManageOrganization(contract.OwnerOrganizationId),
                 can_resubmit = contract.Status == "NEEDS_REVISION" && access.Has(Permissions.ChannelSalesReportContract)
-                    && (contract.OwnerUserId == access.UserId || contract.ReportedByUserId == access.UserId)
+                    && (contract.OwnerUserId == access.UserId || contract.ReportedByUserId == access.UserId
+                        || (access.Has(Permissions.SchoolContractReview)
+                            && await ManagerScope(db, access).AnyAsync(c => c.Id == id, ct)
+                            && await db.OrganizationMemberships.AnyAsync(m => m.UserId == contract.OwnerUserId
+                                && m.OrganizationId == contract.OwnerOrganizationId && m.Status == "SUSPENDED", ct)))
             },
             evidence = files, installments, school_units = units, history
         });
@@ -289,9 +397,13 @@ public static class ManagerContractEndpoints
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        var managerRecovery = access.Has(Permissions.SchoolContractReview)
+            && await ManagerScope(db, access).AnyAsync(x => x.Id == id, ct)
+            && await db.OrganizationMemberships.AnyAsync(m => m.UserId == contract.OwnerUserId
+                && m.OrganizationId == contract.OwnerOrganizationId && m.Status == "SUSPENDED", ct);
         if (!access.Has(Permissions.ChannelSalesReportContract)
             || !await access.Contracts(db).AnyAsync(x => x.Id == id, ct)
-            || (contract.OwnerUserId != http.UserId() && contract.ReportedByUserId != http.UserId()))
+            || (contract.OwnerUserId != http.UserId() && contract.ReportedByUserId != http.UserId() && !managerRecovery))
             throw new KeyNotFoundException();
         if (contract.Status != "NEEDS_REVISION") throw new ApiConflictException("Hợp đồng không ở bước cần bổ sung.");
         var evidence = await db.FinancialEvidences.FromSqlInterpolated($"SELECT * FROM financial_evidences WHERE id = {request.EvidenceId.Value} FOR UPDATE")
@@ -312,7 +424,7 @@ public static class ManagerContractEndpoints
             reconciliation.Status = "AWAITING_MANAGER";
             reconciliation.UpdatedAt = now;
             db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id,
-                ActorUserId = http.UserId(), EventType = "SALES_RESUBMITTED", CreatedAt = now, UpdatedAt = now });
+                ActorUserId = http.UserId(), EventType = managerRecovery ? "MANAGER_RESUBMITTED" : "SALES_RESUBMITTED", CreatedAt = now, UpdatedAt = now });
         }
         Audit.Add(db, http.UserId(), "RESUBMIT_SCHOOL_CONTRACT", nameof(SalesContract), id,
             new { status = "NEEDS_REVISION" }, new { contract.Status, evidence_id = evidence.Id }, http);

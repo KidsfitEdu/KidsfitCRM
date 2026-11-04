@@ -34,6 +34,8 @@ type Selection =
 type Capacity = { id: number; name: string; organization_name: string; school_approach_limit: number; active: number };
 type School = { id: number; display_name: string; school_code: string; visible_status: string; can_register: boolean };
 type SchoolList = { data: School[]; total: number };
+type ReleasedSchool={id:number;customer_id:number;school_code:string;school_name:string;released_at:string};
+type ReleasedResult={data:ReleasedSchool[];total:number;page:number;page_size:number};
 type HistoryResult = { data: { id: number; action: string; actor_name: string; created_at: string; new_values: string | null }[] };
 
 const headings: Record<ManagerWorklistSection, { title: string; description: string; placeholder: string }> = {
@@ -86,6 +88,11 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     queryKey: [...channelQueryKeys.all, 'manager-available-schools'],
     queryFn: () => loadAllocationSchools<School>((page, pageSize) =>
       api<SchoolList>('/schools?page=' + page + '&pageSize=' + pageSize + '&status=AVAILABLE')),
+    enabled: section === 'allocations' && !preview && !!token,
+  });
+  const released = useQuery({
+    queryKey: [...channelQueryKeys.all, 'manager-released-schools'],
+    queryFn: () => api<ReleasedResult>('/manager/released-schools?page=1&page_size=20'),
     enabled: section === 'allocations' && !preview && !!token,
   });
   const capacities = useQuery({
@@ -158,7 +165,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       danger: !approve,
     });
   };
-  const invite = () => {
+  const invite = (suggestedSchoolId?:number) => {
     if (preview) { appNotice.info('Bản xem trước chỉ đọc', 'Đăng nhập Backend để phân bổ trường.'); return; }
     if (!can('channel_sales.school.allocation.manage')) {
       appNotice.error('Không có quyền phân bổ', 'Tài khoản chưa được cấp quyền phân bổ trường.');
@@ -174,6 +181,10 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     }
     const members = operations.data?.team.filter(t => t.can_receive_school && t.status === 'ACTIVE') ?? [];
     const schools = availableSchools.data?.data.filter(s => s.visible_status === 'AVAILABLE') ?? [];
+    if(suggestedSchoolId && !schools.some(s=>s.id===suggestedSchoolId)){
+      appNotice.warning('Trường không còn khả dụng', 'Danh sách đã thay đổi; vui lòng tải lại trước khi phân bổ.');
+      return;
+    }
     if (!members.length || !schools.length) {
       appNotice.warning('Chưa đủ điều kiện phân bổ',
         !schools.length ? 'Không có trường chưa đăng ký phù hợp.' : 'Không có Sales/CTV đủ điều kiện nhận trường.');
@@ -184,7 +195,9 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       description: '',
       path: '/school-invitations',
       fields: [
-        { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number', options: schools.map(s => ({ value: String(s.id), label: s.display_name })) },
+        { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number',
+          value: suggestedSchoolId?String(suggestedSchoolId):undefined,
+          options: schools.map(s => ({ value: String(s.id), label: s.display_name })) },
         { name: 'organization_id', label: 'Tổ chức', type: 'number', options: (operations.data?.organizations ?? []).map(o => ({ value: String(o.id), label: o.name })) },
         { name: 'assignee_user_id', label: 'Sales/CTV nhận phân bổ', type: 'number', options: members.map(m => {
           const cap = capacities.data?.data.find(c => c.id === m.id);
@@ -222,9 +235,25 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       title={config.title} description={config.description}
       actions={<div className="flex flex-wrap gap-2">
         {section === 'allocations' && <AppButton tone="green" premium leadingIcon={<Plus className="size-4"/>}
-          onClick={invite}>Phân bổ trường</AppButton>}
+          onClick={()=>invite()}>Phân bổ trường</AppButton>}
       </div>}/>
     {preview && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Dữ liệu minh họa chỉ đọc. Đăng nhập hệ thống kết nối API để phê duyệt và phân bổ.</p>}
+    {section==='allocations'&&!preview&&<section className="rounded-2xl border bg-card p-4 sm:p-5">
+      <h2 className="font-semibold text-foreground">Trường cần phân bổ lại sau bàn giao</h2>
+      <p className="mt-1 text-xs text-muted-foreground">Trường được thu hồi trong 30 ngày gần đây và hiện không còn quyền bảo vệ đang hoạt động. Sales mới vẫn phải nhận lời mời hợp lệ.</p>
+      {released.isLoading&&<p className="mt-3 text-sm text-muted-foreground">Đang tải trường vừa thu hồi…</p>}
+      {released.error&&<p role="alert" className="mt-3 text-sm text-destructive">{describeApiError(released.error)}</p>}
+      {released.data?.data.length===0&&<p className="mt-3 text-sm text-muted-foreground">Không có trường vừa thu hồi cần phân bổ.</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {released.data?.data.map(s=><button type="button" key={s.id}
+          className="rounded-xl border border-border px-3 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
+          onClick={()=>invite(s.id)} title={'Phân bổ lại '+s.school_name}>
+          <span className="block font-semibold">{s.school_name}</span>
+          <span className="block text-xs text-muted-foreground">{s.school_code} · Thu hồi: {nice(s.released_at)}</span>
+        </button>)}
+      </div>
+      {(released.data?.total??0)>20&&<p className="mt-2 text-xs text-muted-foreground">Hiển thị 20 trường gần đây. Các trường khác vẫn nằm trong danh sách trường chưa đăng ký.</p>}
+    </section>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={() => { setSearch(draft.trim()); setPage(1); }}

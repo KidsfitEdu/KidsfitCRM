@@ -91,8 +91,9 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         db.Users.Add(user); await db.SaveChangesAsync();
         var role = await db.Roles.Where(x => x.Code == "SALES").Select(x => x.Id).SingleAsync();
         var org = await db.Organizations.Where(x => x.Code == "PARTNER_AN_PHAT").Select(x => x.Id).SingleAsync();
+        var manager = await db.Users.Where(u => u.Email == "partner@kidsfit.vn").Select(u => u.Id).SingleAsync();
         db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role });
-        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = org, MembershipType = "COLLABORATOR", IsPrimary = true, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var membership = new OrganizationMembership { UserId = user.Id, OrganizationId = org, ManagerUserId = manager, MembershipType = "COLLABORATOR", IsPrimary = true, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.OrganizationMemberships.Add(membership); await db.SaveChangesAsync();
         return (user.Id, membership.Id);
     }
@@ -387,6 +388,9 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
             new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow),
                 null, await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(), 1_000_000m, null, null,
                 EvidenceId: first.Id), seller.UserId, Http(), Ct);
+        // Manager permissions are now scoped to direct reports, not merely shared organization.
+        await db.OrganizationMemberships.Where(m => m.Id == seller.MembershipId)
+            .ExecuteUpdateAsync(x => x.SetProperty(m => m.ManagerUserId, (long?)manager), Ct);
         var caseId = await db.ReconciliationCases.Where(r => r.ContractId == contractId).Select(r => r.Id).SingleAsync();
         Assert.Equal("AWAITING_MANAGER", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.Reconcile(caseId, true, new(null), checkee, Http(), Ct));

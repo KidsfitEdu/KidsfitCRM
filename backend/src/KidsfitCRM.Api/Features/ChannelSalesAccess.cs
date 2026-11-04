@@ -39,7 +39,7 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
         (OrganizationIds.Contains(x.OwnerOrganizationId) && (Organization
             ? (!Has(Permissions.ChannelSalesManage) || x.OwnerUserId == UserId
                 || db.OrganizationMemberships.Any(m => m.OrganizationId == x.OwnerOrganizationId
-                    && m.UserId == x.OwnerUserId && m.ManagerUserId == UserId && m.Status == "ACTIVE"))
+                    && m.UserId == x.OwnerUserId && m.ManagerUserId == UserId && (m.Status == "ACTIVE" || m.Status == "SUSPENDED")))
             : x.OwnerUserId == UserId))
         || (HasCareAccess && x.CareUserId == UserId && x.CareOrganizationId.HasValue && OrganizationIds.Contains(x.CareOrganizationId.Value)));
 
@@ -47,14 +47,14 @@ public sealed record ChannelSalesAccess(long UserId, long[] OrganizationIds, str
         OrganizationIds.Contains(x.BeneficiaryOrganizationId) && (Organization
             ? (!Has(Permissions.ChannelSalesManage) || x.BeneficiaryUserId == UserId
                 || db.OrganizationMemberships.Any(m => m.OrganizationId == x.BeneficiaryOrganizationId
-                    && m.UserId == x.BeneficiaryUserId && m.ManagerUserId == UserId && m.Status == "ACTIVE"))
+                    && m.UserId == x.BeneficiaryUserId && m.ManagerUserId == UserId && (m.Status == "ACTIVE" || m.Status == "SUSPENDED")))
             : x.BeneficiaryUserId == UserId));
 
     public IQueryable<Payout> Payouts(KidsfitDbContext db) => All ? db.Payouts : db.Payouts.Where(x =>
         OrganizationIds.Contains(x.OrganizationId) && (Organization
             ? (!Has(Permissions.ChannelSalesManage) || x.BeneficiaryUserId == UserId
                 || db.OrganizationMemberships.Any(m => m.OrganizationId == x.OrganizationId
-                    && m.UserId == x.BeneficiaryUserId && m.ManagerUserId == UserId && m.Status == "ACTIVE"))
+                    && m.UserId == x.BeneficiaryUserId && m.ManagerUserId == UserId && (m.Status == "ACTIVE" || m.Status == "SUSPENDED")))
             : x.BeneficiaryUserId == UserId));
 
     public IQueryable<ChannelCustomer> Customers(KidsfitDbContext db)

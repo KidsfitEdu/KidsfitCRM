@@ -100,10 +100,12 @@ public sealed partial class ChannelSalesActions
             : Validation.Required(request.Summary, "summary", "Nội dung bàn giao không hợp lệ.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var member = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {membershipId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId) throw new KeyNotFoundException();
+        if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId
+            || (!access.All && member.ManagerUserId != actorId)) throw new KeyNotFoundException();
         if (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsSchoolSales(member)) throw new KeyNotFoundException();
         var replay = await db.SchoolHandovers.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.CompletedByUserId, actorId, replay.RequestFingerprint, hash);
+        if (member.Status != "ACTIVE") throw new ApiConflictException("Nhân sự đã ngưng hoạt động. Không bàn giao lặp lại.");
         if (request.SuspendAccount && (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage))) throw new KeyNotFoundException();
         User? account = request.SuspendAccount
             ? await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {member.UserId} FOR UPDATE").SingleAsync(ct) : null;
@@ -191,6 +193,7 @@ public sealed partial class ChannelSalesActions
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var member = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId
+            || (!access.All && member.ManagerUserId != actorId)
             || (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsSchoolSales(member))) throw new KeyNotFoundException();
         if (request.ReactivateAccount && (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage))) throw new KeyNotFoundException();
         if (!await db.Organizations.AnyAsync(x => x.Id == member.OrganizationId && x.Status == "ACTIVE", ct))

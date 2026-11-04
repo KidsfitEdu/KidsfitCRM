@@ -23,7 +23,7 @@ public sealed partial class ChannelSalesActions
         var membership = await ActiveSchoolMembership(actorId, orgId, ct);
         var mode = ValidateDraftMode(request.ProposalMode);
         var target = await DraftTarget(mode, request.TargetDirectorySchoolId, ct);
-        var units = BuildDraftUnits(request.Units, mode, false);
+        var units = BuildDraftUnits(request.Units, mode);
         var main = units.FirstOrDefault(x => x.UnitType == "MAIN");
         var now = DateTime.UtcNow;
         var draft = new SchoolProposal {
@@ -180,7 +180,7 @@ public sealed partial class ChannelSalesActions
     private static string ValidateDraftMode(string? mode) => mode is "NEW_MAIN" or "ADD_BRANCHES"
         ? mode : throw ApiValidationException.For("proposal_mode", "Loại đề xuất không hợp lệ.");
 
-    private static List<SchoolProposalUnit> BuildDraftUnits(SchoolProposalUnitInput[]? values, string mode, bool submitting)
+    private static List<SchoolProposalUnit> BuildDraftUnits(SchoolProposalUnitInput[]? values, string mode)
     {
         var list = new List<SchoolProposalUnit>();
         if (values is null || values.Length > 50)
@@ -192,7 +192,7 @@ public sealed partial class ChannelSalesActions
             if (kind is not ("MAIN" or "BRANCH") || (mode == "ADD_BRANCHES" && kind != "BRANCH"))
                 throw ApiValidationException.For("units", "Loại trường/phân hiệu không hợp lệ.");
             list.Add(new SchoolProposalUnit {
-                UnitType = kind, SortOrder = index,
+                UnitType = kind, SortOrder = index, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
                 Name = CleanOptional(v.Name, 500) ?? "",
                 Province = CleanOptional(v.Province, 100) ?? "",
                 Ward = CleanOptional(v.Ward, 100) ?? "",

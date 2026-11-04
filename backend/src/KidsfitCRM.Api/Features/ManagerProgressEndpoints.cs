@@ -75,11 +75,18 @@ public static class ManagerProgressEndpoints
             .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
             .Select(c => new { c.Id, c.CustomerId, c.ContractCode, c.OwnerUserId, c.OwnerOrganizationId })
             .ToArrayAsync(ct);
-        var activities = await db.CustomerActivities.AsNoTracking()
-            .Where(a => ids.Contains(a.CustomerId) && a.NextFollowUpAt != null
-                && members.Any(m => m.UserId == a.UserId))
-            .GroupBy(a => a.CustomerId).Select(g => new { CustomerId = g.Key,
-                Next = g.Max(a => a.NextFollowUpAt) }).ToDictionaryAsync(x => x.CustomerId, x => x.Next, ct);
+        // CustomerActivity has no OrganizationId. Restrict displayed follow-up dates
+        // to the actual protected owner selected for each school, not any member's activity.
+        var ownerIds = visibleRights.Values.Select(x => x.OwnerUserId).Distinct().ToArray();
+        var activityRows = await db.CustomerActivities.AsNoTracking()
+            .Where(a => ids.Contains(a.CustomerId) && ownerIds.Contains(a.UserId)
+                && a.NextFollowUpAt != null)
+            .Select(a => new { a.CustomerId, a.UserId, a.NextFollowUpAt }).ToArrayAsync(ct);
+        var activities = activityRows
+            .Where(a => visibleRights.TryGetValue(a.CustomerId, out var right)
+                && right.OwnerUserId == a.UserId)
+            .GroupBy(a => a.CustomerId)
+            .ToDictionary(g => g.Key, g => g.Max(a => a.NextFollowUpAt));
 
         var rows = customers.Select(customer =>
         {

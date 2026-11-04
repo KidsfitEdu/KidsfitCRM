@@ -1420,10 +1420,10 @@ function PanelHeading({
 }
 function Label({ text, children }: { text: string; children: ReactNode }) {
   return (
-    <label className="grid gap-1.5 text-sm font-medium">
-      {text}
+    <div role="group" aria-label={text} className="grid gap-1.5 text-sm font-medium">
+      <span>{text}</span>
       {children}
-    </label>
+    </div>
   );
 }
 function Info({ label, value }: { label: string; value: string }) {

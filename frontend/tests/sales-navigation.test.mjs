@@ -209,7 +209,7 @@ test('Sales contract branch count is editable and persisted separately from chos
   const start = source.indexOf('function ContractDialog({');
   const end = source.indexOf('function ReceiptDialog({', start);
   const form = source.slice(start, end);
-  assert.match(form, /aria-label="Số phân hiệu triển khai" type="number"/);
+  assert.match(form, /aria-label="Số phân hiệu triển khai" data-field="branch_count"/);
   assert.doesNotMatch(form, /value=\{selectedUnitIds\.length\} readOnly/);
   assert.match(form, /branch_count: Number\(branchCount\)/);
   assert.match(form, /<AppCurrencyInput aria-label="Phí duy trì"/);

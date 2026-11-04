@@ -37,7 +37,14 @@ public sealed partial class ChannelSalesActions
         // are stored as a set of proposal units and must retain their original mode.
         var expectedMode = mode == "LEGACY" ? "NEW_MAIN" : mode;
         var units = BuildDraftUnits(request.Units, expectedMode);
-        if (units.Count == 0) throw ApiValidationException.For("units", "Cần ít nhất một đơn vị trường.");
+        if (units.Count == 0 || (mode == "LEGACY" && units.Count != 1))
+            throw ApiValidationException.For("units", "Số đơn vị không phù hợp với loại đề xuất.");
+        foreach (var unit in units)
+        {
+            unit.Name = Validation.Required(unit.Name, "units", "Cần tên trường/phân hiệu.", 500);
+            unit.Province = Validation.Required(unit.Province, "units", "Cần tỉnh/thành phố.", 100);
+            unit.Ward = Validation.Required(unit.Ward, "units", "Cần phường/xã.", 100);
+        }
         if (mode == "ADD_BRANCHES" && (!proposal.TargetDirectorySchoolId.HasValue
             || !await db.DirectorySchools.AnyAsync(s => s.Id == proposal.TargetDirectorySchoolId.Value && !s.IsDeleted, ct)))
             throw new ApiConflictException("Trường chính liên kết không còn khả dụng.");

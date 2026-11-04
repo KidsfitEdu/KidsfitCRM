@@ -16,6 +16,16 @@ public static class SchoolOperationsEndpoints
         group.MapGet("/school-proposals/{id:long}/revisions", ProposalRevisions).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/school-units/{id:long}/history", UnitHistory).RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/schools/{id:long}/rights", Rights).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/school-proposals/main-schools", MainSchools).RequireAuthorization(Permissions.SchoolProposalSubmit);
+        group.MapGet("/school-proposals/{id:long}/draft-detail", DraftDetail).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapPost("/school-proposals/drafts", async (SaveSchoolProposalDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CreateSchoolProposalDraft(request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolProposalSubmit);
+        group.MapPatch("/school-proposals/{id:long}/draft", async (long id, SaveSchoolProposalDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.UpdateSchoolProposalDraft(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolProposalSubmit);
+        group.MapPost("/school-proposals/{id:long}/submit", async (long id, SubmitSchoolProposalDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.SendSchoolProposalDraft(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolProposalSubmit);
+        group.MapPost("/school-proposals/{id:long}/soft-delete", async (long id, DeleteSchoolProposalDraftRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.DeleteSchoolProposalDraft(id, request, h.UserId(), h, ct)))
+            .RequireAuthorization(Permissions.SchoolProposalSubmit);
         group.MapPost("/school-proposals", async (CreateSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.SubmitSchoolProposal(request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolProposalSubmit);
         group.MapPost("/school-proposals/{id:long}/manager-review", async (long id, ReviewSchoolProposalRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReviewSchoolProposal(id, request, false, h.UserId(), h, ct)))
@@ -72,6 +82,44 @@ public static class SchoolOperationsEndpoints
 
     private static IResult Saved(long id) => Results.Ok(new { data = new { id }, message = "Đã ghi nhận thay đổi." });
 
+    public static async Task<IResult> MainSchools(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.SchoolProposalSubmit) || access.OrganizationIds.Length == 0)
+            throw new KeyNotFoundException();
+        var search = http.Request.Query["search"].ToString().Trim();
+        if (search.Length > 190) throw ApiValidationException.For("search", "Từ khóa tối đa 190 ký tự.");
+        var data = await (from s in db.DirectorySchools.AsNoTracking()
+            join u in db.SchoolUnits.AsNoTracking() on s.Id equals u.DirectorySchoolId
+            where !s.IsDeleted && u.UnitType == "MAIN"
+                && (search == "" || s.SchoolCode.Contains(search) || u.Name.Contains(search))
+            orderby u.Name select new { id = s.Id, school_code = s.SchoolCode,
+                name = u.Name, province = u.Province, ward = u.Ward })
+            .Take(30).ToArrayAsync(ct);
+        return Results.Ok(new { data });
+    }
+
+    public static async Task<IResult> DraftDetail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        var proposal = await db.SchoolProposals.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted
+            && (access.All || (access.OrganizationIds.Contains(x.OrganizationId)
+                && (x.SubmittedByUserId == access.UserId
+                    || (access.Has(Permissions.SchoolProposalReview) && x.ManagerUserId == access.UserId)))), ct)
+            ?? throw new KeyNotFoundException();
+        var units = await db.SchoolProposalUnits.AsNoTracking().Where(x => x.SchoolProposalId == id)
+            .OrderBy(x => x.SortOrder).Select(x => new {
+                x.UnitType, x.Name, x.Province, x.Ward, x.Address, x.ContactName,
+                x.ContactPosition, x.ContactPhone, x.Email, x.SchoolPhone, x.Note
+            }).ToArrayAsync(ct);
+        return Results.Ok(new { data = new {
+            proposal.Id, proposal.Name, proposal.Version, proposal.Status, proposal.ProposalMode,
+            proposal.TargetDirectorySchoolId, proposal.SchoolCode, units,
+            can_edit = proposal.Status == "DRAFT" && proposal.SubmittedByUserId == access.UserId
+                && access.Has(Permissions.SchoolProposalSubmit)
+        } });
+    }
+
     // Dedicated policy list avoids the 100-row snapshot cap in the general workspace API.
     public static async Task<IResult> PolicyListPage(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
@@ -107,8 +155,8 @@ public static class SchoolOperationsEndpoints
         return Results.Ok(new { items, pagination = new { page, page_size = pageSize, total = count } });
     }
 
-    private static IQueryable<SchoolProposal> Proposals(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolProposals.Where(x => a.All
-        || (a.OrganizationIds.Contains(x.OrganizationId) && (x.SubmittedByUserId == a.UserId || (a.Has(Permissions.SchoolProposalReview) && x.ManagerUserId == a.UserId))));
+    private static IQueryable<SchoolProposal> Proposals(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolProposals.Where(x => !x.IsDeleted && (a.All
+        || (a.OrganizationIds.Contains(x.OrganizationId) && (x.SubmittedByUserId == a.UserId || (a.Has(Permissions.SchoolProposalReview) && x.ManagerUserId == a.UserId)))));
     private static IQueryable<SchoolInvitation> Invitations(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolInvitations.Where(x => a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.AssigneeUserId == a.UserId || (a.Organization && a.Has(Permissions.SchoolAllocationManage)))));
     private static IQueryable<SchoolExtensionRequest> Extensions(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolExtensionRequests.Where(x => a.All
@@ -140,7 +188,7 @@ public static class SchoolOperationsEndpoints
         var matchingSchools = db.DirectorySchools.Where(s => s.SchoolCode.Contains(term)
             || db.SchoolUnits.Any(u => u.DirectorySchoolId == s.Id && (u.Name.Contains(term) || u.Province.Contains(term) || u.Ward.Contains(term)))).Select(s => s.Id);
         var matchingCustomers = db.ChannelCustomers.Where(c => c.DisplayName.Contains(term) || db.DirectorySchools.Any(s => s.CustomerId == c.Id && matchingSchools.Contains(s.Id))).Select(c => c.Id);
-        var allowedProposalStatuses = new[] { "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
+        var allowedProposalStatuses = new[] { "DRAFT", "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
         if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
         var overdueOnly = string.Equals(http.Request.Query["overdue_only"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
         var disputeStatus = http.Request.Query["dispute_status"].ToString().ToUpperInvariant();
@@ -189,7 +237,10 @@ public static class SchoolOperationsEndpoints
             proposals = await proposalQuery.OrderByDescending(x => x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN").ThenBy(x => x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN" ? x.ReviewDueAt : DateTime.MaxValue).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new
             {
                 x.Id, x.OrganizationId, x.SchoolCode, x.Name, x.Province, x.Ward, x.Address, x.ContactName, x.ContactPosition, x.ContactPhone, x.Email,
+                x.ProposalMode, x.TargetDirectorySchoolId,
                 x.Reason, x.Status, x.Version, x.ManagerUserId, x.SubmittedByUserId, x.ReviewDueAt, x.DecisionReason, x.DirectorySchoolId,
+                can_edit_draft = x.Status == "DRAFT" && x.SubmittedByUserId == a.UserId && a.Has(Permissions.SchoolProposalSubmit),
+                unit_count = db.SchoolProposalUnits.Count(u => u.SchoolProposalId == x.Id),
                 submitted_by = db.Users.Where(u => u.Id == x.SubmittedByUserId).Select(u => u.Name).First(),
                 manager_name = db.Users.Where(u => u.Id == x.ManagerUserId).Select(u => u.Name).First(),
                 possible_duplicate = db.SchoolUnits.Any(u => u.UnitType == "MAIN" && (x.DirectorySchoolId == null || u.DirectorySchoolId != x.DirectorySchoolId) && u.Name == x.Name && u.Province == x.Province && u.Ward == x.Ward),

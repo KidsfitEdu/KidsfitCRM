@@ -128,9 +128,17 @@ public sealed partial class ChannelSalesActions
             x.ApproachRegistrationId == registrationId && x.Status == "APPROVED", ct);
         if (approvedCount >= policy.MaxExtensionCount)
             throw new ApiConflictException("Đã đạt số lần gia hạn tối đa theo chính sách.");
-        var requestedUntil = SchoolFuture(request.RequestedUntil, "requested_until", registration.ProtectedUntil);
-        if (requestedUntil > registration.ProtectedUntil.AddDays(policy.MaxExtensionDays)
-            || requestedUntil > registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays))
+        // The CRM proposes the maximum valid period from the active organization's policy.
+        // Explicit dates from older clients remain accepted, subject to the same constraints.
+        var maxPerRequest = registration.ProtectedUntil.AddDays(policy.MaxExtensionDays);
+        var maxCumulative = registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays);
+        var maximumUntil = maxPerRequest < maxCumulative ? maxPerRequest : maxCumulative;
+        if (maximumUntil <= registration.ProtectedUntil)
+            throw new ApiConflictException("Đã hết thời gian gia hạn theo chính sách.");
+        var requestedUntil = request.RequestedUntil.HasValue
+            ? SchoolFuture(request.RequestedUntil, "requested_until", registration.ProtectedUntil)
+            : maximumUntil;
+        if (requestedUntil > maximumUntil)
             throw ApiValidationException.For("requested_until", "Thời gian xin gia hạn vượt giới hạn chính sách.");
         var due = SchoolDeadline(now, policy.ManagerReviewHours, request.ReviewDueAt);
         var extension = new SchoolExtensionRequest
@@ -138,12 +146,15 @@ public sealed partial class ChannelSalesActions
             ApproachRegistrationId = registrationId, OrganizationId = registration.OwnerOrganizationId, RequestedByUserId = actorId, ManagerUserId = managerId,
             OriginalProtectedUntil = SchoolUtc(registration.ProtectedUntil), RequestedUntil = requestedUntil,
             ReviewDueAt = due < registration.ProtectedUntil ? due : registration.ProtectedUntil,
-            NextAppointmentAt = SchoolFuture(request.NextAppointmentAt, "next_appointment_at", now),
-            Progress = Validation.Required(request.Progress, "progress", "Cần báo cáo tiến độ.", 4000),
-            EvidenceReference = Validation.Required(request.EvidenceReference, "evidence_reference", "Cần bằng chứng hoặc lịch hẹn.", 500),
+            // An appointment is optional; never invent a date when the Sales user did not supply one.
+            NextAppointmentAt = request.NextAppointmentAt.HasValue
+                ? SchoolFuture(request.NextAppointmentAt, "next_appointment_at", now) : null,
+            Progress = Validation.Required(request.Progress, "progress", "Cần nhập lý do xin gia hạn.", 4000),
+            // Retain historical evidence references, but do not require a new document code.
+            EvidenceReference = CleanOptional(request.EvidenceReference, 500) ?? "",
             IdempotencyKey = key, RequestFingerprint = hash, CreatedAt = now, UpdatedAt = now,
         };
-        if (extension.NextAppointmentAt > extension.RequestedUntil) throw ApiValidationException.For("next_appointment_at", "Lịch hẹn phải nằm trong thời gian xin gia hạn.");
+        if (extension.NextAppointmentAt.HasValue && extension.NextAppointmentAt.Value > extension.RequestedUntil) throw ApiValidationException.For("next_appointment_at", "Lịch hẹn phải nằm trong thời gian xin gia hạn.");
         db.SchoolExtensionRequests.Add(extension); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "REQUEST_SCHOOL_EXTENSION", nameof(SchoolExtensionRequest), extension.Id, null,
             new { extension.ApproachRegistrationId, extension.RequestedUntil, extension.ReviewDueAt, extension.NextAppointmentAt }, http);

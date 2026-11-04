@@ -526,6 +526,39 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(1, await check.SchoolInvitations.CountAsync(x => x.AssigneeUserId == s.Seller.UserId && x.Status == "ACCEPTED"));
     }
 
+    [MySqlFact] public async Task ExtensionRequestUsesPolicyDateAndReasonWithoutInventingEvidenceOrAppointment()
+    {
+        var scenario = await Arrange();
+        await Policy(scenario.OrgId);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registrationId = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
+        var protectedUntil = await db.ApproachRegistrations.Where(x => x.Id == registrationId)
+            .Select(x => x.ProtectedUntil).SingleAsync(Ct);
+        var request = new RequestSchoolExtensionRequest(Key(), null, null, null,
+            "Nhà trường đã trao đổi và cần thêm thời gian để xem xét phương án triển khai.", null);
+        var extensionId = await actions.RequestSchoolExtension(registrationId, request, scenario.Seller.UserId, Http(), Ct);
+        var stored = await db.SchoolExtensionRequests.AsNoTracking().SingleAsync(x => x.Id == extensionId, Ct);
+        Assert.Null(stored.NextAppointmentAt);
+        Assert.Equal(protectedUntil.AddDays(7), stored.RequestedUntil);
+        Assert.Equal(protectedUntil, (await db.ApproachRegistrations.AsNoTracking().SingleAsync(x => x.Id == registrationId, Ct)).ProtectedUntil);
+        Assert.Equal("", stored.EvidenceReference);
+        Assert.Equal(request.Progress, stored.Progress);
+        Assert.Equal("PENDING", stored.Status);
+        Assert.InRange(stored.ReviewDueAt, DateTime.UtcNow, protectedUntil);
+        Assert.Equal(extensionId, await actions.RequestSchoolExtension(registrationId, request, scenario.Seller.UserId, Http(), Ct));
+
+        // A blank reason must still be rejected, and an explicit legacy appointment remains valid.
+        var secondRegistration = await actions.RegisterCustomerApproach(Claim(scenario.OtherCustomerId), scenario.Seller.UserId, Http(), Ct);
+        var secondUntil = await db.ApproachRegistrations.Where(x => x.Id == secondRegistration)
+            .Select(x => x.ProtectedUntil).SingleAsync(Ct);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.RequestSchoolExtension(
+            secondRegistration, new RequestSchoolExtensionRequest(Key(), null, null, null, " ", null),
+            scenario.Seller.UserId, Http(), Ct));
+        var legacy = await actions.RequestSchoolExtension(secondRegistration, Extension(secondUntil.AddDays(7)), scenario.Seller.UserId, Http(), Ct);
+        Assert.NotNull((await db.SchoolExtensionRequests.AsNoTracking().SingleAsync(x => x.Id == legacy, Ct)).NextAppointmentAt);
+    }
+
     [MySqlFact] public async Task MineShowsExtensionEligibilityPendingStateAndDropsExpiredApproaches()
     {
         var s = await Arrange(); await using var db = fixture.Open(); var a = new ChannelSalesActions(db);

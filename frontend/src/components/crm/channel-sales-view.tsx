@@ -720,8 +720,7 @@ function CustomerRow({
           <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
           {showExtension && (
-            <span title={extensionHint} className="inline-flex" tabIndex={extensionBlocked ? 0 : undefined}
-              aria-label={extensionBlocked ? `${extensionHint} - ${customer.display_name}` : undefined}>
+            <span title={extensionHint} className="inline-flex" aria-label={extensionBlocked ? `${extensionHint} - ${customer.display_name}` : undefined}>
               <Button type="button" size="icon" variant="outline"
                 className={`size-9 rounded-lg ${extensionBlocked ? 'cursor-not-allowed border-slate-300 text-slate-500 opacity-60' : urgency === 'critical' ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100' : 'border-amber-500 text-amber-700 hover:bg-amber-50'}`}
                 disabled={extensionBlocked} onClick={onExtension} title={extensionHint}
@@ -825,32 +824,22 @@ function ExtensionDialog({
     event.preventDefault();
     if (!customer.approach_registration_id || saving) return;
     const form = new FormData(event.currentTarget);
-    const requested = text(form, 'requested_until');
-    const review = text(form, 'review_due_at');
-    const appointment = text(form, 'next_appointment_at');
+    const reason = text(form, 'progress');
     setSaving(true);
     setError('');
     try {
-      if (!requested || !appointment) throw new Error('Vui lòng nhập thời hạn xin gia hạn và lịch hẹn tiếp theo.');
-      const requestedDate = new Date(requested);
-      const appointmentDate = new Date(appointment);
-      const end = customer.protected_until ? new Date(customer.protected_until) : null;
-      if (Number.isNaN(requestedDate.getTime()) || Number.isNaN(appointmentDate.getTime()) || (review && Number.isNaN(new Date(review).getTime())))
-        throw new Error('Thời gian không hợp lệ.');
-      if (end && requestedDate <= end) throw new Error('Thời hạn xin gia hạn phải sau thời hạn bảo vệ hiện tại.');
-      if (appointmentDate <= new Date() || appointmentDate > requestedDate)
-        throw new Error('Lịch hẹn phải trong tương lai và không vượt thời hạn xin gia hạn.');
-      if (review && (new Date(review) <= new Date() || (end && new Date(review) > end)))
-        throw new Error('Hạn phản hồi phải trong tương lai và không vượt hạn bảo vệ hiện tại.');
+      if (!reason) throw new Error('Vui lòng nhập lý do xin gia hạn.');
       await channelRequest(apiBase, token, `/approaches/${customer.approach_registration_id}/extension-requests`, {
         method: 'POST',
         body: JSON.stringify({
           idempotency_key: requestKey,
-          requested_until: requestedDate.toISOString(),
-          review_due_at: review ? new Date(review).toISOString() : null,
-          next_appointment_at: appointmentDate.toISOString(),
-          progress: text(form, 'progress'),
-          evidence_reference: text(form, 'evidence_reference'),
+          // The CRM calculates the proposed date using the active organization policy.
+          requested_until: null,
+          // Manager review deadline is derived from the active policy on the server.
+          review_due_at: null,
+          next_appointment_at: null,
+          progress: reason,
+          evidence_reference: null,
         }),
       });
       await onSubmitted();
@@ -864,21 +853,16 @@ function ExtensionDialog({
   return <AppDialog open onOpenChange={open => {if (!open && !saving) onClose();}}
     busy={saving} title="Xin gia hạn tiếp cận"
     description="Gửi yêu cầu đến Quản lý bán hàng để phê duyệt. Yêu cầu không tự gia hạn quyền bảo vệ.">
-    <form className="space-y-4" onSubmit={submit}>
+    <form className="space-y-3" onSubmit={submit}>
       <CustomerHighlight customer={customer}/>
       <p className="text-sm text-muted-foreground">
         Bảo vệ hiện tại đến: {customer.protected_until ? channelDate(customer.protected_until) : 'Chưa có'}
         {customer.extension_max_count != null && <span className="mt-1 block">Đã được duyệt {customer.extension_approved_count ?? 0}/{customer.extension_max_count} lần gia hạn.</span>}
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Xin gia hạn đến *"><Input type="datetime-local" name="requested_until" required/></Field>
-        <Field label="Hạn đề nghị quản lý phản hồi (tùy chọn)"><Input type="datetime-local" name="review_due_at"/></Field>
-        <Field label="Lịch hẹn tiếp theo *"><Input type="datetime-local" name="next_appointment_at" required/></Field>
-        <Field label="Minh chứng / mã tài liệu *"><Input name="evidence_reference" required maxLength={500}/></Field>
-      </div>
-      <Field label="Tiến độ và lý do xin gia hạn *">
-        <textarea name="progress" required maxLength={4000} rows={4} className={textareaClass}
-          placeholder="Nêu kết quả đã tư vấn, nhu cầu của trường và kế hoạch tiếp theo."/>
+      <p className="text-xs text-muted-foreground">Thời hạn đề nghị gia hạn được CRM tự tính theo chính sách đang áp dụng và chỉ có hiệu lực sau khi Quản lý duyệt.</p>
+      <Field label="Lý do xin gia hạn *">
+        <textarea name="progress" required maxLength={4000} rows={3} className={textareaClass}
+          placeholder="Nêu kết quả tư vấn, nhu cầu của trường và lý do cần thêm thời gian."/>
       </Field>
       <DialogFooter saving={saving} error={error} onClose={onClose} label="Gửi quản lý phê duyệt"/>
     </form>

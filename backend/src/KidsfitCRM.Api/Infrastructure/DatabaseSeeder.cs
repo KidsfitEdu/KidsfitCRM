@@ -24,8 +24,8 @@ public static class DatabaseSeeder
         {
             var adminRole = new Role { Code = "ADMIN", Name = "Quản trị viên", CreatedAt = now, UpdatedAt = now };
             var salesRole = new Role { Code = "SALES", Name = "Nhân viên bán hàng / CTV", CreatedAt = now, UpdatedAt = now };
-            var admin = new User { Code = "ADMIN001", Name = "Admin Demo", Email = "admin@kidsfit.vn", Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
-            var sales = new User { Code = "SALES001", Name = "Sales Demo", Email = "sales@kidsfit.vn", Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
+            var admin = new User { Code = "ADMIN001", Name = "Quản trị KIDSFIT", Email = "admin@kidsfit.vn", Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
+            var sales = new User { Code = "SALES001", Name = "Nhân viên kinh doanh", Email = "sales@kidsfit.vn", Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now };
             admin.Password = hasher.HashPassword(admin, password);
             sales.Password = hasher.HashPassword(sales, password);
             db.AddRange(adminRole, salesRole, admin, sales);
@@ -35,9 +35,18 @@ public static class DatabaseSeeder
         }
         await SeedChannelSalesAsync(services, password);
         await NormalizeDemoPasswordsAsync(db, hasher, password);
-        await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
-        if (config.GetValue<bool>("Seed:AccountingScenarios"))
-            await AccountingScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+        if (config.GetValue<bool>("Seed:TenSchoolScenario"))
+        {
+            if (config.GetValue<bool>("Seed:AccountingScenarios"))
+                throw new InvalidOperationException("The ten-school scenario must not activate legacy 30% accounting fixtures.");
+            await TenSchoolScenarioSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow);
+        }
+        else
+        {
+            await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+            if (config.GetValue<bool>("Seed:AccountingScenarios"))
+                await AccountingScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+        }
     }
 
     private static async Task NormalizeDemoPasswordsAsync(KidsfitDbContext db, IPasswordHasher<User> hasher, string password)
@@ -330,6 +339,8 @@ public static class DatabaseSeeder
         await db.SaveChangesAsync();
         }
 
+        if (!services.GetRequiredService<IConfiguration>().GetValue<bool>("Seed:TenSchoolScenario"))
+        {
         if (!await db.ChannelCustomers.AnyAsync(x => x.Code == "CUS-DEMO-AVAILABLE"))
         {
             var available = new ChannelCustomer
@@ -419,6 +430,7 @@ public static class DatabaseSeeder
             db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id, ActorUserId = sales.Id, EventType = "OPENED", CreatedAt = contract.CreatedAt, UpdatedAt = now });
         }
 
+        }
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
     }

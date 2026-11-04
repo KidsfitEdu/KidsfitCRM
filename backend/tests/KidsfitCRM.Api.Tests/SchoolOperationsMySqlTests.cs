@@ -64,6 +64,51 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task ManagerInvitationInfersOrganizationAndDeadlineWithoutFormInputs()
+    {
+        var scenario = await Arrange();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var start = DateTime.UtcNow;
+        var request = new CreateSchoolInvitationRequest(Key(), scenario.SchoolId, null,
+            scenario.Seller.UserId, "Phân bổ theo địa bàn tư vấn", null);
+        var id = await actions.InviteSchoolCollaborator(request, scenario.Manager.UserId,
+            Http(scenario.Manager.UserId), Ct);
+        Assert.Equal(id, await actions.InviteSchoolCollaborator(request, scenario.Manager.UserId,
+            Http(scenario.Manager.UserId), Ct));
+        var invitation = await db.SchoolInvitations.AsNoTracking().SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal(scenario.OrgId, invitation.OrganizationId);
+        Assert.Equal("PENDING", invitation.Status);
+        Assert.InRange(invitation.RespondBy, start.AddHours(24).AddSeconds(-2), DateTime.UtcNow.AddHours(24).AddSeconds(2));
+        Assert.Equal("Phân bổ theo địa bàn tư vấn", invitation.Reason);
+        Assert.Single(await db.AuditLogs.Where(x => x.EntityType == nameof(SchoolInvitation)
+            && x.EntityId == id && x.Action == "INVITE_SCHOOL_COLLABORATOR").ToArrayAsync(Ct));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.InviteSchoolCollaborator(
+            new CreateSchoolInvitationRequest(Key(), scenario.OtherSchoolId,
+                scenario.OrgId + 1234567, scenario.Peer.UserId, "Ngoài tổ chức", null),
+            scenario.Manager.UserId, Http(scenario.Manager.UserId), Ct));
+    }
+
+    [MySqlFact] public async Task ManagerInvitationUsesActivePolicyHoursWithoutResponseDateInput()
+    {
+        var scenario = await Arrange();
+        await Policy(scenario.OrgId);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var start = DateTime.UtcNow;
+        var id = await actions.InviteSchoolCollaborator(
+            new CreateSchoolInvitationRequest(Key(), scenario.SchoolId, null,
+                scenario.Seller.UserId, "Đề xuất phân bổ hợp lệ", null),
+            scenario.Manager.UserId, Http(scenario.Manager.UserId), Ct);
+        var invitation = await db.SchoolInvitations.AsNoTracking().SingleAsync(x => x.Id == id, Ct);
+        var hours = await db.SchoolWorkflowPolicies.Where(x => x.OrganizationId == scenario.OrgId && x.Status == "ACTIVE")
+            .Select(x => x.InvitationHours).SingleAsync(Ct);
+        Assert.InRange(invitation.RespondBy, start.AddHours(hours).AddSeconds(-2),
+            DateTime.UtcNow.AddHours(hours).AddSeconds(2));
+        Assert.Equal(scenario.OrgId, invitation.OrganizationId);
+    }
+
     [MySqlFact] public async Task ManagerProgressIsOrganizationScopedAndFiltersSalesServerSide()
     {
         var s = await Arrange();

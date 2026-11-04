@@ -203,3 +203,26 @@ test('Simplified Sales contract report computes total from fees and keeps requir
   assert.match(form, /name="contract_note"/);
   assert.doesNotMatch(form, /Số đợt thanh toán theo hợp đồng|name="total_value"/);
 });
+
+test('Sales contract branch count is editable and persisted separately from chosen units', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function ContractDialog({');
+  const end = source.indexOf('function ReceiptDialog({', start);
+  const form = source.slice(start, end);
+  assert.match(form, /aria-label="Số phân hiệu triển khai" type="number"/);
+  assert.doesNotMatch(form, /value=\{selectedUnitIds\.length\} readOnly/);
+  assert.match(form, /branch_count: Number\(branchCount\)/);
+  assert.match(form, /<AppCurrencyInput aria-label="Phí duy trì"/);
+  assert.match(form, /<AppCurrencyInput aria-label="Phí khởi tạo"/);
+  assert.match(form, /maintenance_fee: maintenance/);
+  assert.match(form, /setup_fee: setup/);
+  assert.match(form, /Tổng giá trị hợp đồng/);
+});
+
+test('Shared currency input formats display but emits raw VND digits', () => {
+  const source = read('src/components/common/inputs/app-currency-input.tsx');
+  assert.match(source, /toLocaleString\('vi-VN'\)/);
+  assert.match(source, /inputMode="numeric"/);
+  assert.match(source, /replace\(\/\[\^0-9\]\/g, ''\)/);
+  assert.match(source, /onValueChange\(raw\)/);
+});

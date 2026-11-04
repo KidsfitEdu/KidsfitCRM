@@ -48,6 +48,8 @@ test('Admin proposal list hides school codes and reuses official school profile 
   assert.match(editor, /allowAdd=\{!isLegacy\}/);
   assert.doesNotMatch(editor, /!isLegacy && <SchoolBranchList/);
   assert.doesNotMatch(editor, /school_code|Mã trường chính/);
+  assert.doesNotMatch(editor, /Lý do chỉnh sửa|admin-proposal-profile-reason|setReason/);
+  assert.doesNotMatch(editor, /reason:reason\.trim\(\)/);
 });
 
 test('All Admin views report server errors through shared toast; form errors stay inline', () => {

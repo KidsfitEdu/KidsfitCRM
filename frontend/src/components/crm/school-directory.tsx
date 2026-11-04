@@ -292,10 +292,15 @@ export function SchoolDirectory({
   const mutation = useMutation({
     mutationFn: ({ path, body, method }: Command) =>
       api(path, { method: method ?? 'POST', body: JSON.stringify(body) }),
-    onSuccess: async () => {
+    onSuccess: async (_result, command) => {
       await syncAfterSave();
-      if (adminMode) appNotice.success('Đã lưu thay đổi trường học và lịch sử xử lý.');
-      else appNotice.success('Đã lưu thay đổi và lịch sử xử lý.');
+      if (command.path === '/approach-registrations') {
+        appNotice.success('Đăng ký tiếp cận thành công.', 'Trường đã được đăng ký và hạn mức tiếp cận đã được cập nhật.');
+      } else if (adminMode) {
+        appNotice.success('Đã lưu thay đổi trường học và lịch sử xử lý.');
+      } else {
+        appNotice.success('Đã lưu thay đổi và lịch sử xử lý.');
+      }
     },
     onError: (error) => {
       appNotice.error('Không lưu được thay đổi trường học.', error instanceof Error ? error.message : 'Vui lòng thử lại.');
@@ -574,7 +579,6 @@ export function SchoolDirectory({
             body: { idempotency_key: key(), customer_id: registerSchool.customer_id, source: 'SCHOOL_DIRECTORY' },
           }).then(() => {
             setRegisterSchool(null);
-            appNotice.success('Đăng ký tiếp cận thành công.', 'Danh sách trường và hạn mức đã được cập nhật.');
           }).catch(() => undefined);
         }}
       >

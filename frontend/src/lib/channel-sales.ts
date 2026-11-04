@@ -108,6 +108,7 @@ export type ReportContractInput = {
   school_unit_ids?: number[];
   maintenance_fee?: number;
   setup_fee?: number;
+  contract_note?: string;
 };
 
 export type RevenueReceiptInput = {

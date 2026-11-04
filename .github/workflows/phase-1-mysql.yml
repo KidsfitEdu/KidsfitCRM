@@ -68,6 +68,12 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM commission_ledger_entries;" | grep -x 3
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM commission_policy_versions WHERE status='ACTIVE' AND rate_percent=30;" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT SUM(amount) FROM commission_ledger_entries;" | grep -x 5100000
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM revenue_refunds;" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM payouts WHERE status='DRAFT';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_handovers WHERE account_suspended=1;" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_proposals;" | grep -x 3
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_invitations WHERE status='PENDING';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_extension_requests WHERE status='PENDING';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(DISTINCT care_user_id) FROM sales_contracts WHERE status='ACTIVE';" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM customer_support_cases WHERE ticket_type='SYSTEM_ERROR';" | grep -x 1
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_review_fixture_ci;"

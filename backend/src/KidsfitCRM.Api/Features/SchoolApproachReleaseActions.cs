@@ -28,7 +28,7 @@ public sealed partial class ChannelSalesActions
         if (!access.CanManageOrganization(member.OrganizationId) || member.UserId == actorId
             || (!access.All && member.ManagerUserId != actorId))
             throw new KeyNotFoundException();
-        if (!access.Has(Permissions.ChannelSalesIdentityManage) && !IsSchoolSales(member))
+        if (!IsSchoolSales(member))
             throw new KeyNotFoundException();
 
         var replay = await db.SchoolHandovers.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);

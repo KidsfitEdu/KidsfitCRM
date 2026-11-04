@@ -40,7 +40,7 @@ test('Admin proposal list hides school codes and reuses official school profile 
   assert.match(source, /workflowLabels\[p.status\]/);
   assert.match(source, /appNotice\.success\(approve\?/);
   const editor = read('src/components/crm/schools/admin-proposal-profile-editor.tsx');
-  assert.match(editor, /<SchoolUnitFields/);
+  assert.match(editor, /<SchoolMainSection/);
   assert.match(editor, /<SchoolBranchList/);
   assert.match(editor, /expected_version:profile.version/);
 });

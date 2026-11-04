@@ -1413,10 +1413,10 @@ function PanelHeading({
 }
 function Label({ text, children }: { text: string; children: ReactNode }) {
   return (
-    <div role="group" aria-label={text} className="grid gap-1.5 text-sm font-medium">
-      <span>{text}</span>
+    <fieldset className="grid min-w-0 gap-1.5 text-sm font-medium">
+      <legend className="text-sm font-medium">{text}</legend>
       {children}
-    </div>
+    </fieldset>
   );
 }
 function Info({ label, value }: { label: string; value: string }) {

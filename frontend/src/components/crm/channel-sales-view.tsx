@@ -117,7 +117,7 @@ const contractBadge = (customer: ChannelCustomer) => {
   const red = 'border-red-200 bg-red-50 text-red-800';
   if (status === 'PENDING_REVIEW' || status === 'MANAGER_REVIEW')
     return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: blue };
-  if (status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION')
+  if (status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING_CHECKEE' || status === 'UNDER_VERIFICATION')
     return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: blue };
   if (status === 'NEEDS_REVISION' || status === 'NEEDS_INFO' || status === 'RETURNED')
     return { label: 'Cần bổ sung hồ sơ', compact: 'Bổ sung hồ sơ hiện có', className: amber };
@@ -125,8 +125,10 @@ const contractBadge = (customer: ChannelCustomer) => {
     return { label: 'Hồ sơ bị từ chối', compact: 'Xem lý do từ chối', className: red };
   if (status === 'CANCELLED')
     return { label: 'Hợp đồng đã hủy', compact: 'Xem lịch sử hồ sơ', className: red };
-  if (status === 'ACTIVE' || status === 'VERIFIED')
+  if (status === 'VERIFIED')
     return { label: 'Đã xác minh hợp đồng', compact: 'Hợp đồng hợp lệ', className: statusCopy.CONTRACTED.className };
+  if (status === 'ACTIVE')
+    return { label: customer.visible_status === 'CONTRACTED' ? 'Đã ký hợp đồng' : 'Hợp đồng đang hiệu lực', compact: 'Xem chi tiết hợp đồng', className: statusCopy.CONTRACTED.className };
   return { label: 'Đã nộp hồ sơ hợp đồng', compact: 'Theo dõi tình trạng hồ sơ', className: blue };
 };
 

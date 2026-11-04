@@ -55,7 +55,7 @@ export function SalesProposalTable({
   </AppNativeSelect>;
   return <SalesListLayout columns={['Trường học','Người đề xuất','Trạng thái','Hạn xử lý','Thao tác']}
     template={template} page={preview ? 1 : page} pageSize={pageSize}
-    total={preview ? items.length : total} loading={loading} minWidth={1020}
+    total={preview ? items.length : total} loading={loading} minWidth={1020} centerColumns={[2,3]}
     onPageChange={onPageChange} onPageSizeChange={onPageSizeChange}
     empty="Không có đề xuất trường phù hợp. Hãy thử bộ lọc khác."
     toolbar={<SalesListToolbar search={term} onSearchChange={setTerm}

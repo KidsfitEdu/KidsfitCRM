@@ -28,6 +28,11 @@ export function SchoolsPage({apiBase,token,abilities,onChanged}:AdminPageProps) 
     const errs:Record<string,string>={};
     for(const key of ['school_code','name','province','ward'])if(!manual[key]?.trim())errs[key]='Trường này là bắt buộc.';
     if(manual.email?.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manual.email.trim()))errs.email='Email không đúng định dạng.';
+    for(const key of ['contact_phone','school_phone'] as const) {
+      const phone = manual[key]?.trim();
+      if(phone && (phone.replace(/\D/g, '').length < 9 || phone.replace(/\D/g, '').length > 15))
+        errs[key]='Số điện thoại cần từ 9 đến 15 chữ số.';
+    }
     setFormErrors(errs);if(Object.keys(errs).length)return;
     setFormError('');
     setBusy(true);

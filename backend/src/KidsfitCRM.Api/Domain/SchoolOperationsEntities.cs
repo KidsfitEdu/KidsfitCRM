@@ -101,7 +101,7 @@ public sealed class SchoolExtensionRequest : EntityBase
     public DateTime RequestedUntil { get; set; }
     public DateTime OriginalProtectedUntil { get; set; }
     public DateTime ReviewDueAt { get; set; }
-    public DateTime NextAppointmentAt { get; set; }
+    public DateTime? NextAppointmentAt { get; set; }
     public string Progress { get; set; } = "";
     public string EvidenceReference { get; set; } = "";
     public string Status { get; set; } = "PENDING";

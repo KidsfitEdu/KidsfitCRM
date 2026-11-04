@@ -64,6 +64,41 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task SalesSchoolDirectoryShowsOnlyAvailableSchoolsAndFiltersMainSchoolArea()
+    {
+        var scenario = await Arrange();
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var main = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == scenario.SchoolId && x.UnitType == "MAIN")
+            .Select(x => new { x.Province, x.Ward }).SingleAsync(Ct);
+        var second = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == scenario.OtherSchoolId && x.UnitType == "MAIN")
+            .Select(x => new { x.Province, x.Ward }).SingleAsync(Ct);
+        var firstCode = await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId)
+            .Select(x => x.SchoolCode).SingleAsync(Ct);
+        var before = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
+            province: main.Province, ward: main.Ward, availableOnly: true));
+        Assert.Contains(before.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.SchoolId);
+        var areas = Json(await SchoolEndpoints.Areas(Http(scenario.Seller.UserId), db, Ct));
+        Assert.Contains(areas.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("province").GetString() == main.Province
+                && x.GetProperty("ward").GetString() == main.Ward);
+        var filtered = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
+            province: "Khu vực không tồn tại", availableOnly: true));
+        Assert.Empty(filtered.GetProperty("data").EnumerateArray());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            SchoolEndpoints.List(Http(admin), db, firstCode, 1, Ct, availableOnly: true));
+        var actions = new ChannelSalesActions(db);
+        await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        var after = Json(await SchoolEndpoints.List(Http(scenario.Peer.UserId), db, firstCode, 1, Ct,
+            province: main.Province, ward: main.Ward, availableOnly: true));
+        Assert.Empty(after.GetProperty("data").EnumerateArray());
+        var adminList = Json(await SchoolEndpoints.List(Http(admin), db, firstCode, 1, Ct));
+        Assert.Contains(adminList.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.SchoolId);
+    }
+
     [MySqlFact] public async Task AdminSchoolArchiveHidesDirectoryButCanRestoreWithoutLosingHistory()
     {
         var scenario = await Arrange();

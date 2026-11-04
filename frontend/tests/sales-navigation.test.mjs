@@ -286,3 +286,19 @@ test('Sales contract revision uses one modal scrollbar and validates every field
   assert.match(source, /file\.size > 5 \* 1024 \* 1024/);
   assert.doesNotMatch(source, /type="file"[^\n]*required/);
 });
+
+test('Contract reporting and revisions share one validator and retain existing signed file', () => {
+  const validator = read('src/lib/contract-validation.ts');
+  const sales = read('src/components/crm/channel-sales-view.tsx');
+  const editor = read('src/components/roles/SalesContractRevisions.tsx');
+  assert.match(validator, /export function validateContract/);
+  assert.match(validator, /const digits = \/\^\\d\+\$\//);
+  assert.match(validator, /existingEvidence: boolean/);
+  assert.match(sales, /const issues = validateContract\(/);
+  assert.match(sales, /<form onSubmit=\{submit\} noValidate>/);
+  assert.match(editor, /const issues = validateContract\(/);
+  assert.match(editor, /fileInputRef\.current\?\.click\(\)/);
+  assert.match(editor, /aria-label="Thay thế file hợp đồng"/);
+  assert.doesNotMatch(editor, /Vui lòng chọn file hợp đồng đã chỉnh sửa/);
+  assert.match(editor, /existingEvidence: detail\.evidence\.length > 0/);
+});

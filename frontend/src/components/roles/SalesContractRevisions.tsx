@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { AlertCircle, FileUp, SquarePen } from 'lucide-react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { channelRequest } from '@/lib/channel-operations';
 
 type Revision = {id:number;contract_code:string;school_name:string;reason:string|null};
@@ -40,7 +41,9 @@ export function SalesContractRevisions({apiBase,token,abilities,onChanged}:Props
     const proof=await channelRequest<{data:{id:number}}>(apiBase,token,'/evidence',{method:'POST',body:upload});
     await channelRequest(apiBase,token,`/school-contracts/${selected.id}/resubmit`,{method:'POST',
       body:JSON.stringify({evidence_id:proof.data.id})});
-    setSelected(null);setVersion(x=>x+1);await onChanged();
+    setSelected(null);setVersion(x=>x+1);
+    appNotice.success('Đã gửi lại hợp đồng bổ sung cho Quản lý.');
+    try { await onChanged(); } catch { appNotice.warning('Đã gửi hợp đồng nhưng chưa tải lại được danh sách.'); }
   }catch(e){setActionError(e instanceof Error?e.message:'Không thể gửi lại hồ sơ.');}
   finally{setBusy(false);}
  };

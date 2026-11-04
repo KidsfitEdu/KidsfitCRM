@@ -100,15 +100,15 @@ export function SchoolRecordEditor({open,schoolId,apiBase,token,onClose,onSaved}
       if (cause instanceof ChannelRequestError && cause.status === 422) {
         const mapped:Record<string,string> = {};
         for (const [field,messages] of Object.entries(cause.errors)) {
-          const normalized = field.toLowerCase().replace(/^units\\[(\\d+)\\]\\./, '$1.');
-          if (normalized === 'school_code' || normalized === 'units' || /^\\d+\\.(name|province|ward|address|contact_name|contact_position|contact_phone|email|school_phone|note)$/.test(normalized))
+          const normalized = field.toLowerCase().replace(/^units\[(\d+)\]\./, '$1.');
+          if (normalized === 'school_code' || normalized === 'units' || /^\d+\.(name|province|ward|address|contact_name|contact_position|contact_phone|email|school_phone|note)$/.test(normalized))
             mapped[normalized] = messages[0] ?? 'Thông tin không hợp lệ.';
           else if (normalized === 'name' || normalized === 'province' || normalized === 'ward')
             mapped[`0.${normalized}`] = messages[0] ?? 'Thông tin không hợp lệ.';
         }
         if (Object.keys(mapped).length) {
           setErrors(mapped);
-          const branchIndex = Number(Object.keys(mapped).find(k => /^\\d+\\./.test(k))?.split('.')[0]);
+          const branchIndex = Number(Object.keys(mapped).find(k => /^\d+\./.test(k))?.split('.')[0]);
           if (Number.isInteger(branchIndex) && units[branchIndex]?.unit_type === 'BRANCH')
             setExpanded(current => [...new Set([...current,branchIndex])]);
           return;

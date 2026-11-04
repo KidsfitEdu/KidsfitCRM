@@ -265,3 +265,24 @@ test('Sales contract errors appear only in shared toast and duplicate report ope
   assert.match(source, /onContract=\{\(\) => \{ void openContractReport\(customer\); \}\}/);
   assert.match(source, /customer\.can_manage_approach && !customer\.contract_id/);
 });
+
+test('Sales contract revision uses one modal scrollbar and validates every field before upload', () => {
+  const source = read('src/components/roles/SalesContractRevisions.tsx');
+  const modal = read('src/components/common/dialogs/app-dialog.tsx');
+  assert.match(modal, /flex-1 overflow-y-auto/);
+  assert.match(source, /<form ref=\{formRef\} onSubmit=\{submit\} noValidate className="space-y-4"/);
+  assert.doesNotMatch(source, /max-h-\[70vh\]/);
+  assert.doesNotMatch(source, /overflow-y-auto pr-1/);
+  assert.match(source, /setErrors\(issues\)/);
+  assert.match(source, /data-field="contract_file"/);
+  assert.match(source, /issues\.signed_on/);
+  assert.match(source, /issues\.student_count/);
+  assert.match(source, /issues\.branch_count/);
+  assert.match(source, /issues\.maintenance_fee/);
+  assert.match(source, /issues\.setup_fee/);
+  assert.match(source, /issues\.total_value/);
+  assert.match(source, /issues\.contract_file/);
+  assert.match(source, /scrollIntoView/);
+  assert.match(source, /file\.size > 5 \* 1024 \* 1024/);
+  assert.doesNotMatch(source, /type="file"[^\n]*required/);
+});

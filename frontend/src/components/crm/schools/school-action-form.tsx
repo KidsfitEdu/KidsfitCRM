@@ -25,6 +25,7 @@ export type SchoolActionField = {
   value?: string;
   options?: { value: string; label: string }[];
   hint?: string;
+  requiredMessage?: string;
 };
 export type SchoolAction = {
   title: string;
@@ -66,7 +67,7 @@ export function SchoolActionForm({
         : z
             .string()
             .trim()
-            .min(1, 'Cần nhập ' + field.label.toLocaleLowerCase('vi') + '.'),
+            .min(1, field.requiredMessage ?? ('Cần nhập ' + field.label.toLocaleLowerCase('vi') + '.')),
     ]),
   );
   const form = useForm<Record<string, string>>({

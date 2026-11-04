@@ -89,6 +89,9 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [confirmProposal, setConfirmProposal] = useState<{ id: number; name: string } | null>(null);
   const [confirmingProposal, setConfirmingProposal] = useState(false);
   const [confirmationError, setConfirmationError] = useState('');
+  const [confirmExtension, setConfirmExtension] = useState<{ id: number; schoolName: string } | null>(null);
+  const [confirmingExtension, setConfirmingExtension] = useState(false);
+  const [extensionConfirmationError, setExtensionConfirmationError] = useState('');
   const lastQueryFailure = useRef<unknown>(null);
   const client = useQueryClient();
   const api = <T,>(path: string, options?: RequestInit) => channelRequest<T>(apiBase, token, path, options);
@@ -196,9 +199,12 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     if (preview) throw new Error('Chế độ demo chỉ đọc; cần kết nối Backend để thao tác.');
     await api(command.path, { method: command.method ?? 'POST', body: JSON.stringify(command.body) });
     setAction(null);
+    const extensionDecision = command.path.includes('/school-extensions/') && command.path.endsWith('/review');
     appNotice.success(command.path === '/school-invitations'
       ? 'Đã gửi lời mời phân bổ trường'
-      : 'Đã lưu quyết định', command.path === '/school-invitations'
+      : extensionDecision
+        ? (command.body.approve === true ? 'Đã duyệt gia hạn quyền tiếp cận' : 'Đã từ chối yêu cầu gia hạn')
+        : 'Đã lưu quyết định', command.path === '/school-invitations'
         ? 'Sales/CTV sẽ nhận được lời mời để phản hồi.'
         : 'Danh sách công việc đã được cập nhật.');
     try { await refresh(); } catch {
@@ -213,9 +219,11 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       title,
       description: approve
         ? 'Kiểm tra hồ sơ và nhập căn cứ trước khi chuyển trạng thái. Hệ thống kiểm tra lại quyền và thời hạn tại thời điểm lưu.'
-        : 'Bắt buộc ghi rõ lý do để Sales/CTV có thể theo dõi và bổ sung.',
+        : 'Vui lòng nhập lý do từ chối để Sales/CTV biết nội dung cần bổ sung.',
       path: kind === 'proposal' ? '/school-proposals/' + id + '/manager-review' : '/school-extensions/' + id + '/review',
-      fields: [...fields, reason],
+      fields: [...fields, kind === 'extension' && !approve
+        ? { ...reason, label: 'Lý do', requiredMessage: 'Vui lòng nhập lý do từ chối gia hạn.' }
+        : reason],
       preset: { approve },
       submitLabel: approve ? 'Xác nhận' : 'Xác nhận từ chối',
       danger: !approve,
@@ -382,10 +390,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
                 <td className={adminTableCellClass}><AdminStatusBadge status={expired && e.status==='PENDING'?'EXPIRED':e.status} label={statusLabel(expired && e.status==='PENDING'?'EXPIRED':e.status)}/></td>
                 <td className={adminTableCellClass}><div className="flex justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem bằng chứng ' + e.school_name} onClick={() => setSelection({kind:'extension',item:e})}/>
-                  {e.can_review && can('channel_sales.school.extension.review') && !expired && <AdminIconAction icon={Check} label={'Duyệt gia hạn ' + e.school_name} tone="green" onClick={() => decide('extension',e.id,true,[
-                    {name:'approved_until',label:'Gia hạn đến',type:'datetime-local',value:vietnamDateTimeInput(e.requested_until)},
-                    {name:'next_review_at',label:'Ngày rà soát tiếp',type:'datetime-local'},
-                  ])}/>}
+                  {e.can_review && can('channel_sales.school.extension.review') && !expired && <AdminIconAction icon={Check} label={'Duyệt gia hạn ' + e.school_name} tone="green" onClick={() => { setExtensionConfirmationError(''); setConfirmExtension({ id: e.id, schoolName: e.school_name }); }}/>}
                   {e.can_review && can('channel_sales.school.extension.review') && <AdminIconAction icon={X} label={'Từ chối gia hạn ' + e.school_name} tone="red" onClick={() => decide('extension',e.id,false)}/>}
                   {!preview && <AdminIconAction icon={History} tone="neutral" label={'Lịch sử gia hạn ' + e.school_name} onClick={() => setHistory({kind:'extension',id:e.id,name:e.school_name})}/>}
                 </div></td>
@@ -435,6 +440,26 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
         } finally { setConfirmingProposal(false); }
       }}>
       {confirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{confirmationError}</p>}
+    </ConfirmDialog>
+    <ConfirmDialog open={confirmExtension!==null}
+      onOpenChange={open => { if (!open && !confirmingExtension) setConfirmExtension(null); }}
+      title="Xác nhận duyệt gia hạn"
+      description={<>Bạn có xác nhận đồng ý gia hạn quyền tiếp cận trường <strong className="font-semibold text-foreground">{confirmExtension?.schoolName}</strong> cho Sales/CTV này theo thời hạn đã đề xuất và chính sách CRM hiện hành không?</>}
+      confirmLabel="Xác nhận duyệt" busy={confirmingExtension}
+      onConfirm={async () => {
+        if (!confirmExtension || confirmingExtension) return;
+        setConfirmingExtension(true);
+        setExtensionConfirmationError('');
+        try {
+          await save({ path: '/school-extensions/' + confirmExtension.id + '/review', body: {
+            approve: true, reason: null, approved_until: null, next_review_at: null,
+          } });
+          setConfirmExtension(null);
+        } catch (cause) {
+          setExtensionConfirmationError(cause instanceof Error ? cause.message : 'Không thể duyệt gia hạn.');
+        } finally { setConfirmingExtension(false); }
+      }}>
+      {extensionConfirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{extensionConfirmationError}</p>}
     </ConfirmDialog>
     <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
     <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}

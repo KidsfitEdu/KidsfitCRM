@@ -341,6 +341,17 @@ public static class ManagerContractEndpoints
                              orderby e.CreatedAt, e.Id
                              select new { event_type = e.EventType, reason = e.Reason, created_at = e.CreatedAt, actor_name = actor.Name })
                             .ToArrayAsync(ct);
+        var revisionHistory = await db.AuditLogs.AsNoTracking()
+            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == id
+                && (x.Action == "REQUEST_SCHOOL_CONTRACT_REVISION"
+                    || x.Action == "EDIT_SCHOOL_CONTRACT_REVISION"
+                    || x.Action == "RESUBMIT_SCHOOL_CONTRACT"))
+            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+            .Select(x => new {
+                action = x.Action, old_values = x.OldValues, new_values = x.NewValues,
+                created_at = x.CreatedAt,
+                actor_name = db.Users.Where(u => u.Id == x.UserId).Select(u => u.Name).FirstOrDefault()
+            }).ToArrayAsync(ct);
         return Results.Ok(new {
             data = new {
                 contract.id, customer_id = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.CustomerId).SingleAsync(ct),
@@ -365,7 +376,7 @@ public static class ManagerContractEndpoints
                             && await db.OrganizationMemberships.AnyAsync(m => m.UserId == contract.OwnerUserId
                                 && m.OrganizationId == contract.OwnerOrganizationId && m.Status == "SUSPENDED", ct)))
             },
-            evidence = files, installments, school_units = units, history
+            evidence = files, installments, school_units = units, history, audit_history = revisionHistory
         });
     }
 

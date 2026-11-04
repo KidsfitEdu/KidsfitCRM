@@ -221,7 +221,7 @@ test('Sales contract branch count is editable and persisted separately from chos
 
 test('Shared currency input formats display but emits raw VND digits', () => {
   const source = read('src/components/common/inputs/app-currency-input.tsx');
-  assert.match(source, /toLocaleString\('vi-VN'\)/);
+  assert.match(source, /replace\(\/\\B\(\?=\(\\d\{3\}\)\+\(\?!\\d\)\)\/g, '\\.'\)/);
   assert.match(source, /inputMode="numeric"/);
   assert.match(source, /replace\(\/\[\^0-9\]\/g, ''\)/);
   assert.match(source, /onValueChange\(raw\)/);

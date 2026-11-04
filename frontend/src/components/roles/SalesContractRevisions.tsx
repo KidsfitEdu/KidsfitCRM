@@ -18,6 +18,7 @@ type ContractDetail = {
     revision_reason: string | null;
   };
   school_units: { id: number; name: string }[];
+  evidence: { id: number; file_name: string; created_at: string }[];
 };
 type Props = { apiBase: string; token: string; contractId: number; onClose: () => void; onChanged: () => Promise<void> };
 
@@ -149,43 +150,46 @@ function RevisionEditor({
     }
   };
 
-  return <form onSubmit={submit} className="max-h-[65vh] space-y-4 overflow-y-auto pr-1">
-    <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-      <strong>Yêu cầu từ Quản lý:</strong> {detail.data.revision_reason || revision.reason || 'Bổ sung hồ sơ hợp đồng.'}
+  const numberText = (value: number) => new Intl.NumberFormat('vi-VN').format(value) + ' đ';
+  const multiplier = plan === 'MONTHLY_9' ? 9 : 1;
+  return <form onSubmit={submit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+    <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      <strong>Quản lý yêu cầu chỉnh sửa:</strong> {detail.data.revision_reason || revision.reason || 'Bổ sung hồ sơ hợp đồng.'}
     </p>
+    <fieldset className="space-y-1.5">
+      <legend className="text-sm font-semibold">Ngày ký hợp đồng *</legend>
+      <input type="date" required value={signedOn} onChange={e => setSignedOn(e.target.value)}
+        className="block h-10 w-full rounded-xl border bg-background px-3 text-sm" />
+    </fieldset>
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="radio" name="revision_payment_plan" checked={plan === 'SCHOOL_YEAR'}
+          onChange={() => setPlan('SCHOOL_YEAR')} />
+        Gói năm học (9 tháng, tặng 3 tháng hè)
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="radio" name="revision_payment_plan" checked={plan === 'MONTHLY_9'}
+          onChange={() => setPlan('MONTHLY_9')} />
+        Gói hàng tháng (9 tháng)
+      </label>
+    </fieldset>
     <div className="grid gap-3 sm:grid-cols-2">
-      <label className="space-y-1 text-sm">Ngày ký hợp đồng *
-        <input type="date" required value={signedOn} onChange={e => setSignedOn(e.target.value)}
-          className="block h-10 w-full rounded-lg border bg-background px-3" />
-      </label>
-      <label className="space-y-1 text-sm">Hình thức thanh toán *
-        <select value={plan} onChange={e => setPlan(e.target.value as typeof plan)}
-          className="block h-10 w-full rounded-lg border bg-background px-3">
-          <option value="SCHOOL_YEAR">Gói năm học (9 tháng)</option>
-          <option value="MONTHLY_9">Hàng tháng (9 tháng)</option>
-        </select>
-      </label>
-      <label htmlFor="revision-maintenance-fee" className="space-y-1 text-sm">Phí duy trì (VNĐ) *
-        <AppCurrencyInput id="revision-maintenance-fee" aria-label="Phí duy trì" value={maintenance}
-          onValueChange={setMaintenance} required />
-      </label>
-      <label htmlFor="revision-setup-fee" className="space-y-1 text-sm">Phí khởi tạo (VNĐ) *
-        <AppCurrencyInput id="revision-setup-fee" aria-label="Phí khởi tạo" value={setup}
-          onValueChange={setSetup} required />
-      </label>
-      <label className="space-y-1 text-sm">Quy mô học sinh *
+      <fieldset className="space-y-1.5">
+        <legend className="text-sm font-semibold">Quy mô học sinh *</legend>
         <input type="number" required min={1} max={100000} value={students}
           onChange={e => setStudents(e.target.value)}
-          className="block h-10 w-full rounded-lg border bg-background px-3" />
-      </label>
-      <label className="space-y-1 text-sm">Số phân hiệu *
+          className="h-10 w-full rounded-xl border bg-background px-3 text-sm" />
+      </fieldset>
+      <fieldset className="space-y-1.5">
+        <legend className="text-sm font-semibold">Số phân hiệu triển khai *</legend>
         <input type="number" required min={selectedUnits.length} max={100000} value={branches}
           onChange={e => setBranches(e.target.value)}
-          className="block h-10 w-full rounded-lg border bg-background px-3" />
-      </label>
+          className="h-10 w-full rounded-xl border bg-background px-3 text-sm" />
+      </fieldset>
     </div>
-    {unitOptions.length > 0 && <fieldset className="rounded-lg border p-3">
-      <legend className="text-sm font-semibold">Các phân hiệu triển khai</legend>
+    {unitOptions.length > 0 && <fieldset className="rounded-xl border p-3">
+      <legend className="text-sm font-semibold">Chọn phân hiệu triển khai</legend>
       <div className="space-y-2">{unitOptions.map(unit =>
         <label key={unit.id} className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={selectedUnits.includes(unit.id)}
@@ -198,20 +202,58 @@ function RevisionEditor({
           {unit.name}
         </label>)}</div>
     </fieldset>}
-    <label className="block space-y-1 text-sm">Ghi chú hợp đồng
-      <textarea value={note} onChange={e => setNote(e.target.value)} maxLength={4000}
-        className="block min-h-20 w-full rounded-lg border bg-background p-3" />
-    </label>
-    <p className="rounded-lg border p-3 text-sm">
-      Tổng giá trị hợp đồng: <strong>{validMoney ? total.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa hợp lệ'}</strong>
-    </p>
-    <label className="block space-y-1 text-sm font-semibold">File hợp đồng chỉnh sửa *
+    <div className="grid gap-3 sm:grid-cols-2">
+      <fieldset className="space-y-1.5">
+        <legend className="text-sm font-semibold">
+          {plan === 'MONTHLY_9' ? 'Phí duy trì mỗi tháng (VNĐ) *' : 'Phí duy trì 9 tháng (VNĐ) *'}
+        </legend>
+        <AppCurrencyInput aria-label="Phí duy trì" value={maintenance}
+          onValueChange={setMaintenance} placeholder="Ví dụ: 1.000.000" required />
+      </fieldset>
+      <fieldset className="space-y-1.5">
+        <legend className="text-sm font-semibold">Phí khởi tạo (VNĐ) *</legend>
+        <AppCurrencyInput aria-label="Phí khởi tạo" value={setup}
+          onValueChange={setSetup} placeholder="Ví dụ: 2.000.000" required />
+      </fieldset>
+    </div>
+    <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+      <h3 className="font-semibold">Chi phí theo hợp đồng</h3>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span>Phí duy trì (9 tháng)</span>
+        <span className="tabular-nums">{validMoney ? numberText(Number(maintenance) * multiplier) : '—'}</span>
+      </div>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span>Phí khởi tạo (một lần)</span>
+        <span className="tabular-nums">{validMoney ? numberText(Number(setup)) : '—'}</span>
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t pt-3">
+        <strong>Tổng giá trị hợp đồng</strong>
+        <strong className="text-lg tabular-nums text-emerald-700">
+          {validMoney ? numberText(total) : '—'}
+        </strong>
+      </div>
+    </div>
+    <fieldset className="space-y-1.5">
+      <legend className="text-sm font-semibold">Ghi chú hợp đồng (không bắt buộc)</legend>
+      <textarea value={note} onChange={e => setNote(e.target.value)} maxLength={4000} rows={3}
+        className="w-full resize-none rounded-xl border bg-background px-3 py-2 text-sm"
+        placeholder="Nhập thông tin cần xác minh thêm (nếu có)..." />
+    </fieldset>
+    {detail.evidence.length > 0 && <div className="rounded-xl border bg-muted/20 p-3 text-sm">
+      <p className="font-semibold">File hợp đồng đã gửi</p>
+      <p className="mt-1 break-all text-muted-foreground">
+        {detail.evidence[0].file_name}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">File cũ và lịch sử chỉnh sửa sẽ được giữ lại.</p>
+    </div>}
+    <fieldset className="space-y-1.5">
+      <legend className="text-sm font-semibold">File hợp đồng đã chỉnh sửa *</legend>
       <input name="contract_file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required
-        className="block w-full rounded-lg border bg-background p-3 font-normal" />
-    </label>
-    <p className="text-xs text-muted-foreground">File cũ và lịch sử duyệt vẫn được giữ. Tối đa 5 MB.</p>
+        className="block w-full rounded-xl border bg-background p-2 text-sm" />
+      <p className="text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
+    </fieldset>
     {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
-    <div className="flex justify-end gap-2">
+    <div className="flex justify-end gap-2 pt-2">
       <AppButton type="button" tone="neutral" disabled={busy} onClick={onClose}>Hủy</AppButton>
       <AppButton type="submit" busy={busy} disabled={!validMoney}
         leadingIcon={<FileUp className="size-4" />}>Gửi lại Quản lý</AppButton>

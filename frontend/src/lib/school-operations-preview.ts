@@ -1,3 +1,4 @@
+import { trainingSchools } from './ten-school-fixtures';
 import type {
   SchoolOperationsWorkspace,
   SchoolOperationsReport,
@@ -23,7 +24,7 @@ export function schoolOperationsPreview(
   return {
     server_time: now.toISOString(),
     user_id: 1,
-    organizations: [{ id: 1, name: 'Khu vực minh họa' }],
+    organizations: [{ id: 1, name: 'Cần Thơ' }],
     proposals:
       sales || all
         ? [
@@ -33,8 +34,8 @@ export function schoolOperationsPreview(
               organization_id: 1,
               school_code: 'SCH-M-004',
               name: 'Trường Mầm non Cầu Vồng',
-              province: 'Khu vực minh họa',
-              ward: 'Phường A',
+              province: 'Cần Thơ',
+              ward: 'Phường Ninh Kiều',
               address: null,
               contact_name: null,
               contact_position: null,
@@ -62,7 +63,7 @@ export function schoolOperationsPreview(
               assignee_user_id: 1,
               status: 'PENDING',
               respond_by: at(8),
-              school_name: 'Trường Mầm non Ánh Dương',
+              school_name: trainingSchools[9].name,
               assigned_by: 'Quản lý khu vực',
               assignee_name: 'CTV khu vực',
               reason: 'Gần địa bàn phụ trách, phù hợp lịch tư vấn.',
@@ -81,7 +82,7 @@ export function schoolOperationsPreview(
               approach_registration_id: 1,
               organization_id: 1,
               status: 'PENDING',
-              school_name: 'Trường Mầm non Mây Xanh',
+              school_name: trainingSchools[6].name,
               requested_by: 'CTV khu vực',
               requested_until: at(168),
               original_protected_until: at(24),
@@ -106,7 +107,7 @@ export function schoolOperationsPreview(
               id: 1,
               customer_id: 1002,
               organization_id: 1,
-              school_name: 'Trường Mầm non Mây Xanh',
+              school_name: trainingSchools[6].name,
               opened_by: 'CTV khu vực',
               reason: 'Đề nghị kiểm tra mốc hết hạn và lần đăng ký tiếp theo.',
               evidence_reference: 'Lịch sử tiếp cận',
@@ -124,7 +125,7 @@ export function schoolOperationsPreview(
               id: 1,
               directory_school_id: 1,
               organization_id: 1,
-              school_name: 'Trường Mầm non Ánh Dương',
+              school_name: trainingSchools[9].name,
               reason: 'Ưu tiên tư vấn từ xa, chờ nhân sự phù hợp khu vực.',
               review_at: at(72),
               status: 'OPEN',
@@ -137,13 +138,13 @@ export function schoolOperationsPreview(
       ? [
           {
             id: 1,
-            contract_id: 3001,
-            customer_id: 1003,
+            contract_id: 3002,
+            customer_id: 1002,
             assigned_user_id: 1,
-            subject: 'Hướng dẫn triển khai CHECKEE',
+            subject: 'Lỗi không tải được trang quản trị',
             description:
-              'Chuẩn bị tài khoản, thống nhất lịch đào tạo và bàn giao các cam kết khi ký.',
-            customer_name: 'Trường Mầm non Hạt Nắng',
+              'Nhà trường phản ánh lỗi hệ thống khi đăng nhập. Đã chuyển CHECKEE xử lý.',
+            customer_name: trainingSchools[1].name,
             assigned_name: 'Nhân viên CSKH',
             status: 'IN_PROGRESS',
             outcome: null,
@@ -181,7 +182,7 @@ export function schoolOperationsPreview(
         id: 3001,
         contract_code: 'CHK-2026-001',
         customer_id: 1003,
-        customer_name: 'Trường Mầm non Hạt Nắng',
+        customer_name: trainingSchools[1].name,
         status: 'ACTIVE',
         care_user_id: 1,
         care_organization_id: 1,
@@ -199,8 +200,8 @@ export function schoolOperationsPreview(
         admin_review_hours: 48,
         invitation_hours: 24,
         max_extension_days: 7,
-        max_extension_count: 2,
-        max_total_extension_days: 14,
+        max_extension_count: 3,
+        max_total_extension_days: 21,
         decision_reference: 'Đề xuất chờ duyệt',
       },
     ],
@@ -224,9 +225,9 @@ export function schoolOperationsPreview(
 export function schoolOperationsReportPreview(): SchoolOperationsReport {
   return {
     period: '2026-10',
-    available_schools: 8,
+    available_schools: 2,
     expired_approaches: 3,
-    active_contracts: 12,
+    active_contracts: 2,
     collected_revenue: null,
     refunded_revenue: null,
     net_collected_revenue: null,

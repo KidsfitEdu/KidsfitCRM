@@ -143,7 +143,7 @@ public static class SchoolOperationsEndpoints
             throw new KeyNotFoundException();
 
         var proposal = await db.SchoolProposals.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct) ?? throw new KeyNotFoundException();
+            .SingleOrDefaultAsync(x => x.Id == id && !x.IsDeleted && x.Status != "DRAFT" && x.Status != "NEEDS_REVISION", ct) ?? throw new KeyNotFoundException();
         var units = await db.SchoolProposalUnits.AsNoTracking()
             .Where(u => u.SchoolProposalId == id).OrderBy(u => u.SortOrder)
             .Select(u => new {

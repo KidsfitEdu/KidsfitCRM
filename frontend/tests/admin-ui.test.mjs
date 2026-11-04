@@ -43,6 +43,16 @@ test('Admin proposal list hides school codes and reuses official school profile 
   assert.match(editor, /<SchoolMainSection/);
   assert.match(editor, /<SchoolBranchList/);
   assert.match(editor, /expected_version:profile.version/);
+  assert.match(editor, /mainForDisplay/);
+  assert.match(editor, /readOnly/);
+  assert.match(editor, /allowAdd=\{!isLegacy\}/);
+  assert.doesNotMatch(editor, /!isLegacy && <SchoolBranchList/);
+  assert.doesNotMatch(editor, /school_code|Mã trường chính/);
+  assert.doesNotMatch(editor, /Lý do chỉnh sửa|admin-proposal-profile-reason|setReason/);
+  assert.doesNotMatch(editor, /reason:reason\.trim\(\)/);
+  const service = read('src/services/proposal.service.ts');
+  assert.match(service, /payload\.reason\?\.trim\(\) \|\| 'Admin cập nhật thông tin đề xuất trường\.'/);
+  assert.match(service, /JSON\.stringify\(\{\.\.\.payload,reason\}\)/);
 });
 
 test('All Admin views report server errors through shared toast; form errors stay inline', () => {

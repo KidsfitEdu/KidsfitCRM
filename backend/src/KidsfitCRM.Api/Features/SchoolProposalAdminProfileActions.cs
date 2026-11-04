@@ -20,7 +20,11 @@ public sealed partial class ChannelSalesActions
             && o.Status == "ACTIVE" && access.OrganizationIds.Contains(o.Id), ct))
             throw new KeyNotFoundException();
 
-        var reason = Validation.Required(request.Reason, "reason", "Cần lý do chỉnh sửa.", 2000);
+        // Editing is an administrative action; the actor, version, and before/after
+        // snapshots are always retained even when no free-text reason is supplied.
+        var reason = string.IsNullOrWhiteSpace(request.Reason)
+            ? "Admin cập nhật thông tin đề xuất trường."
+            : Validation.Required(request.Reason, "reason", "Lý do chỉnh sửa không hợp lệ.", 2000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var proposal = await db.SchoolProposals.FromSqlInterpolated(
             $"SELECT * FROM school_proposals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)

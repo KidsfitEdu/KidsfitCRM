@@ -42,7 +42,7 @@ public sealed class AdminProposalProfileMySqlTests(ChannelMySqlFixture fixture) 
             var update=new UpdateAdminProposalProfileRequest(1,[
                 Unit("MAIN","Trường sau khi sửa "+nonce),
                 Unit("BRANCH","Phân hiệu mới "+nonce)
-            ],"Admin kiểm tra hồ sơ");
+            ],null);
             await Assert.ThrowsAsync<KeyNotFoundException>(()=>action.UpdateAdminProposalProfile(id,update,other,new DefaultHttpContext(),CancellationToken.None));
             await Assert.ThrowsAsync<ApiValidationException>(()=>action.UpdateAdminProposalProfile(id,
                 new UpdateAdminProposalProfileRequest(1,[Unit("MAIN","Hồ sơ lỗi",ward:null)],"Dữ liệu sai"),
@@ -56,7 +56,8 @@ public sealed class AdminProposalProfileMySqlTests(ChannelMySqlFixture fixture) 
             Assert.Equal(2,proposal.Version);
             Assert.StartsWith("Trường sau khi sửa",proposal.Name);
             Assert.Equal(2,await db.SchoolProposalUnits.CountAsync(x=>x.SchoolProposalId==id));
-            Assert.True(await db.SchoolProposalRevisions.AnyAsync(x=>x.SchoolProposalId==id && x.Version==2));
+            Assert.True(await db.SchoolProposalRevisions.AnyAsync(x=>x.SchoolProposalId==id
+                && x.Version==2 && x.Reason=="Admin cập nhật thông tin đề xuất trường."));
             Assert.False(await db.DirectorySchools.AnyAsync(x=>x.SchoolCode==proposal.SchoolCode));
             proposal.Status="APPROVED";
             await db.SaveChangesAsync();

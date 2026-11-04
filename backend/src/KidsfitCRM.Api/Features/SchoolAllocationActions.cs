@@ -143,7 +143,7 @@ public sealed partial class ChannelSalesActions
                 ? SchoolFuture(request.NextAppointmentAt, "next_appointment_at", now) : null,
             Progress = Validation.Required(request.Progress, "progress", "Cần nhập lý do xin gia hạn.", 4000),
             // Retain historical evidence references, but do not require a new document code.
-            EvidenceReference = CleanOptional(request.EvidenceReference, 500),
+            EvidenceReference = CleanOptional(request.EvidenceReference, 500) ?? "",
             IdempotencyKey = key, RequestFingerprint = hash, CreatedAt = now, UpdatedAt = now,
         };
         if (extension.NextAppointmentAt.HasValue && extension.NextAppointmentAt.Value > extension.RequestedUntil) throw ApiValidationException.For("next_appointment_at", "Lịch hẹn phải nằm trong thời gian xin gia hạn.");

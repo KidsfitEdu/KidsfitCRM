@@ -122,7 +122,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
     </AppDrawer>
     <AppDialog open={selected !== null} onOpenChange={open => {if(!open&&!busy)setSelected(null);}} busy={busy} title="Phê duyệt đề xuất trường" description="Kiểm tra thông tin và nhập căn cứ quyết định trước khi duyệt hoặc từ chối.">
       {(() => { const p=operations?.proposals.find(x=>x.id===selected); return p ? <div className="space-y-3">
-        <p className="font-semibold">{p.name}</p><p className="text-sm text-muted-foreground">{p.school_code && !p.school_code.startsWith('SEED-SCH-') ? `${p.school_code} · ` : ''}{p.province} · {p.ward}</p>
+        <p className="font-semibold">{p.name}</p><p className="text-sm text-muted-foreground">{[p.address,p.ward,p.province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</p>
         <p className="text-sm">Liên hệ: {p.contact_name || 'Chưa có'} · {p.contact_phone || 'Chưa có'}</p>
         {p.possible_duplicate && <p role="alert" className="text-sm text-amber-700">Có dấu hiệu trùng trường; vui lòng đối chiếu trước khi duyệt.</p>}
         <label htmlFor="admin-proposal-review-reason" className="block text-sm font-medium">Lý do / căn cứ quyết định<Input id="admin-proposal-review-reason" className="mt-1" value={reason} onChange={e=>{setReason(e.target.value);setReasonError('');}}/><FormError>{reasonError}</FormError></label>

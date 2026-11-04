@@ -30,3 +30,13 @@ test('Shared school fields keep per-input feedback for both Admin and Sales', ()
   assert.match(sales, /<SchoolBranchList/);
   assert.match(sales, /<SchoolUnitFields/);
 });
+
+test('Sales approach registration produces one success toast after synchronization', () => {
+  const directory = read('components/crm/school-directory.tsx');
+  assert.match(directory, /command\.path === '\/approach-registrations'/);
+  assert.match(directory, /appNotice\.success\('Đăng ký tiếp cận thành công\.'/);
+  assert.equal((directory.match(/appNotice\.success\('Đăng ký tiếp cận thành công\.'/g) ?? []).length, 1);
+  assert.match(directory, /await syncAfterSave\(\);\s*if \(command\.path === '\/approach-registrations'\)/);
+  assert.match(directory, /\}\)\.then\(\(\) => \{\s*setRegisterSchool\(null\);\s*\}\)\.catch/);
+  assert.match(directory, /else if \(adminMode\) \{\s*appNotice\.success/);
+});

@@ -188,9 +188,12 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open();
         var original = await db.Users.SingleAsync(x => x.Id == scenario.Peer.UserId, Ct);
         await AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
-            new("Nhân sự cập nhật", "0901002003", "SALES", "Bổ sung thông tin", scenario.Manager.UserId),
+            new("Nhân sự cập nhật", "0901002003", "SALES", null, scenario.Manager.UserId),
             Http(actor), db, Ct);
         Assert.Equal("0901002003", (await db.Users.FindAsync([scenario.Peer.UserId], Ct))!.Phone);
+        Assert.Contains("Admin cập nhật thông tin nhân sự.", (await db.AuditLogs
+            .Where(x => x.Action == "UPDATE_ADMIN_PERSONNEL" && x.EntityId == scenario.Peer.UserId)
+            .OrderByDescending(x => x.Id).Select(x => x.NewValues).FirstAsync(Ct)) ?? "");
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
                 new("Nhân sự cập nhật", null, "DIRECTOR", "Không được cấp đặc quyền"),

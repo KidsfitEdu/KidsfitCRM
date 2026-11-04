@@ -1153,10 +1153,15 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Không còn phụ trách", null), first.UserId, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => a.UpdateCustomerSupportCase(ticket,
             new("RESOLVED", "Chưa có phản hồi kỹ thuật", null), second.UserId, Http(), Ct));
+        await a.RecordCheckeeSupportProgress(ticket, new("Đang kiểm tra nhật ký server", false),
+            await User("checkee@kidsfit.vn"), Http(), Ct);
+        Assert.Null((await db.CustomerSupportCases.AsNoTracking().SingleAsync(x => x.Id == ticket, Ct)).CheckeeRespondedAt);
         await a.RecordCheckeeSupportProgress(ticket, new("Đã khắc phục máy chủ", true), await User("checkee@kidsfit.vn"), Http(), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() => a.RecordCheckeeSupportProgress(
+            ticket, new("Gửi lại hoàn tất kỹ thuật", true), await User("checkee@kidsfit.vn"), Http(), Ct));
         await a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Trường xác nhận đăng nhập thành công", null), second.UserId, Http(), Ct);
         Assert.Equal(s.Seller.UserId, await db.SalesContracts.Where(x => x.Id == contractId).Select(x => x.OwnerUserId).SingleAsync());
-        Assert.Equal(3, await db.CustomerActivities.CountAsync(x => x.SupportCaseId == ticket));
+        Assert.Equal(4, await db.CustomerActivities.CountAsync(x => x.SupportCaseId == ticket));
         var workspace = Json(await SchoolOperationsEndpoints.Workspace(Http(second.UserId), db, Ct));
         Assert.Equal("Trường xác nhận đăng nhập thành công", workspace.GetProperty("support_cases")[0].GetProperty("outcome").GetString());
         Assert.Empty(workspace.GetProperty("receipts").EnumerateArray());

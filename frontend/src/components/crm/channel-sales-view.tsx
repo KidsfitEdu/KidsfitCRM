@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -746,6 +747,7 @@ function ExtensionDialog({
         }),
       });
       await onSubmitted();
+      appNotice.success('Đã gửi yêu cầu gia hạn tiếp cận.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không gửi được yêu cầu gia hạn.');
     } finally {

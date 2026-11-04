@@ -804,6 +804,86 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(overdue, result.GetProperty("proposals").EnumerateArray().Single().GetProperty("id").GetInt64());
     }
 
+    [MySqlFact] public async Task ManagerReleasesApproachesAndPendingRequestsWithoutSuspendingSales()
+    {
+        var s = await Arrange();
+        var contractId = await ActiveContract(s);
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var unsignedId = await actions.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct);
+
+        var now = DateTime.UtcNow;
+        var invitation = new SchoolInvitation
+        {
+            DirectorySchoolId = s.SchoolId, OrganizationId = s.OrgId,
+            AssignedByUserId = s.Manager.UserId, AssigneeUserId = s.Seller.UserId,
+            RespondBy = now.AddHours(6), Reason = "Kiểm thử lời mời đang chờ",
+            IdempotencyKey = Key(), RequestFingerprint = Key(),
+            CreatedAt = now, UpdatedAt = now
+        };
+        var extension = new SchoolExtensionRequest
+        {
+            ApproachRegistrationId = unsignedId, OrganizationId = s.OrgId,
+            RequestedByUserId = s.Seller.UserId, ManagerUserId = s.Manager.UserId,
+            RequestedUntil = now.AddDays(7), OriginalProtectedUntil = now.AddDays(5),
+            ReviewDueAt = now.AddHours(6), NextAppointmentAt = now.AddDays(1),
+            Progress = "Đang tư vấn", EvidenceReference = "TEST",
+            IdempotencyKey = Key(), RequestFingerprint = Key(),
+            CreatedAt = now, UpdatedAt = now
+        };
+        db.SchoolInvitations.Add(invitation);
+        db.SchoolExtensionRequests.Add(extension);
+        await db.SaveChangesAsync(Ct);
+
+        var ledgerBefore = await db.CommissionLedgerEntries
+            .Where(x => x.ContractId == contractId).Select(x => x.Amount).ToArrayAsync(Ct);
+        var release = new ReleaseSchoolApproachesRequest(Key(), "Rà soát quyền tiếp cận của Sales");
+        var releaseId = await actions.ReleaseSchoolApproaches(
+            s.Seller.MembershipId, release, s.Manager.UserId, Http(s.Manager.UserId), Ct);
+        Assert.Equal(releaseId, await actions.ReleaseSchoolApproaches(
+            s.Seller.MembershipId, release, s.Manager.UserId, Http(s.Manager.UserId), Ct));
+        db.ChangeTracker.Clear();
+
+        Assert.Equal("ACTIVE", await db.OrganizationMemberships.Where(x => x.Id == s.Seller.MembershipId)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("ACTIVE", await db.Users.Where(x => x.Id == s.Seller.UserId)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("REVOKED", await db.ApproachRegistrations.Where(x => x.Id == unsignedId)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("CANCELLED", await db.SchoolInvitations.Where(x => x.Id == invitation.Id)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("CANCELLED", await db.SchoolExtensionRequests.Where(x => x.Id == extension.Id)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.True(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE", Ct));
+        Assert.True(await db.ApproachRegistrations.AnyAsync(x => x.CustomerId == s.CustomerId
+            && x.OwnerUserId == s.Seller.UserId && x.Status == "ACTIVE", Ct));
+        Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries
+            .Where(x => x.ContractId == contractId).Select(x => x.Amount).ToArrayAsync(Ct));
+        var journal = await db.SchoolHandovers.SingleAsync(x => x.Id == releaseId, Ct);
+        Assert.False(journal.AccountSuspended);
+        Assert.Equal(1, journal.RevokedRegistrations);
+        Assert.Contains("Không ngưng Sales", journal.Summary);
+
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.ReleaseSchoolApproaches(
+            s.Seller.MembershipId, release with { IdempotencyKey = Key() },
+            s.Manager.UserId, Http(s.Manager.UserId), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.ReleaseSchoolApproaches(
+            s.Seller.MembershipId, release with { IdempotencyKey = Key() },
+            s.Peer.UserId, Http(s.Peer.UserId), Ct));
+
+        var released = Json(await ManagerContractEndpoints.ReleasedSchools(
+            Http(s.Manager.UserId), db, null, 1, 20, Ct));
+        Assert.Contains(released.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == s.OtherSchoolId);
+        await actions.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Peer.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        var noLongerAvailable = Json(await ManagerContractEndpoints.ReleasedSchools(
+            Http(s.Manager.UserId), db, null, 1, 20, Ct));
+        Assert.DoesNotContain(noLongerAvailable.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == s.OtherSchoolId);
+    }
+
     [MySqlFact] public async Task HandoverRevokesUnsignedClaimsButPreservesSignedProtectionAndEarnedPayout()
     {
         var s = await Arrange(); var contractId = await ActiveContract(s); var admin = await User("admin@kidsfit.vn");

@@ -118,7 +118,7 @@ export function SchoolProposalEditor({
     units.forEach((u,i)=>{
       for(const field of fields) {
         const value=u[field.key]?.trim()??'';
-        if(field.required&&!value) errors[`${i}.${field.key}`]='Trường này là bắt buộc.';
+        // Required fields are checked when Sales sends the draft for approval, not when saving.
         if(field.key==='email'&&value&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
           errors[`${i}.email`]='Email không đúng định dạng.';
         if((field.key==='contact_phone'||field.key==='school_phone')&&value
@@ -157,7 +157,7 @@ export function SchoolProposalEditor({
   const unitForm = (u:Unit,i:number) => <div key={i} className="grid gap-3 sm:grid-cols-2">
     {fields.map(field=><label key={field.key} className="block min-w-0 text-sm">
       {field.label} {field.required&&<span className="text-destructive">*</span>}
-      <Input className="mt-1" value={u[field.key]} maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
+      <Input className="mt-1" value={u[field.key] ?? ''} maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
         aria-invalid={!!fieldErrors[`${i}.${field.key}`]}
         onChange={e=>editUnit(i,field.key,e.target.value)}/>
       {fieldErrors[`${i}.${field.key}`]&&<span className="mt-1 block text-xs text-destructive">{fieldErrors[`${i}.${field.key}`]}</span>}

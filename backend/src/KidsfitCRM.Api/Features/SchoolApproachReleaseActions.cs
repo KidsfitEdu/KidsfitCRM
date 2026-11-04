@@ -76,7 +76,7 @@ public sealed partial class ChannelSalesActions
         foreach (var invitation in pendingInvitations)
         {
             invitation.Status = "CANCELLED";
-            invitation.ResponseReason = "Quản lý thu hồi quyền tiếp cận: " + reason;
+            invitation.ResponseReason = "Quản lý thu hồi quyền tiếp cận; cần phân bổ lại.";
             invitation.RespondedAt = now;
             invitation.UpdatedAt = now;
             Audit.Add(db, actorId, "CANCEL_INVITATION_BY_MANAGER",
@@ -92,7 +92,7 @@ public sealed partial class ChannelSalesActions
         foreach (var extension in pendingExtensions)
         {
             extension.Status = "CANCELLED";
-            extension.DecisionReason = "Quản lý thu hồi quyền tiếp cận: " + reason;
+            extension.DecisionReason = "Quản lý thu hồi quyền tiếp cận; yêu cầu gia hạn được hủy.";
             extension.ReviewedByUserId = actorId;
             extension.ReviewedAt = now;
             extension.UpdatedAt = now;

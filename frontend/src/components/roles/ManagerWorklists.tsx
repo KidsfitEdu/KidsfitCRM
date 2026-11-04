@@ -451,14 +451,14 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
               <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{nice(selectedProposal.review_due_at)}</p></div>
             </div>
           </section>
-          {proposalDetailQuery.isPending && !preview && <p role="status">Đang tải thông tin trường chính và phân hiệu…</p>}
+          {proposalDetailQuery.isPending && !preview && <output>Đang tải thông tin trường chính và phân hiệu…</output>}
           {proposalDetailQuery.error && <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 p-3">
             <p>Không thể tải chi tiết trường: {proposalDetailQuery.error.message}</p>
             <AppButton tone="neutral" type="button" onClick={() => void proposalDetailQuery.refetch()}>Thử lại</AppButton>
           </div>}
           {(preview || proposalDetail) && <>
             {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.isPending &&
-              <p role="status">Đang tải trường chính hiện hữu…</p>}
+              <output>Đang tải trường chính hiện hữu…</output>}
             {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.error &&
               <p role="alert" className="text-amber-700">Không thể tải đầy đủ trường chính trong phạm vi quyền truy cập. Chỉ hiển thị thông tin được phép xem.</p>}
             <SchoolProfileDetails units={proposalUnits}/>

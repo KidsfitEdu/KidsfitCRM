@@ -31,17 +31,17 @@ export const schoolUnitFields: { key: keyof Omit<SchoolFormUnit, 'id' | 'expecte
   { key: 'school_phone', label: 'SĐT trường' },
 ];
 
-export function SchoolUnitFields({unit,index,onFieldChange,errors={},prefix='school'}: {
+export function SchoolUnitFields({unit,index,onFieldChange,errors={},prefix='school',readOnly=false}: {
   unit: SchoolFormUnit; index: number;
   onFieldChange: (index:number,key:keyof SchoolFormUnit,value:string)=>void;
-  errors?:Record<string,string>; prefix?:string;
+  errors?:Record<string,string>; prefix?:string; readOnly?:boolean;
 }) {
   return <div className="grid gap-3 sm:grid-cols-2">
     {schoolUnitFields.map(field => <label key={field.key} className="block min-w-0 text-sm" htmlFor={`${prefix}-${index}-${field.key}`}>
       {field.label} {field.required&&<span className="text-destructive">*</span>}
       <Input id={`${prefix}-${index}-${field.key}`} className="mt-1" value={unit[field.key]??''}
         maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
-        aria-invalid={!!errors[`${index}.${field.key}`]}
+        aria-invalid={!!errors[`${index}.${field.key}`]} disabled={readOnly}
         onChange={e=>onFieldChange(index,field.key,e.target.value)}/>
       {errors[`${index}.${field.key}`]&&<span className="mt-1 block text-xs text-destructive">{errors[`${index}.${field.key}`]}</span>}
     </label>)}
@@ -49,37 +49,38 @@ export function SchoolUnitFields({unit,index,onFieldChange,errors={},prefix='sch
       Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
       <Textarea id={`${prefix}-${index}-note`} className="mt-1" rows={3} maxLength={4000}
         placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
-        value={unit.note} onChange={e=>onFieldChange(index,'note',e.target.value)}/>
+        value={unit.note} disabled={readOnly} onChange={e=>onFieldChange(index,'note',e.target.value)}/>
     </label>
   </div>;
 }
 
 /** Shared main-school panel for Admin directory and proposal editors. Never displays school codes. */
-export function SchoolMainSection({unit,index,onFieldChange,errors={},prefix='school'}:{
+export function SchoolMainSection({unit,index,onFieldChange,errors={},prefix='school',readOnly=false,description}: {
   unit:SchoolFormUnit; index:number;
   onFieldChange:(index:number,key:keyof SchoolFormUnit,value:string)=>void;
-  errors?:Record<string,string>; prefix?:string;
+  errors?:Record<string,string>; prefix?:string; readOnly?:boolean; description?:string;
 }) {
   return <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
     <h3 className="font-semibold">Trường chính</h3>
-    <SchoolUnitFields unit={unit} index={index} onFieldChange={onFieldChange} errors={errors} prefix={prefix}/>
+    {description && <p className="text-xs text-muted-foreground">{description}</p>}
+    <SchoolUnitFields unit={unit} index={index} onFieldChange={onFieldChange} errors={errors} prefix={prefix} readOnly={readOnly}/>
   </section>;
 }
 
-export function SchoolBranchList({units,expanded,onExpandedChange,onAdd,onRemove,onFieldChange,errors={},lockedExisting=false,prefix='school'}:{
+export function SchoolBranchList({units,expanded,onExpandedChange,onAdd,onRemove,onFieldChange,errors={},lockedExisting=false,allowAdd=true,prefix='school'}:{
   units:SchoolFormUnit[];
   expanded:number[];
   onExpandedChange:(next:number[])=>void;
   onAdd:()=>void; onRemove:(index:number)=>void;
   onFieldChange:(index:number,key:keyof SchoolFormUnit,value:string)=>void;
-  errors?:Record<string,string>; lockedExisting?:boolean; prefix?:string;
+  errors?:Record<string,string>; lockedExisting?:boolean; allowAdd?:boolean; prefix?:string;
 }) {
   return <section className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="font-semibold">Danh sách phân hiệu ({units.filter(x=>x.unit_type==='BRANCH').length})</h3>
-      <AppButton tone="outline" size="sm" onClick={onAdd} disabled={units.length>=50}>
+      {allowAdd && <AppButton tone="outline" size="sm" onClick={onAdd} disabled={units.length>=50}>
         <Plus className="size-4"/> Thêm phân hiệu
-      </AppButton>
+      </AppButton>}
     </div>
     {units.map((unit,index)=>unit.unit_type==='BRANCH'&&<div key={unit.id??index} className="rounded-xl border">
       <div className="flex items-center justify-between gap-2 p-3">
@@ -98,7 +99,7 @@ export function SchoolBranchList({units,expanded,onExpandedChange,onAdd,onRemove
         <SchoolUnitFields unit={unit} index={index} onFieldChange={onFieldChange} errors={errors} prefix={prefix}/>
       </div>}
     </div>)}
-    {!units.some(x=>x.unit_type==='BRANCH')&&<p className="text-sm text-muted-foreground">Chưa có phân hiệu. Có thể lưu trường chính trước.</p>}
+    {!units.some(x=>x.unit_type==='BRANCH')&&<p className="text-sm text-muted-foreground">Chưa có phân hiệu.{allowAdd ? ' Có thể bổ sung phân hiệu trong hồ sơ.' : ' Hồ sơ này chưa hỗ trợ bổ sung phân hiệu.'}</p>}
     {lockedExisting&&units.some(x=>x.unit_type==='BRANCH'&&!!x.id)&&
       <p className="text-xs text-muted-foreground">Phân hiệu đã lưu không được bỏ khỏi hồ sơ để bảo toàn dữ liệu và lịch sử.</p>}
     {errors.units&&<p className="text-sm text-destructive">{errors.units}</p>}

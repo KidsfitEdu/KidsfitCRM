@@ -187,7 +187,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         await RequirePermission(actorId, Permissions.ChannelSalesReportContract, cancellationToken);
         var existing = await db.SalesContracts.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
         if (existing is not null) return ChannelSalesValidation.Replay(existing.Id, existing.ReportedByUserId, actorId, existing.RequestFingerprint, hash);
-        var contractCode = Validation.Required(request.ContractCode, "contract_code", "Vui lòng nhập mã hợp đồng.", 64).ToUpperInvariant();
+        // For new Sales reports, the server allocates a unique internal reference.
+        // Legacy callers that still supply a code retain backwards compatibility.
+        var contractCode = string.IsNullOrWhiteSpace(request.ContractCode)
+            ? $"HD-{DateTime.UtcNow:yyyy}-{Guid.NewGuid():N}".ToUpperInvariant()
+            : Validation.Required(request.ContractCode, "contract_code", "Mã hợp đồng không hợp lệ.", 64).ToUpperInvariant();
         var signedOn = request.SignedOn ?? throw ApiValidationException.For("signed_on", "Vui lòng chọn ngày ký hợp đồng.");
         if (signedOn > ChannelSalesValidation.BusinessDate(DateTime.UtcNow)) throw ApiValidationException.For("signed_on", "Ngày ký không được ở tương lai.");
         ChannelSalesValidation.WholeDong(request.TotalValue, "total_value");

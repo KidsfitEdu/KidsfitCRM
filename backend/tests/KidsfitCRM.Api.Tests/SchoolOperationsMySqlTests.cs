@@ -64,6 +64,87 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task SalesDraftCanBeSavedEditedReturnedAndApprovedWithMultipleUnits()
+    {
+        var sc = await Arrange(); var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open(); var actions = new ChannelSalesActions(db);
+        SchoolProposalUnitInput Unit(string type, string name, string province, string ward, string? note = null)
+            => new(type, name, province, ward, null, null, null, null, null, null, note);
+        var id = await actions.CreateSchoolProposalDraft(
+            new(Key(), "NEW_MAIN", null, [Unit("MAIN", "", "", "")]),
+            sc.Seller.UserId, Http(), Ct);
+        var draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("DRAFT", draft.Status);
+        Assert.StartsWith("DRAFT-", draft.SchoolCode);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.SendSchoolProposalDraft(
+            id, new(draft.Version), sc.Seller.UserId, Http(), Ct));
+        var payload = new SaveSchoolProposalDraftRequest(Key(), "NEW_MAIN", null,
+            [Unit("MAIN", "Trường kiểm thử mới " + Key()[..7], "Cần Thơ", "Phường Ninh Kiều", "Ghi chú trường chính"),
+             Unit("BRANCH", "Cơ sở 2 " + Key()[..7], "Cần Thơ", "Phường Cái Khế", "Ghi chú phân hiệu")],
+            draft.Version);
+        await actions.UpdateSchoolProposalDraft(id, payload, sc.Seller.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        await actions.SendSchoolProposalDraft(id, new(draft.Version), sc.Seller.UserId, Http(), Ct);
+        await actions.ReturnSchoolProposalForRevision(id, new("Bổ sung lại nội dung liên hệ"), sc.Manager.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("NEEDS_REVISION", draft.Status);
+        await actions.SendSchoolProposalDraft(id, new(draft.Version), sc.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, null, null), false, sc.Manager.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, "Admin đã kiểm tra hồ sơ", null), true, admin, Http(), Ct);
+        db.ChangeTracker.Clear();
+        draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("APPROVED", draft.Status);
+        Assert.StartsWith("SCH-P", draft.SchoolCode);
+        Assert.NotNull(draft.DirectorySchoolId);
+        var units = await db.SchoolUnits.Where(x => x.DirectorySchoolId == draft.DirectorySchoolId).ToArrayAsync(Ct);
+        Assert.Equal(2, units.Length);
+        Assert.Contains(units, x => x.UnitType == "MAIN" && x.Note == "Ghi chú trường chính");
+        Assert.Contains(units, x => x.UnitType == "BRANCH" && x.Note == "Ghi chú phân hiệu");
+        Assert.Equal(1, await db.DirectorySchools.CountAsync(x => x.Id == draft.DirectorySchoolId, Ct));
+    }
+
+    [MySqlFact] public async Task SalesBranchDraftAddsUnitsWithoutDuplicatingExistingSchoolOrCustomer()
+    {
+        var sc = await Arrange(); var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open(); var actions = new ChannelSalesActions(db);
+        var before = await db.DirectorySchools.CountAsync(Ct);
+        var schoolCode = await db.DirectorySchools.Where(x => x.Id == sc.SchoolId).Select(x => x.SchoolCode).SingleAsync(Ct);
+        var id = await actions.CreateSchoolProposalDraft(new(Key(), "ADD_BRANCHES", sc.SchoolId,
+            [new SchoolProposalUnitInput("BRANCH", "Phân hiệu từ đề xuất " + Key()[..8],
+                "Cần Thơ", "Phường Ninh Kiều", null, null, null, null, null, "0912345678", "Ghi chú mới")]),
+            sc.Seller.UserId, Http(), Ct);
+        var proposal = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        await actions.SendSchoolProposalDraft(id, new(proposal.Version), sc.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, null, null), false, sc.Manager.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, "Đã xác minh phân hiệu", null), true, admin, Http(), Ct);
+        db.ChangeTracker.Clear();
+        Assert.Equal(before, await db.DirectorySchools.CountAsync(Ct));
+        var completed = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal(sc.SchoolId, completed.DirectorySchoolId);
+        Assert.Equal(schoolCode, completed.SchoolCode);
+        Assert.Equal(sc.CustomerId, await db.DirectorySchools.Where(x => x.Id == sc.SchoolId).Select(x => x.CustomerId).SingleAsync(Ct));
+        Assert.True(await db.SchoolUnits.AnyAsync(x => x.DirectorySchoolId == sc.SchoolId
+            && x.UnitType == "BRANCH" && x.Note == "Ghi chú mới" && x.SchoolPhone == "0912345678", Ct));
+    }
+
+    [MySqlFact] public async Task DraftSoftDeletePreservesUnitsAndRejectsFurtherEdits()
+    {
+        var sc = await Arrange(); await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var request = new SaveSchoolProposalDraftRequest(Key(), "NEW_MAIN", null,
+            [new SchoolProposalUnitInput("MAIN", "Trường nháp", "Cần Thơ", "Phường Ninh Kiều", null, null, null, null, null, null, null)]);
+        var id = await actions.CreateSchoolProposalDraft(request, sc.Seller.UserId, Http(), Ct);
+        var draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        await actions.DeleteSchoolProposalDraft(id, new(draft.Version), sc.Seller.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        Assert.True(await db.SchoolProposals.Where(x => x.Id == id).Select(x => x.IsDeleted).SingleAsync(Ct));
+        Assert.True(await db.SchoolProposalUnits.AnyAsync(x => x.SchoolProposalId == id, Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            actions.SendSchoolProposalDraft(id, new(draft.Version + 1), sc.Seller.UserId, Http(), Ct));
+    }
+
     [MySqlFact] public async Task SalesSchoolDirectoryShowsOnlyAvailableSchoolsAndFiltersMainSchoolArea()
     {
         var scenario = await Arrange();

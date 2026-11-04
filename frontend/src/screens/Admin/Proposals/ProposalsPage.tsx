@@ -90,7 +90,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
           <td className="px-5 py-4 text-center tabular-nums">{workflowDate(p.review_due_at)}</td>
           <td className="px-5 py-4"><div className="flex items-center justify-center gap-2">
             {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>setEditing(p.id)}/>}
-            {!preview && can('channel_sales.school.directory.manage') && <AdminIconAction icon={Eye} tone="neutral" label={`Xem chi tiết ${p.name}`} onClick={()=>void openDetail(p.id)}/>}
+            {!preview && !['DRAFT','NEEDS_REVISION'].includes(p.status) && can('channel_sales.school.directory.manage') && <AdminIconAction icon={Eye} tone="neutral" label={`Xem chi tiết ${p.name}`} onClick={()=>void openDetail(p.id)}/>}
             {p.can_admin_review && !preview && <AdminIconAction icon={Check} tone="green" label={`Duyệt ${p.name}`} onClick={()=>{setSelected(p.id);setReason('');setReasonError('');}}/>}
           </div></td>
         </tr>)}</tbody>

@@ -1157,8 +1157,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             await User("checkee@kidsfit.vn"), Http(), Ct);
         Assert.Null((await db.CustomerSupportCases.AsNoTracking().SingleAsync(x => x.Id == ticket, Ct)).CheckeeRespondedAt);
         await a.RecordCheckeeSupportProgress(ticket, new("Đã khắc phục máy chủ", true), await User("checkee@kidsfit.vn"), Http(), Ct);
+        var checkeeUserId = await User("checkee@kidsfit.vn");
         await Assert.ThrowsAsync<ApiConflictException>(() => a.RecordCheckeeSupportProgress(
-            ticket, new("Gửi lại hoàn tất kỹ thuật", true), await User("checkee@kidsfit.vn"), Http(), Ct));
+            ticket, new("Gửi lại hoàn tất kỹ thuật", true), checkeeUserId, Http(), Ct));
         await a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Trường xác nhận đăng nhập thành công", null), second.UserId, Http(), Ct);
         Assert.Equal(s.Seller.UserId, await db.SalesContracts.Where(x => x.Id == contractId).Select(x => x.OwnerUserId).SingleAsync());
         Assert.Equal(4, await db.CustomerActivities.CountAsync(x => x.SupportCaseId == ticket));

@@ -16,7 +16,7 @@ type Unit = {
 type MainSchool = { id: number; school_code: string; name: string; province: string; ward: string };
 type DraftDetail = {
   id: number; version: number; proposal_mode: 'NEW_MAIN' | 'ADD_BRANCHES';
-  target_directory_school_id: number | null; units: Unit[];
+  target_directory_school_id: number | null; target?: MainSchool | null; units: Unit[];
 };
 
 const emptyUnit = (type: Unit['unit_type'], province = ''): Unit => ({
@@ -69,7 +69,8 @@ export function SchoolProposalEditor({
         setMode(draft.proposal_mode); setVersion(draft.version);
         setUnits(draft.units.map(u => ({...emptyUnit(u.unit_type),...u})));
         setExpanded([0]);
-        if (draft.target_directory_school_id)
+        if (draft.target) setTarget(draft.target);
+        else if (draft.target_directory_school_id)
           setTarget({id:draft.target_directory_school_id,school_code:'',name:'Trường chính đã chọn',province:'',ward:''});
       })
       .catch(cause => { if (live) setError(cause instanceof Error ? cause.message : 'Không tải được bản nháp.'); })
@@ -113,7 +114,7 @@ export function SchoolProposalEditor({
   };
   const validate = () => {
     const errors:Record<string,string>={};
-    if(mode==='ADD_BRANCHES' && !target?.id) errors.target='Cần chọn trường chính đã tồn tại.';
+    // An incomplete proposal (including an unselected main school) can be saved as a draft.
     if(!units.length) errors.units='Cần ít nhất một phân hiệu.';
     units.forEach((u,i)=>{
       for(const field of fields) {

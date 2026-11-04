@@ -233,16 +233,21 @@ test('Shared currency input never reformats while editing and formats VND on blu
 test('Sales contract revisions use original contract and retain manager instructions', () => {
   const source = read('src/components/roles/SalesContractRevisions.tsx');
   const sales = read('src/components/crm/channel-sales-view.tsx');
-  assert.match(source, /school-contracts\/my-revisions/);
+  assert.match(source, /school-contracts\/\$\{contractId\}\/review-detail/);
   assert.match(source, /school-contracts\/\$\{revision\.id\}\/resubmit/);
   assert.match(source, /revision\.reason/);
   assert.match(source, /maintenance_fee: Number\(maintenance\)/);
   assert.match(source, /contract_note: note/);
-  assert.match(source, /id="sales-contract-revisions"/);
+  assert.doesNotMatch(source, /id="sales-contract-revisions"/);
+  assert.match(sales, /setRevisionContractId\(customer.contract_id\)/);
+  assert.match(sales, /<FilePenLine className="size-4"/);
+  assert.doesNotMatch(sales, />Bổ sung hồ sơ<\/Button>/);
   assert.match(sales, /status === 'NEEDS_REVISION'/);
-  assert.match(sales, /Bổ sung hồ sơ/);
+  assert.match(sales, /Chỉnh sửa hợp đồng theo yêu cầu Quản lý/);
   assert.match(sales, /status === 'MANAGER_REVIEWED'/);
   assert.match(sales, /status === 'PENDING_KIDSFIT'/);
+  const focus = read('src/components/roles/SalesFocusPage.tsx');
+  assert.doesNotMatch(focus, /<SalesContractRevisions/);
 });
 
 test('Sales contract errors appear only in shared toast and duplicate report opening is guarded', () => {

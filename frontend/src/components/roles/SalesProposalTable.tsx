@@ -76,7 +76,7 @@ export function SalesProposalTable({
         <AdminIconAction icon={Eye} label={`Xem đề xuất ${item.name}`} onClick={() => onOpen(item)}/>
         {!preview && item.can_edit_draft && <>
           <AdminIconAction icon={Pencil} label={`Sửa bản nháp ${item.name}`} onClick={() => onEdit?.(item)}/>
-          <AdminIconAction icon={Trash2} tone="danger" label={`Xóa bản nháp ${item.name}`} onClick={() => onDelete?.(item)}/>
+          <AdminIconAction icon={Trash2} tone="red" label={`Xóa bản nháp ${item.name}`} onClick={() => onDelete?.(item)}/>
           <AdminIconAction icon={Send} label={`Gửi phê duyệt ${item.name}`} onClick={() => onSubmitDraft?.(item)}/>
         </>}
         {!preview && <AdminIconAction icon={History} tone="neutral" label={`Lịch sử ${item.name}`} onClick={() => onHistory(item)}/>}

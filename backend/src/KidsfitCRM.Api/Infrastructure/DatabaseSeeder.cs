@@ -35,9 +35,19 @@ public static class DatabaseSeeder
         }
         await SeedChannelSalesAsync(services, password);
         await NormalizeDemoPasswordsAsync(db, hasher, password);
-        await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
-        if (config.GetValue<bool>("Seed:AccountingScenarios"))
-            await AccountingScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+        if (config.GetValue<bool>("Seed:ReviewFixtures"))
+        {
+            if (config.GetValue<bool>("Seed:AccountingScenarios"))
+                throw new InvalidOperationException("Review fixtures and legacy 30% accounting fixtures cannot run together.");
+            var env = services.GetRequiredService<IHostEnvironment>();
+            await CrmReviewSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow, env.ContentRootPath);
+        }
+        else
+        {
+            await CrmScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+            if (config.GetValue<bool>("Seed:AccountingScenarios"))
+                await AccountingScenarioSeeder.SeedAsync(db, DateTime.UtcNow);
+        }
     }
 
     private static async Task NormalizeDemoPasswordsAsync(KidsfitDbContext db, IPasswordHasher<User> hasher, string password)
@@ -330,6 +340,9 @@ public static class DatabaseSeeder
         await db.SaveChangesAsync();
         }
 
+        // Legacy synthetic customers are excluded when a cohesive 10-school review is selected.
+        if (!services.GetRequiredService<IConfiguration>().GetValue<bool>("Seed:ReviewFixtures"))
+        {
         if (!await db.ChannelCustomers.AnyAsync(x => x.Code == "CUS-DEMO-AVAILABLE"))
         {
             var available = new ChannelCustomer
@@ -419,6 +432,7 @@ public static class DatabaseSeeder
             db.ReconciliationEvents.Add(new ReconciliationEvent { ReconciliationCaseId = reconciliation.Id, ActorUserId = sales.Id, EventType = "OPENED", CreatedAt = contract.CreatedAt, UpdatedAt = now });
         }
 
+        }
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
     }

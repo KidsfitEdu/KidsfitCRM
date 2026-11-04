@@ -1432,10 +1432,10 @@ function StatusSummary({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid gap-1.5 text-sm font-medium">
-      {label}
+    <div role="group" aria-label={label} className="grid gap-1.5 text-sm font-medium">
+      <span>{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 

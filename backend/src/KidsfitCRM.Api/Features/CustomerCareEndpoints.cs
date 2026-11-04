@@ -41,14 +41,19 @@ public static class CustomerCareEndpoints
         var (p, size) = Pagination(page, page_size);
         var term = search?.Trim() ?? "";
         if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
-        var query = Assigned(db, access).AsNoTracking().Where(c => term == ""
+        // Ticket selection lists only actively supported contracts assigned to the caller.
+        var eligible = Assigned(db, access).AsNoTracking()
+            .Where(c => c.Status == "ACTIVE" && c.VerifiedAt.HasValue);
+        var query = eligible.Where(c => term == ""
             || c.ContractCode.Contains(term)
-            || db.ChannelCustomers.Any(x => x.Id == c.CustomerId && (x.DisplayName.Contains(term) || (x.Phone != null && x.Phone.Contains(term)))));
+            || db.ChannelCustomers.Any(x => x.Id == c.CustomerId
+                && (x.DisplayName.Contains(term) || (x.Phone != null && x.Phone.Contains(term)))));
         var total = await query.CountAsync(ct);
         var rows = await query.OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
             .Skip((p - 1) * size).Take(size)
             .Select(c => new {
                 c.Id, c.CustomerId, c.ContractCode, c.Status, c.VerifiedAt,
+                eligible_contract_count = eligible.Count(other => other.CustomerId == c.CustomerId),
                 school_name = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.DisplayName).First(),
                 contact_name = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.ContactName).First(),
                 phone = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.Phone).First(),

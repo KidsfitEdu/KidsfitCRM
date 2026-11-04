@@ -127,7 +127,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(code, await db.DirectorySchools.Where(x => x.Id == schoolId).Select(x => x.SchoolCode).SingleAsync(Ct));
         var audit = await db.AuditLogs.AsNoTracking().Where(x =>
             x.Action == "CREATE_MANUAL_SCHOOL_UNIT" && x.EntityId == unitId).SingleAsync(Ct);
-        Assert.Contains("Admin tạo trường học thủ công.", audit.AfterValues ?? "");
+        Assert.Contains("Admin tạo trường học thủ công.", audit.NewValues ?? "");
         var duplicate = await Assert.ThrowsAsync<ApiConflictException>(() =>
             actions.CreateManualSchool(request, admin, Http(admin), Ct));
         Assert.Contains("Mã trường đã có", duplicate.Message);

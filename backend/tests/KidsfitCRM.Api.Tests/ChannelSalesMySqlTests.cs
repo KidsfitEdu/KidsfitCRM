@@ -240,7 +240,8 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.Null(activity.Outcome);
         Assert.Equal(seller, activity.UserId);
         Assert.Equal("Đã trao đổi về nhu cầu của trường.", activity.Content);
-        Assert.InRange(activity.OccurredAt, before.AddSeconds(-1), after.AddSeconds(1));
+        Assert.NotNull(activity.OccurredAt);
+        Assert.InRange(activity.OccurredAt.Value, before.AddSeconds(-1), after.AddSeconds(1));
         Assert.Null(activity.NextFollowUpAt);
         Assert.Equal(registrationId, activity.ApproachRegistrationId);
     }

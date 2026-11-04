@@ -73,4 +73,51 @@ public sealed class SchoolRecordMySqlTests(ChannelMySqlFixture fixture) : IClass
                 admin,new DefaultHttpContext(),CancellationToken.None));
         }
     }
+    [MySqlFact]
+    public async Task AdminCreatesSchoolWithoutEnteringCodeAndPreservesItDuringEdit()
+    {
+        long admin;
+        await using (var db = fixture.Open())
+        {
+            admin = await db.Users.Where(x => x.Email == "admin@kidsfit.vn")
+                .Select(x => x.Id).SingleAsync();
+        }
+
+        long schoolId;
+        await using (var db = fixture.Open())
+        {
+            var name = "Trường tự sinh mã " + Guid.NewGuid().ToString("N");
+            schoolId = await new ChannelSalesActions(db).SaveSchoolRecord(null,
+                new SaveSchoolRecordRequest(null, [Unit("MAIN", name)], null),
+                admin, new DefaultHttpContext(), CancellationToken.None);
+        }
+
+        string generatedCode;
+        await using (var db = fixture.Open())
+        {
+            var school = await db.DirectorySchools.SingleAsync(x => x.Id == schoolId);
+            generatedCode = school.SchoolCode;
+            Assert.StartsWith("SCH-M", generatedCode);
+            Assert.True(generatedCode.Length <= 64);
+            Assert.True(await db.CustomerIdentifiers.AnyAsync(x => x.CustomerId == school.CustomerId
+                && x.IdentifierType == "SCHOOL_CODE" && x.NormalizedValue == generatedCode));
+        }
+
+        await using (var db = fixture.Open())
+        {
+            var main = await db.SchoolUnits.SingleAsync(x => x.DirectorySchoolId == schoolId && x.UnitType == "MAIN");
+            await new ChannelSalesActions(db).SaveSchoolRecord(schoolId,
+                new SaveSchoolRecordRequest(null, [Unit("MAIN", main.Name + " (đã sửa)", main.Id, main.Version)], null),
+                admin, new DefaultHttpContext(), CancellationToken.None);
+        }
+
+        await using (var db = fixture.Open())
+        {
+            var school = await db.DirectorySchools.SingleAsync(x => x.Id == schoolId);
+            Assert.Equal(generatedCode, school.SchoolCode);
+            var main = await db.SchoolUnits.SingleAsync(x => x.DirectorySchoolId == schoolId && x.UnitType == "MAIN");
+            Assert.Contains("(đã sửa)", main.Name);
+        }
+    }
+
 }

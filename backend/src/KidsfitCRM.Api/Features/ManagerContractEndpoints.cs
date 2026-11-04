@@ -372,6 +372,8 @@ public static class ManagerContractEndpoints
             throw new ApiConflictException("Chỉ trả bổ sung hồ sơ chờ Quản lý hoặc hồ sơ CHECKEE phản hồi.");
         var now = DateTime.UtcNow;
         contract.Status = "NEEDS_REVISION";
+        contract.RevisionReason = reason;
+        contract.RevisionRequestedAt = now;
         contract.ManagerReviewedAt = null;
         contract.ManagerReviewedByUserId = null;
         contract.UpdatedAt = now;
@@ -415,6 +417,8 @@ public static class ManagerContractEndpoints
         evidence.AttachedAt = now;
         evidence.UpdatedAt = now;
         contract.Status = "PENDING_REVIEW";
+        contract.RevisionReason = null;
+        contract.RevisionRequestedAt = null;
         contract.ManagerReviewedAt = null;
         contract.ManagerReviewedByUserId = null;
         contract.UpdatedAt = now;

@@ -15,9 +15,9 @@ test('Admin school form separates input validation from server notifications', (
   assert.match(editor, /cause.status === 404 \|\| cause.status === 405/);
 });
 
-test('Admin directory hides school codes while preserving data bindings', () => {
+test('Admin directory retains school codes for review while preserving data bindings', () => {
   const source = read('components/crm/school-directory.tsx');
-  assert.match(source, /!adminMode && <p/);
+  assert.match(source, /\{s\.school_code\}/);
   assert.match(source, /description=\{adminMode \?/);
   const editor = read('components/crm/schools/school-record-editor.tsx');
   assert.match(editor, /body:JSON\.stringify\(\{units\}\)/);

@@ -43,6 +43,10 @@ export type SchoolOperationsWorkspace = {
     can_manager_review: boolean;
     can_admin_review: boolean;
     possible_duplicate?: boolean;
+    proposal_mode?: string;
+    target_directory_school_id?: number | null;
+    can_edit_draft?: boolean;
+    unit_count?: number;
   }[];
   invitations: {
     id: number;
@@ -223,6 +227,7 @@ export const workflowLabels: Record<string, string> = {
   COMPLETED: 'Đã rà soát',
   ACTIVE: 'Đang áp dụng',
   DRAFT: 'Bản nháp',
+  NEEDS_REVISION: 'Cần bổ sung',
   SUPERSEDED: 'Đã thay phiên bản',
   SUSPENDED: 'Ngưng hoạt động',
   REVIEW_REQUIRED: 'Cần đối soát lại',

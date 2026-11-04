@@ -164,11 +164,11 @@ export class ChannelRequestError extends Error {
 const requestErrorMessage = (status: number, message?: string): string => {
   // Empty/non-JSON error bodies (e.g. a proxy 404/405 or upstream 500)
   // should not be disguised as field validation errors.
-  if (message?.trim()) return message;
+  if (message?.trim() && message.trim() !== 'Không thể hoàn tất yêu cầu.') return message;
   if (status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
   if (status === 403) return 'Tài khoản không có quyền thực hiện thao tác này.';
   if (status === 404 || status === 405)
-    return 'API không hỗ trợ thao tác này. Hãy kiểm tra phiên bản Backend đã được cập nhật và khởi động lại.';
+    return 'Không tìm thấy tài nguyên hoặc API không hỗ trợ thao tác được yêu cầu.';
   if (status === 409) return 'Dữ liệu vừa thay đổi hoặc bị trùng. Vui lòng kiểm tra và thử lại.';
   if (status >= 500) return 'Máy chủ gặp sự cố khi xử lý yêu cầu. Vui lòng thử lại hoặc kiểm tra log Backend.';
   return 'Không thể hoàn tất yêu cầu. Vui lòng thử lại.';

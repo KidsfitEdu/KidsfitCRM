@@ -1942,6 +1942,15 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnName("idempotency_key")
                         .UseCollation("utf8mb4_bin");
 
+                    b.Property<string>("RevisionReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("revision_reason");
+
+                    b.Property<DateTime?>("RevisionRequestedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("revision_requested_at");
+
                     b.Property<DateTime?>("ManagerReviewedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("manager_reviewed_at");

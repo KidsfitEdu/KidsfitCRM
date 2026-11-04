@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { FileUp } from 'lucide-react';
+import { FileUp, RefreshCw, FileText } from 'lucide-react';
+import { validateContract, type ContractField, type ContractErrors } from '@/lib/contract-validation';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
@@ -93,18 +94,15 @@ function RevisionEditor({
   const [note, setNote] = useState(original.contract_note ?? '');
   const [signedOn, setSignedOn] = useState(original.signed_on.slice(0, 10));
   const [file, setFile] = useState<File | null>(null);
-  type FieldKey = 'signed_on' | 'service_plan' | 'student_count' | 'branch_count' |
-    'maintenance_fee' | 'setup_fee' | 'total_value' | 'contract_note' | 'contract_file';
-  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [errors, setErrors] = useState<ContractErrors>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const clearError = (field: FieldKey) => setErrors(previous => {
+  const clearError = (field: ContractField) => setErrors(previous => {
     if (!previous[field]) return previous;
     const next = { ...previous };
     delete next[field];
     return next;
   });
-  const currentDate = new Date();
-  const today = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
   const total = Number(maintenance) * (plan === 'MONTHLY_9' ? 9 : 1) + Number(setup);
   const validMoney = maintenance !== '' && setup !== '' &&
     Number.isSafeInteger(Number(maintenance)) && Number(maintenance) >= 0 &&
@@ -114,35 +112,12 @@ function RevisionEditor({
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
-    const issues: Partial<Record<FieldKey, string>> = {};
-    const date = /^\\d{4}-\\d{2}-\\d{2}$/.test(signedOn) ? new Date(signedOn + 'T00:00:00Z') : null;
-    if (!date || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== signedOn ||
-        signedOn > today)
-      issues.signed_on = 'Vui lòng chọn ngày ký hợp đồng hợp lệ, không ở tương lai.';
-    if (!['SCHOOL_YEAR', 'MONTHLY_9'].includes(plan))
-      issues.service_plan = 'Vui lòng chọn hình thức thanh toán.';
-    if (students.trim() === '' || !/^\\d+$/.test(students) || !Number.isSafeInteger(Number(students)) ||
-        Number(students) < 1 || Number(students) > 100000)
-      issues.student_count = 'Quy mô học sinh phải là số nguyên từ 1 đến 100.000.';
-    if (branches.trim() === '' || !/^\\d+$/.test(branches) || !Number.isSafeInteger(Number(branches)) ||
-        Number(branches) < selectedUnits.length || Number(branches) > 100000)
-      issues.branch_count = `Số phân hiệu phải từ ${selectedUnits.length} đến 100.000.`;
-    if (maintenance.trim() === '' || !/^\\d+$/.test(maintenance) || !Number.isSafeInteger(Number(maintenance)))
-      issues.maintenance_fee = 'Phí duy trì phải là số nguyên VNĐ không âm.';
-    if (setup.trim() === '' || !/^\\d+$/.test(setup) || !Number.isSafeInteger(Number(setup)))
-      issues.setup_fee = 'Phí khởi tạo phải là số nguyên VNĐ không âm.';
-    if (!issues.maintenance_fee && !issues.setup_fee && !validMoney)
-      issues.total_value = 'Tổng giá trị hợp đồng phải lớn hơn 0 và là số nguyên hợp lệ.';
-    if (note.length > 4000)
-      issues.contract_note = 'Ghi chú không được vượt quá 4.000 ký tự.';
-    if (!file || file.size === 0)
-      issues.contract_file = 'Vui lòng chọn file hợp đồng đã chỉnh sửa.';
-    else if (file.size > 5 * 1024 * 1024)
-      issues.contract_file = 'File hợp đồng tối đa 5 MB.';
-    else if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type))
-      issues.contract_file = 'Chỉ chấp nhận PDF, JPG, PNG hoặc WEBP.';
+    const issues = validateContract({
+      signedOn, plan, students, branches, selectedUnitCount: selectedUnits.length,
+      maintenance, setup, note, file, existingEvidence: detail.evidence.length > 0,
+    });
     setErrors(issues);
-    const first = Object.keys(issues)[0] as FieldKey | undefined;
+    const first = Object.keys(issues)[0] as ContractField | undefined;
     if (first) {
       const field = formRef.current?.querySelector<HTMLElement>(`[data-field="${first}"]`);
       field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -152,15 +127,19 @@ function RevisionEditor({
     setBusy(true);
     setActionError('');
     try {
-      const upload = new FormData();
-      upload.set('kind', 'CONTRACT');
-      upload.set('file', file!);
-      const evidence = await channelRequest<{ data: { id: number } }>(
-        apiBase, token, '/evidence', { method: 'POST', body: upload });
+      let evidenceId: number | undefined;
+      if (file) {
+        const upload = new FormData();
+        upload.set('kind', 'CONTRACT');
+        upload.set('file', file);
+        const evidence = await channelRequest<{ data: { id: number } }>(
+          apiBase, token, '/evidence', { method: 'POST', body: upload });
+        evidenceId = evidence.data.id;
+      }
       await channelRequest(apiBase, token, `/school-contracts/${revision.id}/resubmit`, {
         method: 'POST',
         body: JSON.stringify({
-          evidence_id: evidence.data.id,
+          evidence_id: evidenceId,
           signed_on: signedOn,
           service_plan: plan,
           student_count: Number(students),
@@ -277,20 +256,29 @@ function RevisionEditor({
         placeholder="Nhập thông tin cần xác minh thêm (nếu có)..." />
       {errors.contract_note && <p role="alert" className="text-xs text-red-700">{errors.contract_note}</p>}
     </fieldset>
-    {detail.evidence.length > 0 && <div className="rounded-xl border bg-muted/20 p-3 text-sm">
-      <p className="font-semibold">File hợp đồng đã gửi</p>
-      <p className="mt-1 break-all text-muted-foreground">
-        {detail.evidence[0].file_name}
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">File cũ và lịch sử chỉnh sửa sẽ được giữ lại.</p>
-    </div>}
-    <fieldset className="space-y-1.5">
-      <legend className="text-sm font-semibold">File hợp đồng đã chỉnh sửa *</legend>
-      <input name="contract_file" type="file" data-field="contract_file" aria-invalid={!!errors.contract_file}
-        accept=".pdf,image/jpeg,image/png,image/webp" onChange={e => { setFile(e.target.files?.[0] ?? null); clearError("contract_file"); }}
-        className="block w-full rounded-xl border bg-background p-2 text-sm" />
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-semibold">File hợp đồng</legend>
+      <div className="flex items-center gap-3 rounded-xl border bg-muted/20 p-3">
+        <FileText className="size-5 shrink-0 text-emerald-700" aria-hidden="true"/>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{file?.name ?? detail.evidence[0]?.file_name ?? 'Chưa có file hợp đồng'}</p>
+          <p className="text-xs text-muted-foreground">
+            {file ? 'File thay thế sẽ được gửi khi xác nhận' : 'Giữ nguyên file hợp đồng đã gửi'}
+          </p>
+        </div>
+        <button type="button" aria-label="Thay thế file hợp đồng" title="Thay thế file hợp đồng"
+          disabled={busy} onClick={() => fileInputRef.current?.click()}
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-emerald-700 text-emerald-800 hover:bg-emerald-50 disabled:opacity-50">
+          <RefreshCw className="size-4" aria-hidden="true"/>
+        </button>
+      </div>
+      <input ref={fileInputRef} name="contract_file" type="file" data-field="contract_file"
+        aria-label="Chọn file hợp đồng thay thế" aria-invalid={!!errors.contract_file}
+        accept=".pdf,image/jpeg,image/png,image/webp" disabled={busy}
+        onChange={e => { setFile(e.target.files?.[0] ?? null); clearError("contract_file"); }}
+        className="sr-only" />
       {errors.contract_file && <p role="alert" className="text-xs text-red-700">{errors.contract_file}</p>}
-      <p className="text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
+      <p className="text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB. File cũ và lịch sử sẽ được giữ lại.</p>
     </fieldset>
     {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
     <div className="flex justify-end gap-2 pt-2">

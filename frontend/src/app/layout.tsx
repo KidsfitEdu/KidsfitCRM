@@ -17,6 +17,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
+      {process.env.NODE_ENV === "development" && (
+        <head>
+          <script src="/resize-observer-dev-guard.js" />
+        </head>
+      )}
       <body
         className="antialiased"
       >

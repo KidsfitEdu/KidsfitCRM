@@ -71,8 +71,6 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open();
         var main = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == scenario.SchoolId && x.UnitType == "MAIN")
             .Select(x => new { x.Province, x.Ward }).SingleAsync(Ct);
-        var second = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == scenario.OtherSchoolId && x.UnitType == "MAIN")
-            .Select(x => new { x.Province, x.Ward }).SingleAsync(Ct);
         var firstCode = await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId)
             .Select(x => x.SchoolCode).SingleAsync(Ct);
         var before = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,

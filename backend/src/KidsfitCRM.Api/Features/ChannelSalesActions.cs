@@ -262,6 +262,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             if (servicePlan is not null && servicePlan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
                 throw ApiValidationException.For("service_plan", "Chọn gói năm học hoặc gói thanh toán tháng.");
             var unitIds = request.SchoolUnitIds ?? [];
+            // A school may report branches covered by the signed contract before
+            // all corresponding directory units have been entered in CRM.
+            var branchCount = request.BranchCount ?? unitIds.Length;
+            if (branchCount < 0 || branchCount > 100000 || branchCount < unitIds.Length)
+                throw ApiValidationException.For("branch_count", "Số phân hiệu phải từ 0 đến 100.000 và không nhỏ hơn số phân hiệu đã chọn.");
             if (unitIds.Length != unitIds.Distinct().Count())
                 throw ApiValidationException.For("school_unit_ids", "Trường điểm bị chọn trùng.");
             if (unitIds.Length > 0)
@@ -303,6 +308,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 ServicePlan = servicePlan,
                 ContractNote = CleanOptional(request.ContractNote, 4000),
                 StudentCount = request.StudentCount,
+                BranchCount = branchCount,
                 SchoolUnitIdsJson = System.Text.Json.JsonSerializer.Serialize(unitIds),
                 Status = schoolContract ? "PENDING_REVIEW" : "ACTIVE",
                 RequiresSchoolVerification = schoolContract,

@@ -277,6 +277,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       title: 'Mời Sales/CTV nhận trường',
       description: '',
       path: '/school-invitations',
+      apiErrorDisplay: 'toast',
       fields: [
         { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number',
           value: suggestedSchoolId?String(suggestedSchoolId):undefined,

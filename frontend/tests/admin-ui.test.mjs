@@ -51,11 +51,11 @@ test('All Admin views report server errors through shared toast; form errors sta
   assert.match(capacity, /<FormError id="capacity-limit-error">/);
 });
 
-test('Shared school directory applies new notification behavior only to Admin', () => {
+test('Shared school directory uses toast notifications for both Sales and Admin', () => {
   const source = read('src/components/crm/school-directory.tsx');
-  assert.match(source, /if \(adminMode\) appNotice\.success/);
-  assert.match(source, /if \(adminMode\) appNotice\.error/);
-  assert.match(source, /!adminMode && notice &&/);
+  assert.match(source, /appNotice\.success\('Đã lưu thay đổi và lịch sử xử lý\.'/);
+  assert.match(source, /appNotice\.error\('Không lưu được thay đổi trường học\.'/);
+  assert.doesNotMatch(source, /!adminMode && notice &&/);
   assert.match(source, /!adminMode && upload\.error &&/);
   assert.match(source, /preview\.warnings\.map/);
   assert.match(source, /setPreview\(result\)/);

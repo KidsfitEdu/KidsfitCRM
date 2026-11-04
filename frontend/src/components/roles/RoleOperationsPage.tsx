@@ -28,6 +28,7 @@ export function RoleOperationsPage({ profile, section, ...props }: RolePageProps
       initialOperationsTab={active.tab || undefined}
       reconciliationView={profile === 'Checkee' && ['verification','reconciliation','disputes','history'].includes(section) ? section as 'verification'|'reconciliation'|'disputes'|'history' : undefined}
       allowedPanels={allowedPanels} hideTabs hideOperationsTabs={active.panel === 'operations'}
+      salesDirectoryMode={profile === 'Collaborator' && section === 'schools'}
       customerView={onOpenCustomer => <ChannelSalesView apiBase={apiBase} token={token}
         onOpenCustomer={onOpenCustomer} workspace={workspace} search={search} setSearch={setSearch}
         canRegister={can('channel_sales.approach.register')} canAddActivity={can('channel_sales.activity.create')}

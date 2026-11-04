@@ -187,10 +187,41 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         await RequirePermission(actorId, Permissions.ChannelSalesReportContract, cancellationToken);
         var existing = await db.SalesContracts.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
         if (existing is not null) return ChannelSalesValidation.Replay(existing.Id, existing.ReportedByUserId, actorId, existing.RequestFingerprint, hash);
-        var contractCode = Validation.Required(request.ContractCode, "contract_code", "Vui lòng nhập mã hợp đồng.", 64).ToUpperInvariant();
+        // For new Sales reports, the server allocates a unique internal reference.
+        // Legacy callers that still supply a code retain backwards compatibility.
+        var contractCode = string.IsNullOrWhiteSpace(request.ContractCode)
+            ? $"HD-{DateTime.UtcNow:yyyy}-{Guid.NewGuid():N}".ToUpperInvariant()
+            : Validation.Required(request.ContractCode, "contract_code", "Mã hợp đồng không hợp lệ.", 64).ToUpperInvariant();
         var signedOn = request.SignedOn ?? throw ApiValidationException.For("signed_on", "Vui lòng chọn ngày ký hợp đồng.");
         if (signedOn > ChannelSalesValidation.BusinessDate(DateTime.UtcNow)) throw ApiValidationException.For("signed_on", "Ngày ký không được ở tương lai.");
         ChannelSalesValidation.WholeDong(request.TotalValue, "total_value");
+        // The simplified Sales form submits contract fees, never an arbitrary total.
+        // Existing integrations that do not supply fee components retain legacy behavior.
+        var hasContractFees = request.MaintenanceFee.HasValue || request.SetupFee.HasValue;
+        decimal? calculatedTotal = null;
+        if (hasContractFees)
+        {
+            if (!request.MaintenanceFee.HasValue || !request.SetupFee.HasValue)
+                throw ApiValidationException.For("maintenance_fee", "Cần nhập cả phí duy trì và phí khởi tạo.");
+            if (request.ServicePlan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
+                throw ApiValidationException.For("service_plan", "Cần chọn gói năm học hoặc gói hàng tháng.");
+            ChannelSalesValidation.WholeDong(request.MaintenanceFee.Value, "maintenance_fee", positive: false);
+            ChannelSalesValidation.WholeDong(request.SetupFee.Value, "setup_fee", positive: false);
+            try
+            {
+                calculatedTotal = checked(request.MaintenanceFee.Value *
+                    (request.ServicePlan == "MONTHLY_9" ? 9 : 1) + request.SetupFee.Value);
+            }
+            catch (OverflowException)
+            {
+                throw ApiValidationException.For("total_value", "Giá trị hợp đồng vượt giới hạn.");
+            }
+            if (calculatedTotal <= 0 || calculatedTotal != request.TotalValue)
+                throw ApiValidationException.For("total_value", "Tổng giá trị hợp đồng không khớp phí duy trì và phí khởi tạo.");
+            // Payment schedules are created by Accounting when agreed in the signed contract.
+            if (request.Installments is { Length: > 0 })
+                throw ApiValidationException.For("installments", "Form báo cáo đơn giản không nhập lịch thanh toán từng đợt.");
+        }
         if (request.Installments is { Length: > 0 })
         {
             if (request.Installments.Length > 60) throw ApiValidationException.For("installments", "Tối đa 60 đợt thanh toán trong một hợp đồng.");
@@ -231,6 +262,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             if (servicePlan is not null && servicePlan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
                 throw ApiValidationException.For("service_plan", "Chọn gói năm học hoặc gói thanh toán tháng.");
             var unitIds = request.SchoolUnitIds ?? [];
+            // A school may report branches covered by the signed contract before
+            // all corresponding directory units have been entered in CRM.
+            var branchCount = request.BranchCount ?? unitIds.Length;
+            if (branchCount < 0 || branchCount > 100000 || branchCount < unitIds.Length)
+                throw ApiValidationException.For("branch_count", "Số phân hiệu phải từ 0 đến 100.000 và không nhỏ hơn số phân hiệu đã chọn.");
             if (unitIds.Length != unitIds.Distinct().Count())
                 throw ApiValidationException.For("school_unit_ids", "Trường điểm bị chọn trùng.");
             if (unitIds.Length > 0)
@@ -270,7 +306,9 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 EffectiveOn = request.EffectiveOn,
                 TotalValue = decimal.Round(request.TotalValue, 0),
                 ServicePlan = servicePlan,
+                ContractNote = CleanOptional(request.ContractNote, 4000),
                 StudentCount = request.StudentCount,
+                BranchCount = branchCount,
                 SchoolUnitIdsJson = System.Text.Json.JsonSerializer.Serialize(unitIds),
                 Status = schoolContract ? "PENDING_REVIEW" : "ACTIVE",
                 RequiresSchoolVerification = schoolContract,
@@ -293,17 +331,31 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             if (!schoolContract) await db.CustomerProtections
                 .Where(x => x.ApproachRegistrationId == registration.Id && x.Status == "ACTIVE")
                 .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "CONVERTED").SetProperty(x => x.UpdatedAt, now), cancellationToken);
-            db.SalesContractItems.Add(new SalesContractItem
+            if (hasContractFees)
             {
-                ContractId = contract.Id,
-                ProductPackageId = package.Id,
-                Description = package.Name,
-                Quantity = 1,
-                UnitPrice = contract.TotalValue,
-                Amount = contract.TotalValue,
-                CreatedAt = now,
-                UpdatedAt = now,
-            });
+                var maintenance = request.MaintenanceFee!.Value;
+                var setup = request.SetupFee!.Value;
+                var quantity = servicePlan == "MONTHLY_9" ? 9 : 1;
+                db.SalesContractItems.Add(new SalesContractItem {
+                    ContractId = contract.Id, ProductPackageId = package.Id,
+                    Description = servicePlan == "MONTHLY_9" ? "Phí duy trì mỗi tháng (9 tháng)" : "Phí duy trì năm học (9 tháng)",
+                    Quantity = quantity, UnitPrice = maintenance, Amount = maintenance * quantity,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                if (setup > 0) db.SalesContractItems.Add(new SalesContractItem {
+                    ContractId = contract.Id, ProductPackageId = package.Id,
+                    Description = "Phí khởi tạo (một lần)", Quantity = 1, UnitPrice = setup, Amount = setup,
+                    CreatedAt = now, UpdatedAt = now
+                });
+            }
+            else
+            {
+                db.SalesContractItems.Add(new SalesContractItem {
+                    ContractId = contract.Id, ProductPackageId = package.Id,
+                    Description = package.Name, Quantity = 1, UnitPrice = contract.TotalValue,
+                    Amount = contract.TotalValue, CreatedAt = now, UpdatedAt = now
+                });
+            }
             if (!schoolContract) db.CustomerProtections.Add(new CustomerProtection
             {
                 CustomerId = customer.Id,

@@ -64,6 +64,126 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task SalesDraftCanBeSavedEditedReturnedAndApprovedWithMultipleUnits()
+    {
+        var sc = await Arrange(); var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open(); var actions = new ChannelSalesActions(db);
+        SchoolProposalUnitInput Unit(string type, string name, string province, string ward, string? note = null)
+            => new(type, name, province, ward, null, null, null, null, null, null, note);
+        var id = await actions.CreateSchoolProposalDraft(
+            new(Key(), "NEW_MAIN", null, [Unit("MAIN", "", "", "")]),
+            sc.Seller.UserId, Http(), Ct);
+        var draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("DRAFT", draft.Status);
+        Assert.StartsWith("DRAFT-", draft.SchoolCode);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.SendSchoolProposalDraft(
+            id, new(draft.Version), sc.Seller.UserId, Http(), Ct));
+        var payload = new SaveSchoolProposalDraftRequest(Key(), "NEW_MAIN", null,
+            [Unit("MAIN", "Trường kiểm thử mới " + Key()[..7], "Cần Thơ", "Phường Ninh Kiều", "Ghi chú trường chính"),
+             Unit("BRANCH", "Cơ sở 2 " + Key()[..7], "Cần Thơ", "Phường Cái Khế", "Ghi chú phân hiệu")],
+            draft.Version);
+        await actions.UpdateSchoolProposalDraft(id, payload, sc.Seller.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        await actions.SendSchoolProposalDraft(id, new(draft.Version), sc.Seller.UserId, Http(), Ct);
+        await actions.ReturnSchoolProposalForRevision(id, new("Bổ sung lại nội dung liên hệ"), sc.Manager.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("NEEDS_REVISION", draft.Status);
+        await actions.SendSchoolProposalDraft(id, new(draft.Version), sc.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, null, null), false, sc.Manager.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, "Admin đã kiểm tra hồ sơ", null), true, admin, Http(), Ct);
+        db.ChangeTracker.Clear();
+        draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("APPROVED", draft.Status);
+        Assert.StartsWith("SCH-P", draft.SchoolCode);
+        Assert.NotNull(draft.DirectorySchoolId);
+        var units = await db.SchoolUnits.Where(x => x.DirectorySchoolId == draft.DirectorySchoolId).ToArrayAsync(Ct);
+        Assert.Equal(2, units.Length);
+        Assert.Contains(units, x => x.UnitType == "MAIN" && x.Note == "Ghi chú trường chính");
+        Assert.Contains(units, x => x.UnitType == "BRANCH" && x.Note == "Ghi chú phân hiệu");
+        Assert.Equal(1, await db.DirectorySchools.CountAsync(x => x.Id == draft.DirectorySchoolId, Ct));
+    }
+
+    [MySqlFact] public async Task SalesBranchDraftAddsUnitsWithoutDuplicatingExistingSchoolOrCustomer()
+    {
+        var sc = await Arrange(); var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open(); var actions = new ChannelSalesActions(db);
+        var before = await db.DirectorySchools.CountAsync(Ct);
+        var schoolCode = await db.DirectorySchools.Where(x => x.Id == sc.SchoolId).Select(x => x.SchoolCode).SingleAsync(Ct);
+        var id = await actions.CreateSchoolProposalDraft(new(Key(), "ADD_BRANCHES", sc.SchoolId,
+            [new SchoolProposalUnitInput("BRANCH", "Phân hiệu từ đề xuất " + Key()[..8],
+                "Cần Thơ", "Phường Ninh Kiều", null, null, null, null, null, "0912345678", "Ghi chú mới")]),
+            sc.Seller.UserId, Http(), Ct);
+        var proposal = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        await actions.SendSchoolProposalDraft(id, new(proposal.Version), sc.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, null, null), false, sc.Manager.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(id, new(true, "Đã xác minh phân hiệu", null), true, admin, Http(), Ct);
+        db.ChangeTracker.Clear();
+        Assert.Equal(before, await db.DirectorySchools.CountAsync(Ct));
+        var completed = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal(sc.SchoolId, completed.DirectorySchoolId);
+        Assert.Equal(schoolCode, completed.SchoolCode);
+        Assert.Equal(sc.CustomerId, await db.DirectorySchools.Where(x => x.Id == sc.SchoolId).Select(x => x.CustomerId).SingleAsync(Ct));
+        Assert.True(await db.SchoolUnits.AnyAsync(x => x.DirectorySchoolId == sc.SchoolId
+            && x.UnitType == "BRANCH" && x.Note == "Ghi chú mới" && x.SchoolPhone == "0912345678", Ct));
+    }
+
+    [MySqlFact] public async Task DraftSoftDeletePreservesUnitsAndRejectsFurtherEdits()
+    {
+        var sc = await Arrange(); await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var request = new SaveSchoolProposalDraftRequest(Key(), "NEW_MAIN", null,
+            [new SchoolProposalUnitInput("MAIN", "Trường nháp", "Cần Thơ", "Phường Ninh Kiều", null, null, null, null, null, null, null)]);
+        var id = await actions.CreateSchoolProposalDraft(request, sc.Seller.UserId, Http(), Ct);
+        var draft = await db.SchoolProposals.SingleAsync(x => x.Id == id, Ct);
+        await actions.DeleteSchoolProposalDraft(id, new(draft.Version), sc.Seller.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        Assert.True(await db.SchoolProposals.Where(x => x.Id == id).Select(x => x.IsDeleted).SingleAsync(Ct));
+        Assert.True(await db.SchoolProposalUnits.AnyAsync(x => x.SchoolProposalId == id, Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            actions.SendSchoolProposalDraft(id, new(draft.Version + 1), sc.Seller.UserId, Http(), Ct));
+    }
+
+    [MySqlFact] public async Task SalesSchoolDirectoryShowsOnlyAvailableSchoolsAndFiltersMainSchoolArea()
+    {
+        var scenario = await Arrange();
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var main = await db.SchoolUnits.AsNoTracking().Where(x => x.DirectorySchoolId == scenario.SchoolId && x.UnitType == "MAIN")
+            .Select(x => new { x.Province, x.Ward }).SingleAsync(Ct);
+        var firstCode = await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId)
+            .Select(x => x.SchoolCode).SingleAsync(Ct);
+        // Region filters must use the canonical MAIN school unit even when customer data differs.
+        await db.ChannelCustomers.Where(x => x.Id == scenario.CustomerId)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.Province, "Tỉnh từ hồ sơ khách hàng"), Ct);
+        var before = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
+            province: main.Province, ward: main.Ward, availableOnly: true));
+        Assert.Contains(before.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.SchoolId);
+        var areas = Json(await SchoolEndpoints.Areas(Http(scenario.Seller.UserId), db, Ct));
+        Assert.Contains(areas.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("province").GetString() == main.Province
+                && x.GetProperty("ward").GetString() == main.Ward);
+        var differentCustomerArea = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
+            province: "Tỉnh từ hồ sơ khách hàng", availableOnly: true));
+        Assert.Empty(differentCustomerArea.GetProperty("data").EnumerateArray());
+        var filtered = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
+            province: "Khu vực không tồn tại", availableOnly: true));
+        Assert.Empty(filtered.GetProperty("data").EnumerateArray());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            SchoolEndpoints.List(Http(admin), db, firstCode, 1, Ct, availableOnly: true));
+        var actions = new ChannelSalesActions(db);
+        await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
+        db.ChangeTracker.Clear();
+        var after = Json(await SchoolEndpoints.List(Http(scenario.Peer.UserId), db, firstCode, 1, Ct,
+            province: main.Province, ward: main.Ward, availableOnly: true));
+        Assert.Empty(after.GetProperty("data").EnumerateArray());
+        var adminList = Json(await SchoolEndpoints.List(Http(admin), db, firstCode, 1, Ct));
+        Assert.Contains(adminList.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.SchoolId);
+    }
+
     [MySqlFact] public async Task AdminSchoolArchiveHidesDirectoryButCanRestoreWithoutLosingHistory()
     {
         var scenario = await Arrange();
@@ -109,7 +229,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             Http(scenario.Seller.UserId), Ct);
         var conflict = await Assert.ThrowsAsync<ApiConflictException>(() =>
             actions.ChangeSchoolDeletion(scenario.SchoolId, "Chặn khi đang tư vấn", true, admin, Http(admin), Ct));
-        Assert.Contains("nhân viên hoặc CTV tiếp cận", conflict.Message);
+        Assert.Contains("quyền bảo vệ khách hàng", conflict.Message);
         db.ChangeTracker.Clear();
         Assert.False(await db.DirectorySchools.Where(x => x.Id == scenario.SchoolId).Select(x => x.IsDeleted).SingleAsync(Ct));
     }
@@ -1066,4 +1186,57 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<ApiConflictException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), employee.UserId, Http(), Ct));
         Assert.False(await db.CustomerProtections.AnyAsync(x => x.CustomerId == s.OtherCustomerId && x.OwnerUserId == employee.UserId && x.Status == "ACTIVE"));
     }
+    [MySqlFact] public async Task ManagerRevisionKeepsSameContractAndShowsSalesReasonUntilResubmitted()
+    {
+        var scenario = await Arrange();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
+        var contractId = await actions.ReportSignedContract(registration,
+            new(Key(), "REV-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+                await db.CheckeeProductPackages.Select(p => p.Id).FirstAsync(Ct),
+                1_000_000m, null, "ORIGINAL-CONTRACT"),
+            scenario.Seller.UserId, Http(), Ct);
+
+        Assert.Equal("PENDING_REVIEW", (await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct)).Status);
+        const string reason = "Bổ sung phụ lục có chữ ký của trường.";
+        await ManagerContractEndpoints.ReturnForRevision(
+            contractId, new(reason), Http(scenario.Manager.UserId), db, Ct);
+        db.ChangeTracker.Clear();
+        var returned = await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct);
+        Assert.Equal("NEEDS_REVISION", returned.Status);
+        Assert.Equal(reason, returned.RevisionReason);
+        Assert.NotNull(returned.RevisionRequestedAt);
+
+        var revisions = Json(await ManagerContractEndpoints.MyRevisions(Http(scenario.Seller.UserId), db, Ct));
+        Assert.Contains(revisions.GetProperty("data").EnumerateArray(),
+            item => item.GetProperty("id").GetInt64() == contractId
+                && item.GetProperty("reason").GetString() == reason);
+
+        // A peer must not attach evidence to another Sales owner's contract.
+        var proof = new FinancialEvidence
+        {
+            Kind = "CONTRACT", UploadedByUserId = scenario.Seller.UserId,
+            FileName = "signed-addendum.pdf", MimeType = "application/pdf",
+            Sha256 = Key() + Key(), Bytes = [37, 80, 68, 70]
+        };
+        db.FinancialEvidences.Add(proof);
+        await db.SaveChangesAsync(Ct);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Peer.UserId), db, Ct));
+        db.ChangeTracker.Clear();
+
+        await ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Seller.UserId), db, Ct);
+        db.ChangeTracker.Clear();
+        var submitted = await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct);
+        Assert.Equal("PENDING_REVIEW", submitted.Status);
+        Assert.Null(submitted.RevisionReason);
+        Assert.Null(submitted.RevisionRequestedAt);
+        Assert.Equal(contractId, await db.FinancialEvidences.Where(f => f.Id == proof.Id)
+            .Select(f => f.ContractId).SingleAsync(Ct));
+        Assert.Equal(1, await db.SalesContracts.CountAsync(c => c.ApproachRegistrationId == registration, Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Seller.UserId), db, Ct));
+    }
+
 }

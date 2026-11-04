@@ -1,5 +1,13 @@
 namespace KidsfitCRM.Api.Features;
 
+public sealed record SchoolProposalUnitInput(string? UnitType, string? Name, string? Province, string? Ward,
+    string? Address, string? ContactName, string? ContactPosition, string? ContactPhone, string? Email,
+    string? SchoolPhone, string? Note);
+public sealed record SaveSchoolProposalDraftRequest(string? IdempotencyKey, string? ProposalMode,
+    long? TargetDirectorySchoolId, SchoolProposalUnitInput[]? Units, int? ExpectedVersion = null);
+public sealed record SubmitSchoolProposalDraftRequest(int ExpectedVersion);
+public sealed record DeleteSchoolProposalDraftRequest(int ExpectedVersion);
+public sealed record RequestSchoolProposalRevisionRequest(string? Reason);
 public sealed record CreateSchoolProposalRequest(string? IdempotencyKey, string? SchoolCode, string? Name,
     string? Province, string? Ward, string? Address, string? ContactName, string? ContactPosition,
     string? ContactPhone, string? Email, string? Reason, DateTime? ReviewDueAt);

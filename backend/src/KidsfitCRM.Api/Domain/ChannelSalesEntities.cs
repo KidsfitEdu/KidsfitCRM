@@ -103,6 +103,8 @@ public sealed class SalesContract : EntityBase
     public long? CareUserId { get; set; }
     public long? CareOrganizationId { get; set; }
     public bool RequiresSchoolVerification { get; set; }
+    public string? RevisionReason { get; set; }
+    public DateTime? RevisionRequestedAt { get; set; }
     public DateTime? ManagerReviewedAt { get; set; }
     public long? ManagerReviewedByUserId { get; set; }
     public DateTime? VerifiedAt { get; set; }
@@ -116,7 +118,9 @@ public sealed class SalesContract : EntityBase
     public DateOnly? EffectiveOn { get; set; }
     public decimal TotalValue { get; set; }
     public string? ServicePlan { get; set; }
+    public string? ContractNote { get; set; }
     public int? StudentCount { get; set; }
+    public int? BranchCount { get; set; }
     public string? SchoolUnitIdsJson { get; set; }
     public string Currency { get; set; } = "VND";
     public string Status { get; set; } = "ACTIVE";

@@ -25,6 +25,7 @@ type ListProps = {
   children: ReactNode;
   empty?: ReactNode;
   minWidth?: number;
+  centerColumns?: number[];
   page: number;
   pageSize: number;
   total: number;
@@ -35,7 +36,7 @@ type ListProps = {
 };
 
 export function SalesListLayout({
-  columns, template, children, empty, minWidth = 780,
+  columns, template, children, empty, minWidth = 780, centerColumns = [],
   page, pageSize, total, loading = false, onPageChange, onPageSizeChange, toolbar,
 }: ListProps) {
   const style: CSSProperties = { gridTemplateColumns: template };
@@ -47,7 +48,7 @@ export function SalesListLayout({
           <div role="row" style={style}
             className="grid items-center gap-3 bg-primary px-5 py-4 text-xs font-bold uppercase tracking-wide text-primary-foreground">
             {columns.map((heading, index) => <div key={index} role="columnheader"
-              className={index === columns.length - 1 ? 'text-right' : ''}>{heading}</div>)}
+              className={index === columns.length - 1 ? 'text-right' : centerColumns.includes(index) ? 'text-center' : ''}>{heading}</div>)}
           </div>
         </div>
         <div role="rowgroup" className="divide-y divide-border/70">

@@ -34,7 +34,11 @@ public sealed record ReportSalesContractRequest(
     ContractPaymentInstallment[]? Installments = null,
     string? ServicePlan = null,
     int? StudentCount = null,
-    long[]? SchoolUnitIds = null);
+    long[]? SchoolUnitIds = null,
+    decimal? MaintenanceFee = null,
+    decimal? SetupFee = null,
+    string? ContractNote = null,
+    int? BranchCount = null);
 
 public sealed record ContractPaymentInstallment(DateOnly DueOn, decimal Amount);
 

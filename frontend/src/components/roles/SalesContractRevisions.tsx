@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { AlertCircle, FileUp, SquarePen } from 'lucide-react';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { channelRequest } from '@/lib/channel-operations';
 
 type Revision = {id:number;contract_code:string;school_name:string;reason:string|null};
@@ -34,19 +35,25 @@ export function SalesContractRevisions({apiBase,token,abilities,onChanged}:Props
   const form=new FormData(event.currentTarget);
   const file=form.get('contract_file');
   if(!(file instanceof File)||!file.size){setActionError('Chọn file hợp đồng bổ sung.');return;}
+  if(file.size>5*1024*1024){setActionError('File hợp đồng tối đa 5 MB.');return;}
+  if(!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.type)){
+   setActionError('Chỉ chấp nhận PDF, JPG, PNG hoặc WEBP.');return;
+  }
   setBusy(true);setActionError('');
   try{
     const upload=new FormData();upload.set('kind','CONTRACT');upload.set('file',file);
     const proof=await channelRequest<{data:{id:number}}>(apiBase,token,'/evidence',{method:'POST',body:upload});
     await channelRequest(apiBase,token,`/school-contracts/${selected.id}/resubmit`,{method:'POST',
       body:JSON.stringify({evidence_id:proof.data.id})});
-    setSelected(null);setVersion(x=>x+1);await onChanged();
+    setSelected(null);setVersion(x=>x+1);
+    appNotice.success('Đã gửi lại hợp đồng bổ sung cho Quản lý.');
+    try { await onChanged(); } catch { appNotice.warning('Đã gửi hợp đồng nhưng chưa tải lại được danh sách.'); }
   }catch(e){setActionError(e instanceof Error?e.message:'Không thể gửi lại hồ sơ.');}
   finally{setBusy(false);}
  };
  return <>
    {error&&<p role="alert" className="rounded-lg border border-red-200 p-3 text-sm text-red-700">{error}</p>}
-   {rows.length>0&&<section aria-label="Hợp đồng cần bổ sung" className="overflow-hidden rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/10">
+   {rows.length>0&&<section id="sales-contract-revisions" aria-label="Hợp đồng cần bổ sung" className="overflow-hidden rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/10">
     <header className="flex items-center gap-2 border-b border-amber-200 p-4">
       <AlertCircle className="size-5 text-amber-700" aria-hidden="true"/>
       <h3 className="font-semibold text-amber-900 dark:text-amber-200">Hợp đồng cần bổ sung ({rows.length})</h3>

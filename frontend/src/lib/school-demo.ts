@@ -46,6 +46,10 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
         },
       ],
     } as T;
+  if (url.pathname === '/schools/areas') {
+    return { data: schools.filter(s => s.visible_status === 'AVAILABLE')
+      .map(s => ({ province: s.province, ward: s.ward })) } as T;
+  }
   if (url.pathname === '/schools') {
     const normalize = (value: string) =>
       value
@@ -53,10 +57,16 @@ export async function readSchoolDemo<T>(path: string): Promise<T> {
         .replace(/[\u0300-\u036f]/g, '')
         .toLocaleLowerCase('vi');
     const term = normalize(url.searchParams.get('search') ?? '');
-    const filtered = schools.filter((s) =>
-      normalize(
-        `${s.display_name} ${s.school_code} ${s.ward} ${s.province}`,
-      ).includes(term),
+    const province = url.searchParams.get('province') ?? '';
+    const ward = url.searchParams.get('ward') ?? '';
+    const availableOnly = url.searchParams.get('availableOnly') === 'true';
+    const status = url.searchParams.get('status') ?? 'ALL';
+    const filtered = schools.filter(s =>
+      normalize(`${s.display_name} ${s.school_code} ${s.ward} ${s.province}`).includes(term)
+      && (!availableOnly || s.visible_status === 'AVAILABLE')
+      && (status === 'ALL' || status === s.visible_status)
+      && (!province || s.province === province)
+      && (!ward || s.ward === ward),
     );
     const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
     return {

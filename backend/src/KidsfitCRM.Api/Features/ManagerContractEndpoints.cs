@@ -240,7 +240,7 @@ public static class ManagerContractEndpoints
                           select new
                           {
                               id = contract.Id, contract_code = contract.ContractCode, school_name = school.DisplayName,
-                              reason = (from reconciliation in db.ReconciliationCases
+                              reason = contract.RevisionReason ?? (from reconciliation in db.ReconciliationCases
                                         join evt in db.ReconciliationEvents on reconciliation.Id equals evt.ReconciliationCaseId
                                         where reconciliation.ContractId == contract.Id && evt.EventType == "MANAGER_REVISION"
                                         orderby evt.CreatedAt descending, evt.Id descending
@@ -372,6 +372,8 @@ public static class ManagerContractEndpoints
             throw new ApiConflictException("Chỉ trả bổ sung hồ sơ chờ Quản lý hoặc hồ sơ CHECKEE phản hồi.");
         var now = DateTime.UtcNow;
         contract.Status = "NEEDS_REVISION";
+        contract.RevisionReason = reason;
+        contract.RevisionRequestedAt = now;
         contract.ManagerReviewedAt = null;
         contract.ManagerReviewedByUserId = null;
         contract.UpdatedAt = now;
@@ -415,6 +417,8 @@ public static class ManagerContractEndpoints
         evidence.AttachedAt = now;
         evidence.UpdatedAt = now;
         contract.Status = "PENDING_REVIEW";
+        contract.RevisionReason = null;
+        contract.RevisionRequestedAt = null;
         contract.ManagerReviewedAt = null;
         contract.ManagerReviewedByUserId = null;
         contract.UpdatedAt = now;

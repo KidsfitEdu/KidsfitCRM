@@ -46,6 +46,10 @@ import {
 } from '@/lib/school-operations-preview';
 import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
+import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-editor';
+import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { appNotice } from '@/components/common/app-toast-provider';
 
 type Props = {
   apiBase: string;
@@ -101,13 +105,17 @@ export function SchoolOperations({
   const [proposalStatus, setProposalStatus] = useState('ALL');
   const [period, setPeriod] = useState(currentBusinessPeriod);
   const [action, setAction] = useState<SchoolAction | null>(null);
+  const [proposalEditorOpen, setProposalEditorOpen] = useState(false);
+  const [proposalEditorId, setProposalEditorId] = useState<number | null>(null);
+  const [draftDecision, setDraftDecision] = useState<{kind:'delete'|'submit';proposal:SchoolOperationsWorkspace['proposals'][number]}|null>(null);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftError, setDraftError] = useState('');
   const [selectedProposal, setSelectedProposal] = useState<SchoolOperationsWorkspace['proposals'][number] | null>(null);
   const [history, setHistory] = useState<{
     kind: string;
     id: number;
     name: string;
   } | null>(null);
-  const [notice, setNotice] = useState('');
   const client = useQueryClient();
   const preview = !apiBase;
   const has = (code: string) => abilities.includes(code);
@@ -204,6 +212,49 @@ export function SchoolOperations({
           ),
     enabled: reportAccess && active === 'report' && (preview || !!token),
   });
+  const proposalDetail = useQuery({
+    queryKey: [...channelQueryKeys.all, 'proposal-units', selectedProposal?.id],
+    queryFn: () => api<{ data: {
+      target: { id:number; name:string; province:string; ward:string } | null;
+      units: {unit_type:string;name:string;province:string;ward:string;address:string|null;
+        contact_name:string|null;contact_position:string|null;contact_phone:string|null;
+        school_phone:string|null;email:string|null;note:string|null}[]
+    }}>(`/school-proposals/${selectedProposal!.id}/draft-detail`),
+    enabled: !preview && selectedProposal !== null && !!selectedProposal.proposal_mode
+      && selectedProposal.proposal_mode !== 'LEGACY',
+  });
+  // Reuse the same read-only school profile as "Trường của tôi" and the directory.
+  // Legacy proposals have no child-unit records; their original fields are the fallback.
+  const proposalProfileUnits: SchoolProfileUnit[] = selectedProposal
+    ? selectedProposal.proposal_mode && selectedProposal.proposal_mode !== 'LEGACY' && !preview
+      ? [
+          ...(proposalDetail.data?.data.target
+            ? [{
+                id: -1,
+                unit_type: 'MAIN',
+                name: proposalDetail.data.data.target.name,
+                province: proposalDetail.data.data.target.province,
+                ward: proposalDetail.data.data.target.ward,
+              }]
+            : []),
+          ...(proposalDetail.data?.data.units ?? []).map((unit, index) => ({
+            ...unit,
+            id: index + 1,
+          })),
+        ]
+      : [{
+          id: selectedProposal.id,
+          unit_type: 'MAIN',
+          name: selectedProposal.name,
+          province: selectedProposal.province,
+          ward: selectedProposal.ward,
+          address: selectedProposal.address,
+          contact_name: selectedProposal.contact_name,
+          contact_position: selectedProposal.contact_position,
+          contact_phone: selectedProposal.contact_phone,
+          email: selectedProposal.email,
+        }]
+    : [];
   const historyQuery = useQuery({
     queryKey: [
       ...channelQueryKeys.all,
@@ -236,15 +287,13 @@ export function SchoolOperations({
       body: JSON.stringify(command.body),
     });
     setAction(null);
-    setNotice('Đã lưu thay đổi và lịch sử xử lý.');
+    appNotice.success('Đã lưu thay đổi và lịch sử xử lý.');
     const refresh = await Promise.allSettled([
       client.invalidateQueries({ queryKey: channelQueryKeys.all }),
       onChanged(),
     ]);
     if (refresh.some((r) => r.status === 'rejected'))
-      setNotice(
-        'Đã lưu. Danh sách sẽ tự cập nhật khi kết nối ổn định.',
-      );
+      appNotice.warning('Đã lưu, nhưng chưa tải lại được danh sách.', 'Vui lòng làm mới trang để xem dữ liệu mới nhất.');
   };
   const data = workspace.data;
   const matches = (...values: (string | null)[]) => {
@@ -289,26 +338,28 @@ export function SchoolOperations({
       submitLabel: approve ? 'Xác nhận duyệt' : 'Xác nhận từ chối',
       danger: !approve,
     });
-  const openProposal = useCallback(() =>
-    setAction({
-      title: 'Đề xuất trường mới',
-      path: '/school-proposals',
-      description:
-        'Đề xuất gửi tới Quản lý trực tiếp, sau đó chuyển Admin. Hồ sơ chưa tạo quyền tiếp cận.',
-      fields: [
-        { name: 'school_code', label: 'Mã trường đề xuất' },
-        { name: 'name', label: 'Tên trường' },
-        { name: 'province', label: 'Tỉnh / thành phố' },
-        { name: 'ward', label: 'Phường / xã' },
-        { name: 'address', label: 'Địa chỉ', optional: true },
-        { name: 'contact_name', label: 'Người liên hệ', optional: true },
-        { name: 'contact_position', label: 'Chức vụ', optional: true },
-        { name: 'contact_phone', label: 'Điện thoại liên hệ', optional: true },
-        { name: 'email', label: 'Email', type: 'email', optional: true },
-        deadline,
-        reason,
-      ],
-    }), []);
+  const openProposal = useCallback(() => {
+    setProposalEditorId(null); setProposalEditorOpen(true);
+  }, []);
+  const editProposalDraft = (proposal: SchoolOperationsWorkspace['proposals'][number]) => {
+    setProposalEditorId(proposal.id); setProposalEditorOpen(true);
+  };
+  const confirmDraftAction = async () => {
+    if (!draftDecision || draftBusy) return;
+    setDraftBusy(true); setDraftError('');
+    try {
+      const kind = draftDecision.kind;
+      await save({
+        path: `/school-proposals/${draftDecision.proposal.id}/${kind === 'delete' ? 'soft-delete' : 'submit'}`,
+        body: { expected_version: draftDecision.proposal.version }
+      });
+      // save() already reports success through the shared toast.
+
+      setDraftDecision(null);
+    } catch (cause) {
+      setDraftError(cause instanceof Error ? cause.message : 'Không thực hiện được thao tác.');
+    } finally { setDraftBusy(false); }
+  };
   useEffect(() => {
     if (!proposalActionRef) return;
     proposalActionRef.current = { open: openProposal };
@@ -398,7 +449,7 @@ export function SchoolOperations({
     proposals: data.proposals.filter(
       (x) =>
         matches(x.name, x.school_code, x.submitted_by) &&
-        (!pendingOnly || x.status.startsWith('PENDING_')),
+        (!pendingOnly || x.status.startsWith('PENDING_') || x.status === 'DRAFT'),
     ).length,
     invitations:
       data.invitations.filter(
@@ -485,11 +536,6 @@ export function SchoolOperations({
           Các tình huống dưới đây dùng dữ liệu minh họa, chỉ đọc. Để ghi nhận hồ
           sơ và bảo vệ quyền, dùng bản CRM của tổ chức.
         </p>
-      )}
-      {notice && (
-        <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">
-          {notice}
-        </output>
       )}
       {!hideTabs && <nav
         aria-label="Nhóm công việc vận hành"
@@ -587,7 +633,10 @@ export function SchoolOperations({
         onSearch={term => {setSearch(term);setPage(1);}}
         onStatusChange={value=>{setProposalStatus(value);setPage(1);}}
         onOpen={setSelectedProposal}
-        onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}/>
+        onHistory={proposal => setHistory({kind:'proposal',id:proposal.id,name:proposal.name})}
+        onEdit={editProposalDraft}
+        onDelete={proposal => {setDraftError('');setDraftDecision({kind:'delete',proposal});}}
+        onSubmitDraft={proposal => {setDraftError('');setDraftDecision({kind:'submit',proposal});}}/>
       }
       {!(embeddedSalesTable && (active === 'proposals' || active === 'invitations')) && <div className={embeddedSalesTable
         ? 'divide-y divide-border/70 bg-white dark:bg-card'
@@ -597,7 +646,7 @@ export function SchoolOperations({
             .filter(
               (x) =>
                 matches(x.name, x.school_code, x.submitted_by) &&
-                (!pendingOnly || x.status.startsWith('PENDING_')),
+                (!pendingOnly || x.status.startsWith('PENDING_') || x.status === 'DRAFT'),
             )
             .map((x) => (
               <WorkflowCard
@@ -637,6 +686,17 @@ export function SchoolOperations({
                       >
                         Chuyển Admin
                       </Button>
+                      {x.proposal_mode && x.proposal_mode !== 'LEGACY' && <Button
+                        size="sm" variant="outline"
+                        onClick={() => setAction({
+                          title: 'Yêu cầu bổ sung hồ sơ',
+                          description: 'Ghi rõ thông tin Sales cần cập nhật trước khi gửi lại.',
+                          path: '/school-proposals/' + x.id + '/request-revision',
+                          fields: [{name:'reason',label:'Thông tin cần bổ sung',type:'textarea'}],
+                          submitLabel: 'Trả về Sales'
+                        })}>
+                        Yêu cầu bổ sung
+                      </Button>}
                       <Button
                         size="sm"
                         variant="outline"
@@ -702,6 +762,11 @@ export function SchoolOperations({
                       </Button>
                     </>
                   )}
+                  {x.can_edit_draft && !preview && <>
+                    <AppButton size="sm" tone="outline" onClick={() => editProposalDraft(x)}>Sửa</AppButton>
+                    <AppButton size="sm" tone="outline" onClick={() => {setDraftError('');setDraftDecision({kind:'delete',proposal:x});}}>Xóa nháp</AppButton>
+                    <AppButton size="sm" onClick={() => {setDraftError('');setDraftDecision({kind:'submit',proposal:x});}}>Gửi phê duyệt</AppButton>
+                  </>}
                   {historyButton('proposal', x.id, x.name)}
                 </div>
               </WorkflowCard>
@@ -1609,17 +1674,63 @@ export function SchoolOperations({
           )}
         </section>
       )}
-      <AppDrawer open={selectedProposal !== null} onOpenChange={open => !open && setSelectedProposal(null)} title="Chi tiết đề xuất trường" description={selectedProposal?.name}>
-          {selectedProposal && <div className="space-y-3 text-sm">
-            <p><strong>Người đề xuất:</strong> {selectedProposal.submitted_by}</p>
-            <p><strong>Quản lý:</strong> {selectedProposal.manager_name}</p>
-            <p><strong>Trạng thái:</strong> {workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p>
-            <p><strong>Địa điểm:</strong> {selectedProposal.province} · {selectedProposal.ward}</p>
-            <p><strong>Hạn xử lý:</strong> {workflowDate(selectedProposal.review_due_at)}</p>
-            <p><strong>Nội dung:</strong> {selectedProposal.reason}</p>
-            {selectedProposal.decision_reason && <p><strong>Phản hồi:</strong> {selectedProposal.decision_reason}</p>}
-          </div>}
-        </AppDrawer>
+      <AppDrawer
+        open={selectedProposal !== null}
+        onOpenChange={open => !open && setSelectedProposal(null)}
+        title={selectedProposal?.name || 'Chi tiết đề xuất trường'}
+        description={selectedProposal?.school_code?.startsWith('DRAFT-')
+          ? 'Hồ sơ đề xuất trường học'
+          : selectedProposal?.school_code || 'Hồ sơ đề xuất trường học'}
+        wide
+      >
+        {selectedProposal && <div className="space-y-5">
+          {proposalDetail.isPending && selectedProposal.proposal_mode !== 'LEGACY' && !preview &&
+            <p className="text-sm text-muted-foreground">Đang tải thông tin trường chính và phân hiệu...</p>}
+          {proposalDetail.isError && <p role="alert" className="text-sm text-destructive">
+            Không tải được thông tin trường chính và phân hiệu. Vui lòng thử lại.
+          </p>}
+          {(!selectedProposal.proposal_mode || selectedProposal.proposal_mode === 'LEGACY'
+            || preview || proposalDetail.isSuccess) &&
+            <SchoolProfileDetails units={proposalProfileUnits}/>}
+          <section className="space-y-2 border-t pt-4 text-sm">
+            <h3 className="font-semibold">Thông tin đề xuất</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Trạng thái</p>
+                <p>{workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p></div>
+              <div><p className="text-xs text-muted-foreground">Người đề xuất</p>
+                <p>{selectedProposal.submitted_by || 'Chưa cập nhật'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Quản lý bán hàng</p>
+                <p>{selectedProposal.manager_name || 'Chưa cập nhật'}</p></div>
+              {selectedProposal.status !== 'DRAFT' && <div>
+                <p className="text-xs text-muted-foreground">Hạn xử lý</p>
+                <p>{workflowDate(selectedProposal.review_due_at)}</p>
+              </div>}
+            </div>
+            {selectedProposal.decision_reason && <div>
+              <p className="text-xs text-muted-foreground">Phản hồi phê duyệt</p>
+              <p>{selectedProposal.decision_reason}</p>
+            </div>}
+          </section>
+        </div>}
+      </AppDrawer>
+      <SchoolProposalEditor open={proposalEditorOpen} draftId={proposalEditorId}
+        apiBase={apiBase} token={token} onClose={() => setProposalEditorOpen(false)}
+        onSaved={async () => {
+          appNotice.success(proposalEditorId === null ? 'Đã lưu bản nháp trường học.' : 'Đã cập nhật bản nháp trường học.');
+          await Promise.allSettled([client.invalidateQueries({queryKey:channelQueryKeys.all}),onChanged()]);
+        }}/>
+      <AppDialog open={draftDecision !== null} busy={draftBusy}
+        onOpenChange={next=>{if(!next){setDraftDecision(null);setDraftError('');}}}
+        title={draftDecision?.kind==='delete'?'Xác nhận xóa bản nháp':'Gửi đề xuất phê duyệt'}
+        description={draftDecision?.kind==='delete'?'Hồ sơ được xóa mềm, lịch sử vẫn lưu.':'Đề xuất sẽ chuyển đến Quản lý bán hàng trực tiếp.'}
+        footer={<>
+          <AppButton tone="neutral" disabled={draftBusy} onClick={()=>setDraftDecision(null)}>Hủy</AppButton>
+          <AppButton busy={draftBusy} tone={draftDecision?.kind==='delete'?'danger':'green'}
+            onClick={()=>void confirmDraftAction()}>Xác nhận</AppButton>
+        </>}>
+        <p className="text-sm">Bạn có chắc chắn muốn {draftDecision?.kind==='delete'?'xóa bản nháp':'gửi phê duyệt'} trường <strong>{draftDecision?.proposal.name}</strong> không?</p>
+        {draftError&&<p role="alert" className="mt-3 text-sm text-destructive">{draftError}</p>}
+      </AppDialog>
       <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
       <AppDrawer
         open={history !== null}

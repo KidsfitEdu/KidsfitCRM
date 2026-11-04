@@ -134,6 +134,110 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Sales_contract_yearly_and_monthly_fees_create_correct_item_breakdown()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var signedOn = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        foreach (var monthly in new[] { false, true })
+        {
+            var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+            var maintenance = monthly ? 1_716_000m : 11_880_000m;
+            var setup = monthly ? 4_395_600m : 3_996_000m;
+            var total = maintenance * (monthly ? 9 : 1) + setup;
+            var request = new ReportSalesContractRequest(Key(), null, signedOn, null,
+                packageId, total, null, "CONTRACT-TEST",
+                ServicePlan: monthly ? "MONTHLY_9" : "SCHOOL_YEAR",
+                StudentCount: 450, MaintenanceFee: maintenance, SetupFee: setup,
+                ContractNote: "Giá đã đối chiếu với hợp đồng", BranchCount: 3);
+            var contractId = await actions.ReportSignedContract(registration, request, seller, Http(), Ct);
+            var contract = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+            Assert.Equal(total, contract.TotalValue);
+            Assert.Equal(3, contract.BranchCount);
+            Assert.Equal("Giá đã đối chiếu với hợp đồng", contract.ContractNote);
+            var items = await db.SalesContractItems.AsNoTracking()
+                .Where(x => x.ContractId == contractId).ToArrayAsync(Ct);
+            Assert.Equal(2, items.Length);
+            Assert.Equal(total, items.Sum(x => x.Amount));
+            Assert.Equal(maintenance * (monthly ? 9 : 1),
+                items.Single(x => x.Description.StartsWith("Phí duy trì")).Amount);
+            Assert.Equal(setup, items.Single(x => x.Description.StartsWith("Phí khởi tạo")).Amount);
+            Assert.Equal(contractId, await actions.ReportSignedContract(registration, request, seller, Http(), Ct));
+        }
+    }
+
+    [MySqlFact]
+    public async Task Sales_contract_rejects_negative_branch_count_without_creating_contract()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var request = new ReportSalesContractRequest(Key(), null,
+            ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+            packageId, 15_876_000m, null, "CONTRACT-TEST",
+            ServicePlan: "SCHOOL_YEAR", StudentCount: 450,
+            MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m, BranchCount: -1);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.ReportSignedContract(registration, request, seller, Http(), Ct));
+        Assert.False(await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration, Ct));
+    }
+
+    [MySqlFact]
+    public async Task Sales_contract_fee_mismatch_is_rejected_before_creating_contract()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var request = new ReportSalesContractRequest(Key(), null,
+            ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+            packageId, 15_876_001m, null, "CONTRACT-TEST",
+            ServicePlan: "SCHOOL_YEAR", StudentCount: 450,
+            MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.ReportSignedContract(registration, request, seller, Http(), Ct));
+        Assert.False(await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration, Ct));
+    }
+
+    [MySqlFact]
+    public async Task Sales_contract_code_is_generated_when_omitted_and_legacy_codes_are_preserved()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var packageId = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var signedOn = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+
+        var firstRegistration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var automaticRequest = new ReportSalesContractRequest(Key(), null, signedOn, null, packageId,
+            1_000_000m, null, "TEST-EVIDENCE");
+        var automaticId = await actions.ReportSignedContract(firstRegistration, automaticRequest, seller, Http(), Ct);
+        var automaticCode = await db.SalesContracts.Where(x => x.Id == automaticId)
+            .Select(x => x.ContractCode).SingleAsync(Ct);
+        Assert.Matches(@"^HD-[0-9]{4}-[0-9A-F]{32}$", automaticCode);
+        Assert.Equal(automaticId, await actions.ReportSignedContract(firstRegistration, automaticRequest, seller, Http(), Ct));
+
+        var secondRegistration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var secondId = await actions.ReportSignedContract(secondRegistration,
+            automaticRequest with { IdempotencyKey = Key() }, seller, Http(), Ct);
+        var secondCode = await db.SalesContracts.Where(x => x.Id == secondId)
+            .Select(x => x.ContractCode).SingleAsync(Ct);
+        Assert.NotEqual(automaticCode, secondCode);
+
+        var thirdRegistration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var legacyCode = "CT-LEGACY-" + Key()[..8].ToUpperInvariant();
+        var legacyId = await actions.ReportSignedContract(thirdRegistration,
+            automaticRequest with { IdempotencyKey = Key(), ContractCode = legacyCode }, seller, Http(), Ct);
+        Assert.Equal(legacyCode, await db.SalesContracts.Where(x => x.Id == legacyId)
+            .Select(x => x.ContractCode).SingleAsync(Ct));
+    }
+
+    [MySqlFact]
     public async Task Concurrent_identity_registration_has_exactly_one_owner_and_no_orphans()
     {
         var firstSeller = await Seller();
@@ -189,6 +293,28 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.Equal(1, await fresh.ApproachRegistrations.CountAsync(x => x.CustomerId == customerId && x.Status == "EXPIRED"));
         Assert.Equal(1, await fresh.ApproachRegistrations.CountAsync(x => x.CustomerId == customerId && x.Status == "ACTIVE" && x.OwnerUserId == second));
         Assert.False(await fresh.SalesContracts.AnyAsync(x => x.CustomerId == customerId));
+    }
+
+    [MySqlFact]
+    public async Task Consultation_note_only_records_server_timestamp_actor_and_no_assumed_outcome()
+    {
+        var seller = await Seller();
+        await using var db = fixture.Open();
+        var registrationId = await new ChannelSalesActions(db).RegisterCustomerApproach(Approach(), seller, Http(), Ct);
+        var before = DateTime.UtcNow;
+        var id = await new ChannelSalesActions(db).AddActivity(
+            registrationId, new AddCustomerActivityRequest(null, "Đã trao đổi về nhu cầu của trường.", null),
+            seller, Http(), Ct);
+        var after = DateTime.UtcNow;
+        var activity = await db.CustomerActivities.AsNoTracking().SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("NOTE", activity.ActivityType);
+        Assert.Null(activity.Outcome);
+        Assert.Equal(seller, activity.UserId);
+        Assert.Equal("Đã trao đổi về nhu cầu của trường.", activity.Content);
+        Assert.NotNull(activity.OccurredAt);
+        Assert.InRange(activity.OccurredAt.Value, before.AddSeconds(-1), after.AddSeconds(1));
+        Assert.Null(activity.NextFollowUpAt);
+        Assert.Equal(registrationId, activity.ApproachRegistrationId);
     }
 
     [MySqlFact]

@@ -58,6 +58,9 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
 
         ConfigureChannelSales(modelBuilder);
         modelBuilder.Entity<SalesContract>().Property(x => x.ServicePlan).HasMaxLength(32);
+        modelBuilder.Entity<SalesContract>().Property(x => x.ContractNote).HasMaxLength(4000);
+        modelBuilder.Entity<SalesContract>().Property(x => x.RevisionReason).HasMaxLength(2000);
+        modelBuilder.Entity<SalesContract>().Property(x => x.BranchCount).HasColumnType("int");
         modelBuilder.Entity<SalesContract>().Property(x => x.SchoolUnitIdsJson).HasColumnType("json");
         modelBuilder.Entity<FinancialEvidence>().Property(x => x.Kind).HasMaxLength(16);
         modelBuilder.Entity<FinancialEvidence>().Property(x => x.FileName).HasMaxLength(190);

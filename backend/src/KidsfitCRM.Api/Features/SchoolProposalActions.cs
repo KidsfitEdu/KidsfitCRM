@@ -58,6 +58,8 @@ public sealed partial class ChannelSalesActions
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var proposal = await db.SchoolProposals.FromSqlInterpolated($"SELECT * FROM school_proposals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException();
+        if (proposal.ProposalMode != "LEGACY")
+            throw new ApiConflictException("Đề xuất nhiều phân hiệu chỉ được sửa từ bản nháp của Sales.");
         if (proposal.Status != "PENDING_ADMIN") throw new ApiConflictException("Chỉ sửa đề xuất đang chờ Admin duyệt.");
         if (proposal.Version != request.ExpectedVersion) throw new ApiConflictException("Đề xuất vừa được người khác sửa. Vui lòng tải lại trước khi lưu.");
         var code = Validation.Required(request.SchoolCode, "school_code", "Cần mã trường chính.", 64).ToUpperInvariant();
@@ -127,6 +129,76 @@ public sealed partial class ChannelSalesActions
         var previous = proposal.Status;
         if (finalReview && request.Approve)
         {
+            if (proposal.ProposalMode is "NEW_MAIN" or "ADD_BRANCHES")
+            {
+                var proposalUnits = await db.SchoolProposalUnits.AsNoTracking()
+                    .Where(x => x.SchoolProposalId == proposal.Id).OrderBy(x => x.SortOrder).ToArrayAsync(ct);
+                if (proposalUnits.Length == 0)
+                    throw new ApiConflictException("Đề xuất không có trường hoặc phân hiệu để duyệt.");
+                DirectorySchool school;
+                if (proposal.ProposalMode == "NEW_MAIN")
+                {
+                    var main = proposalUnits.SingleOrDefault(x => x.UnitType == "MAIN")
+                        ?? throw new ApiConflictException("Hồ sơ thiếu trường chính.");
+                    // Allocate the final identifier at approval time, never for a draft.
+                    var code = "SCH-P" + proposal.Id.ToString("D8");
+                    if (await db.DirectorySchools.AnyAsync(x => x.SchoolCode == code, ct))
+                        throw new ApiConflictException("Mã trường phát sinh đã tồn tại. Cần kiểm tra trước khi duyệt.");
+                    if (!request.DuplicateReviewed && await db.SchoolUnits.AnyAsync(x => x.UnitType == "MAIN"
+                        && x.Name == main.Name && x.Province == main.Province && x.Ward == main.Ward, ct))
+                        throw new ApiConflictException("Trường cùng tên và khu vực đã tồn tại. Admin cần xác nhận kiểm tra trùng.");
+                    var customer = new ChannelCustomer
+                    {
+                        Code = "CUS-" + Guid.NewGuid().ToString("N")[..20].ToUpperInvariant(),
+                        DisplayName = main.Name, CustomerType = "ORGANIZATION",
+                        Province = main.Province, Address = main.Address, ContactName = main.ContactName,
+                        ContactPosition = main.ContactPosition, Phone = main.ContactPhone, Email = main.Email,
+                        Source = "SCHOOL_PROPOSAL", VerificationStatus = "VERIFIED",
+                        CreatedByUserId = actorId, OrganizationId = centralOrg!.Value,
+                        CreatedAt = now, UpdatedAt = now
+                    };
+                    db.ChannelCustomers.Add(customer); await db.SaveChangesAsync(ct);
+                    school = new DirectorySchool {
+                        SchoolCode = code, CustomerId = customer.Id, CreatedAt = now, UpdatedAt = now
+                    };
+                    db.DirectorySchools.Add(school); await db.SaveChangesAsync(ct);
+                    db.CustomerIdentifiers.Add(new CustomerIdentifier {
+                        CustomerId = customer.Id, IdentifierType = "SCHOOL_CODE",
+                        NormalizedValue = code, DisplayValue = code, IsVerified = true,
+                        CreatedAt = now, UpdatedAt = now
+                    });
+                    proposal.SchoolCode = code;
+                }
+                else
+                {
+                    school = await db.DirectorySchools.FirstOrDefaultAsync(x =>
+                        x.Id == proposal.TargetDirectorySchoolId && !x.IsDeleted, ct)
+                        ?? throw new ApiConflictException("Trường chính đã bị xóa hoặc không còn tồn tại.");
+                    if (proposalUnits.Any(x => x.UnitType != "BRANCH"))
+                        throw new ApiConflictException("Hồ sơ bổ sung chỉ được chứa phân hiệu.");
+                }
+                foreach (var unit in proposalUnits)
+                {
+                    if (await db.SchoolUnits.AnyAsync(x => x.DirectorySchoolId == school.Id
+                        && x.Name == unit.Name && x.Province == unit.Province && x.Ward == unit.Ward, ct))
+                        throw new ApiConflictException("Trường/phân hiệu đã có trong danh bạ chính.");
+                    db.SchoolUnits.Add(new SchoolUnit
+                    {
+                        DirectorySchoolId = school.Id, UnitType = unit.UnitType,
+                        Name = unit.Name, Province = unit.Province, Ward = unit.Ward,
+                        Address = unit.Address, ContactName = unit.ContactName,
+                        ContactPosition = unit.ContactPosition, ContactPhone = unit.ContactPhone,
+                        Email = unit.Email, SchoolPhone = unit.SchoolPhone, Note = unit.Note,
+                        ContentHash = SchoolWorkbookReader.ProposedMainFingerprint(
+                            school.SchoolCode, unit.Name, unit.Province, unit.Ward,
+                            unit.Address, unit.ContactName, unit.ContactPosition, unit.ContactPhone, unit.Email),
+                        SourceRow = 0, CreatedAt = now, UpdatedAt = now
+                    });
+                }
+                proposal.DirectorySchoolId = school.Id;
+            }
+            else
+            {
             if (await db.DirectorySchools.AnyAsync(x => x.SchoolCode == proposal.SchoolCode, ct))
                 throw new ApiConflictException("Mã trường đã có trong danh bạ. Cần đối chiếu hồ sơ hiện có thay vì tạo bản sao.");
             if (!request.DuplicateReviewed && await db.SchoolUnits.AnyAsync(x => x.UnitType == "MAIN" && x.Name == proposal.Name && x.Province == proposal.Province && x.Ward == proposal.Ward, ct))
@@ -152,6 +224,7 @@ public sealed partial class ChannelSalesActions
                 CreatedAt = now, UpdatedAt = now,
             });
             proposal.DirectorySchoolId = school.Id;
+            }
         }
         if (!finalReview && request.Approve)
         {

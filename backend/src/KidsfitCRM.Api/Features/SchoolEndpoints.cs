@@ -20,6 +20,7 @@ public static class SchoolEndpoints
             Results.Ok(new { data = new { id = await a.ChangeSchoolDeletion(id, null, false, h.UserId(), h, ct) } }))
             .RequireAuthorization(Permissions.SchoolDirectoryManage);
         group.MapGet("/schools", List).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/schools/areas", Areas).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/schools/{id:long}", Detail).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapGet("/school-capacities", Capacities).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPatch("/school-capacities/{id:long}", async (long id, ChangeSchoolCapacityRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
@@ -74,23 +75,35 @@ public static class SchoolEndpoints
         return Results.Ok(new { data = new { batch.Id, batch.SchoolsCreated, batch.UnitsCreated } });
     }
 
-    internal static async Task<IResult> List(HttpContext http, KidsfitDbContext db, string? search, int? page, CancellationToken ct, string? status = null, int? pageSize = null, bool? includeDeleted = null)
+    internal static async Task<IResult> List(HttpContext http, KidsfitDbContext db, string? search, int? page, CancellationToken ct, string? status = null, int? pageSize = null, bool? includeDeleted = null, string? province = null, string? ward = null, bool? availableOnly = null)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var broad = access.All || access.Has(Permissions.ChannelSalesRegister) || access.Has(Permissions.ChannelSalesManage);
         var scopedCustomers = access.Customers(db).Select(x => x.Id);
         var showDeleted = access.All && access.Has(Permissions.SchoolDirectoryManage) && includeDeleted == true;
+        if (availableOnly == true && (!access.Has(Permissions.ChannelSalesRegister) || access.All)) throw new KeyNotFoundException();
         var query = from school in db.DirectorySchools.AsNoTracking()
                     join customer in db.ChannelCustomers on school.CustomerId equals customer.Id
                     where access.OrganizationIds.Length > 0 && (broad || scopedCustomers.Contains(customer.Id))
                         && (showDeleted ? school.IsDeleted : !school.IsDeleted)
-                    select new { school.Id, school.SchoolCode, school.CustomerId, school.IsDeleted, customer.DisplayName, customer.Province };
+                    select new { school.Id, school.SchoolCode, school.CustomerId, school.IsDeleted, customer.DisplayName,
+                        Province = db.SchoolUnits.Where(u => u.DirectorySchoolId == school.Id && u.UnitType == "MAIN")
+                            .Select(u => u.Province).FirstOrDefault() };
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
             var unitSchools = db.SchoolUnits.Where(x => x.Ward.Contains(term) || x.Name.Contains(term)).Select(x => x.DirectorySchoolId);
             query = query.Where(x => x.SchoolCode.Contains(term) || x.DisplayName.Contains(term) || (x.Province != null && x.Province.Contains(term)) || unitSchools.Contains(x.Id));
         }
+        var provinceTerm = province?.Trim();
+        var wardTerm = ward?.Trim();
+        if (provinceTerm?.Length > 100) throw ApiValidationException.For("province", "Tỉnh/thành tối đa 100 ký tự.");
+        if (wardTerm?.Length > 100) throw ApiValidationException.For("ward", "Phường/xã tối đa 100 ký tự.");
+        if (!string.IsNullOrEmpty(provinceTerm))
+            query = query.Where(x => x.Province == provinceTerm);
+        if (!string.IsNullOrEmpty(wardTerm))
+            query = query.Where(x => db.SchoolUnits.Any(u => u.DirectorySchoolId == x.Id
+                && u.UnitType == "MAIN" && u.Ward == wardTerm));
         var selectedPage = Math.Max(1, page ?? 1);
         var selectedPageSize = pageSize ?? 20;
         if (selectedPageSize is not (10 or 20 or 50))
@@ -99,6 +112,16 @@ public static class SchoolEndpoints
         if (selectedStatus is not ("ALL" or "AVAILABLE" or "APPROACHING" or "CONTRACTED"))
             throw ApiValidationException.For("status", "Trạng thái lọc không hợp lệ.");
         var now = DateTime.UtcNow;
+        if (availableOnly == true)
+        {
+            query = query.Where(x =>
+                !db.CustomerProtections.Any(p => p.CustomerId == x.CustomerId
+                    && p.Status == "ACTIVE" && p.EffectiveUntil > now)
+                && !db.ApproachRegistrations.Any(a => a.CustomerId == x.CustomerId
+                    && a.Status == "ACTIVE" && a.ProtectedUntil > now)
+                && !db.SalesContracts.Any(c => c.CustomerId == x.CustomerId
+                    && c.Status != "CANCELLED" && c.Status != "REJECTED"));
+        }
         if (selectedStatus != "ALL")
         {
             var activeProtections = db.CustomerProtections.AsNoTracking()
@@ -130,6 +153,27 @@ public static class SchoolEndpoints
                 can_register = protection is null && access.Has(Permissions.ChannelSalesRegister),
                 contract_id = contract?.Id, contract_status = contract?.Status };
         }) });
+    }
+
+    internal static async Task<IResult> Areas(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesRegister) || access.All || access.OrganizationIds.Length == 0)
+            throw new KeyNotFoundException();
+        var now = DateTime.UtcNow;
+        var areas = await (from school in db.DirectorySchools.AsNoTracking()
+            join customer in db.ChannelCustomers.AsNoTracking() on school.CustomerId equals customer.Id
+            join unit in db.SchoolUnits.AsNoTracking() on school.Id equals unit.DirectorySchoolId
+            where !school.IsDeleted && unit.UnitType == "MAIN"
+                && !db.CustomerProtections.Any(p => p.CustomerId == customer.Id
+                    && p.Status == "ACTIVE" && p.EffectiveUntil > now)
+                && !db.ApproachRegistrations.Any(a => a.CustomerId == customer.Id
+                    && a.Status == "ACTIVE" && a.ProtectedUntil > now)
+                && !db.SalesContracts.Any(c => c.CustomerId == customer.Id
+                    && c.Status != "CANCELLED" && c.Status != "REJECTED")
+            select new { unit.Province, unit.Ward })
+            .Distinct().OrderBy(x => x.Province).ThenBy(x => x.Ward).ToArrayAsync(ct);
+        return Results.Ok(new { data = areas });
     }
 
     internal static async Task<IResult> Detail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)

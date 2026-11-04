@@ -26,6 +26,8 @@ import { Badge } from '@/components/ui/badge';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -106,6 +108,32 @@ const statusCopy = {
   },
 } as const;
 
+// Contract workflow is shown independently of the three school lifecycle statuses.
+const contractBadge = (customer: ChannelCustomer) => {
+  if (customer.contract_id == null) return statusCopy[customer.visible_status];
+  const status = customer.contract_status?.toUpperCase();
+  const blue = 'border-blue-200 bg-blue-50 text-blue-800';
+  const amber = 'border-amber-200 bg-amber-50 text-amber-800';
+  const red = 'border-red-200 bg-red-50 text-red-800';
+  if (status === 'PENDING_REVIEW' || status === 'MANAGER_REVIEW')
+    return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: blue };
+  if (status === 'MANAGER_REVIEWED' || status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING_CHECKEE' || status === 'UNDER_VERIFICATION')
+    return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: blue };
+  if (status === 'NEEDS_REVISION' || status === 'NEEDS_INFO' || status === 'RETURNED')
+    return { label: 'Cần bổ sung hồ sơ', compact: 'Bổ sung hồ sơ hiện có', className: amber };
+  if (status === 'REJECTED')
+    return { label: 'Hồ sơ bị từ chối', compact: 'Xem lý do từ chối', className: red };
+  if (status === 'CANCELLED')
+    return { label: 'Hợp đồng đã hủy', compact: 'Xem lịch sử hồ sơ', className: red };
+  if (status === 'PENDING_KIDSFIT')
+    return { label: 'Chờ KIDSFIT ghi nhận', compact: 'CHECKEE đã xác minh', className: blue };
+  if (status === 'VERIFIED')
+    return { label: 'Đã xác minh hợp đồng', compact: 'Hợp đồng hợp lệ', className: statusCopy.CONTRACTED.className };
+  if (status === 'ACTIVE')
+    return { label: customer.visible_status === 'CONTRACTED' ? 'Đã xác minh hợp đồng' : 'Hợp đồng đang hiệu lực', compact: 'Xem chi tiết hợp đồng', className: statusCopy.CONTRACTED.className };
+  return { label: 'Đã nộp hồ sơ hợp đồng', compact: 'Theo dõi tình trạng hồ sơ', className: blue };
+};
+
 const money = (value: number) =>
   new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -173,6 +201,34 @@ export function ChannelSalesView({
   const [extensionRefresh, setExtensionRefresh] = useState(0);
   const [contractCustomer, setContractCustomer] =
     useState<ChannelCustomer | null>(null);
+  const [checkingContract, setCheckingContract] = useState(false);
+
+  const openContractReport = async (customer: ChannelCustomer) => {
+    if (checkingContract) return;
+    if (customer.contract_id !== null) {
+      appNotice.warning('Hợp đồng đã được báo cáo', 'Vui lòng theo dõi hồ sơ xác minh hoặc bổ sung hồ sơ nếu được yêu cầu.');
+      return;
+    }
+    if (!apiBase || !token) {
+      appNotice.error('Không thể kiểm tra hợp đồng.', 'Chưa kết nối API. Vui lòng thử lại.');
+      return;
+    }
+    setCheckingContract(true);
+    try {
+      // Refresh the server state before showing an expensive upload form.
+      const profile = await channelRequest<SalesSchoolProfile>(apiBase, token, `/customers/${customer.id}`);
+      if (profile.contracts.length > 0) {
+        appNotice.warning('Hợp đồng đã được báo cáo', 'Trường đã có hồ sơ hợp đồng. Vui lòng theo dõi xác minh hoặc bổ sung hồ sơ theo yêu cầu.');
+        setExtensionRefresh(value => value + 1);
+        return;
+      }
+      setContractCustomer(customer);
+    } catch (cause) {
+      appNotice.error('Không thể kiểm tra trạng thái hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
+    } finally {
+      setCheckingContract(false);
+    }
+  };
   const [receiptCustomer, setReceiptCustomer] =
     useState<ChannelCustomer | null>(null);
 
@@ -407,7 +463,8 @@ export function ChannelSalesView({
                 canRecordRevenue={canRecordRevenue}
                 onRegister={() => setRegisterCustomer(customer)}
                 onActivity={() => setActivityCustomer(customer)}
-                onContract={() => setContractCustomer(customer)}
+                onContract={() => { void openContractReport(customer); }}
+                onRevision={() => { document.getElementById('sales-contract-revisions')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                 onReceipt={() => setReceiptCustomer(customer)}
               />
             ))}
@@ -478,8 +535,18 @@ export function ChannelSalesView({
           packages={workspace.packages}
           onClose={() => setContractCustomer(null)}
           onSubmit={async (input) => {
-            await onReportContract(contractCustomer, input);
-            setContractCustomer(null);
+            try {
+              await onReportContract(contractCustomer, input);
+              setContractCustomer(null);
+              setExtensionRefresh(value => value + 1);
+            } catch (cause) {
+              const message = cause instanceof Error ? cause.message : '';
+              if (message.includes('đã báo cáo hợp đồng')) {
+                setExtensionRefresh(value => value + 1);
+                setContractCustomer(null);
+              }
+              throw cause;
+            }
           }}
         />
       )}
@@ -513,6 +580,7 @@ function CustomerRow({
   onRegister,
   onActivity,
   onContract,
+  onRevision,
   onReceipt,
 }: {
   mineMode: boolean;
@@ -529,6 +597,7 @@ function CustomerRow({
   onRegister: () => void;
   onActivity: () => void;
   onContract: () => void;
+  onRevision: () => void;
   onReceipt: () => void;
 }) {
   const urgency = mineMode && customer.visible_status === 'APPROACHING' && customer.protected_until
@@ -541,9 +610,7 @@ function CustomerRow({
   const extensionHint = customer.extension_pending
     ? 'Yêu cầu gia hạn đang chờ Quản lý bán hàng duyệt.'
     : customer.extension_unavailable_reason || (canRequestExtension ? 'Xin gia hạn tiếp cận' : 'Chưa đủ điều kiện xin gia hạn.');
-  const status = customer.contract_id && customer.visible_status === 'APPROACHING'
-    ? {label:'Chờ xác minh hợp đồng',compact:'Quản lý / CHECKEE đang xử lý',className:'border-blue-200 bg-blue-50 text-blue-800'}
-    : statusCopy[customer.visible_status];
+  const status = contractBadge(customer);
   return (
     <div className={`grid gap-4 px-4 py-5 transition-colors hover:bg-muted/25 sm:px-5 xl:items-center ${mineMode ? 'xl:grid-cols-[minmax(300px,1.8fr)_minmax(140px,.75fr)_minmax(165px,.85fr)_minmax(225px,1.1fr)]' : 'xl:grid-cols-[minmax(230px,1.45fr)_minmax(160px,.8fr)_minmax(170px,.9fr)_minmax(150px,.7fr)_auto]'}`}>
       <div className="flex min-w-0 gap-3">
@@ -648,6 +715,10 @@ function CustomerRow({
               </Button>
             </span>
           )}
+          {canReportContract && customer.contract_id !== null && customer.contract_status === 'NEEDS_REVISION' && (
+            <Button type="button" size="sm" variant="outline" className="border-amber-500 text-amber-800"
+              onClick={onRevision} title="Bổ sung hồ sơ theo yêu cầu Quản lý">Bổ sung hồ sơ</Button>
+          )}
           {canReportContract && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && !customer.contract_id && (
             <Button type="button" size="icon" variant="outline"
               className="size-9 rounded-lg border-green-700 text-green-800"
@@ -670,7 +741,11 @@ function CustomerRow({
                 <SquarePen className="size-4" aria-hidden="true"/>
               </Button>
             )}
-            {canReportContract && customer.can_manage_approach && (
+            {canReportContract && customer.contract_id !== null && customer.contract_status === 'NEEDS_REVISION' && (
+              <Button type="button" size="sm" variant="outline" className="border-amber-500 text-amber-800"
+                onClick={onRevision} title="Bổ sung hồ sơ theo yêu cầu Quản lý">Bổ sung hồ sơ</Button>
+            )}
+            {canReportContract && customer.can_manage_approach && !customer.contract_id && (
               <Button onClick={onContract} size="icon" className="size-9 rounded-lg bg-[#1b5e20] hover:bg-[#124c17]"
                 title="Báo hợp đồng" aria-label={`Báo hợp đồng ${customer.display_name}`}>
                 <FileCheck2 className="size-4" aria-hidden="true"/>
@@ -746,6 +821,7 @@ function ExtensionDialog({
         }),
       });
       await onSubmitted();
+      appNotice.success('Đã gửi yêu cầu gia hạn tiếp cận.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không gửi được yêu cầu gia hạn.');
     } finally {
@@ -941,29 +1017,22 @@ function ActivityDialog({
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const content = text(form, 'content').trim();
+    if (!content) {
+      setError('Vui lòng nhập nội dung trao đổi.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      const next = text(form, 'next_follow_up_at');
-      const occurred = text(form, 'occurred_at');
-      if (!occurred) throw new Error('Vui lòng nhập thời gian thực hiện.');
-      if (occurred && new Date(occurred).getTime() > Date.now()) throw new Error('Thời gian thực hiện không được ở tương lai.');
-      await onSubmit({
-        activity_type: text(form, 'activity_type') as CustomerActivityInput['activity_type'],
-        content: text(form, 'content'),
-        occurred_at: occurred ? new Date(occurred).toISOString() : undefined,
-        contact_name: text(form, 'contact_name') || undefined,
-        contact_position: text(form, 'contact_position') || undefined,
-        feedback: text(form, 'feedback') || undefined,
-        outcome: text(form, 'outcome') as CustomerActivityInput['outcome'],
-        evidence_reference: text(form, 'evidence_reference') || undefined,
-        commitment: text(form, 'commitment') || undefined,
-        next_follow_up_at: next ? new Date(next).toISOString() : undefined,
-      });
+      // Server records actor and timestamp; outcome stays unset instead of
+      // guessing the school's level of interest from a free-form note.
+      await onSubmit({ activity_type: 'NOTE', content });
+      appNotice.success('Đã lưu nội dung trao đổi.');
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Không thể lưu hoạt động.',
-      );
+      const message = cause instanceof Error ? cause.message : 'Không thể lưu nội dung trao đổi.';
+      setError(message);
+      appNotice.error('Không thể lưu kết quả tư vấn.', message);
     } finally {
       setSaving(false);
     }
@@ -971,67 +1040,30 @@ function ActivityDialog({
   return (
     <SalesFormDialog
       title="Cập nhật kết quả tư vấn"
-      subtitle="Hoạt động không tự động gia hạn quyền bảo vệ."
+      subtitle="Ghi nhận nội dung làm việc với nhà trường. Hoạt động không tự gia hạn quyền bảo vệ."
       onClose={onClose}
     >
       <form onSubmit={submit}>
         <CustomerHighlight customer={customer} />
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Loại hoạt động">
-            <Select name="activity_type" defaultValue="CALL">
-              <option value="CALL">Gọi điện</option>
-              <option value="ZALO">Zalo</option>
-              <option value="MEETING">Gặp trực tiếp</option>
-              <option value="DEMO">Demo sản phẩm</option>
-              <option value="PROPOSAL">Gửi đề xuất / báo giá</option>
-              <option value="NOTE">Ghi chú</option>
-            </Select>
-          </Field>
-          <Field label="Thời gian đã thực hiện">
-            <Input name="occurred_at" type="datetime-local" required className="rounded-xl"
-              defaultValue={new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)} />
-          </Field>
-          <Field label="Người liên hệ"><Input name="contact_name" maxLength={500} placeholder="Họ tên"/></Field>
-          <Field label="Chức vụ"><Input name="contact_position" maxLength={120} placeholder="Hiệu trưởng, kế toán..."/></Field>
-          <Field label="Lịch theo dõi tiếp theo">
-            <Input
-              name="next_follow_up_at"
-              type="datetime-local"
-              className="rounded-xl"
+        <div className="mt-4">
+          <Field label="Nội dung trao đổi *">
+            <textarea
+              name="content"
+              aria-label="Nội dung trao đổi"
+              required
+              maxLength={4000}
+              rows={5}
+              className={textareaClass}
+              placeholder="Nhập nội dung đã trao đổi, phản hồi của nhà trường hoặc kế hoạch tiếp theo..."
             />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Kết quả tư vấn *">
-              <Select name="outcome" required defaultValue="INTERESTED">
-                <option value="INTERESTED">Quan tâm sản phẩm</option>
-                <option value="NEEDS_INFO">Cần tư vấn thêm</option>
-                <option value="DEMO_SCHEDULED">Đã hẹn demo</option>
-                <option value="WAITING">Chờ phản hồi</option>
-                <option value="DECLINED">Không có nhu cầu</option>
-                <option value="UNREACHABLE">Không liên hệ được</option>
-              </Select>
-            </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <Field label="Nội dung trao đổi *">
-              <textarea
-                name="content"
-                required
-                rows={4}
-                className={textareaClass}
-                placeholder="Nội dung trao đổi, phản hồi và bước tiếp theo…"
-              />
-            </Field>
-          </div>
-          <div className="sm:col-span-2"><Field label="Phản hồi của nhà trường"><textarea name="feedback" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
-          <div className="sm:col-span-2"><Field label="Cam kết / bước tiếp theo"><textarea name="commitment" rows={2} maxLength={2000} className={textareaClass}/></Field></div>
-          <div className="sm:col-span-2"><Field label="Tham chiếu minh chứng (nếu có)"><Input name="evidence_reference" maxLength={500} placeholder="Mã tài liệu / liên kết được quản lý bởi tổ chức"/></Field></div>
+          <p className="mt-1 text-xs text-muted-foreground">Tối đa 4.000 ký tự.</p>
         </div>
         <DialogFooter
           saving={saving}
           error={error}
           onClose={onClose}
-          label="Lưu hoạt động"
+          label="Lưu kết quả"
         />
       </form>
     </SalesFormDialog>
@@ -1048,42 +1080,63 @@ function ContractDialog({
   onClose: () => void;
   onSubmit: (input: ReportContractInput) => Promise<void>;
 }) {
-  const [packageId, setPackageId] = useState(packages[0]?.id ?? 0);
-  const selectedPackage = packages.find(item => item.id === packageId);
-  const [installments, setInstallments] = useState(1);
+  const [plan, setPlan] = useState<'SCHOOL_YEAR' | 'MONTHLY_9'>('SCHOOL_YEAR');
+  const [maintenanceFee, setMaintenanceFee] = useState('');
+  const [setupFee, setSetupFee] = useState('');
+  const [studentCount, setStudentCount] = useState('');
   const [units, setUnits] = useState<{id:number;name:string}[]>([]);
+  const [selectedUnitIds, setSelectedUnitIds] = useState<number[]>([]);
+  const [branchCount, setBranchCount] = useState('0');
+  const [branchCountTouched, setBranchCountTouched] = useState(false);
+  const [unitsError, setUnitsError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [requestKey] = useState(() => idempotencyKey('contract'));
+  const multiplier = plan === 'MONTHLY_9' ? 9 : 1;
+  const maintenance = Number(maintenanceFee);
+  const setup = Number(setupFee);
+  const amountsValid = maintenanceFee.trim() !== '' && setupFee.trim() !== ''
+    && Number.isSafeInteger(maintenance) && maintenance >= 0
+    && Number.isSafeInteger(setup) && setup >= 0
+    && Number.isSafeInteger(maintenance * multiplier + setup)
+    && maintenance * multiplier + setup > 0;
+  const total = amountsValid ? maintenance * multiplier + setup : null;
+  const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN').format(value) + ' đ';
+
   useEffect(() => {
     if (!apiBase || !token) return;
     let mounted = true;
     void channelRequest<{data:{id:number;name:string}[]}>(apiBase, token,
       `/contract-school-units/${customer.id}`)
       .then(result => { if (mounted) setUnits(result.data); })
-      .catch(() => { if (mounted) setUnits([]); });
+      .catch(() => { if (mounted) setUnitsError('Không tải được danh sách phân hiệu. Vui lòng đóng và mở lại biểu mẫu.'); });
     return () => { mounted = false; };
   }, [apiBase, token, customer.id]);
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Read the form before the first await; currentTarget is cleared after the event dispatch.
     const form = new FormData(event.currentTarget);
-    setSaving(true);
-    setError('');
     try {
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
-      const total = Number(text(form, 'total_value'));
-      const plans = Array.from({length: installments}, (_, index) => ({
-        due_on: text(form, `due_${index}`),
-        amount: Number(text(form, `amount_${index}`)),
-      }));
-      if (!Number.isSafeInteger(total) || total <= 0
-          || plans.some(plan => !plan.due_on || !Number.isSafeInteger(plan.amount) || plan.amount <= 0)
-          || plans.reduce((sum, plan) => sum + plan.amount, 0) !== total)
-        throw new Error('Tổng tiền các đợt phải đúng bằng giá trị hợp đồng.');
+      // Recheck before uploading a file to avoid orphaned evidence on stale forms.
+      const latest = await channelRequest<SalesSchoolProfile>(apiBase, token, `/customers/${customer.id}`);
+      if (latest.contracts.length > 0)
+        throw new Error('Trường đã có hồ sơ hợp đồng. Vui lòng theo dõi hồ sơ xác minh hoặc bổ sung theo yêu cầu.');
+      if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
+      // The reported count can be entered even when the directory unit lookup fails.
+      if (total === null) throw new Error('Phí duy trì và phí khởi tạo phải là số nguyên không âm, tổng giá trị hợp đồng phải lớn hơn 0.');
+      if (!Number.isSafeInteger(Number(studentCount)) || Number(studentCount) <= 0)
+        throw new Error('Quy mô học sinh phải là số nguyên dương.');
+      if (!/^\d+$/.test(branchCount) || !Number.isSafeInteger(Number(branchCount)) || Number(branchCount) < selectedUnitIds.length)
+        throw new Error('Số phân hiệu phải là số nguyên không âm và không nhỏ hơn số phân hiệu đã chọn.');
       const file = form.get('contract_file');
       if (!(file instanceof File) || file.size === 0)
         throw new Error('Bắt buộc chọn file hợp đồng đã ký.');
+      if (file.size > 5 * 1024 * 1024)
+        throw new Error('File hợp đồng tối đa 5 MB.');
+      if (!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.type))
+        throw new Error('Hợp đồng phải là PDF, JPG, PNG hoặc WEBP.');
+      setSaving(true);
       const upload = new FormData();
       upload.set('kind', 'CONTRACT');
       upload.set('file', file);
@@ -1091,77 +1144,112 @@ function ContractDialog({
         '/evidence', {method: 'POST', body: upload});
       await onSubmit({
         idempotency_key: requestKey,
-        contract_code: text(form, 'contract_code'),
         signed_on: text(form, 'signed_on'),
-        product_package_id: Number(text(form, 'product_package_id')),
+        product_package_id: packages[0].id,
+        service_plan: plan,
+        student_count: Number(studentCount),
+        school_unit_ids: selectedUnitIds,
+        branch_count: Number(branchCount),
+        maintenance_fee: maintenance,
+        setup_fee: setup,
+        contract_note: text(form, 'contract_note').trim() || undefined,
         total_value: total,
-        first_payment_due_on: plans[0]?.due_on,
         evidence_id: response.data.id,
-        installments: plans,
-        service_plan: text(form, 'service_plan') as ReportContractInput['service_plan'],
-        student_count: Number(text(form, 'student_count')) || undefined,
-        school_unit_ids: form.getAll('school_unit_id').map(value => Number(value)),
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không thể báo cáo hợp đồng.');
-    } finally {
-      setSaving(false);
-    }
+      const message = cause instanceof Error ? cause.message : 'Không thể báo cáo hợp đồng.';
+      appNotice.error('Không thể gửi hợp đồng xác minh.', message);
+    } finally { setSaving(false); }
   };
+
   return <SalesFormDialog title="Báo cáo hợp đồng"
-    subtitle="Khai báo hợp đồng trường chính, các đợt thanh toán và upload bản đã ký để Quản lý và CHECKEE kiểm tra."
+    subtitle="Nhập chi phí theo hợp đồng đã ký. CHECKEE sẽ xác minh hồ sơ và giá trị thực tế."
     onClose={onClose}>
     <form onSubmit={submit}>
       <CustomerHighlight customer={customer}/>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label="Mã hợp đồng *"><Input name="contract_code" required maxLength={64} placeholder="HĐ-KIDSFIT-2026-001"/></Field>
-        <Field label="Ngày ký *"><Input name="signed_on" type="date" required defaultValue={new Date().toISOString().slice(0,10)}/></Field>
-        <Field label="Gói dịch vụ tham chiếu *">
-          <Select name="product_package_id" value={packageId} required onChange={event=>setPackageId(Number(event.target.value))}>
-            {packages.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}
-          </Select>
+      <div className="mt-4 space-y-4">
+        <Field label="Ngày ký hợp đồng *">
+          <Input name="signed_on" type="date" required defaultValue={new Date().toISOString().slice(0,10)}/>
         </Field>
-        <Field label="Hình thức gói KIDSFIT *">
-          <Select name="service_plan" defaultValue="SCHOOL_YEAR">
-            <option value="SCHOOL_YEAR">Gói năm học (9 tháng, tặng hè)</option>
-            <option value="MONTHLY_9">Gói thanh toán theo tháng</option>
-          </Select>
-        </Field>
-        <Field label="Quy mô học sinh"><Input name="student_count" min={1} type="number" placeholder="VD: 450"/></Field>
-        <Field label="Giá trị hợp đồng thực tế (VNĐ) *">
-          <Input name="total_value" key={packageId} type="number" min={1} required defaultValue={selectedPackage?.list_price ?? 0}/>
-        </Field>
-      </div>
-      {units.length>0 && <fieldset className="mt-4 rounded-xl border p-3">
-        <legend className="px-1 text-sm font-semibold">Trường điểm được triển khai</legend>
-        <div className="space-y-2">{units.map(unit => <label key={unit.id} className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="school_unit_id" value={unit.id}/>{unit.name}
-        </label>)}</div>
-      </fieldset>}
-      <div className="mt-4 space-y-3 rounded-xl border p-3">
-        <Field label="Số đợt thanh toán theo hợp đồng *">
-          <Input type="number" min={1} max={24} value={installments} onChange={event => {
-            const count = Number(event.target.value);
-            setInstallments(Number.isFinite(count) ? Math.min(24, Math.max(1, count)) : 1);
-          }}/>
-        </Field>
-        <p className="text-xs text-muted-foreground">Nhập số tiền và ngày đến hạn từng đợt. Tổng các đợt phải bằng giá trị hợp đồng.</p>
-        {Array.from({length: installments}, (_, index)=><div key={index} className="grid grid-cols-2 gap-3">
-          <Field label={`Đợt ${index+1} · Hạn thanh toán *`}>
-            <Input name={`due_${index}`} type="date" required/>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="service_plan_choice" value="SCHOOL_YEAR"
+              checked={plan==='SCHOOL_YEAR'} onChange={()=>setPlan('SCHOOL_YEAR')}/>
+            Gói năm học (9 tháng, tặng 3 tháng hè)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="service_plan_choice" value="MONTHLY_9"
+              checked={plan==='MONTHLY_9'} onChange={()=>setPlan('MONTHLY_9')}/>
+            Gói hàng tháng (9 tháng)
+          </label>
+        </fieldset>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Quy mô học sinh *">
+            <Input aria-label="Quy mô học sinh" type="number" min={1} max={100000}
+              required value={studentCount} onChange={e=>setStudentCount(e.target.value)}
+              placeholder="Ví dụ: 450"/>
           </Field>
-          <Field label="Số tiền (VNĐ) *">
-            <Input name={`amount_${index}`} type="number" min={1} step={1} required/>
+          <Field label="Số phân hiệu triển khai">
+            <Input aria-label="Số phân hiệu triển khai" type="number" inputMode="numeric" min={0} max={100000}
+              required value={branchCount} onChange={e=>{setBranchCount(e.target.value);setBranchCountTouched(true);}}/>
           </Field>
-        </div>)}
-      </div>
-      <div className="mt-4">
-        <Field label="File hợp đồng đã ký *">
-          <Input name="contract_file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required/>
+        </div>
+        {units.length>0 && <fieldset className="rounded-xl border p-3">
+          <legend className="px-1 text-sm font-semibold">Chọn phân hiệu triển khai</legend>
+          <div className="space-y-2">{units.map(unit => <label key={unit.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={selectedUnitIds.includes(unit.id)}
+              onChange={e=>{
+                const next = e.target.checked
+                  ? [...selectedUnitIds,unit.id]
+                  : selectedUnitIds.filter(id=>id!==unit.id);
+                setSelectedUnitIds(next);
+                if (!branchCountTouched || Number(branchCount) < next.length) setBranchCount(String(next.length));
+              }}/>
+            {unit.name}
+          </label>)}</div>
+        </fieldset>}
+        {unitsError && <output className="block text-sm text-muted-foreground">Chưa tải được danh sách phân hiệu; vẫn có thể nhập số phân hiệu theo hợp đồng.</output>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
+            <AppCurrencyInput aria-label="Phí duy trì" required
+              value={maintenanceFee} onValueChange={setMaintenanceFee} placeholder="Ví dụ: 1.000.000"/>
+          </Field>
+          <Field label="Phí khởi tạo (VNĐ) *">
+            <AppCurrencyInput aria-label="Phí khởi tạo" required
+              value={setupFee} onValueChange={setSetupFee} placeholder="Ví dụ: 2.000.000"/>
+          </Field>
+        </div>
+        <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+          <h3 className="font-semibold">Chi phí theo hợp đồng</h3>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span>{plan==='MONTHLY_9'?'Phí duy trì (9 tháng)':'Phí duy trì (9 tháng)'}</span>
+            <span className="tabular-nums">{Number.isSafeInteger(maintenance*multiplier) && maintenanceFee ? formatVnd(maintenance*multiplier) : '—'}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span>Phí khởi tạo (một lần)</span>
+            <span className="tabular-nums">{setupFee && Number.isSafeInteger(setup) ? formatVnd(setup) : '—'}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t pt-3">
+            <strong>Tổng giá trị hợp đồng</strong>
+            <strong className="text-lg tabular-nums text-emerald-700 dark:text-emerald-300">
+              {total===null ? '—' : formatVnd(total)}
+            </strong>
+          </div>
+        </div>
+        <Field label="Ghi chú hợp đồng (không bắt buộc)">
+          <textarea name="contract_note" aria-label="Ghi chú hợp đồng" maxLength={4000}
+            rows={3} className={textareaClass}
+            placeholder="Nhập thông tin cần xác minh thêm (nếu có)..."/>
         </Field>
-        <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP. Tối đa 5 MB. Chỉ người có quyền được tải xuống.</p>
+        <div>
+          <Field label="File hợp đồng đã ký *">
+            <Input name="contract_file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required/>
+          </Field>
+          <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
+        </div>
       </div>
-      <DialogFooter saving={saving} error={error} onClose={onClose} label="Gửi hợp đồng xác minh"/>
+      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
     </form>
   </SalesFormDialog>;
 }
@@ -1432,10 +1520,10 @@ function StatusSummary({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid gap-1.5 text-sm font-medium">
-      {label}
+    <fieldset className="grid min-w-0 gap-1.5 text-sm font-medium">
+      <legend className="text-sm font-medium">{label}</legend>
       {children}
-    </label>
+    </fieldset>
   );
 }
 

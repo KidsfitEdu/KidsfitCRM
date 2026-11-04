@@ -157,3 +157,104 @@ test('Income simplification and Sales page-size selection stay consistent', () =
   assert.match(operations, /onPageSizeChange=\{size => \{ setSalesPageSize\(size\); setPage\(1\); \}\}/);
   assert.match(shared, /disabled=\{loading\}/);
 });
+
+test('Sales consultation update has one content input and never invents a classified outcome', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function ActivityDialog({');
+  const end = source.indexOf('function ContractDialog({', start);
+  assert.ok(start > 0 && end > start);
+  const dialog = source.slice(start, end);
+  assert.match(dialog, /title="Cập nhật kết quả tư vấn"/);
+  assert.match(dialog, /name="content"/);
+  assert.match(dialog, /maxLength=\{4000\}/);
+  assert.match(dialog, /activity_type: 'NOTE', content/);
+  assert.match(dialog, /appNotice\.success\('Đã lưu nội dung trao đổi\.'/);
+  assert.doesNotMatch(dialog, /name="outcome"|name="activity_type"|name="occurred_at"|name="next_follow_up_at"/);
+  assert.doesNotMatch(dialog, /outcome: 'INTERESTED'/);
+});
+
+test('Sales contract report does not ask for a contract code', () => {
+  const view = read('src/components/crm/channel-sales-view.tsx');
+  const start = view.indexOf('function ContractDialog({');
+  const end = view.indexOf('function ReceiptDialog({', start);
+  assert.ok(start >= 0 && end > start);
+  const form = view.slice(start, end);
+  assert.doesNotMatch(form, /name="contract_code"|contract_code: text\(form/);
+  assert.match(form, /name="contract_file"/);
+  assert.match(form, /label="Gửi hợp đồng xác minh"/);
+  const model = read('src/lib/channel-sales.ts');
+  const payload = model.slice(model.indexOf('export type ReportContractInput ='), model.indexOf('export type RevenueReceiptInput ='));
+  assert.doesNotMatch(payload, /contract_code:/);
+});
+
+test('Simplified Sales contract report computes total from fees and keeps required upload', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function ContractDialog({');
+  const end = source.indexOf('function ReceiptDialog({', start);
+  assert.ok(start >= 0 && end > start);
+  const form = source.slice(start,end);
+  assert.match(form, /Tổng giá trị hợp đồng<\/strong>/);
+  assert.doesNotMatch(form, /Tổng giá trị hợp đồng dự kiến/);
+  assert.doesNotMatch(form, /Ví dụ minh họa: phí duy trì/);
+  assert.match(form, /maintenance_fee: maintenance/);
+  assert.match(form, /setup_fee: setup/);
+  assert.match(form, /maintenance \* multiplier \+ setup/);
+  assert.match(form, /name="contract_file"/);
+  assert.match(form, /name="contract_note"/);
+  assert.doesNotMatch(form, /Số đợt thanh toán theo hợp đồng|name="total_value"/);
+});
+
+test('Sales contract branch count is editable and persisted separately from chosen units', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const start = source.indexOf('function ContractDialog({');
+  const end = source.indexOf('function ReceiptDialog({', start);
+  const form = source.slice(start, end);
+  assert.match(form, /aria-label="Số phân hiệu triển khai" type="number"/);
+  assert.doesNotMatch(form, /value=\{selectedUnitIds\.length\} readOnly/);
+  assert.match(form, /branch_count: Number\(branchCount\)/);
+  assert.match(form, /<AppCurrencyInput aria-label="Phí duy trì"/);
+  assert.match(form, /<AppCurrencyInput aria-label="Phí khởi tạo"/);
+  assert.match(form, /maintenance_fee: maintenance/);
+  assert.match(form, /setup_fee: setup/);
+  assert.match(form, /Tổng giá trị hợp đồng/);
+});
+
+test('Shared currency input never reformats while editing and formats VND on blur', () => {
+  const source = read('src/components/common/inputs/app-currency-input.tsx');
+  assert.match(source, /value=\{focused \? value : formatted\}/);
+  assert.match(source, /setFocused\(true\)/);
+  assert.match(source, /setFocused\(false\)/);
+  assert.match(source, /inputMode="numeric"/);
+  assert.match(source, /onValueChange\(digits\.replace/);
+  assert.match(source, /15\)/);
+  assert.doesNotMatch(source, /pendingCaretDigits/);
+});
+
+test('Sales contract revisions use original contract and retain manager instructions', () => {
+  const source = read('src/components/roles/SalesContractRevisions.tsx');
+  const sales = read('src/components/crm/channel-sales-view.tsx');
+  assert.match(source, /school-contracts\/my-revisions/);
+  assert.match(source, /school-contracts\/\$\{selected\.id\}\/resubmit/);
+  assert.match(source, /selected\?\.reason/);
+  assert.match(source, /id="sales-contract-revisions"/);
+  assert.match(sales, /status === 'NEEDS_REVISION'/);
+  assert.match(sales, /Bổ sung hồ sơ/);
+  assert.match(sales, /status === 'MANAGER_REVIEWED'/);
+  assert.match(sales, /status === 'PENDING_KIDSFIT'/);
+});
+
+test('Sales contract errors appear only in shared toast and duplicate report opening is guarded', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const contractStart = source.indexOf('function ContractDialog({');
+  const contractEnd = source.indexOf('function ReceiptDialog({', contractStart);
+  assert.ok(contractStart >= 0 && contractEnd > contractStart);
+  const contract = source.slice(contractStart, contractEnd);
+  assert.match(contract, /appNotice\.error\('Không thể gửi hợp đồng xác minh\.'/);
+  assert.doesNotMatch(contract, /setError\(message\)/);
+  assert.match(contract, /<DialogFooter saving=\{saving\} error="" onClose=\{onClose\} label="Gửi hợp đồng xác minh"\/>/);
+  assert.match(contract, /latest\.contracts\.length > 0/);
+  assert.match(source, /const openContractReport = async/);
+  assert.match(source, /profile\.contracts\.length > 0/);
+  assert.match(source, /onContract=\{\(\) => \{ void openContractReport\(customer\); \}\}/);
+  assert.match(source, /customer\.can_manage_approach && !customer\.contract_id/);
+});

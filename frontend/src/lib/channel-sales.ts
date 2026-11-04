@@ -16,6 +16,7 @@ export type ChannelCustomer = {
   protected_until: string | null;
   next_follow_up_at: string | null;
   contract_id: number | null;
+  contract_status?: string | null;
   contract_code: string | null;
   contract_value: number;
   collected_revenue: number;
@@ -96,7 +97,6 @@ export type CustomerActivityInput = {
 
 export type ReportContractInput = {
   idempotency_key: string;
-  contract_code: string;
   signed_on: string;
   product_package_id: number;
   total_value: number;
@@ -107,6 +107,10 @@ export type ReportContractInput = {
   service_plan?: 'SCHOOL_YEAR' | 'MONTHLY_9';
   student_count?: number;
   school_unit_ids?: number[];
+  branch_count?: number;
+  maintenance_fee?: number;
+  setup_fee?: number;
+  contract_note?: string;
 };
 
 export type RevenueReceiptInput = {

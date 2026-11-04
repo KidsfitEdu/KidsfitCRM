@@ -42,6 +42,7 @@ type Props = {
   adminMode?: boolean;
   renderImportAction?: (openImport: () => void) => ReactNode;
   registrationIconOnly?: boolean;
+  salesDirectoryMode?: boolean;
 };
 type School = {
   id: number;
@@ -165,12 +166,15 @@ export function SchoolDirectory({
   adminMode = false,
   renderImportAction,
   registrationIconOnly = false,
+  salesDirectoryMode = false,
 }: Props) {
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [provinceFilter, setProvinceFilter] = useState('');
+  const [wardFilter, setWardFilter] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
   const [editingUnit, setEditingUnit] = useState<Detail['units'][number] | null>(null);
   const [editUnitChoices, setEditUnitChoices] = useState<Detail['units']>([]);
@@ -184,19 +188,27 @@ export function SchoolDirectory({
   const [importKey, setImportKey] = useState(key);
   const [importOpen, setImportOpen] = useState(false);
   const [capacity, setCapacity] = useState<Capacity | null>(null);
-  const [notice, setNotice] = useState('');
   const client = useQueryClient();
   const demo = !apiBase;
   const can = (code: string) => !demo && (abilities.includes('*') || abilities.includes(code));
   const canAdminManage = adminMode && can('channel_sales.school.directory.manage');
+  // Only Sales/CTV directory browsers use the availability and area picker.
+  const salesDirectory = !adminMode && salesDirectoryMode;
   const api = <T,>(path: string, options?: RequestInit) =>
     demo
       ? readSchoolDemo<T>(path)
       : channelRequest<T>(apiBase, token, path, options);
+  const areas = useQuery({
+    queryKey: [...channelQueryKeys.all, 'school-areas', apiBase],
+    queryFn: () => api<{ data: { province: string; ward: string }[] }>('/schools/areas'),
+    enabled: salesDirectory,
+  });
+  const provinces = [...new Set((areas.data?.data ?? []).map(area => area.province?.trim()).filter((value): value is string => !!value))].sort((a,b)=>a.localeCompare(b,'vi'));
+  const wards = [...new Set((areas.data?.data ?? []).filter(area => area.province?.trim() === provinceFilter).map(area => area.ward?.trim()).filter((value): value is string => !!value))].sort((a,b)=>a.localeCompare(b,'vi'));
   const schools = useQuery({
-    queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize, statusFilter],
+    queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize, statusFilter, salesDirectory, provinceFilter, wardFilter],
     queryFn: () => api<SchoolList>(
-      `/schools?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}&status=${encodeURIComponent(statusFilter === 'DELETED' ? 'ALL' : statusFilter)}${canAdminManage && statusFilter === 'DELETED' ? '&includeDeleted=true' : ''}`,
+      `/schools?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}&status=${encodeURIComponent(salesDirectory ? 'AVAILABLE' : statusFilter === 'DELETED' ? 'ALL' : statusFilter)}${canAdminManage && statusFilter === 'DELETED' ? '&includeDeleted=true' : ''}${salesDirectory ? `&availableOnly=true&province=${encodeURIComponent(provinceFilter)}&ward=${encodeURIComponent(wardFilter)}` : ''}`,
     ),
   });
   const capacities = useQuery({
@@ -281,10 +293,10 @@ export function SchoolDirectory({
     onSuccess: async () => {
       await syncAfterSave();
       if (adminMode) appNotice.success('Đã lưu thay đổi trường học và lịch sử xử lý.');
-      else setNotice('Đã lưu thay đổi và lịch sử xử lý.');
+      else appNotice.success('Đã lưu thay đổi và lịch sử xử lý.');
     },
     onError: (error) => {
-      if (adminMode) appNotice.error('Không lưu được thay đổi trường học.', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+      appNotice.error('Không lưu được thay đổi trường học.', error instanceof Error ? error.message : 'Vui lòng thử lại.');
     },
   });
   const upload = useMutation({
@@ -315,7 +327,7 @@ export function SchoolDirectory({
       setPreview(null);
       const message = `Đã nhập ${result.data?.schools_created ?? 0} trường mới và ${result.data?.units_created ?? 0} đơn vị mới. Dữ liệu cũ được giữ nguyên.`;
       if (adminMode) appNotice.success('Import Excel thành công.', message);
-      else setNotice(message);
+      else appNotice.success('Đã nhập danh sách trường học.', message);
     },
     onError: (error) => {
       if (adminMode) appNotice.error('Không thể xử lý file Excel.', error instanceof Error ? error.message : 'Vui lòng kiểm tra file và thử lại.');
@@ -339,16 +351,9 @@ export function SchoolDirectory({
             description="Quản lý trường chính, phân hiệu và quyền bảo vệ khách hàng"
             actions={renderImportAction?.(openImport)}/>
         : renderImportAction?.(openImport)}
-      {!adminMode && notice && (
-        <output className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-          {notice}
-        </output>
-      )}
-      {!adminMode && (schools.error || mutation.error || capacities.error) && (
+      {!adminMode && (schools.error || capacities.error) && (
         <ErrorText>
-          {schools.error?.message ??
-            mutation.error?.message ??
-            capacities.error?.message}
+          {schools.error?.message ?? capacities.error?.message}
         </ErrorText>
       )}
       {!adminMode && !!capacities.data?.data.length && (
@@ -396,28 +401,47 @@ export function SchoolDirectory({
       )}
       <section className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
 
-        <form className="grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_200px_auto_44px] sm:px-6"
+        <form className={`grid grid-cols-1 items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6 ${salesDirectory ? 'lg:grid-cols-[minmax(0,1fr)_170px_170px_auto_44px]' : 'sm:grid-cols-[minmax(0,1fr)_200px_auto_44px]'}`}
           onSubmit={event => { event.preventDefault(); setSearch(term); setPage(1); }}>
           <div className="relative min-w-0">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
             <Input aria-label="Tìm tên trường, mã hoặc khu vực" className="h-11 w-full rounded-xl pl-10"
               placeholder="Tên trường, mã trường, phường/xã..." value={term} onChange={event => setTerm(event.target.value)}/>
           </div>
-          <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full"
+          {salesDirectory ? <>
+            <AppNativeSelect aria-label="Lọc tỉnh/thành" containerClassName="w-full"
+              value={provinceFilter} disabled={areas.isPending || areas.isError}
+              onChange={event => {setProvinceFilter(event.target.value);setWardFilter('');setPage(1);}}>
+              <option value="">{areas.isPending ? 'Đang tải tỉnh/thành...' : areas.isError ? 'Không tải được tỉnh/thành' : provinces.length ? 'Tất cả tỉnh/thành' : 'Chưa có khu vực khả dụng'}</option>
+              {provinces.map(value => <option key={value} value={value}>{value}</option>)}
+            </AppNativeSelect>
+            <AppNativeSelect aria-label="Lọc phường/xã" containerClassName="w-full"
+              value={wardFilter} disabled={!provinceFilter || areas.isPending || areas.isError}
+              onChange={event => {setWardFilter(event.target.value);setPage(1);}}>
+              <option value="">Tất cả phường/xã</option>
+              {wards.map(value => <option key={value} value={value}>{value}</option>)}
+            </AppNativeSelect>
+          </> : <AppNativeSelect aria-label="Lọc trạng thái trường" containerClassName="w-full"
             value={statusFilter} onChange={event => {setStatusFilter(event.target.value);setPage(1);}}>
             <option value="ALL">Tất cả trạng thái</option>
             <option value="AVAILABLE">Chưa đăng ký</option>
             <option value="APPROACHING">Đang tiếp cận</option>
             <option value="CONTRACTED">Đã xác minh hợp đồng</option>
             {canAdminManage && <option value="DELETED">Đã ngừng sử dụng</option>}
-          </AppNativeSelect>
+          </AppNativeSelect>}
           <AppButton type="submit" tone="orange" premium className="h-10 min-w-0 justify-center gap-2 rounded-lg bg-[#d97706] px-4 font-bold text-white shadow-[0_6px_16px_rgba(217,119,6,.18)] hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" size="icon-lg"
             className="h-11 w-11 min-w-11 rounded-lg border border-[#a5d6a7] bg-white p-0 text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-[#17341f] dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white" aria-label="Đặt lại bộ lọc"
-            title="Đặt lại bộ lọc" onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setPage(1);}}>
+            title="Đặt lại bộ lọc" onClick={() => {setTerm('');setSearch('');setStatusFilter('ALL');setProvinceFilter('');setWardFilter('');setPage(1);}}>
             <RotateCcw className="size-4" aria-hidden="true"/>
           </AppButton>
         </form>
+        {salesDirectory && areas.isError && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-5 py-3 text-sm text-destructive">
+            <span>Không tải được danh sách tỉnh/thành, phường/xã. Vui lòng kiểm tra kết nối API hoặc phiên bản Backend.</span>
+            <AppButton type="button" tone="outline" size="sm" onClick={() => void areas.refetch()}>Thử lại</AppButton>
+          </div>
+        )}
         {schools.isPending ? (
           <p className="p-8 text-sm text-muted-foreground">Đang tải danh bạ…</p>
         ) : visibleSchools.length ? (
@@ -527,8 +551,8 @@ export function SchoolDirectory({
           </div>
         ) : (
           <AppEmptyState icon={Building2}
-            title={search || statusFilter !== 'ALL' ? 'Không có trường phù hợp với bộ lọc' : 'Chưa có danh bạ trường học'}
-            description={search || statusFilter !== 'ALL' ? 'Thử đổi từ khóa hoặc trạng thái để tìm lại.' : 'Hãy thêm trường hoặc nhập danh sách Excel để bắt đầu.'}/>
+            title={search || (salesDirectory ? provinceFilter || wardFilter : statusFilter !== 'ALL') ? 'Không có trường phù hợp với bộ lọc' : salesDirectory ? 'Không còn trường khả dụng' : 'Chưa có danh bạ trường học'}
+            description={search || (salesDirectory ? provinceFilter || wardFilter : statusFilter !== 'ALL') ? 'Thử đổi từ khóa hoặc khu vực để tìm lại.' : salesDirectory ? 'Các trường đang được tiếp cận hoặc đã ký hợp đồng sẽ không xuất hiện tại đây.' : 'Hãy thêm trường hoặc nhập danh sách Excel để bắt đầu.'}/>
         )}
         <AppPagination page={page} pageSize={schools.data?.page_size ?? 20} total={schools.data?.total ?? 0} showSummary={false}
           disabled={schools.isFetching} onPageChange={setPage}
@@ -654,17 +678,17 @@ export function SchoolDirectory({
               ['name','Tên đơn vị'],['province','Tỉnh/thành'],['ward','Phường/xã'],['address','Địa chỉ'],
               ['contact_name','Người liên hệ'],['contact_position','Chức vụ'],['contact_phone','SĐT liên hệ'],
               ['school_phone','SĐT trường'],['email','Email']
-            ] as const).map(([key,label]) => <label key={key} className="text-sm">{label}
-              <Input className="mt-1" value={editForm[key] ?? ''}
+            ] as const).map(([key,label]) => <div key={key} className="text-sm">{label}
+              <Input aria-label={label} className="mt-1" value={editForm[key] ?? ''}
                 onChange={event => setEditForm(current => ({...current,[key]:event.target.value}))}/>
-            </label>)}
+            </div>)}
           </div>
-          <label className="block text-sm">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
-            <Textarea className="mt-1" rows={3} maxLength={4000}
+          <div className="block text-sm">Ghi chú <span className="text-muted-foreground">(không bắt buộc)</span>
+            <Textarea aria-label="Ghi chú trường hoặc phân hiệu" className="mt-1" rows={3} maxLength={4000}
               placeholder="Nhập ghi chú về trường học hoặc phân hiệu..."
               value={editForm.note ?? ''}
               onChange={event => setEditForm(current => ({...current,note:event.target.value}))}/>
-          </label>
+          </div>
           {adminError && <p role="alert" className="text-sm text-red-600">{adminError}</p>}
           <div className="flex justify-end gap-2">
             <AppButton tone="outline" disabled={adminBusy} onClick={() => setEditingUnit(null)}>Hủy</AppButton>
@@ -758,10 +782,10 @@ function CapacityForm({
 }
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block space-y-1.5 text-sm">
+    <div className="block space-y-1.5 text-sm">
       <span className="font-medium">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 function ErrorText({ children }: { children: ReactNode }) {

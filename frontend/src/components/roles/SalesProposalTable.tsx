@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, History } from 'lucide-react';
+import { Eye, History, Pencil, Send, Trash2 } from 'lucide-react';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
-import { Badge } from '@/components/ui/badge';
-import { workflowDate, workflowLabels, type SchoolOperationsWorkspace } from '@/lib/school-operations';
+import { AdminStatusBadge } from '@/components/common/admin-list-ui';
+import { workflowLabels, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 
 type Proposal = SchoolOperationsWorkspace['proposals'][number];
 type Props = {
@@ -22,13 +22,16 @@ type Props = {
   onHistory: (proposal: Proposal) => void;
   onSearch: (term: string) => void;
   onStatusChange?: (status: string) => void;
+  onEdit?: (proposal: Proposal) => void;
+  onDelete?: (proposal: Proposal) => void;
+  onSubmitDraft?: (proposal: Proposal) => void;
 };
 
-const template = 'minmax(230px,2fr) minmax(135px,1fr) minmax(140px,1fr) minmax(145px,1fr) minmax(110px,auto)';
+const template = 'minmax(260px,2fr) minmax(175px,1fr) minmax(135px,.85fr) minmax(140px,.8fr) 232px';
 
 export function SalesProposalTable({
   proposals, page, total, pageSize, loading, preview, onPageChange, onPageSizeChange,
-  onOpen, onHistory, onSearch, onStatusChange,
+  onOpen, onHistory, onSearch, onStatusChange, onEdit, onDelete, onSubmitDraft,
 }: Props) {
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState('ALL');
@@ -43,14 +46,16 @@ export function SalesProposalTable({
     value={status} containerClassName="w-full sm:w-48"
     onChange={event => {setStatus(event.target.value);onStatusChange?.(event.target.value);}}>
     <option value="ALL">Tất cả trạng thái</option>
+    <option value="DRAFT">Nháp</option>
+    <option value="NEEDS_REVISION">Cần bổ sung</option>
     <option value="PENDING_MANAGER">Chờ Quản lý</option>
     <option value="PENDING_ADMIN">Chờ Admin</option>
     <option value="APPROVED">Đã duyệt</option>
     <option value="REJECTED">Từ chối</option>
   </AppNativeSelect>;
-  return <SalesListLayout columns={['Trường học','Người đề xuất','Trạng thái','Hạn xử lý','Thao tác']}
+  return <SalesListLayout columns={['Trường học','Khu vực','Người đề xuất','Trạng thái','Thao tác']}
     template={template} page={preview ? 1 : page} pageSize={pageSize}
-    total={preview ? items.length : total} loading={loading} minWidth={850}
+    total={preview ? items.length : total} loading={loading} minWidth={1020} centerColumns={[1,3]}
     onPageChange={onPageChange} onPageSizeChange={onPageSizeChange}
     empty="Không có đề xuất trường phù hợp. Hãy thử bộ lọc khác."
     toolbar={<SalesListToolbar search={term} onSearchChange={setTerm}
@@ -59,16 +64,24 @@ export function SalesProposalTable({
       onSearch={() => {setApplied(term.trim());onSearch(term.trim());}}/>}>
     {items.map(item => <SalesListRow key={item.id} template={template}>
       <div className="min-w-0">
-        <p className="font-semibold">{item.name}</p>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {item.school_code.startsWith('SEED-SCH-') ? '' : item.school_code+' · '}{item.province} · {item.ward}
-        </p>
+        <p className="truncate font-semibold text-foreground" title={item.name}>{item.name || 'Chưa đặt tên trường'}</p>
+        {!item.school_code.startsWith('SEED-SCH-') && !item.school_code.startsWith('DRAFT-') && (
+          <p className="mt-1 truncate text-xs text-muted-foreground" title={item.school_code}>{item.school_code}</p>
+        )}
       </div>
-      <div>{item.submitted_by}</div>
-      <div><Badge variant="outline">{workflowLabels[item.status] ?? item.status}</Badge></div>
-      <div className="tabular-nums">{workflowDate(item.review_due_at)}</div>
-      <div className="flex justify-end gap-2">
+      <div className="min-w-0 text-center text-sm text-muted-foreground">
+        <p className="truncate" title={item.ward || 'Chưa cập nhật'}>{item.ward || 'Chưa cập nhật'}</p>
+        <p className="mt-0.5 truncate" title={item.province || 'Chưa cập nhật'}>{item.province || 'Chưa cập nhật'}</p>
+      </div>
+      <div className="min-w-0 truncate text-sm" title={item.submitted_by}>{item.submitted_by}</div>
+      <div className="flex justify-center"><AdminStatusBadge label={workflowLabels[item.status] ?? item.status} status={item.status}/></div>
+      <div className="flex min-w-0 items-center justify-end gap-1.5 whitespace-nowrap">
         <AdminIconAction icon={Eye} label={`Xem đề xuất ${item.name}`} onClick={() => onOpen(item)}/>
+        {!preview && item.can_edit_draft && <>
+          <AdminIconAction icon={Pencil} label={`Sửa bản nháp ${item.name}`} onClick={() => onEdit?.(item)}/>
+          <AdminIconAction icon={Trash2} tone="red" label={`Xóa bản nháp ${item.name}`} onClick={() => onDelete?.(item)}/>
+          <AdminIconAction icon={Send} label={`Gửi phê duyệt ${item.name}`} onClick={() => onSubmitDraft?.(item)}/>
+        </>}
         {!preview && <AdminIconAction icon={History} tone="neutral" label={`Lịch sử ${item.name}`} onClick={() => onHistory(item)}/>}
       </div>
     </SalesListRow>)}

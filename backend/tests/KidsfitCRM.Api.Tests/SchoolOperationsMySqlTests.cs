@@ -1226,10 +1226,27 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Peer.UserId), db, Ct));
         db.ChangeTracker.Clear();
 
-        await ManagerContractEndpoints.Resubmit(contractId, new(proof.Id), Http(scenario.Seller.UserId), db, Ct);
+        await ManagerContractEndpoints.Resubmit(contractId,
+            new(proof.Id, SignedOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow),
+                ServicePlan: "MONTHLY_9", StudentCount: 450, BranchCount: 2,
+                SchoolUnitIds: [], MaintenanceFee: 100_000m, SetupFee: 200_000m,
+                ContractNote: "Đã cập nhật theo yêu cầu Quản lý."),
+            Http(scenario.Seller.UserId), db, Ct);
         db.ChangeTracker.Clear();
         var submitted = await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct);
         Assert.Equal("PENDING_REVIEW", submitted.Status);
+        Assert.Equal(1_100_000m, submitted.TotalValue);
+        Assert.Equal("MONTHLY_9", submitted.ServicePlan);
+        Assert.Equal(450, submitted.StudentCount);
+        Assert.Equal(2, submitted.BranchCount);
+        Assert.Equal("Đã cập nhật theo yêu cầu Quản lý.", submitted.ContractNote);
+        Assert.Equal(1_100_000m, await db.RevenueSchedules.Where(x => x.ContractId == contractId)
+            .Select(x => x.AmountDue).SingleAsync(Ct));
+        Assert.Equal(1_100_000m, await db.SalesContractItems.Where(x => x.ContractId == contractId)
+            .SumAsync(x => x.Amount, Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityId == contractId
+            && x.EntityType == nameof(SalesContract)
+            && x.Action == "EDIT_SCHOOL_CONTRACT_REVISION", Ct));
         Assert.Null(submitted.RevisionReason);
         Assert.Null(submitted.RevisionRequestedAt);
         Assert.Equal(contractId, await db.FinancialEvidences.Where(f => f.Id == proof.Id)

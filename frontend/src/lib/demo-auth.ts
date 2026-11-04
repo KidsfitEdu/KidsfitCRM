@@ -53,11 +53,12 @@ const schoolManagerAbilities = [
   'channel_sales.school.allocation.manage',
   'channel_sales.school.extension.review',
   'channel_sales.school.handover.manage',
-  'channel_sales.school.care.assign',
+  'channel_sales.school.handover.manage',
 ];
 const schoolAbilitiesByProfile: Record<string, string[]> = {
   admin: [
     ...schoolManagerAbilities,
+    'channel_sales.school.care.assign',
     'channel_sales.school.proposal.submit',
     'channel_sales.school.dispute.resolve',
     'channel_sales.school.escalation.resolve',
@@ -74,7 +75,7 @@ const schoolAbilitiesByProfile: Record<string, string[]> = {
   manager: schoolManagerAbilities,
   care: ['channel_sales.school.support.manage'],
   sales: ['channel_sales.school.proposal.submit'],
-  checkee: [],
+  checkee: ['channel_sales.school.technical_support.handle'],
   partner: schoolManagerAbilities,
   ctv: ['channel_sales.school.proposal.submit'],
 };
@@ -156,7 +157,7 @@ export const demoAccounts: DemoAccount[] = [
     email: 'sales@demo.kidsfit.example',
     name: 'Lan Phương',
     roleLabel: 'Nhân viên bán hàng',
-    description: 'Trải nghiệm lead, lớp học và CHECKEE Sales.',
+    description: 'Tiếp cận trường, ghi nhật ký tư vấn, theo dõi hợp đồng và thu nhập.',
     abilities: [
       ...educationRead,
       'crm.lead.create',

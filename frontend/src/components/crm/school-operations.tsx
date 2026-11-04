@@ -49,6 +49,7 @@ import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialo
 import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-editor';
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { appNotice } from '@/components/common/app-toast-provider';
 
 type Props = {
   apiBase: string;
@@ -115,7 +116,6 @@ export function SchoolOperations({
     id: number;
     name: string;
   } | null>(null);
-  const [notice, setNotice] = useState('');
   const client = useQueryClient();
   const preview = !apiBase;
   const has = (code: string) => abilities.includes(code);
@@ -287,15 +287,13 @@ export function SchoolOperations({
       body: JSON.stringify(command.body),
     });
     setAction(null);
-    setNotice('Đã lưu thay đổi và lịch sử xử lý.');
+    appNotice.success('Đã lưu thay đổi và lịch sử xử lý.');
     const refresh = await Promise.allSettled([
       client.invalidateQueries({ queryKey: channelQueryKeys.all }),
       onChanged(),
     ]);
     if (refresh.some((r) => r.status === 'rejected'))
-      setNotice(
-        'Đã lưu. Danh sách sẽ tự cập nhật khi kết nối ổn định.',
-      );
+      appNotice.warning('Đã lưu, nhưng chưa tải lại được danh sách.', 'Vui lòng làm mới trang để xem dữ liệu mới nhất.');
   };
   const data = workspace.data;
   const matches = (...values: (string | null)[]) => {
@@ -350,11 +348,13 @@ export function SchoolOperations({
     if (!draftDecision || draftBusy) return;
     setDraftBusy(true); setDraftError('');
     try {
+      const kind = draftDecision.kind;
       await save({
-        path: `/school-proposals/${draftDecision.proposal.id}/${draftDecision.kind === 'delete' ? 'soft-delete' : 'submit'}`,
+        path: `/school-proposals/${draftDecision.proposal.id}/${kind === 'delete' ? 'soft-delete' : 'submit'}`,
         body: { expected_version: draftDecision.proposal.version }
       });
-      setNotice(draftDecision.kind === 'submit' ? 'Đã gửi đề xuất đến Quản lý trực tiếp.' : 'Đã xóa mềm bản nháp.');
+      // save() already reports success through the shared toast.
+
       setDraftDecision(null);
     } catch (cause) {
       setDraftError(cause instanceof Error ? cause.message : 'Không thực hiện được thao tác.');
@@ -536,11 +536,6 @@ export function SchoolOperations({
           Các tình huống dưới đây dùng dữ liệu minh họa, chỉ đọc. Để ghi nhận hồ
           sơ và bảo vệ quyền, dùng bản CRM của tổ chức.
         </p>
-      )}
-      {notice && (
-        <output className="block rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">
-          {notice}
-        </output>
       )}
       {!hideTabs && <nav
         aria-label="Nhóm công việc vận hành"
@@ -1721,7 +1716,7 @@ export function SchoolOperations({
       <SchoolProposalEditor open={proposalEditorOpen} draftId={proposalEditorId}
         apiBase={apiBase} token={token} onClose={() => setProposalEditorOpen(false)}
         onSaved={async () => {
-          setNotice('Đã lưu bản nháp trường học.');
+          appNotice.success(proposalEditorId === null ? 'Đã lưu bản nháp trường học.' : 'Đã cập nhật bản nháp trường học.');
           await Promise.allSettled([client.invalidateQueries({queryKey:channelQueryKeys.all}),onChanged()]);
         }}/>
       <AppDialog open={draftDecision !== null} busy={draftBusy}

@@ -48,6 +48,9 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
         method:'POST',body:JSON.stringify({
           idempotency_key:crypto.randomUUID(),user_id:assignee.id,
           care_organization_id:assignee.organization_id,
+          reason:selected.care_user_id
+            ? 'Admin điều chuyển nhân viên CSKH.'
+            : 'Admin phân công nhân viên CSKH.',
         }),
       });
       setConfirm(false);close();
@@ -100,7 +103,6 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
           <option value="">Chọn người phụ trách</option>
           {staff.map(s=><option key={s.id} value={s.id}>{s.name} – {s.email}</option>)}
         </select>
-        <p className="text-xs text-muted-foreground">Hệ thống giữ lịch sử và chuyển các ticket chưa đóng. Không thay đổi quyền sở hữu Sales hay hoa hồng.</p>
         {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>
     </AppDialog>

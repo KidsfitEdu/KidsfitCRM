@@ -63,6 +63,7 @@ type Props = {
   hideTabs?: boolean;
   hideOperationsTabs?: boolean;
   compactOperations?: boolean;
+  salesDirectoryMode?: boolean;
   embeddedSalesTable?: boolean;
   hideCustomerActivityHistory?: boolean;
   proposalActionRef?: RefObject<{open: () => void} | null>;
@@ -103,6 +104,7 @@ function OperationsContent({
   hideTabs = false,
   hideOperationsTabs = false,
   compactOperations = false,
+  salesDirectoryMode = false,
   embeddedSalesTable = false,
   hideCustomerActivityHistory = false,
   proposalActionRef,
@@ -260,6 +262,7 @@ function OperationsContent({
           abilities={abilities}
           onChanged={onChanged}
           registrationIconOnly={compactOperations}
+          salesDirectoryMode={compactOperations || salesDirectoryMode}
         />
       )}
       {visiblePanel === 'operations' && (

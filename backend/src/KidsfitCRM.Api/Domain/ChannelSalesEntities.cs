@@ -116,6 +116,7 @@ public sealed class SalesContract : EntityBase
     public DateOnly? EffectiveOn { get; set; }
     public decimal TotalValue { get; set; }
     public string? ServicePlan { get; set; }
+    public string? ContractNote { get; set; }
     public int? StudentCount { get; set; }
     public string? SchoolUnitIdsJson { get; set; }
     public string Currency { get; set; } = "VND";

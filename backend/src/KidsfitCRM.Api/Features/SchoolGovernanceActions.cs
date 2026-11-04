@@ -157,7 +157,8 @@ public sealed partial class ChannelSalesActions
         if (!access.All || !await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && access.OrganizationIds.Contains(x.Id), ct)) throw new KeyNotFoundException();
         var reason = Validation.Required(request.Reason, "reason", "Cần lý do sửa dữ liệu nhập.", 2000);
         var schoolId = await db.SchoolUnits.Where(x => x.Id == id).Select(x => (long?)x.DirectorySchoolId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        var customerId = await db.DirectorySchools.Where(x => x.Id == schoolId).Select(x => x.CustomerId).SingleAsync(ct);
+        var customerId = await db.DirectorySchools.Where(x => x.Id == schoolId && !x.IsDeleted).Select(x => x.CustomerId).SingleOrDefaultAsync(ct);
+        if (customerId == 0) throw new ApiConflictException("Trường đã ngừng sử dụng. Hãy khôi phục trước khi chỉnh sửa.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var customer = await LockCustomer(customerId, ct) ?? throw new KeyNotFoundException();
         var unit = await db.SchoolUnits.FromSqlInterpolated($"SELECT * FROM school_units WHERE id = {id} FOR UPDATE").SingleAsync(ct);

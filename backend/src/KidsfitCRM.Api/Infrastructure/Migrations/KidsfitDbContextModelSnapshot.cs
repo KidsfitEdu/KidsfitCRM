@@ -1015,6 +1015,25 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("customer_id");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<long?>("DeletedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("deleted_by_user_id");
+
+                    b.Property<string>("DeleteReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("delete_reason");
+
                     b.Property<string>("SchoolCode")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1030,6 +1049,10 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.HasIndex("CustomerId")
                         .IsUnique();
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("DeletedByUserId");
 
                     b.HasIndex("SchoolCode")
                         .IsUnique();
@@ -3457,6 +3480,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.DirectorySchool", b =>
                 {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("DeletedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")

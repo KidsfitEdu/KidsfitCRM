@@ -9,6 +9,8 @@ import { readSchoolDemo } from '@/lib/school-demo';
 import {
   Building2,
   Eye,
+  Pencil,
+  Archive,
   UsersRound,
   Search,
   RotateCcw,
@@ -29,6 +31,7 @@ import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { SchoolProfileDetails } from '@/components/crm/schools/school-profile-details';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { channelDate, channelRequest, channelQueryKeys } from '@/lib/channel-operations';
+import { updateSchoolUnit, archiveSchool, restoreSchool } from '@/services/school.service';
 
 type Props = {
   apiBase: string;
@@ -42,6 +45,7 @@ type Props = {
 type School = {
   id: number;
   school_code: string;
+  is_deleted: boolean;
   customer_id: number;
   display_name: string;
   province: string;
@@ -93,6 +97,7 @@ type Detail = {
   school_code: string;
   customer_id: number;
   display_name: string;
+  is_deleted: boolean;
   registration_id: number | null;
   protected_until: string | null;
   can_report_contract: boolean;
@@ -166,6 +171,12 @@ export function SchoolDirectory({
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selected, setSelected] = useState<number | null>(null);
+  const [editingUnit, setEditingUnit] = useState<Detail['units'][number] | null>(null);
+  const [editUnitChoices, setEditUnitChoices] = useState<Detail['units']>([]);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [archiveTarget, setArchiveTarget] = useState<School | null>(null);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminError, setAdminError] = useState('');
   const [registerSchool, setRegisterSchool] = useState<School | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -175,7 +186,8 @@ export function SchoolDirectory({
   const [notice, setNotice] = useState('');
   const client = useQueryClient();
   const demo = !apiBase;
-  const can = (code: string) => !demo && abilities.includes(code);
+  const can = (code: string) => !demo && (abilities.includes('*') || abilities.includes(code));
+  const canAdminManage = adminMode && can('channel_sales.school.directory.manage');
   const api = <T,>(path: string, options?: RequestInit) =>
     demo
       ? readSchoolDemo<T>(path)
@@ -183,7 +195,7 @@ export function SchoolDirectory({
   const schools = useQuery({
     queryKey: [...channelQueryKeys.all, 'schools', search, page, pageSize, statusFilter],
     queryFn: () => api<SchoolList>(
-      `/schools?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}&status=${encodeURIComponent(statusFilter)}`,
+      `/schools?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}&status=${encodeURIComponent(statusFilter === 'DELETED' ? 'ALL' : statusFilter)}${canAdminManage && statusFilter === 'DELETED' ? '&includeDeleted=true' : ''}`,
     ),
   });
   const capacities = useQuery({
@@ -204,6 +216,63 @@ export function SchoolDirectory({
       if (!adminMode) throw error;
       appNotice.warning('Đã lưu dữ liệu, nhưng chưa tải lại được danh sách.', error instanceof Error ? error.message : 'Vui lòng mở lại trang để xem dữ liệu mới.');
     }
+  };
+  const openEditor = (unit: Detail['units'][number]) => {
+    setAdminError('');
+    setEditingUnit(unit);
+    setEditForm({
+      name: unit.name, province: unit.province, ward: unit.ward,
+      address: unit.address ?? '', contact_name: unit.contact_name ?? '',
+      contact_position: unit.contact_position ?? '', contact_phone: unit.contact_phone ?? '',
+      school_phone: unit.school_phone ?? '', email: unit.email ?? '',
+      note: unit.note ?? '', reason: '',
+    });
+  };
+  const startEditSchool = async (school: School) => {
+    if (adminBusy || school.is_deleted) return;
+    setAdminBusy(true);
+    setAdminError('');
+    try {
+      const schoolDetail = await api<Detail>(`/schools/${school.id}`);
+      const editableUnits = schoolDetail.units.filter(unit => unit.can_edit);
+      if (!editableUnits.length) throw new Error('Không có đơn vị được phép chỉnh sửa.');
+      if (editableUnits.length === 1) openEditor(editableUnits[0]);
+      else setEditUnitChoices(editableUnits);
+    } catch (error) {
+      appNotice.error('Không mở được form chỉnh sửa.', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+  const saveEditor = async () => {
+    if (!editingUnit || adminBusy) return;
+    if (!editForm.name?.trim() || !editForm.province?.trim() || !editForm.ward?.trim() || !editForm.reason?.trim()) {
+      setAdminError('Cần điền tên, tỉnh/thành, phường/xã và lý do chỉnh sửa.'); return;
+    }
+    setAdminBusy(true); setAdminError('');
+    try {
+      await updateSchoolUnit(apiBase, token, editingUnit.id, { ...editForm, expected_version: editingUnit.version });
+      setEditingUnit(null);
+      appNotice.success('Đã cập nhật thông tin trường.');
+      await syncAfterSave();
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Không cập nhật được trường.');
+    } finally { setAdminBusy(false); }
+  };
+  const changeArchive = async () => {
+    if (!archiveTarget || adminBusy) return;
+    setAdminBusy(true); setAdminError('');
+    try {
+      if (archiveTarget.is_deleted) await restoreSchool(apiBase, token, archiveTarget.id);
+      else await archiveSchool(apiBase, token, archiveTarget.id);
+      appNotice.success(archiveTarget.is_deleted ? 'Đã khôi phục trường học.' : 'Đã xóa trường học thành công.', archiveTarget.is_deleted ? undefined : 'Dữ liệu và lịch sử vẫn được lưu giữ.');
+      setArchiveTarget(null);
+      await syncAfterSave();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Vui lòng thử lại.';
+      setArchiveTarget(null);
+      appNotice.error(archiveTarget.is_deleted ? 'Không thể khôi phục trường học.' : 'Không thể xóa trường học.', message);
+    } finally { setAdminBusy(false); }
   };
   const mutation = useMutation({
     mutationFn: ({ path, body, method }: Command) =>
@@ -339,6 +408,7 @@ export function SchoolDirectory({
             <option value="AVAILABLE">Chưa đăng ký</option>
             <option value="APPROACHING">Đang tiếp cận</option>
             <option value="CONTRACTED">Đã xác minh hợp đồng</option>
+            {canAdminManage && <option value="DELETED">Đã ngừng sử dụng</option>}
           </AppNativeSelect>
           <AppButton type="submit" tone="orange" premium className="h-10 min-w-0 justify-center gap-2 rounded-lg bg-[#d97706] px-4 font-bold text-white shadow-[0_6px_16px_rgba(217,119,6,.18)] hover:bg-[#b45309] hover:text-white dark:bg-[#d97706] dark:text-white dark:hover:bg-[#b45309] dark:hover:text-white">Tìm kiếm</AppButton>
           <AppButton type="button" tone="outline" size="icon-lg"
@@ -392,13 +462,15 @@ export function SchoolDirectory({
                     <td className="p-4 text-center align-middle">{s.branches}</td>
                     <td className="p-4 text-center align-middle">
                       <Badge variant="outline" className={
-                        s.visible_status === 'AVAILABLE'
+                        s.is_deleted
+                          ? 'border-slate-300 bg-slate-100 text-slate-600'
+                          : s.visible_status === 'AVAILABLE'
                           ? 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
                           : s.visible_status === 'CONTRACTED'
                             ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
                             : 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200'
                       }>
-                        {labels[s.visible_status] ?? s.visible_status}
+                        {s.is_deleted ? 'Đã ngừng sử dụng' : (labels[s.visible_status] ?? s.visible_status)}
                       </Badge>
                     </td>
                     <td className="p-4 text-center align-middle">
@@ -417,6 +489,21 @@ export function SchoolDirectory({
                           title="Xem chi tiết" onClick={() => setSelected(s.id)}>
                           <Eye className="size-4" aria-hidden="true"/>
                         </AppButton>
+                        {canAdminManage && !s.is_deleted && <AppButton tone="outline" size="icon-sm"
+                          className="h-9 w-9 min-w-9 rounded-lg"
+                          disabled={adminBusy}
+                          aria-label={`Sửa ${s.display_name}`}
+                          title="Sửa trường"
+                          onClick={() => void startEditSchool(s)}>
+                          <Pencil className="size-4" aria-hidden="true" />
+                        </AppButton>}
+                        {canAdminManage && <AppButton tone="outline" size="icon-sm"
+                          className="h-9 w-9 min-w-9 rounded-lg"
+                          aria-label={s.is_deleted ? `Khôi phục ${s.display_name}` : `Xóa ${s.display_name}`}
+                          title={s.is_deleted ? 'Khôi phục trường' : 'Xóa trường'}
+                          onClick={() => { setArchiveTarget(s); setAdminError(''); }}>
+                          {s.is_deleted ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
+                        </AppButton>}
                         {!adminMode && s.can_register && (
                           <Button
                             type="button"
@@ -542,6 +629,53 @@ export function SchoolDirectory({
           )}
           {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
         </AppDrawer>
+      <AppDialog open={editUnitChoices.length > 0}
+        onOpenChange={open => { if (!open && !adminBusy) setEditUnitChoices([]); }}
+        busy={adminBusy} title="Chọn trường chính hoặc phân hiệu để sửa">
+        <div className="space-y-2">
+          {editUnitChoices.map(unit => <AppButton key={unit.id} tone="outline"
+            className="w-full justify-start" onClick={() => {
+              setEditUnitChoices([]);
+              openEditor(unit);
+            }}>
+            <Pencil className="mr-2 size-4"/>
+            {unit.name} ({unit.unit_type === 'MAIN' ? 'Trường chính' : 'Phân hiệu'})
+          </AppButton>)}
+        </div>
+      </AppDialog>
+      <AppDialog open={editingUnit !== null}
+        onOpenChange={open => { if (!open && !adminBusy) { setEditingUnit(null); setAdminError(''); } }}
+        busy={adminBusy} title="Sửa thông tin trường/phân hiệu">
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Mã trường chính được giữ nguyên để bảo vệ quan hệ dữ liệu.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {([
+              ['name','Tên đơn vị'],['province','Tỉnh/thành'],['ward','Phường/xã'],['address','Địa chỉ'],
+              ['contact_name','Người liên hệ'],['contact_position','Chức vụ'],['contact_phone','SĐT liên hệ'],
+              ['school_phone','SĐT trường'],['email','Email'],['note','Ghi chú'],['reason','Lý do sửa']
+            ] as const).map(([key,label]) => <label key={key} className="text-sm">{label}
+              <Input className="mt-1" value={editForm[key] ?? ''}
+                onChange={event => setEditForm(current => ({...current,[key]:event.target.value}))}/>
+            </label>)}
+          </div>
+          {adminError && <p role="alert" className="text-sm text-red-600">{adminError}</p>}
+          <div className="flex justify-end gap-2">
+            <AppButton tone="outline" disabled={adminBusy} onClick={() => setEditingUnit(null)}>Hủy</AppButton>
+            <AppButton disabled={adminBusy} onClick={() => void saveEditor()}>Lưu thay đổi</AppButton>
+          </div>
+        </div>
+      </AppDialog>
+      <AppDialog open={archiveTarget !== null}
+        onOpenChange={open => { if (!open && !adminBusy) { setArchiveTarget(null); setAdminError(''); } }}
+        busy={adminBusy} title={archiveTarget?.is_deleted ? 'Khôi phục trường học' : 'Xác nhận xóa trường học'}>
+        <div className="space-y-3">
+          <p className="text-sm">Bạn có chắc chắn muốn {archiveTarget?.is_deleted ? 'khôi phục' : 'xóa'} trường <strong>{archiveTarget?.display_name}</strong> không?</p>
+          <div className="flex justify-end gap-2">
+            <AppButton tone="outline" disabled={adminBusy} onClick={() => setArchiveTarget(null)}>Hủy</AppButton>
+            <AppButton disabled={adminBusy} onClick={() => void changeArchive()}>Xác nhận</AppButton>
+          </div>
+        </div>
+      </AppDialog>
       <AppDialog open={!!capacity} onOpenChange={(open) => {if (!open) setCapacity(null);}} title={`Hạn mức trường của ${capacity?.name ?? ''}`} description="Giảm hạn mức không thu hồi quyền bảo vệ hiện tại. CTV chỉ nhận thêm khi còn suất.">
           {capacity && (
             <CapacityForm

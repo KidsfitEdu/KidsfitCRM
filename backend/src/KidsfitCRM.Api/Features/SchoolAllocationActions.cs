@@ -17,7 +17,7 @@ public sealed partial class ChannelSalesActions
         if (!access.All && membership.ManagerUserId != actorId) throw new KeyNotFoundException();
         var assignee = await ChannelSalesAccess.Load(db, request.AssigneeUserId, ct);
         if (!assignee.Has(Permissions.ChannelSalesRegister)) throw ApiValidationException.For("assignee_user_id", "Nhân sự chưa có quyền tiếp cận trường.");
-        var school = await db.DirectorySchools.SingleOrDefaultAsync(x => x.Id == request.SchoolId, ct) ?? throw new KeyNotFoundException();
+        var school = await db.DirectorySchools.SingleOrDefaultAsync(x => x.Id == request.SchoolId && !x.IsDeleted, ct) ?? throw new KeyNotFoundException();
         await LockCustomer(school.CustomerId, ct);
         var replay = await db.SchoolInvitations.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.AssignedByUserId, actorId, replay.RequestFingerprint, hash);
@@ -116,7 +116,7 @@ public sealed partial class ChannelSalesActions
         var replay = await db.SchoolExtensionRequests.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.RequestedByUserId, actorId, replay.RequestFingerprint, hash);
         var now = DateTime.UtcNow;
-        if (!await db.DirectorySchools.AnyAsync(x => x.CustomerId == lookup.CustomerId, ct)) throw new KeyNotFoundException();
+        if (!await db.DirectorySchools.AnyAsync(x => x.CustomerId == lookup.CustomerId && !x.IsDeleted, ct)) throw new KeyNotFoundException();
         if (registration.Status != "ACTIVE" || registration.ProtectedUntil <= now) throw new ApiConflictException("Chỉ xin gia hạn trước khi quyền tiếp cận hết hạn.");
         if (await db.SchoolExtensionRequests.AnyAsync(x => x.ApproachRegistrationId == registrationId && x.Status == "PENDING", ct)) throw new ApiConflictException("Lượt tiếp cận đã có yêu cầu gia hạn đang chờ.");
         var managerId = member.ManagerUserId ?? throw ApiValidationException.For("manager", "Chưa có Quản lý trực tiếp nhận yêu cầu.");

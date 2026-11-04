@@ -343,7 +343,8 @@ public static class ManagerContractEndpoints
                             .ToArrayAsync(ct);
         return Results.Ok(new {
             data = new {
-                contract.id, contract.ContractCode, contract.SignedOn, contract.EffectiveOn,
+                contract.id, customer_id = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.CustomerId).SingleAsync(ct),
+                contract.ContractCode, contract.SignedOn, contract.EffectiveOn,
                 contract.TotalValue, contract.Status, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
                 contract.ContractNote, maintenance_fee = maintenanceFee, setup_fee = setupFee,
                 revision_reason = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.RevisionReason).SingleAsync(ct),

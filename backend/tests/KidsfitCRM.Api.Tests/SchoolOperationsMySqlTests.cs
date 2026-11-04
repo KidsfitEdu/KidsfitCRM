@@ -64,6 +64,47 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task ManagerProgressIsOrganizationScopedAndFiltersSalesServerSide()
+    {
+        var s = await Arrange();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        await actions.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
+        await actions.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Peer.UserId, Http(), Ct);
+
+        var otherOrg = new Organization { Code = "OTHER-" + Key(), Name = "Đối tác khác", OrganizationType = "PARTNER" };
+        db.Organizations.Add(otherOrg);
+        await db.SaveChangesAsync(Ct);
+        var outsider = await AddMember(otherOrg.Id, "SALES_MANAGER", "SALES_MANAGER");
+
+        var all = Json(await ManagerProgressEndpoints.List(Http(s.Manager.UserId), db,
+            null, null, null, 1, 20, Ct));
+        Assert.Equal(2, all.GetProperty("total").GetInt32());
+        Assert.Equal(2, all.GetProperty("data").GetArrayLength());
+        Assert.Contains(all.GetProperty("staff").EnumerateArray(),
+            m => m.GetProperty("id").GetInt64() == s.Seller.UserId);
+        Assert.DoesNotContain(all.GetProperty("staff").EnumerateArray(),
+            m => m.GetProperty("id").GetInt64() == outsider.UserId);
+
+        var selected = Json(await ManagerProgressEndpoints.List(Http(s.Manager.UserId), db,
+            null, "APPROACHING", s.Seller.UserId, 1, 20, Ct));
+        Assert.Equal(1, selected.GetProperty("total").GetInt32());
+        Assert.Equal(s.CustomerId, selected.GetProperty("data")[0].GetProperty("id").GetInt64());
+        Assert.Equal(s.Seller.UserId, selected.GetProperty("data")[0].GetProperty("owner_user_id").GetInt64());
+
+        var pageTwo = Json(await ManagerProgressEndpoints.List(Http(s.Manager.UserId), db,
+            null, "ALL", null, 2, 1, Ct));
+        Assert.Equal(2, pageTwo.GetProperty("total").GetInt32());
+        Assert.Single(pageTwo.GetProperty("data").EnumerateArray());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ManagerProgressEndpoints.List(Http(s.Manager.UserId), db, null, null,
+                outsider.UserId, 1, 20, Ct));
+
+        var outsiderList = Json(await ManagerProgressEndpoints.List(Http(outsider.UserId), db,
+            null, null, null, 1, 20, Ct));
+        Assert.Equal(0, outsiderList.GetProperty("total").GetInt32());
+    }
+
     [MySqlFact] public async Task SalesDraftCanBeSavedEditedReturnedAndApprovedWithMultipleUnits()
     {
         var sc = await Arrange(); var admin = await User("admin@kidsfit.vn");

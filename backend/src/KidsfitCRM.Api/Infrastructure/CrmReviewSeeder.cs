@@ -22,6 +22,7 @@ internal static class CrmReviewSeeder
         public DisputeFixture Dispute { get; set; } = new();
         public DeferralFixture Deferral { get; set; } = new();
         public SupportFixture Support { get; set; } = new();
+        public DepartureFixture Departure { get; set; } = new();
     }
     private sealed class CommissionFixture
     {
@@ -107,6 +108,12 @@ internal static class CrmReviewSeeder
         public string SchoolCode { get; set; } = "";
         public string TicketSubject { get; set; } = "";
         public string TicketDescription { get; set; } = "";
+    }
+    private sealed class DepartureFixture
+    {
+        public string SchoolCode { get; set; } = "";
+        public string FormerUserCode { get; set; } = "";
+        public string Reason { get; set; } = "";
     }
     private static string Fingerprint(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
@@ -543,6 +550,65 @@ internal static class CrmReviewSeeder
                 Reason = fixture.Deferral.Reason, ReviewAt = now.AddDays(fixture.Deferral.ReviewDays),
                 Status = "OPEN", IdempotencyKey = "review-deferral-" + fixture.Deferral.SchoolCode,
                 CreatedAt = now, UpdatedAt = now });
+
+        // Reviewer can inspect an un-paid draft without fabricating a completed bank transfer.
+        var salesAccrual = await db.CommissionLedgerEntries.SingleAsync(x => x.IdempotencyKey == "review-commission-SCH0001");
+        var payout = await db.Payouts.SingleOrDefaultAsync(x => x.Code == "REV-PAYOUT-SALES-2026");
+        if (payout is null)
+        {
+            payout = new Payout {
+                OrganizationId = kidsfit.Id, BeneficiaryUserId = sales.Id,
+                Code = "REV-PAYOUT-SALES-2026", Period = now.ToString("yyyy-MM"),
+                GrossAmount = salesAccrual.Amount, NetAmount = salesAccrual.Amount,
+                WithholdingAmount = 0m, Status = "DRAFT",
+                CreatedByUserId = accountant.Id,
+                IdempotencyKey = "review-payout-sales-2026",
+                CreatedAt = now, UpdatedAt = now };
+            db.Payouts.Add(payout);
+            await db.SaveChangesAsync();
+        }
+        if (!await db.PayoutItems.AnyAsync(x => x.PayoutId == payout.Id &&
+            x.CommissionLedgerEntryId == salesAccrual.Id))
+            db.PayoutItems.Add(new PayoutItem {
+                PayoutId = payout.Id, CommissionLedgerEntryId = salesAccrual.Id,
+                Amount = salesAccrual.Amount, CreatedAt = now, UpdatedAt = now });
+
+        // A formerly employed reviewer account has a recorded administrative departure.
+        // No real ownership, existing account or verified contract is modified.
+        if (fixture.Departure.SchoolCode != "SCH0010" || fixture.Departure.FormerUserCode != "SALES_LEFT01")
+            throw new InvalidOperationException("Invalid fictional departure fixture.");
+        var former = await db.Users.SingleOrDefaultAsync(x => x.Code == fixture.Departure.FormerUserCode);
+        if (former is null)
+        {
+            former = new User {
+                Code = fixture.Departure.FormerUserCode, Name = "Nhân viên kinh doanh đã nghỉ",
+                Email = "former-sales@kidsfit.example.test", Status = "INACTIVE",
+                CreatedAt = now.AddDays(-40), UpdatedAt = now };
+            former.Password = hasher.HashPassword(former, sharedPassword);
+            db.Users.Add(former);
+            await db.SaveChangesAsync();
+        }
+        var membership = await db.OrganizationMemberships.SingleOrDefaultAsync(x =>
+            x.UserId == former.Id && x.OrganizationId == kidsfit.Id);
+        if (membership is null)
+        {
+            membership = new OrganizationMembership {
+                OrganizationId = kidsfit.Id, UserId = former.Id, ManagerUserId = manager.Id,
+                MembershipType = "SALES", IsPrimary = true, Status = "INACTIVE",
+                CreatedAt = now.AddDays(-40), UpdatedAt = now };
+            db.OrganizationMemberships.Add(membership);
+            await db.SaveChangesAsync();
+        }
+        if (!await db.SchoolHandovers.AnyAsync(x => x.IdempotencyKey == "review-departure-SCH0010"))
+            db.SchoolHandovers.Add(new SchoolHandover {
+                MembershipId = membership.Id, OrganizationId = kidsfit.Id,
+                UserId = former.Id, CompletedByUserId = admin.Id,
+                Reason = fixture.Departure.Reason,
+                Summary = "Đã ghi nhận nghỉ việc và giải phóng trường chưa ký SCH0010 để phân bổ lại.",
+                RevokedRegistrations = 0, AccountSuspended = true,
+                IdempotencyKey = "review-departure-SCH0010",
+                RequestFingerprint = Fingerprint("review-departure-SCH0010"),
+                CreatedAt = now.AddDays(-7), UpdatedAt = now });
         await db.SaveChangesAsync();
     }
 }

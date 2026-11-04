@@ -1006,42 +1006,56 @@ function ContractDialog({
   onClose: () => void;
   onSubmit: (input: ReportContractInput) => Promise<void>;
 }) {
-  const [packageId, setPackageId] = useState(packages[0]?.id ?? 0);
-  const selectedPackage = packages.find(item => item.id === packageId);
-  const [installments, setInstallments] = useState(1);
+  const [plan, setPlan] = useState<'SCHOOL_YEAR' | 'MONTHLY_9'>('SCHOOL_YEAR');
+  const [maintenanceFee, setMaintenanceFee] = useState('');
+  const [setupFee, setSetupFee] = useState('');
+  const [studentCount, setStudentCount] = useState('');
   const [units, setUnits] = useState<{id:number;name:string}[]>([]);
+  const [selectedUnitIds, setSelectedUnitIds] = useState<number[]>([]);
+  const [unitsError, setUnitsError] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [requestKey] = useState(() => idempotencyKey('contract'));
+  const multiplier = plan === 'MONTHLY_9' ? 9 : 1;
+  const maintenance = Number(maintenanceFee);
+  const setup = Number(setupFee);
+  const amountsValid = maintenanceFee.trim() !== '' && setupFee.trim() !== ''
+    && Number.isSafeInteger(maintenance) && maintenance >= 0
+    && Number.isSafeInteger(setup) && setup >= 0
+    && Number.isSafeInteger(maintenance * multiplier + setup)
+    && maintenance * multiplier + setup > 0;
+  const total = amountsValid ? maintenance * multiplier + setup : null;
+  const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN').format(value) + ' đ';
+
   useEffect(() => {
     if (!apiBase || !token) return;
     let mounted = true;
     void channelRequest<{data:{id:number;name:string}[]}>(apiBase, token,
       `/contract-school-units/${customer.id}`)
       .then(result => { if (mounted) setUnits(result.data); })
-      .catch(() => { if (mounted) setUnits([]); });
+      .catch(() => { if (mounted) setUnitsError('Không tải được danh sách phân hiệu. Vui lòng đóng và mở lại biểu mẫu.'); });
     return () => { mounted = false; };
   }, [apiBase, token, customer.id]);
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setSaving(true);
     setError('');
     try {
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
-      const total = Number(text(form, 'total_value'));
-      const plans = Array.from({length: installments}, (_, index) => ({
-        due_on: text(form, `due_${index}`),
-        amount: Number(text(form, `amount_${index}`)),
-      }));
-      if (!Number.isSafeInteger(total) || total <= 0
-          || plans.some(plan => !plan.due_on || !Number.isSafeInteger(plan.amount) || plan.amount <= 0)
-          || plans.reduce((sum, plan) => sum + plan.amount, 0) !== total)
-        throw new Error('Tổng tiền các đợt phải đúng bằng giá trị hợp đồng.');
+      if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
+      if (unitsError) throw new Error(unitsError);
+      if (total === null) throw new Error('Phí duy trì và phí khởi tạo phải là số nguyên không âm, tổng giá trị hợp đồng phải lớn hơn 0.');
+      if (!Number.isSafeInteger(Number(studentCount)) || Number(studentCount) <= 0)
+        throw new Error('Quy mô học sinh phải là số nguyên dương.');
+      const form = new FormData(event.currentTarget);
       const file = form.get('contract_file');
       if (!(file instanceof File) || file.size === 0)
         throw new Error('Bắt buộc chọn file hợp đồng đã ký.');
+      if (file.size > 5 * 1024 * 1024)
+        throw new Error('File hợp đồng tối đa 5 MB.');
+      if (!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.type))
+        throw new Error('Hợp đồng phải là PDF, JPG, PNG hoặc WEBP.');
+      setSaving(true);
       const upload = new FormData();
       upload.set('kind', 'CONTRACT');
       upload.set('file', file);
@@ -1050,72 +1064,96 @@ function ContractDialog({
       await onSubmit({
         idempotency_key: requestKey,
         signed_on: text(form, 'signed_on'),
-        product_package_id: Number(text(form, 'product_package_id')),
+        product_package_id: packages[0].id,
+        service_plan: plan,
+        student_count: Number(studentCount),
+        school_unit_ids: selectedUnitIds,
+        maintenance_fee: maintenance,
+        setup_fee: setup,
         total_value: total,
-        first_payment_due_on: plans[0]?.due_on,
         evidence_id: response.data.id,
-        installments: plans,
-        service_plan: text(form, 'service_plan') as ReportContractInput['service_plan'],
-        student_count: Number(text(form, 'student_count')) || undefined,
-        school_unit_ids: form.getAll('school_unit_id').map(value => Number(value)),
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không thể báo cáo hợp đồng.');
-    } finally {
-      setSaving(false);
-    }
+      const message = cause instanceof Error ? cause.message : 'Không thể báo cáo hợp đồng.';
+      setError(message);
+      appNotice.error('Không thể gửi hợp đồng xác minh.', message);
+    } finally { setSaving(false); }
   };
+
   return <SalesFormDialog title="Báo cáo hợp đồng"
-    subtitle="Khai báo hợp đồng trường chính, các đợt thanh toán và upload bản đã ký để Quản lý và CHECKEE kiểm tra."
+    subtitle="Nhập chi phí theo hợp đồng đã ký. CHECKEE sẽ xác minh hồ sơ và giá trị thực tế."
     onClose={onClose}>
     <form onSubmit={submit}>
       <CustomerHighlight customer={customer}/>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label="Ngày ký *"><Input name="signed_on" type="date" required defaultValue={new Date().toISOString().slice(0,10)}/></Field>
-        <Field label="Gói dịch vụ tham chiếu *">
-          <Select name="product_package_id" value={packageId} required onChange={event=>setPackageId(Number(event.target.value))}>
-            {packages.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}
-          </Select>
+      <div className="mt-4 space-y-4">
+        <Field label="Ngày ký hợp đồng *">
+          <Input name="signed_on" type="date" required defaultValue={new Date().toISOString().slice(0,10)}/>
         </Field>
-        <Field label="Hình thức gói KIDSFIT *">
-          <Select name="service_plan" defaultValue="SCHOOL_YEAR">
-            <option value="SCHOOL_YEAR">Gói năm học (9 tháng, tặng hè)</option>
-            <option value="MONTHLY_9">Gói thanh toán theo tháng</option>
-          </Select>
-        </Field>
-        <Field label="Quy mô học sinh"><Input name="student_count" min={1} type="number" placeholder="VD: 450"/></Field>
-        <Field label="Giá trị hợp đồng thực tế (VNĐ) *">
-          <Input name="total_value" key={packageId} type="number" min={1} required defaultValue={selectedPackage?.list_price ?? 0}/>
-        </Field>
-      </div>
-      {units.length>0 && <fieldset className="mt-4 rounded-xl border p-3">
-        <legend className="px-1 text-sm font-semibold">Trường điểm được triển khai</legend>
-        <div className="space-y-2">{units.map(unit => <label key={unit.id} className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="school_unit_id" value={unit.id}/>{unit.name}
-        </label>)}</div>
-      </fieldset>}
-      <div className="mt-4 space-y-3 rounded-xl border p-3">
-        <Field label="Số đợt thanh toán theo hợp đồng *">
-          <Input type="number" min={1} max={24} value={installments} onChange={event => {
-            const count = Number(event.target.value);
-            setInstallments(Number.isFinite(count) ? Math.min(24, Math.max(1, count)) : 1);
-          }}/>
-        </Field>
-        <p className="text-xs text-muted-foreground">Nhập số tiền và ngày đến hạn từng đợt. Tổng các đợt phải bằng giá trị hợp đồng.</p>
-        {Array.from({length: installments}, (_, index)=><div key={index} className="grid grid-cols-2 gap-3">
-          <Field label={`Đợt ${index+1} · Hạn thanh toán *`}>
-            <Input name={`due_${index}`} type="date" required/>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="service_plan_choice" value="SCHOOL_YEAR"
+              checked={plan==='SCHOOL_YEAR'} onChange={()=>setPlan('SCHOOL_YEAR')}/>
+            Gói năm học (9 tháng, tặng 3 tháng hè)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="service_plan_choice" value="MONTHLY_9"
+              checked={plan==='MONTHLY_9'} onChange={()=>setPlan('MONTHLY_9')}/>
+            Gói hàng tháng (9 tháng)
+          </label>
+        </fieldset>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Quy mô học sinh *">
+            <Input aria-label="Quy mô học sinh" type="number" min={1} max={100000}
+              required value={studentCount} onChange={e=>setStudentCount(e.target.value)}
+              placeholder="Ví dụ: 450"/>
           </Field>
-          <Field label="Số tiền (VNĐ) *">
-            <Input name={`amount_${index}`} type="number" min={1} step={1} required/>
+          <Field label="Số phân hiệu triển khai">
+            <Input aria-label="Số phân hiệu triển khai" value={selectedUnitIds.length} readOnly/>
           </Field>
-        </div>)}
-      </div>
-      <div className="mt-4">
-        <Field label="File hợp đồng đã ký *">
-          <Input name="contract_file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required/>
-        </Field>
-        <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP. Tối đa 5 MB. Chỉ người có quyền được tải xuống.</p>
+        </div>
+        {units.length>0 && <fieldset className="rounded-xl border p-3">
+          <legend className="px-1 text-sm font-semibold">Chọn phân hiệu triển khai</legend>
+          <div className="space-y-2">{units.map(unit => <label key={unit.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={selectedUnitIds.includes(unit.id)}
+              onChange={e=>setSelectedUnitIds(ids=>e.target.checked?[...ids,unit.id]:ids.filter(id=>id!==unit.id))}/>
+            {unit.name}
+          </label>)}</div>
+        </fieldset>}
+        {unitsError && <p role="alert" className="text-sm text-destructive">{unitsError}</p>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
+            <Input aria-label="Phí duy trì" type="number" min={0} step={1} required
+              value={maintenanceFee} onChange={e=>setMaintenanceFee(e.target.value)}/>
+          </Field>
+          <Field label="Phí khởi tạo (VNĐ) *">
+            <Input aria-label="Phí khởi tạo" type="number" min={0} step={1} required
+              value={setupFee} onChange={e=>setSetupFee(e.target.value)}/>
+          </Field>
+        </div>
+        <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+          <h3 className="font-semibold">Chi phí theo hợp đồng</h3>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span>{plan==='MONTHLY_9'?'Phí duy trì (9 tháng)':'Phí duy trì (9 tháng)'}</span>
+            <span className="tabular-nums">{Number.isSafeInteger(maintenance*multiplier) && maintenanceFee ? formatVnd(maintenance*multiplier) : '—'}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span>Phí khởi tạo (một lần)</span>
+            <span className="tabular-nums">{setupFee && Number.isSafeInteger(setup) ? formatVnd(setup) : '—'}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t pt-3">
+            <strong>Tổng giá trị hợp đồng</strong>
+            <strong className="text-lg tabular-nums text-emerald-700 dark:text-emerald-300">
+              {total===null ? '—' : formatVnd(total)}
+            </strong>
+          </div>
+        </div>
+        <div>
+          <Field label="File hợp đồng đã ký *">
+            <Input name="contract_file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required/>
+          </Field>
+          <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
+        </div>
       </div>
       <DialogFooter saving={saving} error={error} onClose={onClose} label="Gửi hợp đồng xác minh"/>
     </form>

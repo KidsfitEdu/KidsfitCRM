@@ -360,6 +360,11 @@ public static class ManagerContractEndpoints
                 contract.ContractNote, maintenance_fee = maintenanceFee, setup_fee = setupFee,
                 revision_reason = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.RevisionReason).SingleAsync(ct),
                 contract.EvidenceReference, contract.ManagerReviewedAt, contract.VerifiedAt,
+                protection_until = await db.CustomerProtections
+                    .Where(p => p.ContractId == id && p.SourceType == "CONTRACT" && p.Status == "ACTIVE")
+                    .OrderByDescending(p => p.EffectiveUntil)
+                    .Select(p => (DateTime?)p.EffectiveUntil)
+                    .FirstOrDefaultAsync(ct),
                 contract.school_name, contract.school_address, contract.school_province, contract.sales_name,
                 can_review = contract.Status == "PENDING_REVIEW" && access.Has(Permissions.SchoolContractReview)
                     && (access.All || (access.CanManageOrganization(contract.OwnerOrganizationId)

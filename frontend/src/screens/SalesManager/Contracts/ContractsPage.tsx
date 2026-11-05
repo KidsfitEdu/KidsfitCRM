@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, FileCheck2, FileText, Send, Undo2, ExternalLink } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
+import { ContractLifecycleExplorer } from '@/components/crm/contract-lifecycle-explorer';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
@@ -103,6 +104,8 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
    <AppPageHeader eyebrow="QUẢN LÝ BÁN HÀNG / HỢP ĐỒNG & XÁC MINH"
      title="Hợp đồng & xác minh"
      description="Rà soát hợp đồng do Sales báo cáo, chuyển CHECKEE xác minh và theo dõi phản hồi."/>
+   <ContractLifecycleExplorer apiBase={apiBase} token={token} mode="manager" />
+
    {!connected&&<output className="block rounded-xl border p-4 text-sm text-muted-foreground">Chế độ xem thử: đăng nhập hệ thống để xem và duyệt hợp đồng thật.</output>}
    {error&&<p role="alert" className="rounded-xl border border-red-200 p-3 text-sm text-red-700">{error}</p>}
    <AdminListPanel>

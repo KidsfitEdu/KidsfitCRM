@@ -58,7 +58,7 @@ public sealed class ContractServiceLifecycle : Migration
             table.ForeignKey("FK_lifecycle_alert_recipient",x=>x.recipient_user_id,"users","id",onDelete:ReferentialAction.Restrict);
         });
         m.CreateIndex("IX_contract_lifecycle_alerts_deduplication_key","contract_lifecycle_alerts","deduplication_key",unique:true);
-        m.CreateIndex("IX_contract_lifecycle_alerts_recipient_user_id_read_at_created_at","contract_lifecycle_alerts",new[]{"recipient_user_id","read_at","created_at"});
+        m.CreateIndex("ix_lifecycle_alert_recipient_read_created","contract_lifecycle_alerts",new[]{"recipient_user_id","read_at","created_at"});
         m.CreateIndex("IX_contract_lifecycle_alerts_customer_id","contract_lifecycle_alerts","customer_id");
         m.CreateIndex("IX_contract_lifecycle_alerts_service_term_id","contract_lifecycle_alerts","service_term_id");
 

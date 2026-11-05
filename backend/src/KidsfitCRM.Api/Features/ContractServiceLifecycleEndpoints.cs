@@ -14,6 +14,7 @@ public static class ContractServiceLifecycleEndpoints
 {
     public static void Map(RouteGroupBuilder group)
     {
+        group.MapGet("/contract-lifecycle/contracts", Contracts).RequireAuthorization();
         group.MapGet("/contract-lifecycle/terms", List).RequireAuthorization();
         group.MapPost("/contracts/{id:long}/service-terms", Submit).RequireAuthorization(Permissions.ChannelSalesReportContract);
         group.MapPost("/contract-lifecycle/terms/{id:long}/manager-review", ManagerReview)
@@ -38,6 +39,25 @@ public static class ContractServiceLifecycleEndpoints
             !access.Has(Permissions.SchoolSupportManage))
             throw new KeyNotFoundException();
         return access.Contracts(db);
+    }
+
+    private static async Task<IResult> Contracts(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        var scoped = ReadableContracts(db, access).Where(c => c.VerifiedAt != null && c.Status == "ACTIVE");
+        var rows = await scoped.OrderByDescending(c => c.VerifiedAt).Take(100)
+            .Select(c => new {
+                id = c.Id, customer_id = c.CustomerId, contract_code = c.ContractCode,
+                school_name = db.ChannelCustomers.Where(x => x.Id == c.CustomerId)
+                    .Select(x => x.DisplayName).FirstOrDefault(),
+                owner_user_id = c.OwnerUserId, signed_on = c.SignedOn,
+                protection_until = db.CustomerProtections.Where(p => p.ContractId == c.Id &&
+                    p.SourceType == "CONTRACT" && p.Status == "ACTIVE")
+                    .Select(p => (DateTime?)p.EffectiveUntil).FirstOrDefault(),
+                service_end_on = db.ContractServiceTerms.Where(t => t.CustomerId == c.CustomerId && t.Status == "ACTIVE")
+                    .OrderByDescending(t => t.EndOn).Select(t => (DateOnly?)t.EndOn).FirstOrDefault()
+            }).ToArrayAsync(ct);
+        return Results.Ok(new { data = rows });
     }
 
     private static async Task<IResult> List(long? contract_id, HttpContext http, KidsfitDbContext db, CancellationToken ct)

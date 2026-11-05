@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from 'react';
 import { ChannelOperations } from '@/components/crm/channel-operations';
+import { ContractLifecycleExplorer } from '@/components/crm/contract-lifecycle-explorer';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { SalesFocusPage } from './SalesFocusPage';
@@ -13,7 +14,10 @@ type SectionDefinition = {label: string; panel: string; tab: string};
 
 /** Presents an existing ChannelOperations view without copying business rules into each role. */
 export function RoleOperationsPage({ profile, section, ...props }: RolePageProps & { profile: RolePageGroup; section: string }) {
-  if (profile === 'SalesStaff') return <SalesFocusPage section={section as 'schools'|'customers'|'activities'|'proposals'|'income'} {...props}/>;
+  if (profile === 'SalesStaff') return <>
+    <SalesFocusPage section={section as 'schools'|'customers'|'activities'|'proposals'|'income'} {...props}/>
+    {['schools','customers'].includes(section)&&<ContractLifecycleExplorer apiBase={props.apiBase} token={props.token} mode="sales"/>}
+  </>;
   const sections: Record<string, SectionDefinition> = rolePageSections[profile];
   const active = sections[section];
   if (!active || active.panel === 'dashboard') return <p role="alert">Không tìm thấy chức năng được yêu cầu.</p>;
@@ -35,6 +39,9 @@ export function RoleOperationsPage({ profile, section, ...props }: RolePageProps
         canReportContract={can('channel_sales.contract.report')} canRecordRevenue={can('channel_sales.revenue.record')}
         onRegister={props.onRegister} onAddActivity={props.onAddActivity}
         onReportContract={props.onReportContract} onRecordRevenue={props.onRecordRevenue}/>} />
+    {profile==='Checkee' && section==='verification' && <ContractLifecycleExplorer apiBase={apiBase} token={token} mode="checkee"/>}
+    {profile==='Collaborator' && section==='approaches' && <ContractLifecycleExplorer apiBase={apiBase} token={token} mode="sales"/>}
+    {profile==='Board' && section==='oversight' && <ContractLifecycleExplorer apiBase={apiBase} token={token} mode="board"/>}
   </div>;
 }
 

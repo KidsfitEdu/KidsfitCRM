@@ -1037,8 +1037,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal("CANCELLED", await db.SchoolExtensionRequests.Where(x => x.Id == extension.Id)
             .Select(x => x.Status).SingleAsync(Ct));
         Assert.True(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE", Ct));
+        // A verified, protected contract converts the registration; manager release must preserve it.
         Assert.True(await db.ApproachRegistrations.AnyAsync(x => x.CustomerId == s.CustomerId
-            && x.OwnerUserId == s.Seller.UserId && x.Status == "ACTIVE", Ct));
+            && x.OwnerUserId == s.Seller.UserId && x.Status == "CONVERTED", Ct));
         Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries
             .Where(x => x.ContractId == contractId).Select(x => x.Amount).ToArrayAsync(Ct));
         var journal = await db.SchoolHandovers.SingleAsync(x => x.Id == releaseId, Ct);

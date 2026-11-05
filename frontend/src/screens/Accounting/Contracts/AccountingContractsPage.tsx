@@ -36,7 +36,7 @@ type ContractRow = {
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
 type Detail = {
   data: { id: number; contract_code: string; school_name: string; school_address: string | null; school_district: string | null; school_province: string | null; owner_name: string; personnel_type: string | null;
-    signed_on: string; effective_on: string | null; status: string; verified_at: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
+    signed_on: string; effective_on: string | null; status: string; verified_at: string | null; protection_until: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
@@ -362,6 +362,8 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
             <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
+            <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until ? channelDate(detail.data.protection_until) : 'Chưa ghi nhận cấp quyền bảo vệ'}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày kết thúc hợp đồng dịch vụ</dt><dd className="mt-1 font-medium">Chưa quản lý riêng</dd></div>
             <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_plan==='SCHOOL_YEAR'?'Năm học':detail.data.service_plan==='MONTHLY_9'?'Thanh toán theo tháng':'Chưa khai báo'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
@@ -373,6 +375,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
               <ExternalLink className="size-4 shrink-0" aria-hidden="true"/>
             </button>)}
           {detail.evidence.every(x=>x.kind!=='CONTRACT') && <p className="text-muted-foreground">Chưa có file hợp đồng đính kèm. {detail.data.evidence_reference ?? ''}</p>}
+          <p className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">Thời hạn hợp đồng dịch vụ và quyền bảo vệ Sales là hai mốc độc lập. Việc tái ký không tự động gia hạn quyền bảo vệ 5 năm; cần hồ sơ và xác minh hợp lệ. Các cảnh báo hết hạn dịch vụ chỉ được bật khi đã khai báo ngày kết thúc hợp đồng chính xác.</p>
           <h4 className="pt-2 font-semibold">Lịch thanh toán theo hợp đồng</h4>
           {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
           {detail.schedules.map(x=><div key={x.id} className="flex items-center justify-between gap-3 border-b py-2">

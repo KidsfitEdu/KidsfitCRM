@@ -84,6 +84,9 @@ Base path cố định `/KidsfitCRM/` theo tên repository. Không có route pat
 Workflow `.github/workflows/demo-pages.yml` chạy khi main thay đổi frontend hoặc
 workflow, và có nút chạy thủ công. Nó kiểm tra demo/build, thử API URL canary giả,
 chỉ upload artifact tĩnh rồi deploy với quyền `pages:write`/OIDC trong job deploy.
+Chạy thủ công với ref `develop` cũng được phép publish cùng URL demo. Môi trường
+`github-pages` chỉ cho phép hai nhánh `main` và `develop`; push lên `develop`
+không tự publish. Chọn ref cần phát hành khi gọi `workflow_dispatch`.
 Không dùng PAT tùy chỉnh hay publish mã nguồn. GitHub Actions được pin commit SHA.
 Giữ repository private; không đổi visibility hoặc mua/nâng gói để vượt giới hạn Pages.
 

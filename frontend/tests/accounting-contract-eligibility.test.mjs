@@ -10,7 +10,8 @@ test('Accounting filters verified contracts with owner id and uses scoped owner 
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(ui, /financial_view: financialView/);
   assert.match(ui, /params\.set\('owner_user_id', ownerUserId\)/);
-  assert.match(ui, /setOwners\(result\.owners\)/);
+  assert.match(ui, /Array\.isArray\(result\.owners\) \? result\.owners : \[\]/);
+  assert.match(ui, /owners\?: \{ id: number; name: string \}\[\] \| null/);
   assert.match(ui, /owner\.id/);
   assert.match(ui, /value=\{String\(owner\.id\)\}/);
   assert.match(ui, /Tất cả người phụ trách/);
@@ -26,4 +27,11 @@ test('Accounting backend enforces verification in both listing and detail', () =
   assert.match(api, /Where\(x => x\.OwnerUserId == owner_user_id\.Value\)/);
   assert.match(api, /Where\(x => x\.Id == id && x\.VerifiedAt != null\)/);
   assert.match(api, /financial_view/);
+});
+
+test('Missing or null owners in legacy API responses never reach the dropdown map', () => {
+  const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(ui, /const \[owners, setOwners\] = useState<\{ id: number; name: string \}\[]>\(\[\]\)/);
+  assert.match(ui, /setOwners\(Array\.isArray\(result\.owners\) \? result\.owners : \[\]\)/);
+  assert.match(ui, /\{owners\.map\(owner =>/);
 });

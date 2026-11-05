@@ -1630,4 +1630,33 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(0, (await ContractLifecycleSweep.Run(db, DateTime.UtcNow, Ct)).released);
     }
 
+
+    [MySqlFact] public async Task ContractLifecycleAlertIsRecipientScopedAndIdempotent()
+    {
+        var s = await Arrange();
+        var contractId = await ActiveContract(s);
+        await using var db = fixture.Open();
+        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        await ContractServiceLifecycleEndpoints.Submit(contractId,
+            new(today.AddMonths(-6), today.AddDays(30), "YEARLY", "NHAC-30-NGAY-" + Key()),
+            Http(s.Seller.UserId), db, Ct);
+        var term = await db.ContractServiceTerms.SingleAsync(x => x.ContractId == contractId, Ct);
+        await ContractServiceLifecycleEndpoints.ManagerReview(term.Id, new(true), Http(s.Manager.UserId), db, Ct);
+        await ContractServiceLifecycleEndpoints.CheckeeReview(term.Id, new(true),
+            Http(await User("checkee@kidsfit.vn")), db, Ct);
+        db.ChangeTracker.Clear();
+
+        var (created, _) = await ContractLifecycleSweep.Run(db, DateTime.UtcNow, Ct);
+        Assert.True(created >= 2);
+        Assert.True(await db.ContractLifecycleAlerts.AnyAsync(a => a.ServiceTermId == term.Id &&
+            a.RecipientUserId == s.Seller.UserId && a.Kind == "SERVICE_EXPIRING_30", Ct));
+        Assert.True(await db.ContractLifecycleAlerts.AnyAsync(a => a.ServiceTermId == term.Id &&
+            a.RecipientUserId == s.Manager.UserId && a.Kind == "SERVICE_EXPIRING_30", Ct));
+        var prior = await db.ContractLifecycleAlerts.CountAsync(a => a.ServiceTermId == term.Id, Ct);
+        await ContractLifecycleSweep.Run(db, DateTime.UtcNow, Ct);
+        Assert.Equal(prior, await db.ContractLifecycleAlerts.CountAsync(a => a.ServiceTermId == term.Id, Ct));
+        Assert.False(await db.ContractLifecycleAlerts.AnyAsync(a => a.ServiceTermId == term.Id &&
+            a.RecipientUserId == s.Peer.UserId, Ct));
+    }
+
 }

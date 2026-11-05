@@ -17,7 +17,7 @@ type Contract = { id:number;school_name:string;sales_name:string;contract_code:s
 type ListResponse = {data:Contract[];total:number;page:number;page_size:number};
 type Detail = {
  data:{id:number;contract_code:string;school_name:string;school_address:string|null;school_province:string|null;
- sales_name:string;signed_on:string;total_value:number;status:string;service_plan:string|null;student_count:number|null;
+ sales_name:string;signed_on:string;total_value:number;status:string;service_plan:string|null;student_count:number|null;protection_until:string|null;
  evidence_reference:string|null;can_review:boolean;can_return:boolean;can_resubmit:boolean;reconciliation_status:string|null};
  evidence:{id:number;file_name:string;mime_type:string;created_at:string}[];
  installments:{due_on:string;amount:number;status:string}[];
@@ -170,6 +170,7 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
          <div className="grid gap-3 sm:grid-cols-2">
            {[["Mã hợp đồng",detail.data.contract_code],["Ngày ký",channelDate(detail.data.signed_on)],
              ["Giá trị",channelMoney(detail.data.total_value)],["Gói dịch vụ",detail.data.service_plan||'Chưa khai báo'],
+             ["Hạn bảo vệ Sales đã cấp",detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền'],["Hạn sử dụng phần mềm",'Chưa quản lý riêng'],
              ["Số học sinh",String(detail.data.student_count??'Chưa khai báo')]].map(([label,value])=>
              <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold">{value}</p></div>)}
          </div>
@@ -184,6 +185,7 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
          <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Trường điểm triển khai</h3>
            <p>{detail.school_units.length?detail.school_units.map(x=>x.name).join(', '):'Chỉ trường chính / chưa khai báo'}</p>
          </section>
+         <p className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">Hạn hợp đồng phần mềm và hạn bảo vệ Sales là hai nghiệp vụ độc lập. Không tự động cộng thêm 5 năm khi tái ký hoặc khi hợp đồng phần mềm hết hạn.</p>
          <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Lịch thanh toán</h3>
            {detail.installments.map((item,i)=><div key={i} className="flex justify-between gap-3 border-b py-2">
              <span>{channelDate(item.due_on)}</span><span>{channelMoney(item.amount)}</span></div>)}

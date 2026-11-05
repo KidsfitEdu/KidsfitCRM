@@ -20,6 +20,197 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractServiceTerm", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("ContractId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("contract_id");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<int>("TermNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("term_number");
+
+                    b.Property<DateOnly>("StartOn")
+                        .HasColumnType("date")
+                        .HasColumnName("start_on");
+
+                    b.Property<DateOnly>("EndOn")
+                        .HasColumnType("date")
+                        .HasColumnName("end_on");
+
+                    b.Property<string>("BillingCycle")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("billing_cycle");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<long>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<long?>("VerifiedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("verified_by_user_id");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("verified_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId", "TermNumber")
+                        .IsUnique();
+
+                    b.HasIndex("CustomerId", "Status", "EndOn");
+
+                    b.HasIndex("SubmittedByUserId");
+
+                    b.HasIndex("VerifiedByUserId");
+
+                    b.ToTable("contract_service_terms");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractLifecycleAlert", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("ServiceTermId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("service_term_id");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<long>("RecipientUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("recipient_user_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateOnly>("DeadlineOn")
+                        .HasColumnType("date")
+                        .HasColumnName("deadline_on");
+
+                    b.Property<string>("DeduplicationKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("deduplication_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("read_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeduplicationKey")
+                        .IsUnique();
+
+                    b.HasIndex("RecipientUserId", "ReadAt", "CreatedAt")
+                        .HasDatabaseName("ix_lifecycle_alert_recipient_read_created");
+
+                    b.HasIndex("ServiceTermId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("contract_lifecycle_alerts");
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractServiceEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("ServiceTermId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("service_term_id");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId", "CreatedAt");
+
+                    b.HasIndex("ServiceTermId");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.ToTable("contract_service_events");
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.ApproachRegistration", b =>
                 {
                     b.Property<long>("Id")
@@ -2622,8 +2813,7 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnName("responded_at");
 
                     b.Property<string>("ResponseReason")
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
+                        .HasColumnType("text")
                         .HasColumnName("response_reason");
 
                     b.Property<string>("Status")
@@ -4181,6 +4371,74 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractServiceTerm", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.SalesContract", null)
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("VerifiedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractLifecycleAlert", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.ContractServiceTerm", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceTermId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractServiceEvent", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.ContractServiceTerm", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceTermId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                });
+
 #pragma warning restore 612, 618
         }
     }

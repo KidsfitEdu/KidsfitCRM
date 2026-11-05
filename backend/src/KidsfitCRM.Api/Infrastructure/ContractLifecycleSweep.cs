@@ -86,11 +86,12 @@ public static class ContractLifecycleSweep
         long userId, string kind, DateOnly deadline, DateTime now, CancellationToken ct, string? sourceKey = null)
     {
         var key = $"term:{sourceKey ?? termId?.ToString() ?? "0"}:customer:{customerId}:recipient:{userId}:kind:{kind}:deadline:{deadline:yyyyMMdd}";
+        var deadlineDateTime = deadline.ToDateTime(TimeOnly.MinValue);
         return db.Database.ExecuteSqlInterpolatedAsync($@"
             INSERT IGNORE INTO contract_lifecycle_alerts
               (service_term_id, customer_id, recipient_user_id, kind, deadline_on,
                deduplication_key, read_at, created_at, updated_at)
-            VALUES ({termId}, {customerId}, {userId}, {kind}, {deadline}, {key}, NULL, {now}, {now})", ct);
+            VALUES ({termId}, {customerId}, {userId}, {kind}, {deadlineDateTime}, {key}, NULL, {now}, {now})", ct);
     }
 
     private static async Task<int> ReleaseIfEligible(KidsfitDbContext db,
@@ -117,8 +118,10 @@ public static class ContractLifecycleSweep
             p.EffectiveUntil > now).ToArrayAsync(ct);
         if (valid.Length == 0) return 0;
         foreach (var item in valid) { item.Status = "EXPIRED"; item.UpdatedAt = now; }
-        var regs = await db.ApproachRegistrations.Where(r => valid.Select(p => p.ApproachRegistrationId)
-            .Contains(r.Id) && r.Status == "CONVERTED").ToArrayAsync(ct);
+        var registrationIds = valid.Where(p => p.ApproachRegistrationId.HasValue)
+            .Select(p => p.ApproachRegistrationId!.Value).ToArray();
+        var regs = await db.ApproachRegistrations.Where(r => registrationIds.Contains(r.Id) &&
+            r.Status == "CONVERTED").ToArrayAsync(ct);
         foreach (var registration in regs) { registration.Status = "EXPIRED"; registration.ExpiredAt = now; registration.UpdatedAt = now; }
         if (!await db.CustomerProtections.AnyAsync(p => p.CustomerId == term.CustomerId &&
             p.Status == "ACTIVE" && p.EffectiveUntil > now && !valid.Select(x => x.Id).Contains(p.Id), ct))

@@ -32,6 +32,19 @@ test('Accounting transaction validation stays beside the corresponding form fiel
   assert.match(ui, /aria-invalid=\{Boolean\(fieldErrors\.transaction_date\)\}/);
 });
 
+test('Accounting form suppresses browser validation and reports empty input errors inline in Vietnamese', () => {
+  const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(ui, /<form noValidate className="space-y-4"/);
+  assert.match(ui, /if \(!reference\) validation\.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng\.'/);
+  assert.match(ui, /if \(!date\) validation\.transaction_date = 'Vui lòng chọn ngày giao dịch\.'/);
+  assert.match(ui, /if \(!Number\.isSafeInteger\(amount\) \|\| amount <= 0\) validation\.amount/);
+  assert.match(ui, /if \(!\(proof instanceof File\) \|\| proof\.size === 0\) validation\.proof/);
+  assert.match(ui, /fieldErrors\.amount && <p role="alert"/);
+  assert.match(ui, /fieldErrors\.reference_code && <p role="alert"/);
+  assert.match(ui, /fieldErrors\.proof && <p role="alert"/);
+  assert.match(ui, /delete updated\[name\]/);
+});
+
 test('Accounting dashboard issues one shared error notice per failed fetch', () => {
   const ui = read('src/screens/Accounting/Dashboard/DashboardPage.tsx');
   assert.match(ui, /appNotice\.error\('Không tải được tổng quan Kế toán\.'/);

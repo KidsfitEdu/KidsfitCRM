@@ -14,10 +14,13 @@ From `frontend`, after `npm ci`:
 ```
 npx vite build --config ../.pages/vite.config.mjs
 npm run test:pages
+node ../.pages/package.mjs
 ```
 
 Set `KIDSFIT_PAGES_RELEASE` to the full release commit SHA in CI. Output is only
-`frontend/dist-pages`. HTML records the source/release SHAs. Vite hashes assets;
+`frontend/dist-public-pages`. It preserves every tested byte from `dist-pages`
+and adds only a validated `version.json` for older cached clients. HTML records
+the source/release SHAs. Vite hashes assets;
 the page checks a fresh same-origin HTML response on load, focus and every minute
 and refreshes once when the published release changes. GitHub controls CDN cache
 headers; use the emitted `?_release=<release SHA>` URL to open a release directly.

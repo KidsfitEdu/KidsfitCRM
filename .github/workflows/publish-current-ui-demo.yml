@@ -21,7 +21,7 @@ jobs:
       pages: read
     env:
       KIDSFIT_PAGES_RELEASE: ${{ github.sha }}
-      PAGES_REPORT_DIR: ${{ runner.temp }}/public-demo-evidence
+      PAGES_REPORT_DIR: /tmp/kidsfit-public-demo-evidence
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -52,10 +52,13 @@ jobs:
       - run: npm run test:pages
         id: artifact_checks
         working-directory: frontend
+      - name: Package exact tested assets and compatibility version manifest
+        id: package
+        run: node .pages/package.mjs
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         id: artifact
         with:
-          path: frontend/dist-pages
+          path: frontend/dist-public-pages
       - name: Record build result
         if: always()
         run: node .pages/report.mjs
@@ -91,7 +94,7 @@ jobs:
       actions: read
     env:
       KIDSFIT_PAGES_RELEASE: ${{ github.sha }}
-      PAGES_REPORT_DIR: ${{ runner.temp }}/public-demo-evidence
+      PAGES_REPORT_DIR: /tmp/kidsfit-public-demo-evidence
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -105,8 +108,8 @@ jobs:
           path: ${{ runner.temp }}/pages-artifact
       - name: Read the exact artifact that was deployed
         run: |
-          mkdir -p frontend/dist-pages
-          tar -xf "$RUNNER_TEMP/pages-artifact/artifact.tar" -C frontend/dist-pages
+          mkdir -p frontend/dist-public-pages
+          tar -xf "$RUNNER_TEMP/pages-artifact/artifact.tar" -C frontend/dist-public-pages
       - name: Prepare browser checks outside the application
         run: |
           npm install --prefix "$RUNNER_TEMP/pages-browser" --no-package-lock --no-save playwright@1.62.1

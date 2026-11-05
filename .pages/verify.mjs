@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const output = join(root, 'frontend/dist-pages');
+const output = join(root, 'frontend/dist-public-pages');
 const reportDir = process.env.PAGES_REPORT_DIR || '/tmp/kidsfit-public-demo-verification';
 const release = process.env.KIDSFIT_PAGES_RELEASE || 'bddb6aae02e935a9fcea431c699c59c4793d398e';
 const local = !process.env.KIDSFIT_DEMO_URL;
-const base = new URL(process.env.KIDSFIT_DEMO_URL || 'http://127.0.0.1:4185/KidsfitCRM/');
+const base = new URL(process.env.KIDSFIT_DEMO_URL || 'http://127.0.0.1:4186/KidsfitCRM/');
 const fresh = new URL(base);
 fresh.searchParams.set('_release', release);
 let preview;
@@ -25,7 +25,7 @@ const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 try {
   await mkdir(reportDir, { recursive: true });
   if (local) {
-    preview = spawn('npm', ['run', 'preview:pages', '--', '--host', '127.0.0.1', '--port', '4185', '--strictPort'], {
+    preview = spawn(process.execPath, [join(root, 'frontend/node_modules/vite/bin/vite.js'), 'preview', '--config', 'vite.pages.config.ts', '--outDir', output, '--host', '127.0.0.1', '--port', '4186', '--strictPort'], {
       cwd: join(root, 'frontend'), stdio: 'ignore',
     });
   }
@@ -46,6 +46,12 @@ try {
     await delay(local ? 250 : 2000);
   }
   assert.ok(html, 'The requested release must be served before browser verification.');
+  const manifestUrl = new URL('version.json', base);
+  manifestUrl.searchParams.set('_fresh', String(Date.now()));
+  const manifest = await fetch(manifestUrl, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+  assert.ok(manifest.ok, 'A compatibility version manifest is required for older cached releases.');
+  assert.deepEqual(await manifest.json(), { version: release });
+  report.legacy_cache_refresh_manifest = true;
   const assetPaths = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(m => m[1]);
   report.assets = [];
   for (const asset of assetPaths) {

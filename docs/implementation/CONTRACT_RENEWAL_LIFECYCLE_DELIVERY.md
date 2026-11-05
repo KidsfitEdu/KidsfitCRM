@@ -1,7 +1,28 @@
 # Contract renewal, service-term reminders and Sales protection lifecycle
 
-Status: **Phase 1 read-model separation delivered in this branch; phases 2–5 NOT implemented.**
+Status: **Multi-phase implementation in Draft PR #80; several finance/policy/production gates remain OPEN.**
 Scope: School CRM (not education-center enrollment). Requirements agreed 2026-11-05.
+
+## Implementation status — PR #80, updated 2026-11-05
+
+This change now goes beyond the original Phase 1 and implements the following in **the PR branch only**:
+
+- **Backend & MySQL 8.4:** additive EF entities, migration and snapshot for `contract_service_terms`, `contract_service_events`, and `contract_lifecycle_alerts`, plus an unrelated existing invitation response-reason widening needed for existing manager workflow tests.
+- **Term workflow:** scoped Sales submission of actual annual service date range and monthly/yearly billing type; direct Manager review; CHECKEE verification; no new 5-year grant from re-signing. A Sales with expired long-term protection must re-register through the pre-existing `RegisterCustomerApproach` and newly verified contract workflow before a future protected cycle.
+- **CRM alerts:** scheduled, recipient-scoped, deduplicated in-app reminders for term expiry D-30, D-15, D-7, D0, D+30; 6/11/12-month interruption; and approaching five-year entitlement expiry. Existing shared Header bell displays and acknowledges them. Old proposal alerts remain available.
+- **12-month interruption:** guarded release after a *verified* service term has had no successor for 12 calendar months and no pending renewal or disputes; preserve contract, receipts, commission ledger and customer history. Service-term dates not evidenced by verification are not fabricated.
+- **Screens:** reuses shared contract explorer in Sales/CTV, Manager, CHECKEE, CSKH, Accounting, BGĐ and Admin reporting. Not every earlier suggested screen is created as an independent route.
+- **MySQL tests:** term verification chain, protection unchanged on routine renewal, 12-month release preserves history, scoped notification deduplication and re-registration after five-year expiry. **Do not claim full pass until the latest CI completes**.
+
+**Items still requiring further approvals/engineering before production release:**
+- Renewal documents currently use a required `EvidenceReference` string, not a new uploaded private attachment tied to the term.
+- An explicit **term-level receivable/payment allocation** and commission eligibility/base/trigger on renewal are not implemented; do not create or distribute money automatically. Finance 30% rate alone is not sufficient authorization.
+- Admin-configurable threshold and exception UI is not implemented; agreed reminder milestones are currently code-defined.
+- Exhaustive parallel race/authorization coverage, exception handling for legacy data, migration rehearsal against a copied dataset and hands-on UX acceptance remain release gates.
+- In-app notices are not external email/Zalo, and no message is sent to school directly.
+- Current worker scans up to 10,000 latest verified terms per run; pagination must be implemented if production exceeds this threshold.
+
+**Safety:** Do not apply the migration to a populated/shared/production DB or merge PR #80 without review and backup/restore. Do not equate "verified software service term" with "verified new five-year Sales protection."
 
 ## Non-negotiable distinct dates
 1. Signed-on / effective-on are contractual dates already stored. Neither is proof of a one-year service expiry.

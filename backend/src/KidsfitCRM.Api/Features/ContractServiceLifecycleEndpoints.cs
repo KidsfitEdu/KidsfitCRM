@@ -89,6 +89,12 @@ public static class ContractServiceLifecycleEndpoints
         if (!await access.Contracts(db).AnyAsync(x => x.Id == id && x.OwnerUserId == access.UserId, ct)
             || contract.Status != "ACTIVE" || contract.VerifiedAt == null)
             throw new KeyNotFoundException();
+        // Once the five-year cycle ends, the old Sales must register again through
+        // the normal contention-safe approach -> Manager -> CHECKEE -> KIDSFIT workflow.
+        if (!await db.CustomerProtections.AnyAsync(p => p.CustomerId == contract.CustomerId &&
+            p.ContractId == contract.Id && p.OwnerUserId == access.UserId &&
+            p.SourceType == "CONTRACT" && p.Status == "ACTIVE" && p.EffectiveUntil > DateTime.UtcNow, ct))
+            throw new ApiConflictException("Quyền bảo vệ 5 năm đã kết thúc. Vui lòng đăng ký tiếp cận lại trước khi nộp kỳ hợp đồng mới.");
         var existing = await db.ContractServiceTerms.Where(x => x.ContractId == id).OrderByDescending(x => x.TermNumber).ToListAsync(ct);
         if (existing.Any(x => x.Status is "PENDING_MANAGER" or "PENDING_CHECKEE"))
             throw new ApiConflictException("Đã có kỳ dịch vụ đang chờ duyệt hoặc xác minh.");

@@ -74,7 +74,7 @@ public static class ContractServiceLifecycleEndpoints
         return Results.Ok(new { data = rows });
     }
 
-    private static async Task<IResult> Submit(long id, SubmitServiceTermRequest request,
+    internal static async Task<IResult> Submit(long id, SubmitServiceTermRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
@@ -116,7 +116,7 @@ public static class ContractServiceLifecycleEndpoints
         return Results.Created($"/api/channel-sales/contract-lifecycle/terms?contract_id={id}", new { data = new { id = term.Id } });
     }
 
-    private static async Task<IResult> ManagerReview(long id, ReviewServiceTermRequest request,
+    internal static async Task<IResult> ManagerReview(long id, ReviewServiceTermRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
@@ -145,7 +145,7 @@ public static class ContractServiceLifecycleEndpoints
         return Results.Ok(new { success = true, status = term.Status });
     }
 
-    private static async Task<IResult> CheckeeReview(long id, ReviewServiceTermRequest request,
+    internal static async Task<IResult> CheckeeReview(long id, ReviewServiceTermRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);

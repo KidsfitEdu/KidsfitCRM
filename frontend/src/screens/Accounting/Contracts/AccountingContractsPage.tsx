@@ -485,7 +485,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
       {detail && entryMode && <form noValidate className="space-y-4" onChange={event=>{
-        const name = (event.target as HTMLInputElement | HTMLSelectElement).name as keyof FieldErrors;
+        const name = event.target.getAttribute('name') as keyof FieldErrors | null;
         if (!name) return;
         setFieldErrors(current => {
           if (!current[name]) return current;

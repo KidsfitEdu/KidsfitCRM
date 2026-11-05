@@ -27,6 +27,13 @@ public sealed partial class KidsfitDbContext
     private static void ConfigureSchoolOperations(ModelBuilder b)
     {
         b.Entity<ContractServiceTerm>().ToTable("contract_service_terms");
+        // Oracle MySql.Data materializes DATE as DateTime: explicit conversions avoid DateOnly casts.
+        b.Entity<ContractServiceTerm>().Property(x => x.StartOn)
+            .HasConversion(x => x.ToDateTime(TimeOnly.MinValue), x => DateOnly.FromDateTime(x)).HasColumnType("date");
+        b.Entity<ContractServiceTerm>().Property(x => x.EndOn)
+            .HasConversion(x => x.ToDateTime(TimeOnly.MinValue), x => DateOnly.FromDateTime(x)).HasColumnType("date");
+        b.Entity<ContractLifecycleAlert>().Property(x => x.DeadlineOn)
+            .HasConversion(x => x.ToDateTime(TimeOnly.MinValue), x => DateOnly.FromDateTime(x)).HasColumnType("date");
         b.Entity<ContractServiceTerm>().Property(x => x.BillingCycle).HasMaxLength(24);
         b.Entity<ContractServiceTerm>().Property(x => x.Status).HasMaxLength(24);
         b.Entity<ContractServiceTerm>().Property(x => x.EvidenceReference).HasMaxLength(500);

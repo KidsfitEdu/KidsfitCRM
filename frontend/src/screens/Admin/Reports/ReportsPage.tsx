@@ -6,6 +6,7 @@ import { currentBusinessPeriod } from '@/lib/channel-operations';
 import type { SchoolOperationsReport } from '@/lib/school-operations';
 import { fetchAdminReport } from '@/services/report.service';
 import { appNotice } from '@/components/common/app-toast-provider';
+import { ContractLifecycleExplorer } from '@/components/crm/contract-lifecycle-explorer';
 import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
 
@@ -26,6 +27,7 @@ export function ReportsPage({apiBase,token}:AdminPageProps) {
       <div className="grid gap-3 sm:grid-cols-2"><Summary label="Trường chưa đăng ký" value={report?.available_schools ?? null}/><Summary label="Hợp đồng đang hiệu lực" value={report?.active_contracts ?? null}/><Summary label="Đề xuất quá hạn" value={report?.overdue_proposals ?? null}/><Summary label="Tiếp cận hết hạn" value={report?.expired_approaches ?? null}/></div>
       <p className="mt-4 text-sm text-muted-foreground">Lịch sử chỉnh sửa từng trường và đề xuất được kiểm soát theo quyền truy cập của hồ sơ tương ứng.</p>
     </div>
+    <ContractLifecycleExplorer apiBase={apiBase} token={token} mode="board"/>
   </AdminPageStatus>;
 }
 

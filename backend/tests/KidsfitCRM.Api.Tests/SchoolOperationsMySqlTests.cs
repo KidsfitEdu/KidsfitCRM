@@ -64,6 +64,56 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task AccountingListsOnlyCheckeeVerifiedContractsAndScopesOwnerFilters()
+    {
+        var scenario = await Arrange();
+        var verifiedContract = await ActiveContract(scenario);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var secondRegistration = await actions.RegisterCustomerApproach(Claim(scenario.OtherCustomerId),
+            scenario.Peer.UserId, Http(), Ct);
+        var pendingContract = await actions.ReportSignedContract(secondRegistration,
+            new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+                await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct),
+                1_000_000, null, "TEST-CONTRACT"), scenario.Peer.UserId, Http(), Ct);
+        var accountant = await User("accountant@kidsfit.vn");
+        var initial = Json(await AccountingContractEndpoints.List(Http(accountant), db, null, null,
+            null, "CURRENT", 1, 100, Ct));
+        Assert.Contains(initial.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == verifiedContract);
+        Assert.DoesNotContain(initial.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == pendingContract);
+        Assert.Contains(initial.GetProperty("owners").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.Seller.UserId);
+        Assert.DoesNotContain(initial.GetProperty("owners").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.Peer.UserId);
+
+        var filtered = Json(await AccountingContractEndpoints.List(Http(accountant), db, null, null,
+            scenario.Seller.UserId, "CURRENT", 1, 100, Ct));
+        Assert.Contains(filtered.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == verifiedContract);
+        var other = Json(await AccountingContractEndpoints.List(Http(accountant), db, null, null,
+            scenario.Peer.UserId, "CURRENT", 1, 100, Ct));
+        Assert.Empty(other.GetProperty("data").EnumerateArray());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            AccountingContractEndpoints.Detail(pendingContract, Http(accountant), db, Ct));
+
+        await actions.CancelSalesContract(verifiedContract,
+            new(Key(), "Chấm dứt theo quyết định", "TEST-CANCELLATION"), await User("admin@kidsfit.vn"), Http(), Ct);
+        var current = Json(await AccountingContractEndpoints.List(Http(accountant), db, null, null,
+            null, "CURRENT", 1, 100, Ct));
+        Assert.DoesNotContain(current.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == verifiedContract);
+        var history = Json(await AccountingContractEndpoints.List(Http(accountant), db, null, null,
+            null, "HISTORY", 1, 100, Ct));
+        Assert.Contains(history.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == verifiedContract);
+        Assert.DoesNotContain(history.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == pendingContract);
+        Assert.Equal(verifiedContract, Json(await AccountingContractEndpoints.Detail(
+            verifiedContract, Http(accountant), db, Ct)).GetProperty("data").GetProperty("id").GetInt64());
+    }
+
     [MySqlFact] public async Task ManagerInvitationInfersOrganizationAndDeadlineWithoutFormInputs()
     {
         var scenario = await Arrange();

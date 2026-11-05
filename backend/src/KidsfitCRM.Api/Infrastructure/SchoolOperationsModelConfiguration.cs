@@ -67,7 +67,7 @@ public sealed partial class KidsfitDbContext
             var entity = b.Entity(type);
             foreach (var property in entity.Metadata.GetProperties().Where(x => x.ClrType == typeof(string)))
             {
-                if (property.Name is "Reason" or "DecisionReason" or "Progress" or "Description" or "Summary" or "Outcome")
+                if (property.Name is "Reason" or "ResponseReason" or "DecisionReason" or "Progress" or "Description" or "Summary" or "Outcome")
                     entity.Property(property.Name).HasColumnType("text");
                 else if (property.Name is "BeforeValues" or "AfterValues") entity.Property(property.Name).HasColumnType("json");
                 else if (property.GetMaxLength() is null) entity.Property(property.Name).HasMaxLength(property.Name switch

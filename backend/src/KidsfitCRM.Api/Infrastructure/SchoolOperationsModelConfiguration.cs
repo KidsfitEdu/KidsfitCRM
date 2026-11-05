@@ -20,9 +20,38 @@ public sealed partial class KidsfitDbContext
     public DbSet<CustomerSupportCase> CustomerSupportCases => Set<CustomerSupportCase>();
     public DbSet<ContractCancellation> ContractCancellations => Set<ContractCancellation>();
     public DbSet<RevenueRefund> RevenueRefunds => Set<RevenueRefund>();
+    public DbSet<ContractServiceTerm> ContractServiceTerms => Set<ContractServiceTerm>();
+    public DbSet<ContractLifecycleAlert> ContractLifecycleAlerts => Set<ContractLifecycleAlert>();
+    public DbSet<ContractServiceEvent> ContractServiceEvents => Set<ContractServiceEvent>();
 
     private static void ConfigureSchoolOperations(ModelBuilder b)
     {
+        b.Entity<ContractServiceTerm>().ToTable("contract_service_terms");
+        b.Entity<ContractServiceTerm>().Property(x => x.BillingCycle).HasMaxLength(24);
+        b.Entity<ContractServiceTerm>().Property(x => x.Status).HasMaxLength(24);
+        b.Entity<ContractServiceTerm>().Property(x => x.EvidenceReference).HasMaxLength(500);
+        b.Entity<ContractServiceTerm>().HasIndex(x => new { x.ContractId, x.TermNumber }).IsUnique();
+        b.Entity<ContractServiceTerm>().HasIndex(x => new { x.CustomerId, x.Status, x.EndOn });
+        Restrict<ContractServiceTerm, SalesContract>(b, x => x.ContractId);
+        Restrict<ContractServiceTerm, ChannelCustomer>(b, x => x.CustomerId);
+        Restrict<ContractServiceTerm, User>(b, x => x.SubmittedByUserId);
+        Restrict<ContractServiceTerm, User>(b, x => x.VerifiedByUserId);
+        b.Entity<ContractLifecycleAlert>().ToTable("contract_lifecycle_alerts");
+        b.Entity<ContractLifecycleAlert>().Property(x => x.Kind).HasMaxLength(40);
+        b.Entity<ContractLifecycleAlert>().Property(x => x.DeduplicationKey).HasMaxLength(150).UseCollation("utf8mb4_bin");
+        b.Entity<ContractLifecycleAlert>().HasIndex(x => x.DeduplicationKey).IsUnique();
+        b.Entity<ContractLifecycleAlert>().HasIndex(x => new { x.RecipientUserId, x.ReadAt, x.CreatedAt });
+        Restrict<ContractLifecycleAlert, ContractServiceTerm>(b, x => x.ServiceTermId);
+        Restrict<ContractLifecycleAlert, ChannelCustomer>(b, x => x.CustomerId);
+        Restrict<ContractLifecycleAlert, User>(b, x => x.RecipientUserId);
+        b.Entity<ContractServiceEvent>().ToTable("contract_service_events");
+        b.Entity<ContractServiceEvent>().Property(x => x.Kind).HasMaxLength(40);
+        b.Entity<ContractServiceEvent>().Property(x => x.Reason).HasColumnType("text");
+        b.Entity<ContractServiceEvent>().HasIndex(x => new { x.CustomerId, x.CreatedAt });
+        Restrict<ContractServiceEvent, ContractServiceTerm>(b, x => x.ServiceTermId);
+        Restrict<ContractServiceEvent, ChannelCustomer>(b, x => x.CustomerId);
+        Restrict<ContractServiceEvent, User>(b, x => x.ActorUserId);
+
         var types = new[] { typeof(SchoolProposal), typeof(SchoolInvitation), typeof(SchoolExtensionRequest), typeof(SchoolDispute),
             typeof(SchoolDeferral), typeof(SchoolHandover), typeof(ContractCareHandover), typeof(CustomerSupportCase),
             typeof(ContractCancellation), typeof(RevenueRefund) };

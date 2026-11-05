@@ -5,6 +5,7 @@ import {useQuery,useQueryClient} from '@tanstack/react-query';
 import {Eye,PhoneCall,TicketPlus,History,SquarePen} from 'lucide-react';
 import {SchoolProfileDetails, type SchoolProfileUnit} from '@/components/crm/schools/school-profile-details';
 import {AppPageHeader} from '@/components/common/app-page-header';
+import { ContractLifecycleExplorer } from '@/components/crm/contract-lifecycle-explorer';
 import {AdminListPanel,AdminListToolbar,AdminIconAction,adminTableClass,adminTableHeadClass,adminTableCellClass} from '@/components/common/admin-list-ui';
 import {AppPagination} from '@/components/common/app-pagination';
 import {AppDrawer} from '@/components/common/drawers/app-drawer';
@@ -52,6 +53,8 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
   return <div className="space-y-5">
     <AppPageHeader eyebrow="CSKH / KIDSFIT CRM" title="Trường phụ trách"
       description="Tra cứu trường được Admin giao, xem liên hệ và ghi lại hướng dẫn sử dụng qua điện thoại."/>
+    <ContractLifecycleExplorer apiBase={apiBase} token={token} mode="care" />
+
     {!apiBase&&<p className="rounded-xl border p-4 text-sm text-muted-foreground">Bản xem thử chỉ đọc. Kết nối Backend để xem trường phụ trách.</p>}
     {query.error&&<p role="alert" className="rounded-xl border p-4 text-sm text-destructive">{query.error.message}</p>}
     <AdminListPanel>

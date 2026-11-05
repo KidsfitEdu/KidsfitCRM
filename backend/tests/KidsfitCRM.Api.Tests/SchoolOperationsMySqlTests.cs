@@ -1575,4 +1575,59 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(1, await db.SalesContracts.CountAsync(x => x.ApproachRegistrationId == registration, Ct));
     }
 
+
+    [MySqlFact] public async Task ServiceTermRequiresManagerAndCheckeeAndNeverExtendsOldProtection()
+    {
+        var s = await Arrange();
+        var contractId = await ActiveContract(s);
+        await using var db = fixture.Open();
+        var before = await db.CustomerProtections.AsNoTracking()
+            .SingleAsync(x => x.ContractId == contractId && x.SourceType == "CONTRACT", Ct);
+        var start = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        var end = start.AddYears(1).AddDays(-1);
+        await ContractServiceLifecycleEndpoints.Submit(contractId,
+            new(start, end, "YEARLY", "PHU-LUC-KIEM-THU-" + Key()),
+            Http(s.Seller.UserId), db, Ct);
+        var term = await db.ContractServiceTerms.SingleAsync(x => x.ContractId == contractId, Ct);
+        Assert.Equal("PENDING_MANAGER", term.Status);
+        var checkee = await User("checkee@kidsfit.vn");
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            ContractServiceLifecycleEndpoints.CheckeeReview(term.Id, new(true), Http(checkee), db, Ct));
+        await ContractServiceLifecycleEndpoints.ManagerReview(term.Id, new(true), Http(s.Manager.UserId), db, Ct);
+        Assert.Equal("PENDING_CHECKEE", (await db.ContractServiceTerms.AsNoTracking().SingleAsync(x => x.Id == term.Id, Ct)).Status);
+        await ContractServiceLifecycleEndpoints.CheckeeReview(term.Id, new(true), Http(checkee), db, Ct);
+        Assert.Equal("ACTIVE", (await db.ContractServiceTerms.AsNoTracking().SingleAsync(x => x.Id == term.Id, Ct)).Status);
+        var after = await db.CustomerProtections.AsNoTracking().SingleAsync(x => x.Id == before.Id, Ct);
+        Assert.Equal(before.EffectiveUntil, after.EffectiveUntil);
+        Assert.Equal(1, await db.CustomerProtections.CountAsync(x => x.ContractId == contractId && x.SourceType == "CONTRACT", Ct));
+        Assert.True(await db.ContractServiceEvents.AnyAsync(e => e.ServiceTermId == term.Id && e.Kind == "TERM_VERIFIED", Ct));
+    }
+
+    [MySqlFact] public async Task TwelveMonthInactivityReleasesOnlyOldGrantAndPreservesContractAndHistory()
+    {
+        var s = await Arrange();
+        var contractId = await ActiveContract(s);
+        await using var db = fixture.Open();
+        var oldEnd = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddMonths(-13);
+        await ContractServiceLifecycleEndpoints.Submit(contractId,
+            new(oldEnd.AddMonths(-11), oldEnd, "MONTHLY", "LICH-SU-KIEM-THU-" + Key()),
+            Http(s.Seller.UserId), db, Ct);
+        var term = await db.ContractServiceTerms.SingleAsync(x => x.ContractId == contractId, Ct);
+        await ContractServiceLifecycleEndpoints.ManagerReview(term.Id, new(true), Http(s.Manager.UserId), db, Ct);
+        await ContractServiceLifecycleEndpoints.CheckeeReview(term.Id, new(true),
+            Http(await User("checkee@kidsfit.vn")), db, Ct);
+        db.ChangeTracker.Clear();
+        var before = await db.CustomerActivities.CountAsync(x => x.CustomerId == s.CustomerId, Ct);
+        var (notices, released) = await ContractLifecycleSweep.Run(db, DateTime.UtcNow, Ct);
+        Assert.True(released >= 1);
+        Assert.True(notices >= 0);
+        Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId &&
+            x.SourceType == "CONTRACT" && x.Status == "ACTIVE", Ct));
+        Assert.Equal("ACTIVE", (await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct)).Status);
+        Assert.Equal(before, await db.CustomerActivities.CountAsync(x => x.CustomerId == s.CustomerId, Ct));
+        Assert.True(await db.ContractServiceEvents.AnyAsync(x => x.CustomerId == s.CustomerId &&
+            x.Kind == "RELEASED_AFTER_12M", Ct));
+        Assert.Equal(0, (await ContractLifecycleSweep.Run(db, DateTime.UtcNow, Ct)).released);
+    }
+
 }

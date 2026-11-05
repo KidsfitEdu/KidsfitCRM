@@ -10,10 +10,11 @@ import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {AppButton} from '@/components/common/buttons/app-button';
 import {channelRequest,channelDate} from '@/lib/channel-operations';
 import type {RolePageProps} from '@/types/role-pages';
+import {SupportTicketSummary,SupportTicketTimeline} from '@/components/common/support-ticket-detail';
 
 type Ticket={id:number;school_name:string;subject:string;description:string;status:string;
   forwarded_at:string;checkee_responded_at:string|null;created_at:string;
-  activities:{id:number;content:string;created_at:string;author_name:string|null}[]};
+  activities:{id:number;content:string;created_at:string;author_name:string|null;author_role:string;activity_type:string}[]};
 type List={data:Ticket[];total:number;page:number;page_size:number};
 
 export function SupportPage({apiBase,token,abilities,onChanged}:RolePageProps){
@@ -21,20 +22,20 @@ export function SupportPage({apiBase,token,abilities,onChanged}:RolePageProps){
   const [draft,setDraft]=useState('');const [search,setSearch]=useState('');
   const [status,setStatus]=useState('ALL');const [page,setPage]=useState(1);const [pageSize,setPageSize]=useState(20);
   const [selected,setSelected]=useState<Ticket|null>(null);
-  const [note,setNote]=useState('');const [completed,setCompleted]=useState(false);
+  const [note,setNote]=useState('');const [technicalStatus,setTechnicalStatus]=useState<'IN_PROGRESS'|'COMPLETED'>('IN_PROGRESS');
   const [busy,setBusy]=useState(false);const [error,setError]=useState('');
   const client=useQueryClient();
   const query=useQuery({queryKey:['checkee-support',token,page,pageSize,search,status],
     queryFn:()=>channelRequest<List>(apiBase,token,'/checkee/support-cases?page='+page+'&page_size='+pageSize
       +'&status='+status+'&search='+encodeURIComponent(search)),enabled:!!apiBase&&!!token&&allowed});
   const save=async()=>{
-    if(!selected||!note.trim())return;
+    if(!selected||busy||!note.trim()||note.trim().length>4000||selected.checkee_responded_at||selected.status==='RESOLVED')return;
     setBusy(true);setError('');
     try{
       await channelRequest(apiBase,token,'/checkee/support-cases/'+selected.id+'/progress',{
-        method:'POST',body:JSON.stringify({content:note.trim(),completed}),
+        method:'POST',body:JSON.stringify({content:note.trim(),completed:technicalStatus==='COMPLETED'}),
       });
-      setSelected(null);setNote('');setCompleted(false);
+      setSelected(null);setNote('');setTechnicalStatus('IN_PROGRESS');
       await Promise.all([client.invalidateQueries({queryKey:['checkee-support']}),onChanged()]);
     }catch(cause){setError(cause instanceof Error?cause.message:'Không thể ghi phản hồi kỹ thuật.');}
     finally{setBusy(false);}
@@ -67,7 +68,7 @@ export function SupportPage({apiBase,token,abilities,onChanged}:RolePageProps){
           <td className={adminTableCellClass}><AdminStatusBadge status={x.status} label={x.status==='RESOLVED'
             ?'CSKH đã đóng':x.checkee_responded_at?'Đã phản hồi kỹ thuật':x.status==='OPEN'?'Mới nhận':'Đang xử lý'}/></td>
           <td className={adminTableCellClass}><AdminIconAction icon={Eye} label={'Xem ticket '+x.id}
-            onClick={()=>{setSelected(x);setNote('');setCompleted(false);setError('');}}/></td>
+            onClick={()=>{setSelected(x);setNote('');setTechnicalStatus('IN_PROGRESS');setError('');}}/></td>
         </tr>)}</tbody>
       </table></div>
       {query.isLoading&&<p className="p-6 text-sm text-muted-foreground">Đang tải ticket…</p>}
@@ -77,22 +78,45 @@ export function SupportPage({apiBase,token,abilities,onChanged}:RolePageProps){
         onPageChange={setPage} onPageSizeChange={n=>{setPageSize(n);setPage(1);}}/>
     </AdminListPanel>
     <AppDrawer open={!!selected} onOpenChange={open=>{if(!open&&!busy)setSelected(null);}} busy={busy}
-      title={selected?.subject??'Chi tiết lỗi'} description={selected?.school_name}
+      title="Xử lý lỗi kỹ thuật" description={selected?.school_name}
       footer={<><AppButton tone="neutral" disabled={busy} onClick={()=>setSelected(null)}>Đóng</AppButton>
-        {selected?.status!=='RESOLVED'&&<AppButton busy={busy} disabled={!note.trim()} onClick={()=>void save()}>Gửi phản hồi</AppButton>}</>}>
-      {selected&&<div className="space-y-4 text-sm">
-        <p className="whitespace-pre-wrap">{selected.description}</p>
-        <h3 className="font-semibold">Lịch sử xử lý kỹ thuật</h3>
-        {selected.activities.map(a=><div key={a.id} className="rounded-xl border p-3"><p>{a.content}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{a.author_name} · {channelDate(a.created_at)}</p></div>)}
-        {selected.activities.length===0&&<p className="text-muted-foreground">Chưa có phản hồi kỹ thuật.</p>}
-        {selected.status!=='RESOLVED'&&<>
-          <label htmlFor="checkee-technical-note" className="block font-medium">Kết quả kiểm tra / hướng khắc phục</label>
+        {selected?.status!=='RESOLVED'&&!selected?.checkee_responded_at&&
+          <AppButton busy={busy} disabled={busy||!note.trim()||note.trim().length>4000}
+            onClick={()=>void save()}>Lưu kết quả xử lý</AppButton>}</>}>
+      {selected&&<div className="space-y-5 text-sm">
+        <SupportTicketSummary subject={selected.subject} description={selected.description}
+          statusLabel={selected.status==='RESOLVED'?'CSKH đã đóng'
+            :selected.checkee_responded_at?'Chờ CSKH xác nhận'
+            :selected.status==='OPEN'?'Mới nhận':'Đang xử lý'}/>
+        <SupportTicketTimeline entries={selected.activities} emptyText="Chưa có phản hồi kỹ thuật."/>
+        {selected.status!=='RESOLVED'&&!selected.checkee_responded_at&&<section className="space-y-3 border-t pt-4">
+          <h3 className="font-semibold">Cập nhật xử lý kỹ thuật</h3>
+          <fieldset className="space-y-2">
+            <legend className="font-medium">Trạng thái xử lý *</legend>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="technical-state" value="IN_PROGRESS"
+                checked={technicalStatus==='IN_PROGRESS'} disabled={busy}
+                onChange={()=>setTechnicalStatus('IN_PROGRESS')}/> Đang xử lý
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="technical-state" value="COMPLETED"
+                checked={technicalStatus==='COMPLETED'} disabled={busy}
+                onChange={()=>setTechnicalStatus('COMPLETED')}/> Hoàn tất kỹ thuật
+            </label>
+          </fieldset>
+          <label htmlFor="checkee-technical-note" className="block font-medium">
+            Kết quả kiểm tra / hướng khắc phục *
+          </label>
           <textarea id="checkee-technical-note" rows={4} maxLength={4000} value={note}
-            onChange={e=>setNote(e.target.value)} className="w-full rounded-xl border bg-background p-3"/>
-          <label className="flex items-start gap-2"><input type="checkbox" checked={completed} onChange={e=>setCompleted(e.target.checked)}/>
-            <span>Đã khắc phục xong kỹ thuật; chuyển kết quả cho CSKH xác nhận lại với trường.</span></label>
-        </>}
+            aria-invalid={note.length>4000} disabled={busy}
+            onChange={e=>{setNote(e.target.value);setError('');}}
+            placeholder="Nhập nguyên nhân, kết quả kiểm tra và hướng khắc phục..."
+            className="w-full rounded-xl border bg-background p-3"/>
+          <p className="text-xs text-muted-foreground">{note.length}/4.000 ký tự</p>
+          {!note.trim()&&error&&<p role="alert" className="text-xs text-destructive">Vui lòng nhập kết quả xử lý.</p>}
+        </section>}
+        {selected.checkee_responded_at&&selected.status!=='RESOLVED'&&
+          <p className="rounded-xl border bg-muted/20 p-3">Đã hoàn tất kỹ thuật. Chờ CSKH xác nhận với nhà trường.</p>}
         {error&&<p role="alert" className="text-destructive">{error}</p>}
       </div>}
     </AppDrawer>

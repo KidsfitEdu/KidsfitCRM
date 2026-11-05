@@ -9,12 +9,13 @@ import {AppPagination} from '@/components/common/app-pagination';
 import {AppDialog} from '@/components/common/dialogs/app-dialog';
 import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {AppButton} from '@/components/common/buttons/app-button';
-import {channelRequest,channelDate} from '@/lib/channel-operations';
+import {channelRequest} from '@/lib/channel-operations';
 import type {RolePageProps} from '@/types/role-pages';
+import {SupportTicketSummary,SupportTicketTimeline} from '@/components/common/support-ticket-detail';
 
 type Ticket={id:number;contract_id:number;customer_id:number;subject:string;description:string;status:string;
   ticket_type:string;checkee_responded_at:string|null;outcome:string|null;created_at:string;school_name:string;
-  activities:{id:number;content:string;activity_type:string;created_at:string;next_follow_up_at:string|null}[]};
+  activities:{id:number;content:string;activity_type:string;created_at:string;next_follow_up_at:string|null;author_name:string|null;author_role:string}[]};
 type TicketList={data:Ticket[];total:number;page:number;page_size:number};
 type School={id:number;customer_id:number;school_name:string;eligible_contract_count:number};
 type SchoolList={data:School[];total:number};
@@ -89,7 +90,7 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
     finally{setBusy(false);}
   };
   const update=async()=>{
-    if(!selected||!progress.trim())return;
+    if(!selected||busy||!progress.trim()||progress.trim().length>4000||selected.status==='RESOLVED')return;
     setBusy(true);setError('');
     try{
       await channelRequest(apiBase,token,'/customer-support-cases/'+selected.id+'/progress',{
@@ -128,7 +129,7 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
             ? t.checkee_responded_at?'Đã hoàn tất kỹ thuật':'Chờ phản hồi':'Ticket lịch sử'}</td>
           <td className={adminTableCellClass}><AdminStatusBadge status={t.status} label={t.status==='OPEN'?'Mới nhận':t.status==='IN_PROGRESS'?'Đang xử lý':'Hoàn tất'}/></td>
           <td className={adminTableCellClass}><AdminIconAction icon={Eye} label={'Xem ticket '+t.id}
-            onClick={()=>{setSelected(t);setProgress('');setNextStatus(t.status==='OPEN'?'IN_PROGRESS':t.status);setError('');}}/></td>
+            onClick={()=>{setSelected(t);setProgress('');setNextStatus('IN_PROGRESS');setError('');}}/></td>
         </tr>)}</tbody>
       </table></div>
       {query.isLoading&&<p className="p-6 text-sm text-muted-foreground">Đang tải ticket…</p>}
@@ -165,14 +166,14 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
               <ChevronDown className="size-4" aria-hidden="true"/>
             </button>
           </div>
-          {schoolOpen&&<div id="ticket-school-options" role="listbox"
+          {schoolOpen&&<div id="ticket-school-options"
             aria-label="Danh sách trường phụ trách" className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border bg-background p-1 shadow-lg">
             {(schools.isLoading||schools.isFetching)&&schoolChoices.length===0
               ?<p className="p-3 text-muted-foreground">Đang tải trường...</p>
               :schools.isError?<p role="alert" className="p-3 text-destructive">Không tải được danh sách trường.</p>
               :schoolChoices.length===0?<p className="p-3 text-muted-foreground">Không tìm thấy trường phù hợp.</p>
-              :schoolChoices.map((school,index)=><button key={school.id} type="button" role="option"
-                  aria-selected={contractId===String(school.id)} disabled={busy}
+              :schoolChoices.map((school,index)=><button key={school.id} type="button"
+                  aria-current={contractId===String(school.id)?"true":undefined} disabled={busy}
                   className={'flex w-full items-center justify-between rounded-lg p-3 text-left hover:bg-muted '+(schoolActiveIndex===index?'bg-muted':'')}
                   onMouseDown={e=>e.preventDefault()} onClick={()=>selectSchool(school)}>
                   <span>{school.school_name}</span>
@@ -201,30 +202,49 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
       </div>
     </AppDialog>
     <AppDrawer open={!!selected} onOpenChange={open=>{if(!open&&!busy)setSelected(null);}} busy={busy}
-      title={selected?.subject??'Chi tiết ticket'} description={selected?.school_name}
+      title="Chi tiết ticket lỗi phần mềm" description={selected?.school_name}
       footer={<><AppButton tone="neutral" disabled={busy} onClick={()=>setSelected(null)}>Đóng</AppButton>
-        {selected?.status!=='RESOLVED'&&<AppButton busy={busy} disabled={!progress.trim()} onClick={()=>void update()}>Cập nhật</AppButton>}</>}>
-      {selected&&<div className="space-y-4 text-sm">
-        <p className="whitespace-pre-wrap">{selected.description}</p>
-        <p className="text-xs text-muted-foreground">{selected.ticket_type==='SYSTEM_ERROR'
-          ? selected.checkee_responded_at?'CHECKEE đã xác nhận xử lý xong kỹ thuật.':'Đang chờ CHECKEE hoàn tất xử lý kỹ thuật.'
-          :'Yêu cầu hỗ trợ lịch sử.'}</p>
-        <h3 className="font-semibold">Lịch sử xử lý</h3>
-        {selected.activities.map(a=><div key={a.id} className="rounded-xl border p-3">
-          <p>{a.activity_type==='CHECKEE_SUPPORT'?'CHECKEE: ':''}{a.content}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{channelDate(a.created_at)}</p>
-        </div>)}
-        {selected.status!=='RESOLVED'&&<>
-          <label htmlFor="ticket-next-status" className="block font-medium">Trạng thái cập nhật</label>
-          <select id="ticket-next-status" className="w-full rounded-xl border bg-background p-3" value={nextStatus}
-            onChange={e=>setNextStatus(e.target.value)}>
-            <option value="IN_PROGRESS">Đang xử lý</option>
-            {(selected.ticket_type!=='SYSTEM_ERROR'||selected.checkee_responded_at)&&<option value="RESOLVED">Hoàn tất (đã xác nhận với trường)</option>}
-          </select>
-          <label className="block font-medium" htmlFor="ticket-progress">Tiến độ / kết quả xác nhận với trường</label>
-          <textarea id="ticket-progress" rows={3} maxLength={4000} value={progress}
-            onChange={e=>setProgress(e.target.value)} className="w-full rounded-xl border bg-background p-3"/>
-        </>}
+        {selected?.status!=='RESOLVED'&&
+          <AppButton busy={busy} disabled={busy||!progress.trim()||progress.trim().length>4000}
+            onClick={()=>void update()}>Cập nhật ticket</AppButton>}</>}>
+      {selected&&<div className="space-y-5 text-sm">
+        <SupportTicketSummary subject={selected.subject} description={selected.description}
+          statusLabel={selected.status==='RESOLVED'?'Hoàn tất'
+            :selected.ticket_type==='SYSTEM_ERROR'
+              ?selected.checkee_responded_at?'Chờ CSKH xác nhận':'Chờ CHECKEE xử lý'
+              :selected.status==='OPEN'?'Mới nhận':'Đang xử lý'}/>
+        {selected.ticket_type==='SYSTEM_ERROR'&&<section className="rounded-xl border bg-muted/20 p-3">
+          <h3 className="font-semibold">Kết quả kỹ thuật CHECKEE</h3>
+          <p className="mt-1 text-muted-foreground">
+            {selected.checkee_responded_at?'CHECKEE đã hoàn tất kỹ thuật. Vui lòng xác nhận với nhà trường.'
+              :'CHECKEE chưa hoàn tất kỹ thuật. CSKH vẫn có thể bổ sung tiến độ.'}
+          </p>
+        </section>}
+        <SupportTicketTimeline entries={selected.activities}/>
+        {selected.status!=='RESOLVED'&&<section className="space-y-3 border-t pt-4">
+          <h3 className="font-semibold">Xác nhận kết quả với nhà trường</h3>
+          <fieldset className="space-y-2">
+            <legend className="font-medium">Trạng thái cập nhật *</legend>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="care-state" value="IN_PROGRESS" checked={nextStatus==='IN_PROGRESS'}
+                disabled={busy} onChange={()=>setNextStatus('IN_PROGRESS')}/> Cần tiếp tục xử lý
+            </label>
+            {(selected.ticket_type!=='SYSTEM_ERROR'||selected.checkee_responded_at)&&
+              <label className="flex items-center gap-2">
+                <input type="radio" name="care-state" value="RESOLVED" checked={nextStatus==='RESOLVED'}
+                  disabled={busy} onChange={()=>setNextStatus('RESOLVED')}/> Hoàn tất (đã xác nhận với trường)
+              </label>}
+          </fieldset>
+          <label htmlFor="ticket-progress" className="block font-medium">
+            Kết quả xác nhận với nhà trường *
+          </label>
+          <textarea id="ticket-progress" rows={4} maxLength={4000} value={progress}
+            disabled={busy} aria-invalid={progress.length>4000}
+            onChange={e=>{setProgress(e.target.value);setError('');}}
+            placeholder="Nhập phản hồi của nhà trường và kết quả xác nhận..."
+            className="w-full rounded-xl border bg-background p-3"/>
+          <p className="text-xs text-muted-foreground">{progress.length}/4.000 ký tự</p>
+        </section>}
         {error&&<p role="alert" className="text-destructive">{error}</p>}
       </div>}
     </AppDrawer>

@@ -40,7 +40,7 @@ public sealed partial class KidsfitDbContext
         b.Entity<ContractLifecycleAlert>().Property(x => x.Kind).HasMaxLength(40);
         b.Entity<ContractLifecycleAlert>().Property(x => x.DeduplicationKey).HasMaxLength(150).UseCollation("utf8mb4_bin");
         b.Entity<ContractLifecycleAlert>().HasIndex(x => x.DeduplicationKey).IsUnique();
-        b.Entity<ContractLifecycleAlert>().HasIndex(x => new { x.RecipientUserId, x.ReadAt, x.CreatedAt });
+        b.Entity<ContractLifecycleAlert>().HasIndex(x => new { x.RecipientUserId, x.ReadAt, x.CreatedAt }).HasDatabaseName("ix_lifecycle_alert_recipient_read_created");
         Restrict<ContractLifecycleAlert, ContractServiceTerm>(b, x => x.ServiceTermId);
         Restrict<ContractLifecycleAlert, ChannelCustomer>(b, x => x.CustomerId);
         Restrict<ContractLifecycleAlert, User>(b, x => x.RecipientUserId);

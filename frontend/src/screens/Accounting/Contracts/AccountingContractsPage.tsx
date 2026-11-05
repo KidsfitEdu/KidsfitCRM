@@ -232,7 +232,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       description="Theo dõi hợp đồng đã được CHECKEE xác minh, doanh thu và hoa hồng theo người phụ trách." />
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     {error && <p role="alert" className="flex items-center gap-2 rounded-lg border border-red-300 p-3 text-sm text-red-700"><AlertCircle className="size-4"/>{error}</p>}
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Nhóm hợp đồng kế toán">
+    <fieldset className="flex flex-wrap gap-2" aria-label="Nhóm hợp đồng kế toán">
       <Button type="button" variant={financialView === 'CURRENT' ? 'default' : 'outline'}
         aria-pressed={financialView === 'CURRENT'} onClick={() => { setFinancialView('CURRENT'); setOwnerUserId('ALL'); setPage(1); }}>
         Hợp đồng đã xác minh
@@ -241,7 +241,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         aria-pressed={financialView === 'HISTORY'} onClick={() => { setFinancialView('HISTORY'); setOwnerUserId('ALL'); setPage(1); }}>
         Lịch sử tài chính
       </Button>
-    </div>
+    </fieldset>
     <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
       <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="relative min-w-[190px] flex-1">

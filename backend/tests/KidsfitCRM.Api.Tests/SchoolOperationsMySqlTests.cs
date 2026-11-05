@@ -76,7 +76,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
                 await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct),
                 1_000_000, null, "TEST-CONTRACT"), scenario.Peer.UserId, Http(), Ct);
-        var accountant = await User("accountant@kidsfit.vn");
+        // A scoped Accountant belongs to the same partner as the created contracts.
+        var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
         var initial = Json(await AccountingContractEndpoints.List(Http(accountant), db, null, null,
             null, "CURRENT", 1, 100, Ct));
         Assert.Contains(initial.GetProperty("data").EnumerateArray(),

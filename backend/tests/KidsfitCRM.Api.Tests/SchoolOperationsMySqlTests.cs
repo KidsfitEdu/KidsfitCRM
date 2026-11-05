@@ -1660,4 +1660,36 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             a.RecipientUserId == s.Peer.UserId, Ct));
     }
 
+
+    [MySqlFact] public async Task AfterFiveYearsNewSalesRegistrationAndVerificationCreatesDistinctProtectedCycle()
+    {
+        var s = await Arrange();
+        var originalContract = await ActiveContract(s);
+        await using var db = fixture.Open();
+        var expiredAt = DateTime.UtcNow.AddDays(-1);
+        await db.CustomerProtections.Where(x => x.ContractId == originalContract && x.SourceType == "CONTRACT")
+            .ExecuteUpdateAsync(set => set.SetProperty(x => x.EffectiveUntil, expiredAt), Ct);
+        var actions = new ChannelSalesActions(db);
+        var newRegistration = await actions.RegisterCustomerApproach(
+            Claim(s.CustomerId), s.Peer.UserId, Http(), Ct);
+        var newContract = await actions.ReportSignedContract(newRegistration,
+            new(Key(), "RENEW-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+                await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct),
+                1_000_000, null, "RENEWAL-PROOF-" + Key()),
+            s.Peer.UserId, Http(), Ct);
+        Assert.NotEqual(originalContract, newContract);
+        await actions.ReviewSchoolContract(newContract, s.Manager.UserId, Http(), Ct);
+        await actions.Reconcile(await db.ReconciliationCases.Where(x => x.ContractId == newContract)
+            .Select(x => x.Id).SingleAsync(Ct), true, new("Xác minh chu kỳ mới"),
+            await User("checkee@kidsfit.vn"), Http(), Ct);
+        await actions.GrantSchoolProtection(newContract, await User("admin@kidsfit.vn"), Http(), Ct);
+        var old = await db.CustomerProtections.AsNoTracking().SingleAsync(x => x.ContractId == originalContract && x.SourceType == "CONTRACT", Ct);
+        var next = await db.CustomerProtections.AsNoTracking().SingleAsync(x => x.ContractId == newContract && x.SourceType == "CONTRACT", Ct);
+        Assert.Equal(s.Seller.UserId, old.OwnerUserId);
+        Assert.Equal(s.Peer.UserId, next.OwnerUserId);
+        Assert.True(next.EffectiveUntil > DateTime.UtcNow.AddYears(4));
+        Assert.True(old.EffectiveUntil < DateTime.UtcNow);
+        Assert.Equal(2, await db.SalesContracts.CountAsync(x => x.CustomerId == s.CustomerId, Ct));
+    }
+
 }

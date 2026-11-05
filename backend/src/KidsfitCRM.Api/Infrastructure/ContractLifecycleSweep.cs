@@ -11,15 +11,23 @@ public static class ContractLifecycleSweep
     public static async Task<(int notices, int released)> Run(KidsfitDbContext db, DateTime now, CancellationToken ct = default)
     {
         var today = ChannelSalesValidation.BusinessDate(now);
-        var terms = await db.ContractServiceTerms.AsNoTracking()
-            .Where(t => t.Status == "ACTIVE" && !db.ContractServiceTerms.Any(other =>
-                other.CustomerId == t.CustomerId && other.Status == "ACTIVE" &&
-                (other.EndOn > t.EndOn || (other.EndOn == t.EndOn && other.Id > t.Id))))
-            .OrderBy(t => t.CustomerId).Take(10000).ToArrayAsync(ct);
         var count = 0;
         var released = 0;
-        foreach (var term in terms)
+        // Keyset pagination avoids silently omitting customers after the first 10,000.
+        const int batchSize = 250;
+        long lastCustomerId = 0;
+        while (true)
         {
+            var terms = await db.ContractServiceTerms.AsNoTracking()
+                .Where(t => t.CustomerId > lastCustomerId && t.Status == "ACTIVE" &&
+                    !db.ContractServiceTerms.Any(other =>
+                        other.CustomerId == t.CustomerId && other.Status == "ACTIVE" &&
+                        (other.EndOn > t.EndOn || (other.EndOn == t.EndOn && other.Id > t.Id))))
+                .OrderBy(t => t.CustomerId).Take(batchSize).ToArrayAsync(ct);
+            if (terms.Length == 0) break;
+            lastCustomerId = terms[^1].CustomerId;
+            foreach (var term in terms)
+            {
             // A submitted correction/renewal is a hold, not proof of a new active term.
             var waiting = await db.ContractServiceTerms.AnyAsync(t => t.CustomerId == term.CustomerId &&
                 (t.Status == "PENDING_MANAGER" || t.Status == "PENDING_CHECKEE"), ct);
@@ -57,14 +65,22 @@ public static class ContractLifecycleSweep
             // A release is never attempted from a missing/unverified service end date.
             if (today >= term.EndOn.AddMonths(12))
                 released += await ReleaseIfEligible(db, term, now, ct);
+            }
         }
 
         // Independently remind when a *granted* Sales entitlement is about to expire.
-        var protections = await db.CustomerProtections.AsNoTracking().Where(p =>
-            p.SourceType == "CONTRACT" && p.Status == "ACTIVE" &&
-            p.EffectiveUntil >= now.AddDays(-1) && p.EffectiveUntil <= now.AddDays(31)).Take(10000).ToArrayAsync(ct);
-        foreach (var protection in protections)
+        // Cursor by protection ID so all eligible records are checked.
+        long lastProtectionId = 0;
+        while (true)
         {
+            var protections = await db.CustomerProtections.AsNoTracking().Where(p =>
+                p.Id > lastProtectionId && p.SourceType == "CONTRACT" && p.Status == "ACTIVE" &&
+                p.EffectiveUntil >= now.AddDays(-1) && p.EffectiveUntil <= now.AddDays(31))
+                .OrderBy(p => p.Id).Take(batchSize).ToArrayAsync(ct);
+            if (protections.Length == 0) break;
+            lastProtectionId = protections[^1].Id;
+            foreach (var protection in protections)
+            {
             var deadline = ChannelSalesValidation.BusinessDate(protection.EffectiveUntil);
             var kind = today == deadline ? "PROTECTION_EXPIRED"
                 : today == deadline.AddDays(-30) ? "PROTECTION_EXPIRING_30" : null;
@@ -78,6 +94,7 @@ public static class ContractLifecycleSweep
                     db.OrganizationMemberships.Any(m => m.UserId == recipient && m.Status == "ACTIVE"), ct))
                     count += await InsertNotice(db, null, protection.CustomerId, recipient,
                         kind, deadline, now, ct, "protection:" + protection.Id);
+            }
         }
         return (count, released);
     }

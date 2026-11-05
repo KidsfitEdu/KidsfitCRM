@@ -1,17 +1,91 @@
 {
-  "phase": "build",
+  "phase": "verification",
   "release": "8ea34f9ed0ac0031dff6fd7c364127ce15494354",
   "source": "bddb6aae02e935a9fcea431c699c59c4793d398e",
   "run_url": "https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/41987210805",
-  "recorded_at": "2026-11-05T07:26:49.598Z",
+  "recorded_at": "2026-11-05T07:28:08.390Z",
   "steps": {
-    "source": "success",
-    "install": "success",
-    "source_checks": "success",
-    "build": "success",
-    "artifact_checks": "success",
-    "package": "success",
-    "artifact": "success"
+    "public_check": "success"
   },
-  "passed": false
+  "verification": {
+    "release": "8ea34f9ed0ac0031dff6fd7c364127ce15494354",
+    "url": "https://kidsfitedu.github.io/KidsfitCRM/?_release=8ea34f9ed0ac0031dff6fd7c364127ce15494354",
+    "started_at": "2026-11-05T07:28:00.957Z",
+    "passed": true,
+    "profiles": [
+      {
+        "id": "admin",
+        "navigation_count": 8,
+        "passed": true
+      },
+      {
+        "id": "board",
+        "navigation_count": 4,
+        "passed": true
+      },
+      {
+        "id": "accountant",
+        "navigation_count": 2,
+        "passed": true
+      },
+      {
+        "id": "manager",
+        "navigation_count": 7,
+        "passed": true
+      },
+      {
+        "id": "care",
+        "navigation_count": 3,
+        "passed": true
+      },
+      {
+        "id": "sales",
+        "navigation_count": 5,
+        "passed": true
+      },
+      {
+        "id": "checkee",
+        "navigation_count": 3,
+        "passed": true
+      },
+      {
+        "id": "partner",
+        "navigation_count": 7,
+        "passed": true
+      },
+      {
+        "id": "ctv",
+        "navigation_count": 5,
+        "passed": true
+      }
+    ],
+    "http_status": 200,
+    "cache_control": "max-age=600",
+    "legacy_cache_refresh_manifest": true,
+    "assets": [
+      {
+        "path": "/KidsfitCRM/assets/favicon-D0clsk6y.svg",
+        "sha256": "e4341687a1d0ad8714a68502d097214039e4feb84ebf5e414a379863d78242a5"
+      },
+      {
+        "path": "/KidsfitCRM/assets/index-Bxv6z2J8.js",
+        "sha256": "dcdfa18aa7ad3404c4c56ce771434eb56e51f971a6b6d46914c69934e6351fcd"
+      },
+      {
+        "path": "/KidsfitCRM/assets/app-pagination-DtjZ1Hu-.js",
+        "sha256": "9a16a939fb0f00fcf7f97924d5663bc8d66c5c139262a5e89d0cc3d67960e3c2"
+      },
+      {
+        "path": "/KidsfitCRM/assets/badge-Cc7XiRS_.js",
+        "sha256": "5e487c2f8abe2b1b5911e32935c0f6c801c0843c1339ec9eef45ff278eeac732"
+      },
+      {
+        "path": "/KidsfitCRM/assets/index-88CdsX-M.css",
+        "sha256": "2927462e8b7bbd05989fdcef711557a7b4a2949c03760c07292e0c17d8213c7e"
+      }
+    ],
+    "mobile_passed": true,
+    "finished_at": "2026-11-05T07:28:08.349Z"
+  },
+  "passed": true
 }

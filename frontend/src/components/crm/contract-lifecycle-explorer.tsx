@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type SyntheticEvent } from 'react';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { Input } from '@/components/ui/input';
@@ -45,7 +45,7 @@ export function ContractLifecycleExplorer({ apiBase, token, mode }: {
     return()=>{live=false;};
   },[apiBase,token,revision]);
 
-  const submit=async(event:FormEvent<HTMLFormElement>)=>{
+  const submit=async(event:SyntheticEvent<HTMLFormElement>)=>{
     event.preventDefault();
     const contractId=Number(selected);
     if(!contractId||!startOn||!endOn||endOn<startOn||!evidence.trim()){
@@ -123,16 +123,16 @@ export function ContractLifecycleExplorer({ apiBase, token, mode }: {
         </select>
       </label>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="space-y-1 text-sm"><span>Ngày bắt đầu *</span><Input type="date" value={startOn} onChange={e=>setStartOn(e.target.value)}/></label>
-        <label className="space-y-1 text-sm"><span>Ngày kết thúc *</span><Input type="date" value={endOn} onChange={e=>setEndOn(e.target.value)}/></label>
+        <label htmlFor="service-term-start" className="space-y-1 text-sm"><span>Ngày bắt đầu *</span><Input id="service-term-start" type="date" value={startOn} onChange={e=>setStartOn(e.target.value)}/></label>
+        <label htmlFor="service-term-end" className="space-y-1 text-sm"><span>Ngày kết thúc *</span><Input id="service-term-end" type="date" value={endOn} onChange={e=>setEndOn(e.target.value)}/></label>
       </div>
       <label className="block space-y-1 text-sm"><span>Chu kỳ thanh toán *</span>
         <select className="w-full rounded-lg border bg-background p-2" value={cycle} onChange={e=>setCycle(e.target.value)}>
           <option value="YEARLY">Theo năm</option><option value="MONTHLY">Theo tháng</option>
         </select>
       </label>
-      <label className="block space-y-1 text-sm"><span>Mã hồ sơ/phụ lục ký *</span>
-        <Input value={evidence} maxLength={500} onChange={e=>setEvidence(e.target.value)} placeholder="Mã hồ sơ để CHECKEE xác minh"/>
+      <label htmlFor="service-term-evidence" className="block space-y-1 text-sm"><span>Mã hồ sơ/phụ lục ký *</span>
+        <Input id="service-term-evidence" value={evidence} maxLength={500} onChange={e=>setEvidence(e.target.value)} placeholder="Mã hồ sơ để CHECKEE xác minh"/>
       </label>
       {invalid&&<p role="alert" className="text-sm text-destructive">{invalid}</p>}
       <AppButton disabled={busy} type="submit">Gửi Quản lý kiểm tra</AppButton>

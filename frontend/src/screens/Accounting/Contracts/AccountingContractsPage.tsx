@@ -26,7 +26,7 @@ type ContractRow = {
   commission: number;
   contract_status: string;
 };
-type ContractList = { data: ContractRow[]; owners: { id: number; name: string }[]; total: number; page: number; page_size: number };
+type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
 type Detail = {
   data: { id: number; contract_code: string; school_name: string; school_address: string | null; school_district: string | null; school_province: string | null; owner_name: string; personnel_type: string | null;
     signed_on: string; effective_on: string | null; status: string; verified_at: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
@@ -73,7 +73,8 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
       const result = await channelRequest<ContractList>(apiBase, token, `/accounting/contracts?${params.toString()}`);
       setRows(result.data);
-      setOwners(result.owners);
+      // During staged deployments the previous API may not include owner options yet.
+      setOwners(Array.isArray(result.owners) ? result.owners : []);
       setTotal(result.total);
     } catch (cause) {
       setRows([]);

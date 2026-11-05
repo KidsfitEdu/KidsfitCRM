@@ -20,7 +20,7 @@ This change now goes beyond the original Phase 1 and implements the following in
 - Admin-configurable threshold and exception UI is not implemented; agreed reminder milestones are currently code-defined.
 - Exhaustive parallel race/authorization coverage, exception handling for legacy data, migration rehearsal against a copied dataset and hands-on UX acceptance remain release gates.
 - In-app notices are not external email/Zalo, and no message is sent to school directly.
-- Current worker scans up to 10,000 latest verified terms per run; pagination must be implemented if production exceeds this threshold.
+- Worker scans latest verified terms and granted protection records using bounded keyset batches; end-to-end scale/load testing remains a production gate.
 
 **Safety:** Do not apply the migration to a populated/shared/production DB or merge PR #80 without review and backup/restore. Do not equate "verified software service term" with "verified new five-year Sales protection."
 

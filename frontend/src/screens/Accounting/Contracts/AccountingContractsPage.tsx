@@ -164,6 +164,9 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     if (!Number.isSafeInteger(amount) || amount <= 0) validation.amount = 'Số tiền phải là số nguyên dương.';
     if (!reference) validation.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng.';
     if (!(proof instanceof File) || proof.size === 0) validation.proof = 'Vui lòng chọn ảnh chứng từ chuyển khoản.';
+    else if (proof.size > 5 * 1024 * 1024) validation.proof = 'Ảnh chứng từ không được vượt quá 5 MB.';
+    else if (!['image/jpeg', 'image/png', 'image/webp'].includes(proof.type))
+      validation.proof = 'Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.';
     if (entryMode === 'receipt' && !Number(form.get('schedule_id'))) validation.schedule_id = 'Vui lòng chọn đợt thanh toán.';
     if (entryMode === 'payout' && !Number(form.get('payout_id'))) validation.payout_id = 'Vui lòng chọn phiếu chi đã duyệt.';
     if (Object.keys(validation).length) { setFieldErrors(validation); return; }
@@ -481,7 +484,16 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
-      {detail && entryMode && <form className="space-y-4" onChange={()=>{if (Object.keys(fieldErrors).length) setFieldErrors({});}} onSubmit={event=>void sendRecord(event)}>
+      {detail && entryMode && <form noValidate className="space-y-4" onChange={event=>{
+        const name = (event.target as HTMLInputElement | HTMLSelectElement).name as keyof FieldErrors;
+        if (!name) return;
+        setFieldErrors(current => {
+          if (!current[name]) return current;
+          const updated = { ...current };
+          delete updated[name];
+          return updated;
+        });
+      }} onSubmit={event=>void sendRecord(event)}>
         {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
           <select name="schedule_id" required className="w-full rounded-lg border bg-background p-2">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>

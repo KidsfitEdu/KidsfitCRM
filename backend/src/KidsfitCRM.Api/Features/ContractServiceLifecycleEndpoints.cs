@@ -88,7 +88,7 @@ public static class ContractServiceLifecycleEndpoints
         // This serializes renewal submission with a concurrent 12-month release decision.
         var customerId = await db.SalesContracts.AsNoTracking().Where(c => c.Id == id)
             .Select(c => (long?)c.CustomerId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        await db.ChannelCustomers.FromSqlInterpolated(
+        _ = await db.ChannelCustomers.FromSqlInterpolated(
             $"SELECT * FROM channel_customers WHERE id = {customerId} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException();
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {id} FOR UPDATE")

@@ -1,0 +1,125 @@
+name: Publish current CRM UI demo
+
+on:
+  push:
+    branches: [pages-demo]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages-demo
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      pages: read
+    env:
+      KIDSFIT_PAGES_RELEASE: ${{ github.sha }}
+      PAGES_REPORT_DIR: ${{ runner.temp }}/public-demo-evidence
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check existing source files are unchanged
+        id: source
+        run: |
+          git fetch --no-tags --depth=1 origin bddb6aae02e935a9fcea431c699c59c4793d398e
+          git diff --exit-code --diff-filter=DMRTUXB bddb6aae02e935a9fcea431c699c59c4793d398e HEAD -- .
+          git diff --name-only bddb6aae02e935a9fcea431c699c59c4793d398e HEAD -- . | python -c 'import sys; files=sys.stdin.read().splitlines(); assert all(p.startswith(".pages/") or p == ".github/workflows/publish-current-ui-demo.yml" for p in files), files'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - run: npm ci
+        id: install
+        working-directory: frontend
+      - run: npm run test:demo && npm run lint && npx tsc --noEmit
+        id: source_checks
+        working-directory: frontend
+      - run: npx vite build --config ../.pages/vite.config.mjs
+        id: build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://PAGES_SECRET_CANARY_DO_NOT_PUBLISH.invalid/api
+      - run: npm run test:pages
+        id: artifact_checks
+        working-directory: frontend
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        id: artifact
+        with:
+          path: frontend/dist-pages
+      - name: Record build result
+        if: always()
+        run: node .pages/report.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PAGES_REPORT_PHASE: build
+          PAGES_STEP_RESULTS: ${{ toJSON(steps) }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish verified UI
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    env:
+      KIDSFIT_PAGES_RELEASE: ${{ github.sha }}
+      PAGES_REPORT_DIR: ${{ runner.temp }}/public-demo-evidence
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/pages-artifact
+      - name: Read the exact artifact that was deployed
+        run: |
+          mkdir -p frontend/dist-pages
+          tar -xf "$RUNNER_TEMP/pages-artifact/artifact.tar" -C frontend/dist-pages
+      - name: Prepare browser checks outside the application
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pages-browser" --no-package-lock --no-save playwright@1.62.1
+          "$RUNNER_TEMP/pages-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify the published release
+        id: public_check
+        run: node .pages/verify.mjs
+        env:
+          KIDSFIT_DEMO_URL: ${{ needs.deploy.outputs.page_url }}
+          NODE_PATH: ${{ runner.temp }}/pages-browser/node_modules
+      - name: Record deployment evidence
+        if: always()
+        run: node .pages/report.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PAGES_STEP_RESULTS: ${{ toJSON(steps) }}

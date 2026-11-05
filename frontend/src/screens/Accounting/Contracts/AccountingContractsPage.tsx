@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { ContractLifecycleExplorer } from '@/components/crm/contract-lifecycle-explorer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -265,6 +266,8 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   return <div className="space-y-5">
     <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Hợp đồng & hoa hồng"
       description="Theo dõi hợp đồng đã được CHECKEE xác minh, doanh thu và hoa hồng theo người phụ trách." />
+    <ContractLifecycleExplorer apiBase={apiBase} token={token} mode="accounting" />
+
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <fieldset className="flex flex-wrap gap-2" aria-label="Nhóm hợp đồng kế toán">
       <Button type="button" variant={financialView === 'CURRENT' ? 'default' : 'outline'}

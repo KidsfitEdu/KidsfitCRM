@@ -14,21 +14,36 @@ public static class ContractServiceLifecycleEndpoints
 {
     public static void Map(RouteGroupBuilder group)
     {
-        group.MapGet("/contract-lifecycle/terms", List).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/contract-lifecycle/terms", List).RequireAuthorization();
         group.MapPost("/contracts/{id:long}/service-terms", Submit).RequireAuthorization(Permissions.ChannelSalesReportContract);
         group.MapPost("/contract-lifecycle/terms/{id:long}/manager-review", ManagerReview)
             .RequireAuthorization(Permissions.SchoolContractReview);
         group.MapPost("/contract-lifecycle/terms/{id:long}/checkee-review", CheckeeReview)
             .RequireAuthorization(Permissions.ChannelSalesReconcile);
-        group.MapGet("/contract-lifecycle/alerts", Alerts).RequireAuthorization(Permissions.ChannelSalesView);
-        group.MapPost("/contract-lifecycle/alerts/{id:long}/read", ReadAlert).RequireAuthorization(Permissions.ChannelSalesView);
-        group.MapGet("/contract-lifecycle/overview", Overview).RequireAuthorization(Permissions.ChannelSalesView);
+        group.MapGet("/contract-lifecycle/alerts", Alerts).RequireAuthorization();
+        group.MapPost("/contract-lifecycle/alerts/{id:long}/read", ReadAlert).RequireAuthorization();
+        group.MapGet("/contract-lifecycle/overview", Overview).RequireAuthorization();
+    }
+
+    private static IQueryable<SalesContract> ReadableContracts(KidsfitDbContext db, ChannelSalesAccess access)
+    {
+        if (access.Has(Permissions.ChannelSalesReconcile))
+        {
+            var checkeeIds = db.ReconciliationCases.Where(r => access.OrganizationIds.Contains(r.CheckeeOrganizationId))
+                .Select(r => r.ContractId);
+            return db.SalesContracts.Where(c => checkeeIds.Contains(c.Id));
+        }
+        if (!access.Has(Permissions.ChannelSalesView) &&
+            !access.Has(Permissions.ChannelSalesCommissionView) &&
+            !access.Has(Permissions.SchoolSupportManage))
+            throw new KeyNotFoundException();
+        return access.Contracts(db);
     }
 
     private static async Task<IResult> List(long? contract_id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        var scopedContracts = access.Contracts(db).Select(x => x.Id);
+        var scopedContracts = ReadableContracts(db, access).Select(x => x.Id);
         var terms = db.ContractServiceTerms.AsNoTracking().Where(x => scopedContracts.Contains(x.ContractId));
         if (contract_id.HasValue) terms = terms.Where(x => x.ContractId == contract_id.Value);
         var rows = await terms.OrderByDescending(x => x.StartOn).ThenByDescending(x => x.Id).Take(100)
@@ -148,7 +163,7 @@ public static class ContractServiceLifecycleEndpoints
     private static async Task<IResult> Alerts(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        var scopedCustomers = access.Customers(db).Select(x => x.Id);
+        var scopedCustomers = ReadableContracts(db, access).Select(x => x.CustomerId);
         var mine = db.ContractLifecycleAlerts.AsNoTracking().Where(x =>
             x.RecipientUserId == access.UserId && scopedCustomers.Contains(x.CustomerId));
         var count = await mine.CountAsync(x => x.ReadAt == null, ct);
@@ -162,7 +177,7 @@ public static class ContractServiceLifecycleEndpoints
     private static async Task<IResult> ReadAlert(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        var scope = access.Customers(db).Select(x => x.Id);
+        var scope = ReadableContracts(db, access).Select(x => x.CustomerId);
         var mine = db.ContractLifecycleAlerts.Where(x => x.Id == id && x.RecipientUserId == access.UserId &&
             scope.Contains(x.CustomerId));
         if (!await mine.AnyAsync(ct)) throw new KeyNotFoundException();
@@ -174,7 +189,7 @@ public static class ContractServiceLifecycleEndpoints
     private static async Task<IResult> Overview(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        var ids = access.Contracts(db).Select(c => c.Id);
+        var ids = ReadableContracts(db, access).Select(c => c.Id);
         var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
         var terms = db.ContractServiceTerms.AsNoTracking().Where(t => ids.Contains(t.ContractId) && t.Status == "ACTIVE");
         return Results.Ok(new { data = new {

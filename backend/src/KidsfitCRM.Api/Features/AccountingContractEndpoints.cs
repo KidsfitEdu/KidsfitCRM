@@ -27,13 +27,35 @@ public static class AccountingContractEndpoints
 
     public static async Task<IResult> List(
         HttpContext http, KidsfitDbContext db, string? search, string? personnel_type,
-        int? page, int? page_size, CancellationToken ct)
+        long? owner_user_id, string? financial_view, int? page, int? page_size, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
         var pageNumber = Math.Max(1, page ?? 1);
         var size = Math.Clamp(page_size ?? 20, 1, 100);
-        var contracts = access.Contracts(db).AsNoTracking();
+        // A contract enters the accounting workspace only after CHECKEE verifies it.
+        // Verification is distinct from KIDSFIT's subsequent long-term protection grant.
+        var verified = access.Contracts(db).AsNoTracking().Where(x => x.VerifiedAt != null);
+        var view = string.IsNullOrWhiteSpace(financial_view) ? "CURRENT" : financial_view.Trim().ToUpperInvariant();
+        if (view is not ("CURRENT" or "HISTORY"))
+            throw ApiValidationException.For("financial_view", "Nhóm hợp đồng không hợp lệ.");
+        IQueryable<KidsfitCRM.Api.Domain.SalesContract> eligible = view == "CURRENT"
+            ? verified.Where(x => x.Status != "CANCELLED" && x.Status != "REJECTED")
+            : verified.Where(x => x.Status == "CANCELLED" || x.Status == "REJECTED"
+                || db.RevenueRefunds.Any(refund => refund.ContractId == x.Id)
+                || db.CommissionLedgerEntries.Any(entry => entry.ContractId == x.Id && entry.EntryType != "ACCRUAL"));
+        // Owner options derive from the complete scoped, verified result—not the current page.
+        var owners = await (from contract in eligible
+                            join owner in db.Users.AsNoTracking() on contract.OwnerUserId equals owner.Id
+                            select new { id = owner.Id, name = owner.Name })
+            .Distinct().OrderBy(x => x.name).ThenBy(x => x.id).ToArrayAsync(ct);
+        var contracts = eligible;
+        if (owner_user_id.HasValue)
+        {
+            if (owner_user_id <= 0) throw ApiValidationException.For("owner_user_id", "Người phụ trách không hợp lệ.");
+            contracts = contracts.Where(x => x.OwnerUserId == owner_user_id.Value);
+        }
+        // Preserve the old optional parameter for older clients during transition.
         if (!string.IsNullOrWhiteSpace(personnel_type) && personnel_type != "ALL")
         {
             var type = CommissionPersonnelTypes.Normalize(personnel_type);
@@ -58,6 +80,8 @@ public static class AccountingContractEndpoints
                               contract_code = contract.ContractCode,
                               school_name = school.DisplayName,
                               owner_name = owner.Name,
+                              owner_user_id = contract.OwnerUserId,
+                              verified_at = contract.VerifiedAt,
                               personnel_type = contract.OwnerPersonnelType,
                               total_value = contract.TotalValue,
                               received = db.RevenueReceipts.Where(x => x.ContractId == contract.Id && x.Status == "COMPLETED").Sum(x => (decimal?)x.Amount) ?? 0,
@@ -65,14 +89,14 @@ public static class AccountingContractEndpoints
                               commission = access.Commissions(db).Where(x => x.ContractId == contract.Id).Sum(x => (decimal?)x.Amount) ?? 0,
                               contract_status = contract.Status,
                           }).Skip((pageNumber - 1) * size).Take(size).ToArrayAsync(ct);
-        return Results.Ok(new { data = rows, total, page = pageNumber, page_size = size });
+        return Results.Ok(new { data = rows, owners, total, page = pageNumber, page_size = size });
     }
 
     public static async Task<IResult> Detail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
-        var contract = await (from c in access.Contracts(db).AsNoTracking().Where(x => x.Id == id)
+        var contract = await (from c in access.Contracts(db).AsNoTracking().Where(x => x.Id == id && x.VerifiedAt != null)
                               join school in db.ChannelCustomers.AsNoTracking() on c.CustomerId equals school.Id
                               join owner in db.Users.AsNoTracking() on c.OwnerUserId equals owner.Id
                               select new {
@@ -80,7 +104,7 @@ public static class AccountingContractEndpoints
                                   school_address = school.Address, school_district = school.District, school_province = school.Province,
                                   owner_name = owner.Name, owner_user_id = c.OwnerUserId,
                                   personnel_type = c.OwnerPersonnelType, signed_on = c.SignedOn,
-                                  effective_on = c.EffectiveOn, status = c.Status,
+                                  effective_on = c.EffectiveOn, status = c.Status, verified_at = c.VerifiedAt,
                                   total_value = c.TotalValue, evidence_reference = c.EvidenceReference,
                                   service_plan = c.ServicePlan, student_count = c.StudentCount,
                                   school_unit_ids_json = c.SchoolUnitIdsJson,

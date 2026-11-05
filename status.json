@@ -1,0 +1,17 @@
+{
+  "phase": "build",
+  "release": "da47383b5bf5cb49c40ff6aeb413b48333b8d259",
+  "source": "bddb6aae02e935a9fcea431c699c59c4793d398e",
+  "run_url": "https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/41964250375",
+  "recorded_at": "2026-11-05T03:52:48.419Z",
+  "steps": {
+    "source": "success",
+    "install": "success",
+    "source_checks": "success",
+    "build": "success",
+    "artifact_checks": "success",
+    "package": "success",
+    "artifact": "success"
+  },
+  "passed": false
+}

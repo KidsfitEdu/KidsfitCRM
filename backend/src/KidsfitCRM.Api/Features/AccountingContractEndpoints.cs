@@ -105,6 +105,13 @@ public static class AccountingContractEndpoints
                                   owner_name = owner.Name, owner_user_id = c.OwnerUserId,
                                   personnel_type = c.OwnerPersonnelType, signed_on = c.SignedOn,
                                   effective_on = c.EffectiveOn, status = c.Status, verified_at = c.VerifiedAt,
+                                  // Long-term ownership is effective only after a separately approved KIDSFIT grant.
+                                  // Never infer the entitlement from signature date or a not-yet-granted contract.
+                                  protection_until = db.CustomerProtections
+                                      .Where(p => p.ContractId == c.Id && p.SourceType == "CONTRACT" && p.Status == "ACTIVE")
+                                      .OrderByDescending(p => p.EffectiveUntil)
+                                      .Select(p => (DateTime?)p.EffectiveUntil)
+                                      .FirstOrDefault(),
                                   total_value = c.TotalValue, evidence_reference = c.EvidenceReference,
                                   service_plan = c.ServicePlan, student_count = c.StudentCount,
                                   school_unit_ids_json = c.SchoolUnitIdsJson,

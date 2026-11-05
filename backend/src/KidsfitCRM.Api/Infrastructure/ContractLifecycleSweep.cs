@@ -77,15 +77,15 @@ public static class ContractLifecycleSweep
                 if (await db.Users.AnyAsync(u => u.Id == recipient && u.Status == "ACTIVE" &&
                     db.OrganizationMemberships.Any(m => m.UserId == recipient && m.Status == "ACTIVE"), ct))
                     count += await InsertNotice(db, null, protection.CustomerId, recipient,
-                        kind + "_" + protection.Id, deadline, now, ct);
+                        kind, deadline, now, ct, "protection:" + protection.Id);
         }
         return (count, released);
     }
 
     private static Task<int> InsertNotice(KidsfitDbContext db, long? termId, long customerId,
-        long userId, string kind, DateOnly deadline, DateTime now, CancellationToken ct)
+        long userId, string kind, DateOnly deadline, DateTime now, CancellationToken ct, string? sourceKey = null)
     {
-        var key = $"term:{termId ?? 0}:customer:{customerId}:recipient:{userId}:kind:{kind}:deadline:{deadline:yyyyMMdd}";
+        var key = $"term:{sourceKey ?? termId?.ToString() ?? "0"}:customer:{customerId}:recipient:{userId}:kind:{kind}:deadline:{deadline:yyyyMMdd}";
         return db.Database.ExecuteSqlInterpolatedAsync($@"
             INSERT IGNORE INTO contract_lifecycle_alerts
               (service_term_id, customer_id, recipient_user_id, kind, deadline_on,

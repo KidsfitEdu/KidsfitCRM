@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
+import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -10,7 +11,13 @@ import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
+import { channelDate, channelMoney, channelRequest, ChannelRequestError } from '@/lib/channel-operations';
+
+const accountingBusinessDay = (date: Date) => new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(date);
+
+type FieldErrors = Partial<Record<'transaction_date' | 'amount' | 'reference_code' | 'proof' | 'schedule_id' | 'payout_id', string>>;
 
 type ContractRow = {
   id: number;
@@ -58,15 +65,14 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
   const [preview, setPreview] = useState<{url:string; name:string; mime:string}|null>(null);
   const [saving, setSaving] = useState(false);
-  const [actionError, setActionError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
   const connected = Boolean(apiBase && token && canView);
   const load = useCallback(async () => {
     if (!connected) return;
     setBusy(true);
-    setError('');
     try {
       const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), financial_view: financialView });
       if (ownerUserId !== 'ALL') params.set('owner_user_id', ownerUserId);
@@ -80,7 +86,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       setRows([]);
       setOwners([]);
       setTotal(0);
-      setError(cause instanceof Error ? cause.message : 'Không tải được hợp đồng.');
+      appNotice.error('Không tải được danh sách hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
     } finally {
       setBusy(false);
     }
@@ -93,12 +99,11 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     setDetail(null);
     void channelRequest<Detail>(apiBase, token, `/accounting/contracts/${selected}`)
       .then(value => { if (live) setDetail(value); })
-      .catch(cause => { if (live) setError(cause instanceof Error ? cause.message : 'Không tải được chi tiết.'); });
+      .catch(cause => { if (live) appNotice.error('Không tải được chi tiết hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); });
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
   const viewEvidence = async (id: number, name: string, inNewTab = false) => {
-    setActionError('');
     // Open synchronously on click to avoid popup blockers, then load authenticated bytes.
     const tab = inNewTab ? window.open('', '_blank') : null;
     if (inNewTab && tab) tab.document.title = 'Đang mở hợp đồng...';
@@ -122,7 +127,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       }
     } catch (cause) {
       if (tab) tab.close();
-      setActionError(cause instanceof Error ? cause.message : 'Không mở được chứng từ.');
+      appNotice.error('Không mở được chứng từ.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
     }
   };
   const closePreview = () => {
@@ -143,12 +148,31 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     if (selected === null || !detail || !entryMode) return;
     const form = new FormData(event.currentTarget);
     const proof = form.get('proof');
-    if (!(proof instanceof File) || proof.size === 0) {
-      setActionError('Vui lòng chọn ảnh chứng từ chuyển khoản.');
-      return;
-    }
+    const dateValue = form.get('transaction_date');
+    const date = typeof dateValue === 'string' ? dateValue : '';
+    const amount = Number(form.get('amount'));
+    const referenceValue = form.get('reference_code');
+    const reference = typeof referenceValue === 'string' ? referenceValue.trim() : '';
+    const today = accountingBusinessDay(new Date());
+    const signedOn = accountingBusinessDay(new Date(detail.data.signed_on));
+    const validation: FieldErrors = {};
+    if (!date) validation.transaction_date = 'Vui lòng chọn ngày giao dịch.';
+    else if (date > today || (entryMode === 'receipt' && date < signedOn))
+      validation.transaction_date = entryMode === 'receipt'
+        ? 'Ngày thu phải từ ngày ký hợp đồng đến hiện tại.'
+        : 'Ngày chi không được ở tương lai.';
+    if (!Number.isSafeInteger(amount) || amount <= 0) validation.amount = 'Số tiền phải là số nguyên dương.';
+    if (!reference) validation.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng.';
+    if (!(proof instanceof File) || proof.size === 0) validation.proof = 'Vui lòng chọn ảnh chứng từ chuyển khoản.';
+    else if (proof.size > 5 * 1024 * 1024) validation.proof = 'Ảnh chứng từ không được vượt quá 5 MB.';
+    else if (!['image/jpeg', 'image/png', 'image/webp'].includes(proof.type))
+      validation.proof = 'Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.';
+    if (entryMode === 'receipt' && !Number(form.get('schedule_id'))) validation.schedule_id = 'Vui lòng chọn đợt thanh toán.';
+    if (entryMode === 'payout' && !Number(form.get('payout_id'))) validation.payout_id = 'Vui lòng chọn phiếu chi đã duyệt.';
+    if (Object.keys(validation).length) { setFieldErrors(validation); return; }
+    if (!(proof instanceof File)) return;
+    setFieldErrors({});
     setSaving(true);
-    setActionError('');
     try {
       const attachment = new FormData();
       attachment.set('kind', entryMode === 'receipt' ? 'RECEIPT' : 'PAYOUT');
@@ -157,10 +181,6 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       if (entryMode === 'receipt') attachment.set('contract_id', String(selected));
       else attachment.set('payout_id', String(payoutId));
       const uploaded = await channelRequest<{data:{id:number}}>(apiBase, token, '/evidence', { method: 'POST', body: attachment });
-      const dateValue = form.get('transaction_date');
-      const date = typeof dateValue === 'string' ? dateValue : '';
-      const referenceValue = form.get('reference_code');
-      const reference = typeof referenceValue === 'string' ? referenceValue : '';
       const timestamp = new Date(date + 'T12:00:00+07:00').toISOString();
       if (entryMode === 'receipt') {
         await channelRequest(apiBase, token, `/contracts/${selected}/revenue-receipts`, {
@@ -182,9 +202,23 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       }
       setEntryMode(null);
       setDetailRevision(v => v + 1);
+      appNotice.success(entryMode === 'receipt' ? 'Đã ghi nhận khoản thu.' : 'Đã ghi nhận khoản chi hoa hồng.');
       await load();
     } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : 'Không thể lưu giao dịch.');
+      if (cause instanceof ChannelRequestError && cause.status === 422 && Object.keys(cause.errors).length) {
+        const next: FieldErrors = {};
+        for (const [key, messages] of Object.entries(cause.errors)) {
+          if (key in {transaction_date: true, received_at: true, paid_at: true, amount: true, reference_code: true, proof: true, schedule_id: true, revenue_schedule_id: true, payout_id: true}) {
+            const target = key === 'received_at' || key === 'paid_at' ? 'transaction_date'
+              : key === 'revenue_schedule_id' ? 'schedule_id' : key as keyof FieldErrors;
+            next[target] = messages[0];
+          }
+        }
+        if (Object.keys(next).length) setFieldErrors(next);
+        else appNotice.error('Không thể lưu giao dịch.', cause.message);
+      } else {
+        appNotice.error('Không thể lưu giao dịch.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
+      }
     } finally {
       setSaving(false);
     }
@@ -201,7 +235,6 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const createPayout = async () => {
     if (!detail || !chosenPeriod) return;
     setSaving(true);
-    setActionError('');
     try {
       await channelRequest(apiBase, token, '/payouts', {method:'POST',body:JSON.stringify({
         idempotency_key: crypto.randomUUID(), organization_id: detail.data.owner_organization_id,
@@ -209,17 +242,18 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         contract_id: detail.data.id, withholding_amount: 0,
       })});
       setDetailRevision(v => v+1);
+      appNotice.success('Đã lập phiếu chi hoa hồng.');
       await load();
-    } catch (cause) { setActionError(cause instanceof Error ? cause.message : 'Không tạo được phiếu chi.'); }
+    } catch (cause) { appNotice.error('Không tạo được phiếu chi.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); }
     finally { setSaving(false); }
   };
   const approvePayout = async (id: number) => {
     setSaving(true);
-    setActionError('');
     try {
       await channelRequest(apiBase, token, `/payouts/${id}/approve`, {method:'POST'});
       setDetailRevision(v => v+1);
-    } catch (cause) { setActionError(cause instanceof Error ? cause.message : 'Không duyệt được phiếu chi.'); }
+      appNotice.success('Đã duyệt phiếu chi.');
+    } catch (cause) { appNotice.error('Không duyệt được phiếu chi.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); }
     finally { setSaving(false); }
   };
   const resetFilters = () => {
@@ -232,7 +266,6 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Hợp đồng & hoa hồng"
       description="Theo dõi hợp đồng đã được CHECKEE xác minh, doanh thu và hoa hồng theo người phụ trách." />
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
-    {error && <p role="alert" className="flex items-center gap-2 rounded-lg border border-red-300 p-3 text-sm text-red-700"><AlertCircle className="size-4"/>{error}</p>}
     <fieldset className="flex flex-wrap gap-2" aria-label="Nhóm hợp đồng kế toán">
       <Button type="button" variant={financialView === 'CURRENT' ? 'default' : 'outline'}
         aria-pressed={financialView === 'CURRENT'} onClick={() => { setFinancialView('CURRENT'); setOwnerUserId('ALL'); setPage(1); }}>
@@ -351,7 +384,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-bold text-foreground">2. Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
-              onClick={()=>{setActionError('');setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
+              onClick={()=>{setFieldErrors({});setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[520px] text-left text-sm">
@@ -387,7 +420,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-bold text-foreground">3. Hoa hồng Sales</h3>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
-              onClick={()=>{setActionError('');setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
+              onClick={()=>{setFieldErrors({});setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
             {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <div className="flex flex-wrap items-center gap-2">
               {eligiblePeriods.length>0 && <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
                 onChange={event=>setPayoutPeriod(event.target.value)}
@@ -446,33 +479,41 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
             </div>)}
           </div>}
         </section>
-        {actionError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-red-700">{actionError}</p>}
       </div>}
     </AppDrawer>
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
-      {detail && entryMode && <form className="space-y-4" onSubmit={event=>void sendRecord(event)}>
+      {detail && entryMode && <form noValidate className="space-y-4" onChange={event=>{
+        const name = event.target.getAttribute('name') as keyof FieldErrors | null;
+        if (!name) return;
+        setFieldErrors(current => {
+          if (!current[name]) return current;
+          const updated = { ...current };
+          delete updated[name];
+          return updated;
+        });
+      }} onSubmit={event=>void sendRecord(event)}>
         {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
           <select name="schedule_id" required className="w-full rounded-lg border bg-background p-2">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
               {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
-          </select></label> : <label className="block space-y-1"><span>Phiếu chi đã duyệt *</span>
+          </select>{fieldErrors.schedule_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.schedule_id}</span>}</label> : <label className="block space-y-1"><span>Phiếu chi đã duyệt *</span>
           <select name="payout_id" required className="w-full rounded-lg border bg-background p-2">
             {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
-          </select></label>}
+          </select>{fieldErrors.payout_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.payout_id}</span>}</label>}
         <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
-          <Input id="accounting-transaction-date" type="date" name="transaction_date" required defaultValue={new Date().toISOString().slice(0,10)}/></div>
+          <Input id="accounting-transaction-date" type="date" name="transaction_date" required aria-invalid={Boolean(fieldErrors.transaction_date)} defaultValue={accountingBusinessDay(new Date())}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
         <div className="space-y-1"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
           <Input id="accounting-amount" name="amount" type="number" min={1} step={1} required
-            defaultValue={entryMode==='payout'?detail.payouts.find(x=>x.status==='APPROVED')?.net_amount:undefined}/></div>
+            aria-invalid={Boolean(fieldErrors.amount)} defaultValue={entryMode==='payout'?detail.payouts.find(x=>x.status==='APPROVED')?.net_amount:undefined}/>{fieldErrors.amount && <p role="alert" className="text-xs text-red-700">{fieldErrors.amount}</p>}</div>
         {entryMode==='payout' && <p className="text-xs text-muted-foreground">Số tiền chi phải khớp phiếu chi đã duyệt; chưa hỗ trợ chia nhỏ một phiếu chi.</p>}
         <div className="space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch ngân hàng *</label>
-          <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}/></div>
+          <Input id="accounting-bank-reference" name="reference_code" required maxLength={64} aria-invalid={Boolean(fieldErrors.reference_code)}/>{fieldErrors.reference_code && <p role="alert" className="text-xs text-red-700">{fieldErrors.reference_code}</p>}</div>
         <div className="space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chứng từ chuyển khoản *</label>
-          <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required/>
+          <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required aria-invalid={Boolean(fieldErrors.proof)}/>
+          {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
-        {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
         <div className="flex flex-wrap justify-end gap-2 pt-2">
           <Button type="button" variant="outline" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</Button>
           <Button type="submit" disabled={saving}>{saving?'Đang lưu...':'Lưu giao dịch'}</Button>

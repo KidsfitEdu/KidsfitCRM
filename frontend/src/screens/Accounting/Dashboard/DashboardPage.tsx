@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Banknote, CheckCircle2, HandCoins, Wallet } from 'lucide-react';
+import { Banknote, CheckCircle2, HandCoins, Wallet } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { channelMoney, channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
 import type { RolePageProps } from '@/types/role-pages';
@@ -27,6 +29,13 @@ export function DashboardPage({apiBase, token, abilities}: RolePageProps) {
     queryFn: () => channelRequest<FinanceSummary>(apiBase, token, `/finance?period=${period}`),
     enabled: connected,
   });
+  // React Query can rerender and refetch; notify once per failed request, not per render.
+  const lastNotifiedErrorAt = useRef(0);
+  useEffect(() => {
+    if (!connected || !finance.isError || !finance.errorUpdatedAt || finance.errorUpdatedAt === lastNotifiedErrorAt.current) return;
+    lastNotifiedErrorAt.current = finance.errorUpdatedAt;
+    appNotice.error('Không tải được tổng quan Kế toán.', finance.error instanceof Error ? finance.error.message : 'Vui lòng thử lại.');
+  }, [connected, finance.isError, finance.errorUpdatedAt, finance.error]);
   const summary = finance.data?.summary;
   const tiles = [
     {label: 'Nhà trường thực thu ròng', amount: summary?.net_collected_revenue, icon: Banknote},
@@ -39,9 +48,6 @@ export function DashboardPage({apiBase, token, abilities}: RolePageProps) {
       description={`Doanh thu thực thu và hoa hồng theo tháng ${period}. Chỉ hiển thị dữ liệu trong phạm vi được cấp.`}/>
     {!connected && <p role="alert" className="rounded-xl border p-4 text-sm text-muted-foreground">
       Vui lòng đăng nhập với tài khoản Kế toán có quyền xem hoa hồng.
-    </p>}
-    {finance.error && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-300 p-4 text-sm text-red-700">
-      <AlertCircle className="size-4" aria-hidden="true"/>{finance.error.message}
     </p>}
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {tiles.map(tile => <AppStatCard key={tile.label} label={tile.label}

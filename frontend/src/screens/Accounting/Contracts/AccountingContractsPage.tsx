@@ -17,6 +17,8 @@ type ContractRow = {
   contract_code: string;
   school_name: string;
   owner_name: string;
+  owner_user_id: number;
+  verified_at: string | null;
   personnel_type: string | null;
   total_value: number;
   received: number;
@@ -24,10 +26,10 @@ type ContractRow = {
   commission: number;
   contract_status: string;
 };
-type ContractList = { data: ContractRow[]; total: number; page: number; page_size: number };
+type ContractList = { data: ContractRow[]; owners: { id: number; name: string }[]; total: number; page: number; page_size: number };
 type Detail = {
   data: { id: number; contract_code: string; school_name: string; school_address: string | null; school_district: string | null; school_province: string | null; owner_name: string; personnel_type: string | null;
-    signed_on: string; effective_on: string | null; status: string; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
+    signed_on: string; effective_on: string | null; status: string; verified_at: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
@@ -44,7 +46,9 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [personnel, setPersonnel] = useState('ALL');
+  const [ownerUserId, setOwnerUserId] = useState('ALL');
+  const [financialView, setFinancialView] = useState<'CURRENT' | 'HISTORY'>('CURRENT');
+  const [owners, setOwners] = useState<{ id: number; name: string }[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selected, setSelected] = useState<number | null>(null);
@@ -64,18 +68,22 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     setBusy(true);
     setError('');
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), personnel_type: personnel });
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), financial_view: financialView });
+      if (ownerUserId !== 'ALL') params.set('owner_user_id', ownerUserId);
       if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
       const result = await channelRequest<ContractList>(apiBase, token, `/accounting/contracts?${params.toString()}`);
       setRows(result.data);
+      setOwners(result.owners);
       setTotal(result.total);
     } catch (cause) {
       setRows([]);
+      setOwners([]);
+      setTotal(0);
       setError(cause instanceof Error ? cause.message : 'Không tải được hợp đồng.');
     } finally {
       setBusy(false);
     }
-  }, [apiBase, token, page, pageSize, appliedSearch, personnel, connected]);
+  }, [apiBase, token, page, pageSize, appliedSearch, ownerUserId, financialView, connected]);
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
@@ -216,27 +224,35 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const resetFilters = () => {
     setSearch('');
     setAppliedSearch('');
-    setPersonnel('ALL');
+    setOwnerUserId('ALL');
     setPage(1);
-    void load();
   };
   return <div className="space-y-5">
     <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Hợp đồng & hoa hồng"
-      description="Đối chiếu số tiền nhà trường thanh toán và hoa hồng của từng Nhân viên/CTV." />
+      description="Theo dõi hợp đồng đã được CHECKEE xác minh, doanh thu và hoa hồng theo người phụ trách." />
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     {error && <p role="alert" className="flex items-center gap-2 rounded-lg border border-red-300 p-3 text-sm text-red-700"><AlertCircle className="size-4"/>{error}</p>}
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Nhóm hợp đồng kế toán">
+      <Button type="button" variant={financialView === 'CURRENT' ? 'default' : 'outline'}
+        aria-pressed={financialView === 'CURRENT'} onClick={() => { setFinancialView('CURRENT'); setOwnerUserId('ALL'); setPage(1); }}>
+        Hợp đồng đã xác minh
+      </Button>
+      <Button type="button" variant={financialView === 'HISTORY' ? 'default' : 'outline'}
+        aria-pressed={financialView === 'HISTORY'} onClick={() => { setFinancialView('HISTORY'); setOwnerUserId('ALL'); setPage(1); }}>
+        Lịch sử tài chính
+      </Button>
+    </div>
     <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
       <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="relative min-w-[190px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
           <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-11 w-full rounded-xl pl-10"
-            placeholder="Tên trường, mã hợp đồng, nhân sự..." value={search} onChange={e=>setSearch(e.target.value)}/>
+            placeholder="Tên trường, mã hợp đồng, người phụ trách..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <AppNativeSelect aria-label="Lọc theo nhân sự" value={personnel} containerClassName="w-full sm:w-48"
-          onChange={e=>{setPersonnel(e.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả nhân sự</option>
-          <option value="SALES">Nhân viên</option>
-          <option value="COLLABORATOR">CTV</option>
+        <AppNativeSelect aria-label="Lọc theo người phụ trách" value={ownerUserId} containerClassName="w-full sm:w-60"
+          onChange={e=>{setOwnerUserId(e.target.value);setPage(1);}}>
+          <option value="ALL">Tất cả người phụ trách</option>
+          {owners.map(owner => <option key={owner.id} value={String(owner.id)}>{owner.name}</option>)}
         </AppNativeSelect>
         <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
         <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
@@ -261,6 +277,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
               <td className="px-5 py-4 align-middle">
                 <p className="font-semibold text-foreground">{row.school_name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
               </td>
               <td className="px-4 py-4 align-middle">
                 <p>{row.owner_name}</p>
@@ -297,7 +314,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           <p className="flex items-center gap-2 text-muted-foreground"><UserRound className="size-4" aria-hidden="true"/>
             Phụ trách: {detail.data.owner_name} · {detail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
           </p>
-          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status}</span>
+          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>
@@ -310,6 +327,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
+            <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
             <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_plan==='SCHOOL_YEAR'?'Năm học':detail.data.service_plan==='MONTHLY_9'?'Thanh toán theo tháng':'Chưa khai báo'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>

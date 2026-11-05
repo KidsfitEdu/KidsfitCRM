@@ -1,9 +1,9 @@
 {
   "phase": "build",
-  "release": "da47383b5bf5cb49c40ff6aeb413b48333b8d259",
+  "release": "8ea34f9ed0ac0031dff6fd7c364127ce15494354",
   "source": "bddb6aae02e935a9fcea431c699c59c4793d398e",
-  "run_url": "https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/41964250375",
-  "recorded_at": "2026-11-05T03:52:48.419Z",
+  "run_url": "https://github.com/KidsfitEdu/KidsfitCRM/actions/runs/41987210805",
+  "recorded_at": "2026-11-05T07:26:49.598Z",
   "steps": {
     "source": "success",
     "install": "success",

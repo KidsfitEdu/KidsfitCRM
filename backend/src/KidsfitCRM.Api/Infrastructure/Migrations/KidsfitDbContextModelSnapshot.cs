@@ -48,10 +48,14 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnName("term_number");
 
                     b.Property<DateOnly>("StartOn")
+                        .HasConversion(new ValueConverter<DateOnly, DateTime>(
+                            d => d.ToDateTime(TimeOnly.MinValue), d => DateOnly.FromDateTime(d)))
                         .HasColumnType("date")
                         .HasColumnName("start_on");
 
                     b.Property<DateOnly>("EndOn")
+                        .HasConversion(new ValueConverter<DateOnly, DateTime>(
+                            d => d.ToDateTime(TimeOnly.MinValue), d => DateOnly.FromDateTime(d)))
                         .HasColumnType("date")
                         .HasColumnName("end_on");
 
@@ -133,6 +137,8 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnName("kind");
 
                     b.Property<DateOnly>("DeadlineOn")
+                        .HasConversion(new ValueConverter<DateOnly, DateTime>(
+                            d => d.ToDateTime(TimeOnly.MinValue), d => DateOnly.FromDateTime(d)))
                         .HasColumnType("date")
                         .HasColumnName("deadline_on");
 

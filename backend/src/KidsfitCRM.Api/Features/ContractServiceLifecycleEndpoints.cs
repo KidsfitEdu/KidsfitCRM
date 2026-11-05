@@ -84,6 +84,13 @@ public static class ContractServiceLifecycleEndpoints
             throw ApiValidationException.For("end_on", "Một kỳ dịch vụ phải có thời hạn hợp lệ, tối đa một năm.");
         var evidence = Validation.Required(request.EvidenceReference, "evidence_reference", "Cần mã hồ sơ/phụ lục tái ký để CHECKEE xác minh.", 500);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        // Match the lifecycle sweep and approach registration lock order: customer, then contract.
+        // This serializes renewal submission with a concurrent 12-month release decision.
+        var customerId = await db.SalesContracts.AsNoTracking().Where(c => c.Id == id)
+            .Select(c => (long?)c.CustomerId).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        await db.ChannelCustomers.FromSqlInterpolated(
+            $"SELECT * FROM channel_customers WHERE id = {customerId} FOR UPDATE").SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException();
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (!await access.Contracts(db).AnyAsync(x => x.Id == id && x.OwnerUserId == access.UserId, ct)

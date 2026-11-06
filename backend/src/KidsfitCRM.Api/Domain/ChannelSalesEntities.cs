@@ -306,6 +306,7 @@ public sealed class FinancialEvidence : EntityBase
     public long? ContractId { get; set; }
     public long? RevenueReceiptId { get; set; }
     public long? PayoutId { get; set; }
+    public long? ContractRenewalId { get; set; }
     public long UploadedByUserId { get; set; }
     public string FileName { get; set; } = "";
     public string MimeType { get; set; } = "";

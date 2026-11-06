@@ -205,7 +205,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
             </tr>)}
           </tbody>
         </table>
-        {loading&&<p className="p-10 text-center text-sm text-muted-foreground" role="status">Đang tải hồ sơ tái ký...</p>}
+        {loading&&<output className="block p-10 text-center text-sm text-muted-foreground">Đang tải hồ sơ tái ký...</output>}
         {!loading&&listError&&<div className="space-y-3 p-8 text-center text-sm" role="alert">
           <p>Không tải được hồ sơ tái ký.</p>
           <Button variant="outline" type="button" onClick={()=>setRevision(v=>v+1)}>Thử lại</Button>

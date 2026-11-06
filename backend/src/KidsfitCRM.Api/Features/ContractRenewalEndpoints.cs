@@ -154,8 +154,8 @@ public static class ContractRenewalEndpoints
         {
             ContractId = contractId, RenewalNo = no, IdempotencyKey = key,
             RequestFingerprint = fingerprint, SubmittedByUserId = access.UserId,
-            SignedOn = request.SignedOn.Value, ServiceStartOn = request.ServiceStartOn.Value,
-            ServiceEndOn = request.ServiceEndOn.Value,
+            SignedOn = request.SignedOn!.Value, ServiceStartOn = request.ServiceStartOn!.Value,
+            ServiceEndOn = request.ServiceEndOn!.Value,
             PaymentCycle = request.PaymentCycle!.Trim().ToUpperInvariant(),
             TotalValue = request.TotalValue, GapReason = string.IsNullOrWhiteSpace(request.GapReason) ? null : request.GapReason.Trim(),
             Status = "PENDING_ACCOUNTING",

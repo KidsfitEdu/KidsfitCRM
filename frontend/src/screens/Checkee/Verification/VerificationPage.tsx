@@ -1,3 +1,4 @@
+import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -229,7 +230,7 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
             {[
               ['Ngày ký',channelDate(detail.data.signed_on)],
               ['Giá trị hợp đồng',channelMoney(detail.data.total_value)],
-              ['Gói dịch vụ',detail.data.service_plan ?? 'Chưa khai báo'],
+              ['Gói dịch vụ',getServicePlanLabel(detail.data.service_plan)],
               ['Ngày bắt đầu dịch vụ',detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
               ['Ngày kết thúc dịch vụ',detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
               ['Chu kỳ thanh toán',detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],

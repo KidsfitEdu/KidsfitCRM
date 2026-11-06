@@ -32,11 +32,16 @@ type ContractRow = {
   refunded: number;
   commission: number;
   contract_status: string;
+  service_start_on: string | null;
+  service_end_on: string | null;
+  payment_cycle: string | null;
 };
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
 type Detail = {
   data: { id: number; contract_code: string; school_name: string; school_address: string | null; school_district: string | null; school_province: string | null; owner_name: string; personnel_type: string | null;
-    signed_on: string; effective_on: string | null; status: string; verified_at: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null };
+    signed_on: string; effective_on: string | null; status: string; verified_at: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null;
+    service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;
+    protection_until:string|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
@@ -67,6 +72,12 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
+  const [termFormOpen,setTermFormOpen] = useState(false);
+  const [termStart,setTermStart] = useState('');
+  const [termEnd,setTermEnd] = useState('');
+  const [termCycle,setTermCycle] = useState('YEARLY');
+  const [termError,setTermError] = useState('');
+  const [termSaving,setTermSaving] = useState(false);
 
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
   const connected = Boolean(apiBase && token && canView);
@@ -102,6 +113,47 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
       .catch(cause => { if (live) appNotice.error('Không tải được chi tiết hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); });
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
+
+  // A twelve-month date is only a suggestion: the signed contract is authoritative.
+  const suggestTermEnd = (start: string) => {
+    const parts = start.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n=>!Number.isInteger(n))) return '';
+    const [year,month,day] = parts;
+    const end = new Date(Date.UTC(year+1,month-1,day-1));
+    return end.toISOString().slice(0,10);
+  };
+  const saveTerm = async (event: SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selected || !termStart || !termEnd || termEnd < termStart) {
+      setTermError('Nhập ngày bắt đầu và kết thúc hợp lệ theo hợp đồng đã ký.'); return;
+    }
+    setTermError('');setTermSaving(true);
+    try {
+      await channelRequest(apiBase,token,`/accounting/contracts/${selected}/service-term`,{
+        method:'PUT',body:JSON.stringify({
+          service_start_on:termStart,service_end_on:termEnd,payment_cycle:termCycle
+        })
+      });
+      setTermFormOpen(false);
+      setDetailRevision(n=>n+1);
+      void load();
+      appNotice.success('Đã ghi nhận thời hạn dịch vụ theo hợp đồng.');
+    } catch (err) {
+      if (err instanceof ChannelRequestError && err.status === 422) {
+        setTermError(Object.values(err.errors).flat()[0] ?? err.message);
+      } else appNotice.error('Không thể ghi nhận thời hạn dịch vụ.',err instanceof Error?err.message:'Vui lòng thử lại.');
+    } finally {setTermSaving(false);}
+  };
+  const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
+    if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
+    if (!start || !end) return 'Chưa cập nhật';
+    const today = accountingBusinessDay(new Date());
+    if (today < start) return 'Chưa bắt đầu';
+    if (today > end) return 'Đã hết hạn';
+    const warning = new Date(Date.UTC(...(today.split('-').map((n,i)=>Number(n)-(i===1?1:0)) as [number,number,number])));
+    warning.setUTCDate(warning.getUTCDate()+30);
+    return end <= warning.toISOString().slice(0,10)?'Sắp hết hạn':'Còn hiệu lực';
+  };
 
   const viewEvidence = async (id: number, name: string, inNewTab = false) => {
     // Open synchronously on click to avoid popup blockers, then load authenticated bytes.
@@ -300,6 +352,8 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
             <tr>
               <th className="px-5 py-4">Nhà trường</th>
               <th className="px-4 py-4">Phụ trách</th>
+              <th className="px-4 py-4">Hết hạn dịch vụ</th>
+              <th className="px-4 py-4">Trạng thái dịch vụ</th>
               <th className="px-4 py-4 text-right">Giá trị hợp đồng</th>
               <th className="px-4 py-4 text-right">Thực thu</th>
               <th className="px-4 py-4 text-right">Hoa hồng</th>
@@ -317,6 +371,8 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
                 <p>{row.owner_name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
               </td>
+              <td className="px-4 py-4 align-middle">{row.service_end_on?channelDate(row.service_end_on):'Chưa cập nhật'}</td>
+              <td className="px-4 py-4 align-middle">{serviceStatus(row.service_start_on,row.service_end_on,row.contract_status)}</td>
               <td className="px-4 py-4 text-right align-middle tabular-nums">{channelMoney(row.total_value)}</td>
               <td className="px-4 py-4 text-right align-middle tabular-nums">{channelMoney(row.received-row.refunded)}</td>
               <td className="px-4 py-4 text-right align-middle font-semibold tabular-nums">{channelMoney(row.commission)}</td>
@@ -363,8 +419,18 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
             <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
             <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_plan==='SCHOOL_YEAR'?'Năm học':detail.data.service_plan==='MONTHLY_9'?'Thanh toán theo tháng':'Chưa khai báo'}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa cập nhật'}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa cập nhật'}</dd></div>
+            <div><dt className="text-muted-foreground">Chu kỳ thanh toán</dt><dd className="mt-1 font-medium">{detail.data.payment_cycle==='MONTHLY'?'Theo tháng':detail.data.payment_cycle==='YEARLY'?'Theo năm':'Chưa cập nhật (gói lịch sử được giữ nguyên)'}</dd></div>
+            <div><dt className="text-muted-foreground">Trạng thái dịch vụ</dt><dd className="mt-1 font-medium">{serviceStatus(detail.data.service_start_on,detail.data.service_end_on,detail.data.status)}</dd></div>
+            <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
+          {canRecordRevenue && detail.data.status==='ACTIVE' && !detail.data.service_start_on && !detail.data.service_end_on && !detail.data.payment_cycle && <div>
+            <Button type="button" variant="outline" onClick={()=>{
+              setTermStart('');setTermEnd('');setTermCycle('YEARLY');setTermError('');setTermFormOpen(true);
+            }}>Ghi nhận thời hạn theo hợp đồng</Button>
+          </div>}
           <div><p className="text-muted-foreground">Trường điểm triển khai</p><p className="mt-1">{detail.school_units.length ? detail.school_units.map(x=>x.name).join(', ') : 'Chỉ trường chính / chưa khai báo'}</p></div>
           {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><button key={x.id} type="button"
             className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/40"
@@ -481,6 +547,29 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         </section>
       </div>}
     </AppDrawer>
+    <AppDialog open={termFormOpen} onOpenChange={open=>{if(!open&&!termSaving)setTermFormOpen(false);}}
+      busy={termSaving} title="Ghi nhận thời hạn dịch vụ" description="Nhập đúng ngày và chu kỳ thanh toán theo hợp đồng đã ký. Chỉ ghi nhận một lần, không sửa lịch thu hoặc hoa hồng.">
+      <form noValidate className="space-y-4" onSubmit={event=>void saveTerm(event)}>
+        <label className="block space-y-1"><span>Ngày bắt đầu dịch vụ *</span>
+          <Input type="date" value={termStart} onChange={e=>{
+            setTermStart(e.target.value);
+            if (!termEnd) setTermEnd(suggestTermEnd(e.target.value));
+            setTermError('');
+          }}/></label>
+        <label className="block space-y-1"><span>Ngày kết thúc dịch vụ theo hợp đồng *</span>
+          <Input type="date" value={termEnd} onChange={e=>{setTermEnd(e.target.value);setTermError('');}}/></label>
+        <p className="text-xs text-muted-foreground">Gợi ý 12 tháng chỉ mang tính tham khảo; ngày trên hợp đồng ký là nguồn chính xác.</p>
+        <label className="block space-y-1"><span>Chu kỳ thanh toán *</span>
+          <select className="w-full rounded-lg border bg-background p-2" value={termCycle} onChange={e=>setTermCycle(e.target.value)}>
+            <option value="YEARLY">Theo năm</option><option value="MONTHLY">Theo tháng</option>
+          </select></label>
+        {termError&&<p role="alert" className="text-sm text-destructive">{termError}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" disabled={termSaving} onClick={()=>setTermFormOpen(false)}>Hủy</Button>
+          <Button type="submit" disabled={termSaving}>{termSaving?'Đang lưu...':'Ghi nhận'}</Button>
+        </div>
+      </form>
+    </AppDialog>
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">

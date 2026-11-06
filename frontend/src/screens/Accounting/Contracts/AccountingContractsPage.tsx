@@ -10,7 +10,8 @@ import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { channelDate, channelMoney, channelRequest, ChannelRequestError } from '@/lib/channel-operations';
+import { channelDate, channelMoney, channelRequest, ChannelRequestError, formatMoneyInput, parseMoneyInput } from '@/lib/channel-operations';
+import { EvidencePreviewDialog } from '@/components/common/evidence-preview-dialog';
 
 const accountingBusinessDay = (date: Date) => new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -77,6 +78,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
   const [detailRevision, setDetailRevision] = useState(0);
   const [payoutPeriod, setPayoutPeriod] = useState('');
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
+  const [amountInput, setAmountInput] = useState('');
   const [preview, setPreview] = useState<{url:string; name:string; mime:string}|null>(null);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -211,7 +213,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     const proof = form.get('proof');
     const dateValue = form.get('transaction_date');
     const date = typeof dateValue === 'string' ? dateValue : '';
-    const amount = Number(form.get('amount'));
+    const amount = parseMoneyInput(amountInput);
     const referenceValue = form.get('reference_code');
     const reference = typeof referenceValue === 'string' ? referenceValue.trim() : '';
     const today = accountingBusinessDay(new Date());
@@ -247,7 +249,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
         await channelRequest(apiBase, token, `/contracts/${selected}/revenue-receipts`, {
           method: 'POST', body: JSON.stringify({
             idempotency_key: crypto.randomUUID(), revenue_schedule_id: Number(form.get('schedule_id')),
-            received_at: timestamp, amount: Number(form.get('amount')),
+            received_at: timestamp, amount,
             reference_code: reference,
             payment_method: 'BANK_TRANSFER', evidence_id: uploaded.data.id,
           }),
@@ -257,7 +259,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           method: 'POST', body: JSON.stringify({
             paid_at: timestamp, payment_reference: reference,
             evidence_id: uploaded.data.id,
-            amount: Number(form.get('amount')),
+            amount,
           }),
         });
       }
@@ -477,7 +479,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-bold text-foreground">2. Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
-              onClick={()=>{setFieldErrors({});setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
+              onClick={()=>{setFieldErrors({});setAmountInput('');setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[520px] text-left text-sm">
@@ -513,7 +515,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-bold text-foreground">3. Hoa hồng Sales</h3>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
-              onClick={()=>{setFieldErrors({});setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
+              onClick={()=>{setFieldErrors({});setAmountInput(formatMoneyInput(String(detail.payouts.find(x=>x.status==='APPROVED')?.net_amount??'')));setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
             {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <div className="flex flex-wrap items-center gap-2">
               {eligiblePeriods.length>0 && <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
                 onChange={event=>setPayoutPeriod(event.target.value)}
@@ -621,8 +623,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
         <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
           <Input id="accounting-transaction-date" type="date" name="transaction_date" required aria-invalid={Boolean(fieldErrors.transaction_date)} defaultValue={accountingBusinessDay(new Date())}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
         <div className="space-y-1"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
-          <Input id="accounting-amount" name="amount" type="number" min={1} step={1} required
-            aria-invalid={Boolean(fieldErrors.amount)} defaultValue={entryMode==='payout'?detail.payouts.find(x=>x.status==='APPROVED')?.net_amount:undefined}/>{fieldErrors.amount && <p role="alert" className="text-xs text-red-700">{fieldErrors.amount}</p>}</div>
+          <div className="relative">
+            <Input id="accounting-amount" name="amount" type="text" inputMode="numeric" autoComplete="off"
+              placeholder="0" required aria-invalid={Boolean(fieldErrors.amount)} value={amountInput}
+              onChange={e=>setAmountInput(formatMoneyInput(e.target.value))}
+              className="pr-12 tabular-nums text-right"/>
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">đ</span>
+          </div>
+          {fieldErrors.amount && <p role="alert" className="text-xs text-red-700">{fieldErrors.amount}</p>}</div>
         {entryMode==='payout' && <p className="text-xs text-muted-foreground">Số tiền chi phải khớp phiếu chi đã duyệt; chưa hỗ trợ chia nhỏ một phiếu chi.</p>}
         <div className="space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch ngân hàng *</label>
           <Input id="accounting-bank-reference" name="reference_code" required maxLength={64} aria-invalid={Boolean(fieldErrors.reference_code)}/>{fieldErrors.reference_code && <p role="alert" className="text-xs text-red-700">{fieldErrors.reference_code}</p>}</div>
@@ -636,10 +644,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
         </div>
       </form>}
     </AppDialog>
-    <AppDialog open={preview!==null} onOpenChange={open=>{if(!open)closePreview();}} title={preview?.name??'Ảnh chuyển khoản'}
-      description="Chứng từ riêng tư – chỉ sử dụng để đối soát." contentClassName="sm:!max-w-4xl">
-      {preview && <object data={preview.url} type={preview.mime} aria-label={preview.name} className="mx-auto h-[min(68dvh,620px)] w-full object-contain">Không thể xem ảnh này trên trình duyệt.</object>}
-    </AppDialog>
+    <EvidencePreviewDialog preview={preview} onClose={closePreview}/>
   </div>;
 }
 

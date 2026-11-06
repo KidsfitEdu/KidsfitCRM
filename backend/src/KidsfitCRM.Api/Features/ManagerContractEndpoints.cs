@@ -266,6 +266,7 @@ public static class ManagerContractEndpoints
         if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
             var selected = status.Trim().ToUpperInvariant();
+            // Retain the historical PENDING_KIDSFIT filter for records created before automatic CHECKEE activation.
             if (selected is not ("PENDING_REVIEW" or "MANAGER_REVIEWED" or "NEEDS_REVISION" or "PENDING_KIDSFIT" or "ACTIVE" or "CANCELLED" or "DISPUTED"))
                 throw ApiValidationException.For("status", "Trạng thái hợp đồng không hợp lệ.");
             query = selected == "DISPUTED"

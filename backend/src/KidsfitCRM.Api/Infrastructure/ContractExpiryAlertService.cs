@@ -58,7 +58,9 @@ public static class ContractExpiryAlertService
                 && p.SourceType == "CONTRACT" && p.Status == "ACTIVE")
             .Select(p => new { p.ContractId, p.OwnerUserId, p.EffectiveUntil }).ToArrayAsync(ct);
         var membership = await db.OrganizationMemberships.AsNoTracking()
-            .Where(m => m.Status == "ACTIVE" && m.ManagerUserId.HasValue)
+            .Where(m => m.Status == "ACTIVE" && m.ManagerUserId.HasValue
+                && db.OrganizationMemberships.Any(manager => manager.UserId == m.ManagerUserId.Value
+                    && manager.OrganizationId == m.OrganizationId && manager.Status == "ACTIVE"))
             .Select(m => new { m.UserId, m.OrganizationId, m.ManagerUserId }).ToArrayAsync(ct);
         var activeUsers = (await (from user in db.Users.AsNoTracking()
             join member in db.OrganizationMemberships.AsNoTracking() on user.Id equals member.UserId

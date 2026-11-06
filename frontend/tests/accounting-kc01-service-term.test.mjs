@@ -19,15 +19,18 @@ test('KC-01 accountant contract API keeps scoped verified-only records', () => {
   assert.match(api, /access.CanManageOrganization/);
 });
 
-test('KC-01 UI shows separate service and Sales-protection dates with unchanged accounting actions', () => {
+test('KC-01 accounting UI reads Sales-verified service dates and keeps financial actions unchanged', () => {
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   for(const key of ['service_start_on','service_end_on','payment_cycle','protection_until']) {
     assert.ok(ui.includes(key), key);
   }
   assert.match(ui, /Chưa cập nhật/);
-  assert.match(ui, /12 tháng chỉ mang tính tham khảo/);
   assert.match(ui, /channel_sales.revenue.record/);
-  assert.match(ui, /Ghi nhận thời hạn theo hợp đồng/);
+  assert.doesNotMatch(ui, /Ghi nhận thời hạn theo hợp đồng/);
+  const sales = read('src/components/crm/channel-sales-view.tsx');
+  assert.match(sales, /service_start_on: serviceStartOn/);
+  assert.match(sales, /service_end_on: serviceEndOn/);
+  assert.match(sales, /payment_cycle: paymentCycle/);
   assert.match(ui, /Thêm khoản thu/);
   assert.match(ui, /Hoa hồng Sales/);
   assert.doesNotMatch(ui, /\/contract-lifecycle\/terms/);

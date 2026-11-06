@@ -74,13 +74,15 @@ test('KC-01 Accounting separates signed original term from the currently active 
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   const backend = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
   for (const key of ['source_service_start_on', 'source_service_end_on', 'source_payment_cycle']) {
-    assert.match(ui, new RegExp('detail\\.data\\.' + key));
+    assert.ok(ui.includes('detail.data.' + key), key);
     assert.ok(backend.includes(key + ' = c.'), key);
   }
-  assert.match(ui, /Hợp đồng gốc · Chưa bắt đầu/);
-  assert.match(ui, /Kỳ tiếp theo đã xác nhận · Chưa bắt đầu/);
-  assert.match(ui, /Tạm gián đoạn giữa các kỳ dịch vụ/);
-  assert.match(ui, /periodLabel\\(period,detail\\.current_period,detail\\.next_confirmed_period/);
-  assert.match(ui, /next \\? \\x60Bắt đầu/);
-  assert.doesNotMatch(ui, /detail\\.current_period\\?channelDate\\(detail\\.current_period\\.start_on\\):'Không có kỳ đang sử dụng'/);
+  for (const label of [
+    'Hợp đồng gốc · Chưa bắt đầu',
+    'Kỳ tiếp theo đã xác nhận · Chưa bắt đầu',
+    'Tạm gián đoạn giữa các kỳ dịch vụ',
+  ]) assert.ok(ui.includes(label), label);
+  assert.ok(ui.includes('periodLabel(period,detail.current_period,detail.next_confirmed_period'));
+  assert.ok(ui.includes('Bắt đầu ${channelDate(next.start_on)}'));
+  assert.ok(!ui.includes("detail.current_period?channelDate(detail.current_period.start_on):'Không có kỳ đang sử dụng'"));
 });

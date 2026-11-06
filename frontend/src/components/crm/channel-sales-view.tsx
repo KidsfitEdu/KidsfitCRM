@@ -38,6 +38,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { channelDate, channelRequest } from '@/lib/channel-operations';
+import { paymentCycleForPlan } from '@/lib/contract-payment-plan';
 import { validateContract, type ContractErrors, type ContractField } from '@/lib/contract-validation';
 import type {
   ChannelCustomer,
@@ -1114,7 +1115,6 @@ function ContractDialog({
   const [note, setNote] = useState('');
   const [serviceStartOn, setServiceStartOn] = useState('');
   const [serviceEndOn, setServiceEndOn] = useState('');
-  const [paymentCycle, setPaymentCycle] = useState<'MONTHLY'|'YEARLY'>('YEARLY');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<ContractErrors>({});
   const clearError = (key: ContractField) => setErrors(old => {
@@ -1122,6 +1122,7 @@ function ContractDialog({
     const next = { ...old }; delete next[key]; return next;
   });
   const [requestKey] = useState(() => idempotencyKey('contract'));
+  const paymentCycle = paymentCycleForPlan(plan);
   const multiplier = plan === 'MONTHLY_9' ? 9 : 1;
   const maintenance = Number(maintenanceFee);
   const setup = Number(setupFee);
@@ -1227,18 +1228,10 @@ function ContractDialog({
               {errors.service_end_on&&<p role="alert" className="text-xs text-red-700">{errors.service_end_on}</p>}
             </Field>
           </div>
-          <Field label="Chu kỳ thanh toán *">
-            <AppNativeSelect data-field="payment_cycle" value={paymentCycle}
-              onChange={e=>{setPaymentCycle(e.target.value as 'MONTHLY'|'YEARLY');clearError('payment_cycle');}}>
-              <option value="YEARLY">Theo năm</option>
-              <option value="MONTHLY">Theo tháng</option>
-            </AppNativeSelect>
-            {errors.payment_cycle&&<p role="alert" className="text-xs text-red-700">{errors.payment_cycle}</p>}
-          </Field>
           <p className="text-xs text-muted-foreground">Ngày kết thúc gợi ý sau một năm; vui lòng đối chiếu ngày thực tế trên hợp đồng. CHECKEE sẽ xác minh trước khi kỳ dịch vụ có hiệu lực.</p>
         </fieldset>
         <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
+          <legend className="text-sm font-semibold">Gói dịch vụ & hình thức thanh toán *</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="service_plan_choice" value="SCHOOL_YEAR"
               checked={plan==='SCHOOL_YEAR'} onChange={()=>{setPlan('SCHOOL_YEAR');clearError('service_plan');}}/>

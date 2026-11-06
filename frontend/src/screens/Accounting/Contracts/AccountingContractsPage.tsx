@@ -447,7 +447,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             </p>}
             {!detail.current_period&&<p className="text-sm text-amber-700">Hiện không có kỳ sử dụng đang hiệu lực.</p>}
             {detail.period_history.length===0&&<p className="text-muted-foreground">Chưa có kỳ dịch vụ đáng tin cậy.</p>}
-            {detail.period_history.map((period,index)=><div key={period.renewal_id??'source'} className="flex flex-wrap justify-between gap-2 border-t border-border/70 pt-2 text-sm">
+            {detail.period_history.map(period=><div key={period.renewal_id??'source'} className="flex flex-wrap justify-between gap-2 border-t border-border/70 pt-2 text-sm">
               <span>{period.renewal_no===null?'Hợp đồng gốc':`Tái ký lần ${period.renewal_no}`} · {channelDate(period.start_on)} – {channelDate(period.end_on)}</span>
               <span className="text-muted-foreground">{detail.current_period?.start_on===period.start_on?'Đang sử dụng':detail.next_confirmed_period?.start_on===period.start_on?'Kỳ tiếp theo':period.end_on<accountingBusinessDay(new Date())?'Đã kết thúc':'Đã xác nhận'}</span>
               {period.gap_reason&&<p className="w-full text-xs text-muted-foreground">Lý do gián đoạn: {period.gap_reason}</p>}

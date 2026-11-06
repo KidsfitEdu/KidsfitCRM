@@ -17,7 +17,10 @@ public sealed record ResubmitSchoolContractRequest(
     long[]? SchoolUnitIds = null,
     decimal? MaintenanceFee = null,
     decimal? SetupFee = null,
-    string? ContractNote = null);
+    string? ContractNote = null,
+    DateOnly? ServiceStartOn = null,
+    DateOnly? ServiceEndOn = null,
+    string? PaymentCycle = null);
 
 /// <summary>
 /// Manager contract workflow. Authorization and scope are enforced in SQL, not by the UI.
@@ -317,7 +320,7 @@ public static class ManagerContractEndpoints
                               join owner in db.Users.AsNoTracking() on c.OwnerUserId equals owner.Id
                               select new {
                                   id = c.Id, c.ContractCode, c.SignedOn, c.EffectiveOn, c.TotalValue,
-                                  c.Status, c.ServicePlan, c.StudentCount, c.BranchCount, c.ContractNote, c.EvidenceReference, c.SchoolUnitIdsJson,
+                                  c.Status, c.ServicePlan, c.ServiceStartOn, c.ServiceEndOn, c.PaymentCycle, c.StudentCount, c.BranchCount, c.ContractNote, c.EvidenceReference, c.SchoolUnitIdsJson,
                                   c.ManagerReviewedAt, c.VerifiedAt, c.OwnerUserId, c.OwnerOrganizationId, c.ReportedByUserId,
                                   school_name = customer.DisplayName, school_address = customer.Address,
                                   school_province = customer.Province, sales_name = owner.Name
@@ -357,7 +360,7 @@ public static class ManagerContractEndpoints
             data = new {
                 contract.id, customer_id = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.CustomerId).SingleAsync(ct),
                 contract.ContractCode, contract.SignedOn, contract.EffectiveOn,
-                contract.TotalValue, contract.Status, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+                contract.TotalValue, contract.Status, contract.ServicePlan, contract.ServiceStartOn, contract.ServiceEndOn, contract.PaymentCycle, contract.StudentCount, contract.BranchCount,
                 contract.ContractNote, maintenance_fee = maintenanceFee, setup_fee = setupFee,
                 revision_reason = await db.SalesContracts.Where(x => x.Id == id).Select(x => x.RevisionReason).SingleAsync(ct),
                 contract.EvidenceReference, contract.ManagerReviewedAt, contract.VerifiedAt,
@@ -452,7 +455,7 @@ public static class ManagerContractEndpoints
             .ToArrayAsync(ct);
         var before = new {
             fee_items = oldFeeLines,
-            contract.SignedOn, contract.ServicePlan, contract.StudentCount, contract.BranchCount,
+            contract.SignedOn, contract.ServicePlan, contract.ServiceStartOn, contract.ServiceEndOn, contract.PaymentCycle, contract.StudentCount, contract.BranchCount,
             contract.SchoolUnitIdsJson, contract.ContractNote, contract.TotalValue
         };
         if (request.SignedOn.HasValue)
@@ -463,6 +466,21 @@ public static class ManagerContractEndpoints
                 || request.SignedOn.Value > ChannelSalesValidation.BusinessDate(now))
                 throw ApiValidationException.For("signed_on", "Ngày ký phải từ ngày đăng ký tiếp cận đến hôm nay.");
             contract.SignedOn = request.SignedOn.Value;
+        }
+        // Service dates are editable only while the manager has returned the contract.
+        if (request.ServiceStartOn.HasValue || request.ServiceEndOn.HasValue || request.PaymentCycle is not null)
+        {
+            var start = request.ServiceStartOn ?? contract.ServiceStartOn
+                ?? throw ApiValidationException.For("service_start_on", "Vui lòng nhập ngày bắt đầu.");
+            var end = request.ServiceEndOn ?? contract.ServiceEndOn
+                ?? throw ApiValidationException.For("service_end_on", "Vui lòng nhập ngày kết thúc.");
+            var cycle = (request.PaymentCycle ?? contract.PaymentCycle ?? "").Trim().ToUpperInvariant();
+            if (end < start) throw ApiValidationException.For("service_end_on", "Ngày kết thúc phải từ ngày bắt đầu trở đi.");
+            if (cycle is not ("MONTHLY" or "YEARLY"))
+                throw ApiValidationException.For("payment_cycle", "Chu kỳ thanh toán không hợp lệ.");
+            contract.ServiceStartOn = start;
+            contract.ServiceEndOn = end;
+            contract.PaymentCycle = cycle;
         }
         if (request.ServicePlan is not null)
         {

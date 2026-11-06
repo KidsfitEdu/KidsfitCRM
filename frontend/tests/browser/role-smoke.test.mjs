@@ -112,7 +112,7 @@ test('Sales desktop uses accounting-style full-width underline tabs and a table 
     buttons: [...element.querySelectorAll('button')].map(tab => tab.getBoundingClientRect()),
   }));
   assert.ok(tabLayout.outer > 500, 'Sales tabs should span the main content width');
-  assert.ok(tabLayout.buttons.length >= 3, 'Sales main workspace should display its three authorized tabs');
+  assert.ok(tabLayout.buttons.length >= 2, 'Sales workspace must show its two core tabs; renewal is permission-gated');
   assert.ok(tabLayout.buttons.every(tab => tab.width > 90), 'Sales tabs must have legible text widths');
   const style = await tabs.evaluate(element => {
     const tab = element.querySelector('button[aria-current="page"]');

@@ -16,7 +16,7 @@ public static class ContractExpiryAlertService
     public static DateOnly BusinessDate(DateTime utc) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), VietnamZone));
 
-    internal static IEnumerable<(string Kind, DateOnly DueOn)> Milestones(
+    public static IEnumerable<(string Kind, DateOnly DueOn)> Milestones(
         string prefix, DateOnly expiresOn, DateOnly today)
     {
         var offsets = prefix == "SERVICE" ? ServiceOffsets : ProtectionOffsets;

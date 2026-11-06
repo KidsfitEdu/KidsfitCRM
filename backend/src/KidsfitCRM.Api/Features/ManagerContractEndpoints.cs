@@ -489,6 +489,13 @@ public static class ManagerContractEndpoints
                 throw ApiValidationException.For("service_plan", "Gói thanh toán không hợp lệ.");
             contract.ServicePlan = plan;
         }
+        // Revision forms submit both values. Preserve untouched legacy rows but reject contradictory edits.
+        if (request.ServicePlan is not null || request.PaymentCycle is not null)
+        {
+            if (contract.ServicePlan is "SCHOOL_YEAR" or "MONTHLY_9"
+                && contract.PaymentCycle is "MONTHLY" or "YEARLY")
+                ContractServicePlanPolicy.RequireMatchingCycle(contract.ServicePlan, contract.PaymentCycle);
+        }
         if (request.StudentCount.HasValue)
         {
             if (request.StudentCount.Value is <= 0 or > 100000)

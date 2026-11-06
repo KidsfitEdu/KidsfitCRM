@@ -30,6 +30,8 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<PayoutItem> PayoutItems => Set<PayoutItem>();
     public DbSet<PayoutEvent> PayoutEvents => Set<PayoutEvent>();
     public DbSet<FinancialEvidence> FinancialEvidences => Set<FinancialEvidence>();
+    public DbSet<ContractRenewal> ContractRenewals => Set<ContractRenewal>();
+    public DbSet<ContractRenewalEvent> ContractRenewalEvents => Set<ContractRenewalEvent>();
     public DbSet<ReconciliationCase> ReconciliationCases => Set<ReconciliationCase>();
     public DbSet<ReconciliationEvent> ReconciliationEvents => Set<ReconciliationEvent>();
 

@@ -44,7 +44,9 @@ export function validateContract(input: ContractValidationInput): ContractErrors
   if (input.paymentCycle !== 'MONTHLY' && input.paymentCycle !== 'YEARLY')
     errors.payment_cycle = 'Vui lòng chọn chu kỳ thanh toán hợp lệ.';
   if (input.plan !== 'SCHOOL_YEAR' && input.plan !== 'MONTHLY_9')
-    errors.service_plan = 'Vui lòng chọn hình thức thanh toán.';
+    errors.service_plan = 'Vui lòng chọn gói dịch vụ và hình thức thanh toán.';
+  else if (input.paymentCycle !== (input.plan === 'SCHOOL_YEAR' ? 'YEARLY' : 'MONTHLY'))
+    errors.payment_cycle = 'Chu kỳ thanh toán không khớp gói dịch vụ.';
   if (!digits.test(input.students) || !Number.isSafeInteger(Number(input.students)) ||
       Number(input.students) < 1 || Number(input.students) > 100000)
     errors.student_count = 'Quy mô học sinh phải là số nguyên từ 1 đến 100.000.';

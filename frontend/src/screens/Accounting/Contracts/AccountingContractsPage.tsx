@@ -1,6 +1,6 @@
-import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 'use client';
 
+import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';

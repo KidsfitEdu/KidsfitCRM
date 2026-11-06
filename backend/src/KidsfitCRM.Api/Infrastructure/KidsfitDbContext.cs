@@ -77,6 +77,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         renewal.Property(x => x.Status).HasMaxLength(24);
         renewal.Property(x => x.PaymentCycle).HasMaxLength(16);
         renewal.Property(x => x.DecisionReason).HasMaxLength(1000);
+        renewal.Property(x => x.GapReason).HasMaxLength(1000);
         renewal.Property(x => x.IdempotencyKey).HasMaxLength(120).UseCollation("utf8mb4_bin");
         renewal.Property(x => x.RequestFingerprint).HasMaxLength(64).UseCollation("utf8mb4_bin");
         renewal.HasIndex(x => x.IdempotencyKey).IsUnique();

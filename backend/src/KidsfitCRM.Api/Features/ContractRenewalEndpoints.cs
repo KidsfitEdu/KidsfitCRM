@@ -39,11 +39,12 @@ public static class ContractRenewalEndpoints
         if (contract.VerifiedAt is null || contract.Status != "ACTIVE" ||
             await db.ContractCancellations.AnyAsync(x => x.ContractId == contractId, ct))
             throw new ApiConflictException("Chỉ được tái ký hợp đồng gốc đã xác minh và đang hợp lệ.");
+        var now = DateTime.UtcNow;
         if (sales && (contract.OwnerUserId != access.UserId ||
             !await db.CustomerProtections.AnyAsync(p => p.ContractId == contractId
                 && p.OwnerUserId == access.UserId && p.OwnerOrganizationId == contract.OwnerOrganizationId
                 && p.SourceType == "CONTRACT" && p.Status == "ACTIVE"
-                && p.EffectiveFrom <= DateTime.UtcNow && p.EffectiveUntil > DateTime.UtcNow, ct)))
+                && p.EffectiveFrom <= now && p.EffectiveUntil > now, ct)))
             throw new KeyNotFoundException();
         if (!sales && !access.CanManageOrganization(contract.OwnerOrganizationId))
             throw new KeyNotFoundException();

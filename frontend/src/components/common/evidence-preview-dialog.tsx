@@ -52,9 +52,10 @@ export function EvidencePreviewDialog({ preview, onClose }: {
             </>}
             {!image && preview.mime === 'application/pdf' &&
               <span className="hidden text-xs text-muted-foreground sm:inline">Dùng thanh công cụ PDF để thu phóng</span>}
-            <Button variant="outline" size="icon" type="button" asChild title="Tải chứng từ">
-              <a href={preview.url} download={preview.name} aria-label="Tải chứng từ"><Download className="size-4"/></a>
-            </Button>
+            <a href={preview.url} download={preview.name} aria-label="Tải chứng từ" title="Tải chứng từ"
+              className="inline-flex size-9 items-center justify-center rounded-md border border-input bg-background text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+              <Download className="size-4"/>
+            </a>
             <Button variant="outline" size="icon" type="button" title="Đóng" aria-label="Đóng xem chứng từ"
               onClick={onClose}><X className="size-4"/></Button>
           </div>

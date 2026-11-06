@@ -42,3 +42,33 @@ test('Authenticated evidence preview has no brand header and offers magnifier, s
   assert.match(viewer, /application\/pdf/);
   assert.match(viewer, /download=\{preview\.name\}/);
 });
+
+test('Accounting schedule status is Vietnamese and progress reflects actual paid amount', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  for (const label of ['Đã thanh toán', 'Chưa thanh toán', 'Thanh toán một phần', 'Quá hạn']) {
+    assert.ok(page.includes(label), label);
+  }
+  assert.match(page, /paymentScheduleLabel\(x.status\)/);
+  assert.match(page, /Math.min\(100, paid \/ x.amount_due \* 100\)/);
+  assert.doesNotMatch(page, /<div className="text-xs text-muted-foreground">\{x.status\}<\/div>/);
+});
+
+test('Accounting payout table includes approved and draft records instead of only paid payouts', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /detail.payouts.map\(x=>/);
+  assert.match(page, /payoutStatusLabel\(x.status\)/);
+  assert.match(page, /x.status==='DRAFT'&&canApprovePayout/);
+  assert.doesNotMatch(page, /Phiếu chi đang xử lý/);
+  assert.doesNotMatch(page, /detail.payouts.filter\(x=>x.status==='PAID'\).map/);
+  assert.match(page, /detail.ledger/);
+});
+
+test('Evidence image viewer is dark edge to edge with scroll zoom and drag', () => {
+  const viewer = read('src/components/common/evidence-preview-dialog.tsx');
+  assert.match(viewer, /bg-\[#111318\]/);
+  assert.match(viewer, /onWheel=\{onWheelZoom\}/);
+  assert.match(viewer, /onPointerDown=\{beginDrag\}/);
+  assert.match(viewer, /onPointerMove=\{moveDrag\}/);
+  assert.match(viewer, /aria-label="Phóng to ảnh"/);
+  assert.doesNotMatch(viewer, /bg-muted\/30 p-3 sm:p-5/);
+});

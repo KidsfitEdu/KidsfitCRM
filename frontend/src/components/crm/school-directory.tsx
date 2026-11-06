@@ -154,7 +154,7 @@ const labels: Record<string, string> = {
   CONTRACTED: 'Đã xác minh hợp đồng',
   PENDING_REVIEW: 'Chờ quản lý kiểm tra',
   MANAGER_REVIEWED: 'Chờ CHECKEE xác minh',
-  PENDING_KIDSFIT: 'Chờ KIDSFIT ghi nhận',
+  PENDING_KIDSFIT: 'Hồ sơ cũ cần rà soát bảo vệ',
   ACTIVE: 'Bảo vệ đã có hiệu lực',
 };
 const key = () => crypto.randomUUID();

@@ -71,16 +71,17 @@ test('Shared Admin/Manager paths remain unchanged and embedded compact mode is o
   assert.match(school, /compactHeader && active === 'proposals'/);
 });
 
-test('Sales underline tabs and proposal table retain shared role layouts', () => {
+test('Sales tabs follow accounting underline pattern and proposal table retains shared layout', () => {
   const focus = read('src/components/roles/SalesFocusPage.tsx');
   const operations = read('src/components/crm/channel-operations.tsx');
   const directory = read('src/components/crm/school-directory.tsx');
   const proposals = read('src/components/crm/school-operations.tsx');
   const table = read('src/components/roles/SalesProposalTable.tsx');
-  assert.match(focus, /lg:w-\[30%\]/);
-  assert.match(focus, /border-b-\[3px\] bg-transparent/);
+  assert.doesNotMatch(focus, /lg:w-\\[30%\\]/);
+  assert.match(focus, /flex flex-wrap gap-x-6 gap-y-1 border-b border-border/);
+  assert.match(focus, /-mb-px border-b-2 px-1 py-3 text-sm font-semibold/);
   assert.match(focus, /border-\[#1b5e20\]/);
-  assert.match(focus, /min-w-0 bg-white dark:bg-card/);
+  assert.match(focus, /min-w-0 space-y-5/);
   assert.doesNotMatch(focus, /rounded-t-\[24px\]/);
   assert.match(focus, /actions=\{canCreateProposal \?/);
   assert.match(focus, /embeddedSalesTable=\{section === 'proposals' \|\| isInvitations\}/);
@@ -99,6 +100,20 @@ test('Sales underline tabs and proposal table retain shared role layouts', () =>
   assert.match(proposals, /embeddedSalesTable && active === 'invitations'/);
 });
 
+test('Sales KC-02 renewals share the Accounting table/filter/pagination and drawer pattern', () => {
+  const focus = read('src/components/roles/SalesFocusPage.tsx');
+  const renewal = read('src/components/roles/ContractRenewalSalesPanel.tsx');
+  assert.match(focus, /id:'renewals',label:'Hợp đồng tái ký'/);
+  assert.doesNotMatch(renewal, /<AppPageHeader/);
+  assert.match(renewal, /<AppPagination/);
+  assert.match(renewal, /<AppNativeSelect/);
+  assert.match(renewal, /<AppDrawer/);
+  assert.match(renewal, /Tạo hồ sơ tái ký/);
+  assert.match(renewal, /gap_reason:gapDetected/);
+  assert.match(renewal, /role="alert"/);
+  assert.match(renewal, /statusTone\[r.status\]/);
+});
+
 test('Sales actions and footer pagination remain accessible and scoped', () => {
   const focus = read('src/components/roles/SalesFocusPage.tsx');
   const sales = read('src/components/crm/channel-sales-view.tsx');
@@ -108,7 +123,7 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   const finance = read('src/components/crm/channel-operations.tsx');
   const pager = read('src/components/common/app-pagination.tsx');
   assert.ok(focus.includes("section === 'customers'"));
-  assert.ok(focus.includes("min-w-0 bg-white dark:bg-card"));
+  assert.ok(focus.includes("min-w-0 space-y-5"));
   assert.ok(sales.includes('pageSizeOptions={[10,20,50,100]}'));
   assert.ok(sales.includes('serverMine ? minePage?.total ?? 0 : customers.length'));
   assert.ok(sales.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));

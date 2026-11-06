@@ -41,8 +41,6 @@ jobs:
           mysql --protocol=TCP -h127.0.0.1 -uroot -p'ephemeral-ci-only' --skip-column-names -e "SELECT VERSION();" | tee /tmp/kidsfit-mysql-version.txt
           grep -E '^8\.4\.' /tmp/kidsfit-mysql-version.txt
           test "$GITHUB_EVENT_NAME" = "pull_request" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch"
-      - name: Full EF migrations, seed replay, transaction and concurrency tests
-        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
       - name: Run ten-school review fixture twice in isolated MySQL 8.4
         env:
           ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_review_fixture_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
@@ -62,6 +60,15 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_units;" | grep -x 19
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM channel_customers;" | grep -x 10
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM sales_contracts;" | grep -x 6
+          # KC-02: five renewal cases across the two active review schools.
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals;" | grep -x 5
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='CONFIRMED';" | grep -x 2
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='PENDING_ACCOUNTING';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='NEEDS_INFO';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='REJECTED';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewal_events;" | grep -x 9
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM financial_evidences WHERE contract_renewal_id IS NOT NULL;" | grep -x 5
+          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE gap_reason IS NOT NULL;" | grep -x 0
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM revenue_receipts;" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM commission_ledger_entries;" | grep -x 3
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM commission_policy_versions WHERE status='ACTIVE' AND rate_percent=30;" | grep -x 2
@@ -75,6 +82,8 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(DISTINCT care_user_id) FROM sales_contracts WHERE status='ACTIVE';" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM customer_support_cases WHERE ticket_type='SYSTEM_ERROR';" | grep -x 1
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_review_fixture_ci;"
+      - name: Full EF migrations, seed replay, transaction and concurrency tests
+        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
       - name: Separate synthetic backup and restore smoke test
         run: |
           set -euo pipefail

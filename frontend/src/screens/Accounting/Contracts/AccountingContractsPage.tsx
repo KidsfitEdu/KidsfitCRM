@@ -18,7 +18,12 @@ const accountingBusinessDay = (date: Date) => new Intl.DateTimeFormat('sv-SE', {
 
 type FieldErrors = Partial<Record<'transaction_date' | 'amount' | 'reference_code' | 'proof' | 'schedule_id' | 'payout_id', string>>;
 
+type ServicePeriod = { start_on:string; end_on:string; payment_cycle:string;
+  renewal_id:number|null; renewal_no:number|null; gap_reason:string|null };
 type ContractRow = {
+  current_period:ServicePeriod|null;
+  next_confirmed_period:ServicePeriod|null;
+  latest_confirmed_period:ServicePeriod|null;
   id: number;
   contract_code: string;
   school_name: string;
@@ -37,6 +42,11 @@ type ContractRow = {
 };
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
 type Detail = {
+  current_period:ServicePeriod|null;
+  next_confirmed_period:ServicePeriod|null;
+  latest_confirmed_period:ServicePeriod|null;
+  previous_period:ServicePeriod|null;
+  period_history:ServicePeriod[];
   data: { id: number; contract_code: string; school_name: string; school_address: string | null; school_district: string | null; school_province: string | null; owner_name: string; personnel_type: string | null;
     signed_on: string; effective_on: string | null; status: string; verified_at: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null;
     service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;
@@ -347,7 +357,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           </thead>
           <tbody className="divide-y divide-border/70">
             {rows.map(row => {
-              const status = serviceStatus(row.service_start_on, row.service_end_on, row.contract_status);
+              const current=row.current_period;
+              const next=row.next_confirmed_period;
+              const status = current ? serviceStatus(current.start_on, current.end_on, row.contract_status)
+                : row.contract_status==='CANCELLED' ? 'Đã hủy hợp đồng'
+                : next ? 'Chưa bắt đầu kỳ mới' : 'Không có kỳ đang sử dụng';
               const statusTone = status === 'Còn hiệu lực'
                 ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
                 : status === 'Sắp hết hạn'
@@ -357,7 +371,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
                 <td className="px-5 py-4 align-middle">
                   <p className="font-semibold text-foreground">{row.school_name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
                 </td>
                 <td className="px-4 py-4 align-middle">
                   <p className="font-medium">{row.owner_name}</p>
@@ -365,7 +379,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
                 </td>
                 <td className="px-4 py-4 align-middle">
                   <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${statusTone}`}>{status}</span>
-                  <p className="mt-1 text-xs text-muted-foreground">{row.service_end_on ? `Đến ${channelDate(row.service_end_on)}` : 'Chưa có hạn dịch vụ'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{current ? `Đến ${channelDate(current.end_on)}` : 'Chưa có kỳ đang sử dụng'}</p>
+                  {next&&<p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">Kỳ tiếp theo đã xác nhận: {channelDate(next.start_on)}</p>}
                 </td>
                 <td className="px-4 py-4 text-right align-middle tabular-nums font-medium">{channelMoney(row.total_value)}</td>
                 <td className="px-4 py-4 text-right align-middle tabular-nums">
@@ -403,7 +418,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           <p className="flex items-center gap-2 text-muted-foreground"><UserRound className="size-4" aria-hidden="true"/>
             Phụ trách: {detail.data.owner_name} · {detail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
           </p>
-          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
+          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>
@@ -418,13 +433,26 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
             <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
             <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_plan==='SCHOOL_YEAR'?'Năm học':detail.data.service_plan==='MONTHLY_9'?'Thanh toán theo tháng':'Chưa khai báo'}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa cập nhật'}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa cập nhật'}</dd></div>
-            <div><dt className="text-muted-foreground">Chu kỳ thanh toán</dt><dd className="mt-1 font-medium">{detail.data.payment_cycle==='MONTHLY'?'Theo tháng':detail.data.payment_cycle==='YEARLY'?'Theo năm':'Chưa cập nhật (gói lịch sử được giữ nguyên)'}</dd></div>
-            <div><dt className="text-muted-foreground">Trạng thái dịch vụ</dt><dd className="mt-1 font-medium">{serviceStatus(detail.data.service_start_on,detail.data.service_end_on,detail.data.status)}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?channelDate(detail.current_period.start_on):'Không có kỳ đang sử dụng'}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?channelDate(detail.current_period.end_on):'Không có kỳ đang sử dụng'}</dd></div>
+            <div><dt className="text-muted-foreground">Chu kỳ thanh toán</dt><dd className="mt-1 font-medium">{detail.current_period?.payment_cycle==='MONTHLY'?'Theo tháng':detail.current_period?.payment_cycle==='YEARLY'?'Theo năm':'Không có kỳ đang sử dụng'}</dd></div>
+            <div><dt className="text-muted-foreground">Trạng thái dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?serviceStatus(detail.current_period.start_on,detail.current_period.end_on,detail.data.status):'Không có kỳ đang sử dụng'}</dd></div>
             <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
+          <section className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+            <h4 className="font-semibold">Kỳ sử dụng và tái ký đã xác nhận</h4>
+            {detail.next_confirmed_period&&<p className="text-sm">
+              <strong>Kỳ tiếp theo đã xác nhận · Chưa bắt đầu:</strong> {channelDate(detail.next_confirmed_period.start_on)} – {channelDate(detail.next_confirmed_period.end_on)}
+            </p>}
+            {!detail.current_period&&<p className="text-sm text-amber-700">Hiện không có kỳ sử dụng đang hiệu lực.</p>}
+            {detail.period_history.length===0&&<p className="text-muted-foreground">Chưa có kỳ dịch vụ đáng tin cậy.</p>}
+            {detail.period_history.map(period=><div key={period.renewal_id??'source'} className="flex flex-wrap justify-between gap-2 border-t border-border/70 pt-2 text-sm">
+              <span>{period.renewal_no===null?'Hợp đồng gốc':`Tái ký lần ${period.renewal_no}`} · {channelDate(period.start_on)} – {channelDate(period.end_on)}</span>
+              <span className="text-muted-foreground">{detail.current_period?.start_on===period.start_on?'Đang sử dụng':detail.next_confirmed_period?.start_on===period.start_on?'Kỳ tiếp theo':period.end_on<accountingBusinessDay(new Date())?'Đã kết thúc':'Đã xác nhận'}</span>
+              {period.gap_reason&&<p className="w-full text-xs text-muted-foreground">Lý do gián đoạn: {period.gap_reason}</p>}
+            </div>)}
+          </section>
           {canRecordRevenue && detail.data.status==='ACTIVE' && !detail.data.service_start_on && !detail.data.service_end_on && !detail.data.payment_cycle && <div>
             <Button type="button" variant="outline" onClick={()=>{
               setTermStart('');setTermEnd('');setTermCycle('YEARLY');setTermError('');setTermFormOpen(true);

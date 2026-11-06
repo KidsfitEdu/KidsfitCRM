@@ -129,7 +129,7 @@ const contractBadge = (customer: ChannelCustomer) => {
   if (status === 'CANCELLED')
     return { label: 'Hợp đồng đã hủy', compact: 'Xem lịch sử hồ sơ', className: red };
   if (status === 'PENDING_KIDSFIT')
-    return { label: 'Chờ KIDSFIT ghi nhận', compact: 'CHECKEE đã xác minh', className: blue };
+    return { label: 'Hồ sơ cũ cần rà soát bảo vệ', compact: 'Đã được CHECKEE xác minh', className: amber };
   if (status === 'VERIFIED')
     return { label: 'Đã xác minh hợp đồng', compact: 'Hợp đồng hợp lệ', className: statusCopy.CONTRACTED.className };
   if (status === 'ACTIVE')

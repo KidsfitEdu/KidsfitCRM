@@ -15,8 +15,33 @@ public static class ContractRenewalEndpoints
 {
     public sealed record SubmitRequest(string? IdempotencyKey, DateOnly? SignedOn,
         DateOnly? ServiceStartOn, DateOnly? ServiceEndOn, string? PaymentCycle,
-        decimal TotalValue, long? EvidenceId);
+        decimal TotalValue, long? EvidenceId, string? GapReason = null);
     public sealed record DecisionRequest(string? Reason);
+
+    // A service year includes its first day and ends the day before its next calendar anniversary.
+    // This follows the established KC-01 demo convention, including leap-year transitions.
+    private static void ValidateYearAndGap(DateOnly start, DateOnly end, DateOnly? previousEnd, string? gapReason)
+    {
+        if (end != start.AddYears(1).AddDays(-1))
+            throw ApiValidationException.For("service_end_on", "Kỳ dịch vụ phải có thời hạn một năm lịch tính từ ngày bắt đầu.");
+        if (!previousEnd.HasValue)
+            throw new ApiConflictException("Không xác định được ngày kết thúc kỳ dịch vụ trước; Kế toán cần hoàn thiện dữ liệu KC-01.");
+        if (start <= previousEnd.Value)
+            throw ApiValidationException.For("service_start_on", "Kỳ tái ký không được chồng lấn kỳ dịch vụ trước.");
+        if (start > previousEnd.Value.AddDays(1) && string.IsNullOrWhiteSpace(gapReason))
+            throw ApiValidationException.For("gap_reason", "Kỳ dịch vụ có khoảng trống; vui lòng nhập lý do gián đoạn.");
+        if (!string.IsNullOrWhiteSpace(gapReason) && gapReason.Trim().Length > 1000)
+            throw ApiValidationException.For("gap_reason", "Lý do gián đoạn tối đa 1000 ký tự.");
+    }
+
+    private static async Task<DateOnly?> PriorConfirmedEnd(KidsfitDbContext db, long contractId, DateOnly? sourceEnd, CancellationToken ct)
+    {
+        var latest = await db.ContractRenewals.AsNoTracking()
+            .Where(x => x.ContractId == contractId && x.Status == "CONFIRMED")
+            .OrderByDescending(x => x.ServiceEndOn)
+            .Select(x => (DateOnly?)x.ServiceEndOn).FirstOrDefaultAsync(ct);
+        return latest ?? sourceEnd;
+    }
 
     public static void Map(RouteGroupBuilder channel)
     {
@@ -62,6 +87,11 @@ public static class ContractRenewalEndpoints
             throw ApiValidationException.For("service_end_on", "Ngày kết thúc phải từ ngày bắt đầu.");
         if ((request.PaymentCycle ?? "").Trim().ToUpperInvariant() is not ("MONTHLY" or "YEARLY"))
             throw ApiValidationException.For("payment_cycle", "Chỉ hỗ trợ thanh toán theo tháng hoặc theo năm.");
+        if (request.ServiceStartOn.HasValue && request.ServiceEndOn.HasValue &&
+            request.ServiceEndOn.Value != request.ServiceStartOn.Value.AddYears(1).AddDays(-1))
+            throw ApiValidationException.For("service_end_on", "Kỳ dịch vụ phải có thời hạn một năm lịch tính từ ngày bắt đầu.");
+        if (!string.IsNullOrWhiteSpace(request.GapReason) && request.GapReason.Trim().Length > 1000)
+            throw ApiValidationException.For("gap_reason", "Lý do gián đoạn tối đa 1000 ký tự.");
         ChannelSalesValidation.WholeDong(request.TotalValue, "total_value");
         if (!request.EvidenceId.HasValue) throw ApiValidationException.For("evidence_id", "Bắt buộc đính kèm hợp đồng tái ký đã ký.");
     }
@@ -115,13 +145,8 @@ public static class ContractRenewalEndpoints
             && x.ServiceStartOn <= request.ServiceEndOn && x.ServiceEndOn >= request.ServiceStartOn, ct))
             throw new ApiConflictException("Kỳ dịch vụ đã có hồ sơ tái ký được xác nhận.");
         // Do not silently infer an end date or rewrite the original contract's legacy term.
-        var latest = await db.ContractRenewals.Where(x => x.ContractId == contractId && x.Status == "CONFIRMED")
-            .OrderByDescending(x => x.ServiceEndOn).Select(x => (DateOnly?)x.ServiceEndOn).FirstOrDefaultAsync(ct);
-        var priorEnd = latest ?? source.ServiceEndOn;
-        if (!priorEnd.HasValue)
-            throw new ApiConflictException("Hợp đồng gốc chưa có hạn dịch vụ đáng tin cậy; Kế toán cần hoàn thiện KC-01 trước.");
-        if (request.ServiceStartOn <= priorEnd.Value)
-            throw ApiValidationException.For("service_start_on", "Kỳ mới không được chồng lấn kỳ dịch vụ trước.");
+        var priorEnd = await PriorConfirmedEnd(db, contractId, source.ServiceEndOn, ct);
+        ValidateYearAndGap(request.ServiceStartOn!.Value, request.ServiceEndOn!.Value, priorEnd, request.GapReason);
         var proof = await Proof(db, request.EvidenceId, access.UserId, ct);
         var no = (await db.ContractRenewals.Where(x => x.ContractId == contractId).MaxAsync(x => (int?)x.RenewalNo, ct) ?? 0) + 1;
         var now = DateTime.UtcNow;
@@ -129,10 +154,11 @@ public static class ContractRenewalEndpoints
         {
             ContractId = contractId, RenewalNo = no, IdempotencyKey = key,
             RequestFingerprint = fingerprint, SubmittedByUserId = access.UserId,
-            SignedOn = request.SignedOn.Value, ServiceStartOn = request.ServiceStartOn.Value,
-            ServiceEndOn = request.ServiceEndOn.Value,
+            SignedOn = request.SignedOn!.Value, ServiceStartOn = request.ServiceStartOn!.Value,
+            ServiceEndOn = request.ServiceEndOn!.Value,
             PaymentCycle = request.PaymentCycle!.Trim().ToUpperInvariant(),
-            TotalValue = request.TotalValue, Status = "PENDING_ACCOUNTING",
+            TotalValue = request.TotalValue, GapReason = string.IsNullOrWhiteSpace(request.GapReason) ? null : request.GapReason.Trim(),
+            Status = "PENDING_ACCOUNTING",
             SubmittedAt = now, CreatedAt = now, UpdatedAt = now
         };
         db.ContractRenewals.Add(renewal);
@@ -140,7 +166,7 @@ public static class ContractRenewalEndpoints
         proof.ContractRenewalId = renewal.Id; proof.AttachedAt = now; proof.UpdatedAt = now;
         Event(db, renewal, access.UserId, "SUBMITTED");
         Audit.Add(db, access.UserId, "SUBMIT_CONTRACT_RENEWAL", nameof(ContractRenewal), renewal.Id,
-            null, new { renewal.ContractId, renewal.ServiceStartOn, renewal.ServiceEndOn, renewal.TotalValue }, http);
+            null, new { renewal.ContractId, renewal.ServiceStartOn, renewal.ServiceEndOn, renewal.GapReason, renewal.TotalValue }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Created($"/api/channel-sales/accounting/renewals/{renewal.Id}", new { data = new { id = renewal.Id } });
@@ -155,7 +181,7 @@ public static class ContractRenewalEndpoints
         var renewal = await db.ContractRenewals.FromSqlInterpolated(
             $"SELECT * FROM contract_renewals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException();
-        await Source(db, access, renewal.ContractId, true, ct);
+        var source = await Source(db, access, renewal.ContractId, true, ct);
         if (renewal.SubmittedByUserId != access.UserId) throw new KeyNotFoundException();
         if (renewal.Status != "NEEDS_INFO")
             throw new ApiConflictException("Chỉ hồ sơ được yêu cầu bổ sung mới được gửi lại.");
@@ -163,8 +189,11 @@ public static class ContractRenewalEndpoints
             && x.Status == "CONFIRMED" && x.ServiceStartOn <= request.ServiceEndOn &&
                 x.ServiceEndOn >= request.ServiceStartOn, ct))
             throw new ApiConflictException("Kỳ dịch vụ đã được xác nhận.");
+        var preceding = await PriorConfirmedEnd(db, renewal.ContractId, source.ServiceEndOn, ct);
+        ValidateYearAndGap(request.ServiceStartOn!.Value, request.ServiceEndOn!.Value, preceding, request.GapReason);
         var proof = await Proof(db, request.EvidenceId, access.UserId, ct);
         var now = DateTime.UtcNow;
+        renewal.GapReason = string.IsNullOrWhiteSpace(request.GapReason) ? null : request.GapReason.Trim();
         renewal.SignedOn = request.SignedOn!.Value;
         renewal.ServiceStartOn = request.ServiceStartOn!.Value;
         renewal.ServiceEndOn = request.ServiceEndOn!.Value;
@@ -177,7 +206,7 @@ public static class ContractRenewalEndpoints
         proof.ContractRenewalId = renewal.Id; proof.AttachedAt = now; proof.UpdatedAt = now;
         Event(db, renewal, access.UserId, "RESUBMITTED");
         Audit.Add(db, access.UserId, "RESUBMIT_CONTRACT_RENEWAL", nameof(ContractRenewal), renewal.Id, null,
-            new { renewal.ServiceStartOn, renewal.ServiceEndOn, renewal.TotalValue }, http);
+            new { renewal.ServiceStartOn, renewal.ServiceEndOn, renewal.GapReason, renewal.TotalValue }, http);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { data = new { id = renewal.Id } });
@@ -215,7 +244,7 @@ public static class ContractRenewalEndpoints
             && x.SubmittedByUserId == access.UserId)
             .OrderByDescending(x => x.RenewalNo)
             .Select(x => new { x.Id, x.RenewalNo, x.SignedOn, x.ServiceStartOn, x.ServiceEndOn,
-                x.PaymentCycle, x.TotalValue, x.Status, x.DecisionReason, x.SubmittedAt }).ToArrayAsync(ct);
+                x.PaymentCycle, x.TotalValue, x.GapReason, x.Status, x.DecisionReason, x.SubmittedAt }).ToArrayAsync(ct);
         return Results.Ok(new { data = rows });
     }
 
@@ -256,7 +285,7 @@ public static class ContractRenewalEndpoints
             select new { id = r.Id, contract_id = c.Id, contract_code = c.ContractCode,
                 school_name = school.DisplayName, owner_name = owner.Name,
                 r.RenewalNo, r.SignedOn, r.ServiceStartOn, r.ServiceEndOn, r.PaymentCycle,
-                r.TotalValue, r.Status, r.SubmittedAt }).Skip((pn-1)*size).Take(size).ToArrayAsync(ct);
+                r.TotalValue, r.GapReason, r.Status, r.SubmittedAt }).Skip((pn-1)*size).Take(size).ToArrayAsync(ct);
         return Results.Ok(new { data = rows, total, page = pn, page_size = size });
     }
 
@@ -272,9 +301,9 @@ public static class ContractRenewalEndpoints
             where r.Id == id
             select new { data = new { r.Id, r.ContractId, c.ContractCode, school_name = school.DisplayName,
                 owner_name = owner.Name, r.RenewalNo, r.SignedOn, r.ServiceStartOn, r.ServiceEndOn,
-                r.PaymentCycle, r.TotalValue, r.Status, r.DecisionReason, r.SubmittedAt,
+                r.PaymentCycle, r.TotalValue, r.GapReason, r.Status, r.DecisionReason, r.SubmittedAt,
                 source_service_start_on = c.ServiceStartOn, source_service_end_on = c.ServiceEndOn,
-                source_total_value = c.TotalValue } }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+                source_payment_cycle = c.PaymentCycle, source_total_value = c.TotalValue } }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         var evidence = await db.FinancialEvidences.AsNoTracking().Where(x => x.ContractRenewalId == id && x.AttachedAt != null)
             .OrderBy(x => x.CreatedAt).Select(x => new { id = x.Id, file_name = x.FileName,
                 uploaded_at = x.CreatedAt }).ToArrayAsync(ct);
@@ -283,7 +312,17 @@ public static class ContractRenewalEndpoints
             where e.ContractRenewalId == id
             orderby e.CreatedAt, e.Id
             select new { event_type = e.EventType, actor_name = u.Name, e.Reason, e.CreatedAt }).ToArrayAsync(ct);
-        return Results.Ok(new { renewal.data, evidence, events });
+        var confirmed = await db.ContractRenewals.AsNoTracking()
+            .Where(x => x.ContractId == renewal.data.ContractId && x.Status == "CONFIRMED")
+            .ToArrayAsync(ct);
+        var timeline = AccountingContractEndpoints.BuildTimeline(
+            renewal.data.source_service_start_on, renewal.data.source_service_end_on,
+            renewal.data.source_payment_cycle, confirmed, ChannelSalesValidation.BusinessDate(DateTime.UtcNow));
+        var precedingPeriod = timeline.period_history
+            .Where(x => x.end_on < renewal.data.ServiceStartOn)
+            .OrderByDescending(x => x.end_on).FirstOrDefault();
+        return Results.Ok(new { renewal.data, evidence, events,
+            preceding_period = precedingPeriod, timeline.current_period, timeline.next_confirmed_period });
     }
 
     private static async Task<IResult> Decide(long id, string action, string? reason,
@@ -310,12 +349,8 @@ public static class ContractRenewalEndpoints
                 x.Status == "CONFIRMED" && x.ServiceStartOn <= renewal.ServiceEndOn &&
                 x.ServiceEndOn >= renewal.ServiceStartOn, ct))
                 throw new ApiConflictException("Kỳ dịch vụ đã có tái ký được xác nhận.");
-            var latest = await db.ContractRenewals.AsNoTracking().Where(x => x.ContractId == renewal.ContractId
-                && x.Status == "CONFIRMED").OrderByDescending(x => x.ServiceEndOn)
-                .Select(x => (DateOnly?)x.ServiceEndOn).FirstOrDefaultAsync(ct);
-            var preceding = latest ?? source.ServiceEndOn;
-            if (!preceding.HasValue || renewal.ServiceStartOn <= preceding.Value)
-                throw new ApiConflictException("Kỳ tái ký không hợp lệ hoặc chồng kỳ dịch vụ trước.");
+            var preceding = await PriorConfirmedEnd(db, renewal.ContractId, source.ServiceEndOn, ct);
+            ValidateYearAndGap(renewal.ServiceStartOn, renewal.ServiceEndOn, preceding, renewal.GapReason);
         }
         var previous = renewal.Status;
         var now = DateTime.UtcNow;

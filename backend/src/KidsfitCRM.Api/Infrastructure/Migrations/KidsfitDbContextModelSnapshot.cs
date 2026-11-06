@@ -1593,6 +1593,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("reviewed_by_user_id");
 
+                    b.Property<string>("GapReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("gap_reason");
+
                     b.Property<string>("DecisionReason")
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)")

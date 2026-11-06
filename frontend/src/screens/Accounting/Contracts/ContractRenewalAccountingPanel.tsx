@@ -13,10 +13,12 @@ import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operati
 
 type Row={id:number;contract_id:number;contract_code:string;school_name:string;owner_name:string;
  renewal_no:number;signed_on:string;service_start_on:string;service_end_on:string;
- payment_cycle:string;total_value:number;status:string;submitted_at:string|null};
+ payment_cycle:string;total_value:number;gap_reason:string|null;status:string;submitted_at:string|null};
 type List={data:Row[];total:number;page:number;page_size:number};
+type Period={start_on:string;end_on:string;payment_cycle:string;renewal_no:number|null;renewal_id:number|null;gap_reason:string|null};
 type Detail={data:Row&{decision_reason:string|null;source_service_start_on:string|null;
  source_service_end_on:string|null;source_total_value:number};
+ preceding_period:Period|null;current_period:Period|null;next_confirmed_period:Period|null;
  evidence:{id:number;file_name:string;uploaded_at:string}[];
  events:{event_type:string;actor_name:string;reason:string|null;created_at:string}[]};
 const labels:Record<string,string>={PENDING_ACCOUNTING:'Chờ Kế toán',NEEDS_INFO:'Cần bổ sung',
@@ -229,6 +231,11 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
            <p>Mã hợp đồng: {detail.data.contract_code}</p>
            <p>Sales phụ trách: {detail.data.owner_name}</p>
            <p>Hạn dịch vụ gốc: {detail.data.source_service_end_on ? channelDate(detail.data.source_service_end_on) : 'Chưa cập nhật'}</p>
+           <p><strong>Kỳ liền trước:</strong> {detail.preceding_period
+             ? `${channelDate(detail.preceding_period.start_on)} – ${channelDate(detail.preceding_period.end_on)}`
+             : 'Chưa xác định'}</p>
+           {detail.current_period&&<p><strong>Kỳ đang sử dụng:</strong> {channelDate(detail.current_period.start_on)} – {channelDate(detail.current_period.end_on)}</p>}
+           {detail.next_confirmed_period&&<p><strong>Kỳ tiếp theo đã xác nhận:</strong> {channelDate(detail.next_confirmed_period.start_on)} – {channelDate(detail.next_confirmed_period.end_on)}</p>}
            <p>Giá trị hợp đồng gốc: {channelMoney(detail.data.source_total_value)}</p>
          </section>
          <section className="space-y-2">
@@ -238,6 +245,7 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
            <p>Thanh toán: {detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Theo năm'}</p>
            <p>Giá trị: <strong>{channelMoney(detail.data.total_value)}</strong></p>
            <p>Trạng thái: <strong>{labels[detail.data.status]??detail.data.status}</strong></p>
+           {detail.data.gap_reason&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"><strong>Lý do gián đoạn:</strong> {detail.data.gap_reason}</p>}
            {detail.data.decision_reason&&<p>Lý do xử lý: {detail.data.decision_reason}</p>}
          </section>
          <section className="space-y-2 border-t pt-4">

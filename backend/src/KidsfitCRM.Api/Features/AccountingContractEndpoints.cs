@@ -82,6 +82,9 @@ public static class AccountingContractEndpoints
                               owner_name = owner.Name,
                               owner_user_id = contract.OwnerUserId,
                               verified_at = contract.VerifiedAt,
+                              service_start_on = contract.ServiceStartOn,
+                              service_end_on = contract.ServiceEndOn,
+                              payment_cycle = contract.PaymentCycle,
                               personnel_type = contract.OwnerPersonnelType,
                               total_value = contract.TotalValue,
                               received = db.RevenueReceipts.Where(x => x.ContractId == contract.Id && x.Status == "COMPLETED").Sum(x => (decimal?)x.Amount) ?? 0,
@@ -105,6 +108,14 @@ public static class AccountingContractEndpoints
                                   owner_name = owner.Name, owner_user_id = c.OwnerUserId,
                                   personnel_type = c.OwnerPersonnelType, signed_on = c.SignedOn,
                                   effective_on = c.EffectiveOn, status = c.Status, verified_at = c.VerifiedAt,
+                                  service_start_on = c.ServiceStartOn,
+                                  service_end_on = c.ServiceEndOn,
+                                  payment_cycle = c.PaymentCycle,
+                                  protection_until = db.CustomerProtections.Where(p =>
+                                      p.ContractId == c.Id && p.SourceType == "CONTRACT" &&
+                                      p.Status == "ACTIVE" && p.EffectiveUntil > DateTime.UtcNow)
+                                      .OrderByDescending(p => p.EffectiveUntil)
+                                      .Select(p => (DateTime?)p.EffectiveUntil).FirstOrDefault(),
                                   total_value = c.TotalValue, evidence_reference = c.EvidenceReference,
                                   service_plan = c.ServicePlan, student_count = c.StudentCount,
                                   school_unit_ids_json = c.SchoolUnitIdsJson,
@@ -141,5 +152,64 @@ public static class AccountingContractEndpoints
         var schoolUnits = await db.SchoolUnits.AsNoTracking().Where(x => selectedUnitIds.Contains(x.Id))
             .Select(x => new { id = x.Id, name = x.Name }).ToArrayAsync(ct);
         return Results.Ok(new { data = contract, schedules, receipts, ledger, payouts, evidence, school_units = schoolUnits });
+    }
+
+    public sealed record SetServiceTermRequest(
+        DateOnly? ServiceStartOn, DateOnly? ServiceEndOn, string? PaymentCycle);
+
+    /// <summary>
+    /// Accountant enters a term from a signed, already verified contract.
+    /// It is metadata only; no renewal, repricing, receipt, protection or commission mutation.
+    /// </summary>
+    public static async Task<IResult> SetServiceTerm(long id, SetServiceTermRequest request,
+        HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesRecordRevenue)) return Results.Forbid();
+        if (!request.ServiceStartOn.HasValue)
+            throw ApiValidationException.For("service_start_on", "Vui lòng chọn ngày bắt đầu dịch vụ theo hợp đồng.");
+        if (!request.ServiceEndOn.HasValue)
+            throw ApiValidationException.For("service_end_on", "Vui lòng chọn ngày kết thúc dịch vụ theo hợp đồng.");
+        if (request.ServiceEndOn.Value < request.ServiceStartOn.Value)
+            throw ApiValidationException.For("service_end_on", "Ngày kết thúc không được trước ngày bắt đầu.");
+        var cycle = (request.PaymentCycle ?? "").Trim().ToUpperInvariant();
+        if (cycle is not ("MONTHLY" or "YEARLY"))
+            throw ApiValidationException.For("payment_cycle", "Chọn thanh toán theo tháng hoặc theo năm.");
+
+        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct);
+        var contract = await db.SalesContracts.FromSqlInterpolated(
+            $"SELECT * FROM sales_contracts WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException();
+        if (!await access.Contracts(db).AnyAsync(c => c.Id == id, ct) ||
+            !access.CanManageOrganization(contract.OwnerOrganizationId) ||
+            contract.VerifiedAt is null || contract.Status != "ACTIVE")
+            throw new KeyNotFoundException();
+        if (await db.ContractCancellations.AnyAsync(c => c.ContractId == id, ct))
+            throw new ApiConflictException("Hợp đồng đã hủy, không thể thay đổi thời hạn dịch vụ.");
+        var previous = new {
+            service_start_on = contract.ServiceStartOn,
+            service_end_on = contract.ServiceEndOn,
+            payment_cycle = contract.PaymentCycle
+        };
+        // Existing legacy signed agreements are immutable; values can be recorded once
+        // and cannot be silently overwritten by repeated requests.
+        if (contract.ServiceStartOn.HasValue || contract.ServiceEndOn.HasValue || contract.PaymentCycle is not null)
+        {
+            if (contract.ServiceStartOn == request.ServiceStartOn &&
+                contract.ServiceEndOn == request.ServiceEndOn &&
+                contract.PaymentCycle == cycle)
+                return Results.Ok(new { success = true });
+            throw new ApiConflictException("Thời hạn dịch vụ đã ghi nhận. Muốn điều chỉnh cần quy trình sửa đổi hợp đồng có lưu vết riêng.");
+        }
+        contract.ServiceStartOn = request.ServiceStartOn;
+        contract.ServiceEndOn = request.ServiceEndOn;
+        contract.PaymentCycle = cycle;
+        contract.UpdatedAt = DateTime.UtcNow;
+        Audit.Add(db, access.UserId, "RECORD_CONTRACT_SERVICE_TERM", nameof(KidsfitCRM.Api.Domain.SalesContract),
+            id, previous, new { service_start_on = contract.ServiceStartOn,
+                service_end_on = contract.ServiceEndOn, payment_cycle = contract.PaymentCycle }, http);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return Results.Ok(new { success = true });
     }
 }

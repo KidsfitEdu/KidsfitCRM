@@ -107,7 +107,7 @@ public static class ContractRenewalEndpoints
             return Results.Ok(new { data = new { id = old.Id } });
         }
         if (await db.ContractRenewals.AnyAsync(x => x.ContractId == contractId
-            && x.Status is "PENDING_ACCOUNTING" or "NEEDS_INFO" or "DRAFT", ct))
+            && (x.Status == "PENDING_ACCOUNTING" || x.Status == "NEEDS_INFO" || x.Status == "DRAFT"), ct))
             throw new ApiConflictException("Hợp đồng đang có hồ sơ tái ký chờ xử lý.");
         if (await db.ContractRenewals.AnyAsync(x => x.ContractId == contractId && x.Status == "CONFIRMED"
             && x.ServiceStartOn <= request.ServiceEndOn && x.ServiceEndOn >= request.ServiceStartOn, ct))

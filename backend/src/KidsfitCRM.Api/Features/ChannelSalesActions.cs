@@ -304,7 +304,9 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             }
             if (schoolContract)
             {
-                if (!hasServiceTerm) throw ApiValidationException.For("service_start_on",
+                // Require terms in the new fee-based Sales workflow; preserve historic API callers
+                // that have not yet migrated their signed-term data.
+                if (hasContractFees && !hasServiceTerm) throw ApiValidationException.For("service_start_on",
                     "Hợp đồng trường học phải có thời hạn dịch vụ do Sales nhập theo hợp đồng đã ký.");
                 if (contractProof is null) Validation.Required(request.EvidenceReference, "evidence_reference", "Hợp đồng trường học cần bằng chứng xác minh.", 500);
                 if (await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration.Id, cancellationToken)) throw new ApiConflictException("Lượt tiếp cận đã báo cáo hợp đồng. Hãy theo dõi hồ sơ xác minh.");

@@ -43,3 +43,29 @@ test('KC-01 migration does not backfill or alter historic 9-month prices, polici
   }
   assert.doesNotMatch(migration, /UPDATE sales_contracts|revenue_schedules|commission_ledger_entries|customer_protections/i);
 });
+
+test('KC-01 selects exactly one payment plan and derives its billing cycle in both Sales forms', () => {
+  const mapping = read('src/lib/contract-payment-plan.ts');
+  const initial = read('src/components/crm/channel-sales-view.tsx');
+  const revision = read('src/components/roles/SalesContractRevisions.tsx');
+  for (const source of [initial, revision]) {
+    assert.match(source, /paymentCycleForPlan\(plan\)/);
+    assert.match(source, /payment_cycle: paymentCycle/);
+    assert.match(source, /Gói dịch vụ & hình thức thanh toán/);
+    assert.doesNotMatch(source, /Chu kỳ thanh toán \*/);
+    assert.doesNotMatch(source, /setPaymentCycle/);
+  }
+  assert.match(mapping, /plan === 'MONTHLY_9' \? 'MONTHLY' : 'YEARLY'/);
+  const validation = read('src/lib/contract-validation.ts');
+  assert.match(validation, /Chu kỳ thanh toán không khớp gói dịch vụ/);
+});
+
+test('KC-01 backend validates the plan-cycle pairing without changing installment schedules', () => {
+  const contracts = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesContracts.cs');
+  const initial = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
+  const revision = read('../backend/src/KidsfitCRM.Api/Features/ManagerContractEndpoints.cs');
+  assert.match(contracts, /ContractServicePlanPolicy/);
+  assert.match(initial, /ContractServicePlanPolicy.RequireMatchingCycle\(request.ServicePlan, cycle\)/);
+  assert.match(revision, /ContractServicePlanPolicy.RequireMatchingCycle\(contract.ServicePlan, contract.PaymentCycle\)/);
+  assert.match(initial, /Payment schedules are created by Accounting/);
+});

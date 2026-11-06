@@ -106,7 +106,9 @@ export function SalesFocusPage({section, ...props}: Props) {
           </button>)}
         </div>
       </nav>}
-      {table}
+      {section==='customers' && subview==='renewals'
+        ? <ContractRenewalSalesPanel apiBase={apiBase} token={token} abilities={abilities}/>
+        : table}
     </section> : table}
     {section === 'customers' && !apiBase && <p className="text-xs text-muted-foreground">
       Dữ liệu xem trước không đại diện cho quyền sở hữu trường thực tế.

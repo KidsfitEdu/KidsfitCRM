@@ -177,11 +177,12 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             verifiedContract, Http(accountant), db, Ct)).GetProperty("data").GetProperty("id").GetInt64());
     }
 
-    [MySqlFact] public async Task AccountantRecordsServiceTermWithoutRepricingOrExtendingProtection()
+    [MySqlFact] public async Task OnlyAdminCanRepairLegacyServiceTermWithoutRepricingOrExtendingProtection()
     {
         var scenario = await Arrange();
         var contractId = await ActiveContract(scenario);
         var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        var admin = await User("admin@kidsfit.vn");
         await using var db = fixture.Open();
         var before = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
         var originalTotal = before.TotalValue;
@@ -196,8 +197,11 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
         var start = today;
         var end = today.AddYears(1).AddDays(-1);
-        await AccountingContractEndpoints.SetServiceTerm(contractId,
+        var rejected = await AccountingContractEndpoints.SetServiceTerm(contractId,
             new(start, end, "MONTHLY"), Http(accountant), db, Ct);
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ForbidHttpResult>(rejected);
+        await AccountingContractEndpoints.SetServiceTerm(contractId,
+            new(start, end, "MONTHLY"), Http(admin), db, Ct);
         var detail = Json(await AccountingContractEndpoints.Detail(contractId, Http(accountant), db, Ct))
             .GetProperty("data");
         Assert.Equal(start.ToString("yyyy-MM-dd"), detail.GetProperty("service_start_on").GetString());
@@ -213,7 +217,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await AccountingContractEndpoints.SetServiceTerm(contractId,
             new(start, end, "MONTHLY"), Http(accountant), db, Ct);
         await Assert.ThrowsAsync<ApiConflictException>(() => AccountingContractEndpoints.SetServiceTerm(
-            contractId, new(start, end.AddDays(1), "YEARLY"), Http(accountant), db, Ct));
+            contractId, new(start, end.AddDays(1), "YEARLY"), Http(admin), db, Ct));
         Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityId == contractId &&
             x.Action == "RECORD_CONTRACT_SERVICE_TERM", Ct));
     }

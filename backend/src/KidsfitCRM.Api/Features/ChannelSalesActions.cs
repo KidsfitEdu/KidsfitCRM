@@ -194,6 +194,22 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             : Validation.Required(request.ContractCode, "contract_code", "Mã hợp đồng không hợp lệ.", 64).ToUpperInvariant();
         var signedOn = request.SignedOn ?? throw ApiValidationException.For("signed_on", "Vui lòng chọn ngày ký hợp đồng.");
         if (signedOn > ChannelSalesValidation.BusinessDate(DateTime.UtcNow)) throw ApiValidationException.For("signed_on", "Ngày ký không được ở tương lai.");
+        // New school contracts must carry the signed service term from Sales.
+        // Legacy non-school integrations may still omit these fields.
+        var hasServiceTerm = request.ServiceStartOn.HasValue || request.ServiceEndOn.HasValue
+            || request.PaymentCycle is not null;
+        var cycle = (request.PaymentCycle ?? "").Trim().ToUpperInvariant();
+        if (hasServiceTerm)
+        {
+            if (!request.ServiceStartOn.HasValue)
+                throw ApiValidationException.For("service_start_on", "Vui lòng nhập ngày bắt đầu dịch vụ.");
+            if (!request.ServiceEndOn.HasValue)
+                throw ApiValidationException.For("service_end_on", "Vui lòng nhập ngày kết thúc dịch vụ.");
+            if (request.ServiceEndOn < request.ServiceStartOn)
+                throw ApiValidationException.For("service_end_on", "Ngày kết thúc phải từ ngày bắt đầu trở đi.");
+            if (cycle is not ("MONTHLY" or "YEARLY"))
+                throw ApiValidationException.For("payment_cycle", "Chu kỳ thanh toán phải là theo tháng hoặc theo năm.");
+        }
         ChannelSalesValidation.WholeDong(request.TotalValue, "total_value");
         // The simplified Sales form submits contract fees, never an arbitrary total.
         // Existing integrations that do not supply fee components retain legacy behavior.
@@ -288,6 +304,8 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             }
             if (schoolContract)
             {
+                if (!hasServiceTerm) throw ApiValidationException.For("service_start_on",
+                    "Hợp đồng trường học phải có thời hạn dịch vụ do Sales nhập theo hợp đồng đã ký.");
                 if (contractProof is null) Validation.Required(request.EvidenceReference, "evidence_reference", "Hợp đồng trường học cần bằng chứng xác minh.", 500);
                 if (await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration.Id, cancellationToken)) throw new ApiConflictException("Lượt tiếp cận đã báo cáo hợp đồng. Hãy theo dõi hồ sơ xác minh.");
             }
@@ -304,6 +322,9 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 ContractCode = contractCode,
                 SignedOn = signedOn,
                 EffectiveOn = request.EffectiveOn,
+                ServiceStartOn = request.ServiceStartOn,
+                ServiceEndOn = request.ServiceEndOn,
+                PaymentCycle = hasServiceTerm ? cycle : null,
                 TotalValue = decimal.Round(request.TotalValue, 0),
                 ServicePlan = servicePlan,
                 ContractNote = CleanOptional(request.ContractNote, 4000),

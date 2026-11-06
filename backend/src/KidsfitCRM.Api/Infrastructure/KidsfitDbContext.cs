@@ -264,6 +264,12 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<ApproachRegistration, ChannelCustomer>(x => x.CustomerId); Restrict<ApproachRegistration, User>(x => x.OwnerUserId); Restrict<ApproachRegistration, Organization>(x => x.OwnerOrganizationId); Restrict<ApproachRegistration, User>(x => x.CreatedByUserId);
         Restrict<CustomerActivity, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerActivity, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerActivity, User>(x => x.UserId);
         Restrict<SalesContract, ChannelCustomer>(x => x.CustomerId); Restrict<SalesContract, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<SalesContract, User>(x => x.OwnerUserId); Restrict<SalesContract, Organization>(x => x.OwnerOrganizationId); Restrict<SalesContract, User>(x => x.ReportedByUserId);
+        Restrict<ContractRenewal, SalesContract>(x => x.ContractId);
+        Restrict<ContractRenewal, User>(x => x.SubmittedByUserId);
+        Restrict<ContractRenewal, User>(x => x.ReviewedByUserId);
+        Restrict<ContractRenewalEvent, ContractRenewal>(x => x.ContractRenewalId);
+        Restrict<ContractRenewalEvent, User>(x => x.ActorUserId);
+        Restrict<FinancialEvidence, ContractRenewal>(x => x.ContractRenewalId);
         Restrict<SalesContractItem, SalesContract>(x => x.ContractId); Restrict<SalesContractItem, CheckeeProductPackage>(x => x.ProductPackageId);
         Restrict<CustomerProtection, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerProtection, User>(x => x.OwnerUserId); Restrict<CustomerProtection, Organization>(x => x.OwnerOrganizationId); Restrict<CustomerProtection, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerProtection, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, SalesContract>(x => x.ContractId);

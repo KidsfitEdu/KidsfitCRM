@@ -64,6 +64,68 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task CheckeeConfirmationAutomaticallyActivatesExactlyOneFiveYearSchoolProtection()
+    {
+        var scenario = await Arrange();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registrationId = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
+        var contractId = await actions.ReportSignedContract(registrationId, new(Key(), "TEST-" + Key(),
+            ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+            await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct), 1_000_000, null, "TEST-CONTRACT"),
+            scenario.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
+        var reconciliationId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
+            .Select(x => x.Id).SingleAsync(Ct);
+        var checkee = await User("checkee@kidsfit.vn");
+        await actions.Reconcile(reconciliationId, true, new("Đã xác minh hợp lệ"), checkee, Http(), Ct);
+
+        var contract = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+        Assert.Equal("ACTIVE", contract.Status);
+        Assert.NotNull(contract.VerifiedAt);
+        Assert.Equal(contract.VerifiedAt, contract.ProtectionStartsAt);
+        Assert.Equal(contract.VerifiedAt!.Value.AddYears(5), contract.ProtectionUntil);
+        var protections = await db.CustomerProtections.AsNoTracking()
+            .Where(x => x.ContractId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE")
+            .ToArrayAsync(Ct);
+        Assert.Single(protections);
+        Assert.Equal(scenario.Seller.UserId, protections[0].OwnerUserId);
+        Assert.Equal(contract.VerifiedAt.Value, protections[0].EffectiveFrom);
+        Assert.Equal(contract.ProtectionUntil, protections[0].EffectiveUntil);
+        Assert.Equal("CONVERTED", await db.ApproachRegistrations.Where(x => x.Id == registrationId)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal("CONTRACTED", await db.ChannelCustomers.Where(x => x.Id == scenario.CustomerId)
+            .Select(x => x.LifecycleStatus).SingleAsync(Ct));
+
+        // Replaying CHECKEE approval does not create a second protection or extend five years.
+        await actions.Reconcile(reconciliationId, true, new("Đã xác minh hợp lệ"), checkee, Http(), Ct);
+        Assert.Equal(1, await db.CustomerProtections.CountAsync(x => x.ContractId == contractId
+            && x.SourceType == "CONTRACT", Ct));
+        Assert.Equal(contract.ProtectionUntil, await db.SalesContracts.Where(x => x.Id == contractId)
+            .Select(x => x.ProtectionUntil).SingleAsync(Ct));
+    }
+
+    [MySqlFact] public async Task CheckeeDisputeCannotActivateContractOrGrantFiveYearProtection()
+    {
+        var scenario = await Arrange();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
+        var contractId = await actions.ReportSignedContract(registration, new(Key(), "TEST-" + Key(),
+            ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null,
+            await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct), 1_000_000, null, "TEST-CONTRACT"),
+            scenario.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
+        var caseId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
+            .Select(x => x.Id).SingleAsync(Ct);
+        await actions.Reconcile(caseId, false, new("Thông tin hồ sơ có tranh chấp"),
+            await User("checkee@kidsfit.vn"), Http(), Ct);
+        Assert.NotEqual("ACTIVE", await db.SalesContracts.Where(x => x.Id == contractId)
+            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId
+            && x.SourceType == "CONTRACT", Ct));
+    }
+
     [MySqlFact] public async Task AccountingListsOnlyCheckeeVerifiedContractsAndScopesOwnerFilters()
     {
         var scenario = await Arrange();

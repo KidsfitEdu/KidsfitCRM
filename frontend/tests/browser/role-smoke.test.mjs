@@ -99,7 +99,7 @@ test('Collaborator mobile navigation and logout work', async () => {
   await context.close();
 });
 
-test('Sales desktop uses 30% flat underline tabs and a table for proposals', async () => {
+test('Sales desktop uses accounting-style full-width underline tabs and a table for proposals', async () => {
   const {context,page,navigation,errors} = await login('Nhân viên bán hàng');
   await navigation.getByRole('button',{name:'Trường của tôi',exact:true}).click();
   const tabs = page.getByRole('navigation',{name:'Nhóm công việc Sales'});
@@ -107,21 +107,22 @@ test('Sales desktop uses 30% flat underline tabs and a table for proposals', asy
   await page.getByRole('navigation',{name:'Phân trang danh sách'}).waitFor();
   assert.ok(await page.getByRole('combobox',{name:'Số dòng mỗi trang'}).isVisible());
   assert.ok(await page.getByRole('button',{name:'Trang 1'}).isVisible());
-  const sizes = await tabs.evaluate(element => ({
+  const tabLayout = await tabs.evaluate(element => ({
     outer: element.getBoundingClientRect().width,
-    inner: element.firstElementChild.getBoundingClientRect().width,
+    buttons: [...element.querySelectorAll('button')].map(tab => tab.getBoundingClientRect()),
   }));
-  assert.ok(sizes.inner / sizes.outer > 0.27 && sizes.inner / sizes.outer < 0.33,
-    'Sales underline tab group should occupy about 30% of the content width');
+  assert.ok(tabLayout.outer > 500, 'Sales tabs should span the main content width');
+  assert.ok(tabLayout.buttons.length >= 3, 'Sales main workspace should display its three authorized tabs');
+  assert.ok(tabLayout.buttons.every(tab => tab.width > 90), 'Sales tabs must have legible text widths');
   const style = await tabs.evaluate(element => {
     const tab = element.querySelector('button[aria-current="page"]');
     return {navBackground:getComputedStyle(element).backgroundColor,
       activeUnderline:getComputedStyle(tab).borderBottomColor,
       activeWidth:getComputedStyle(tab).borderBottomWidth};
   });
-  assert.equal(style.navBackground, 'rgb(255, 255, 255)');
+  assert.ok(style.navBackground === 'rgba(0, 0, 0, 0)' || style.navBackground === 'rgb(255, 255, 255)');
   assert.equal(style.activeUnderline, 'rgb(27, 94, 32)');
-  assert.equal(style.activeWidth, '3px');
+  assert.equal(style.activeWidth, '2px');
   await tabs.getByRole('button',{name:'Chờ nhận phân bổ'}).click();
   await page.getByRole('textbox',{name:'Tìm trường chờ phân bổ'}).waitFor();
   await page.getByRole('combobox',{name:'Lọc trạng thái phân bổ'}).waitFor();

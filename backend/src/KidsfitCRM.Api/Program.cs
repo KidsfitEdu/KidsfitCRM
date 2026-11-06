@@ -190,7 +190,7 @@ public static class Permissions
     public const string ContractRenewalConfirm = "channel_sales.renewal.confirm";
     public static readonly string[] SchoolOperations = [SchoolProposalSubmit, SchoolProposalReview, SchoolAllocationManage, SchoolExtensionReview,
         SchoolDisputeResolve, SchoolEscalationResolve, SchoolHandoverManage, SchoolCareAssign, SchoolSupportManage, SchoolTechnicalSupportHandle, SchoolWorkflowPolicyManage,
-        ChannelSalesContractCancel, ChannelSalesRevenueRefund];
+        ChannelSalesContractCancel, ChannelSalesRevenueRefund, ContractRenewalSubmit, ContractRenewalReview, ContractRenewalConfirm];
     public static readonly string[] All = [.. SchoolOperations, SchoolDirectoryManage, SchoolCapacityManage, SchoolContractReview, SchoolProtectionGrant, ChannelSalesView, ChannelSalesRegister, ChannelSalesActivity, ChannelSalesReportContract, ChannelSalesRecordRevenue, ChannelSalesCommissionView, ChannelSalesReconcile, ChannelSalesManage, ChannelSalesOrganizationScope, ChannelSalesAllScope, ChannelSalesPayoutCreate, ChannelSalesPayoutApprove, ChannelSalesPayoutComplete, ChannelSalesPolicyManage, ChannelSalesTeamManage, ChannelSalesIdentityManage, ChannelSalesCommissionAdjust];
 }
 

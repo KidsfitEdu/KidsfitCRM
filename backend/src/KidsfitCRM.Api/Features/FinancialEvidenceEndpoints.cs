@@ -58,7 +58,7 @@ public static class FinancialEvidenceEndpoints
             && System.Text.Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP";
         var pdf = bytes.Length >= 5 && System.Text.Encoding.ASCII.GetString(bytes, 0, 5) == "%PDF-";
         if (!(jpeg || png || webp || ((kind == "CONTRACT" || kind == "RENEWAL") && pdf)))
-            throw ApiValidationException.For("file", kind == "CONTRACT"
+            throw ApiValidationException.For("file", kind is "CONTRACT" or "RENEWAL"
                 ? "Hợp đồng phải là PDF hoặc ảnh JPG/PNG/WEBP hợp lệ."
                 : "Chứng từ chuyển khoản phải là ảnh JPG/PNG/WEBP hợp lệ.");
         var mime = jpeg ? "image/jpeg" : png ? "image/png" : webp ? "image/webp" : "application/pdf";

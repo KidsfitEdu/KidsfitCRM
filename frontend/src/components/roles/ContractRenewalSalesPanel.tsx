@@ -11,9 +11,17 @@ type Eligible = {id:number;contract_code:string;school_name:string;
   source_end_on:string|null;latest_end_on:string|null;pending:boolean};
 type Renewal = {id:number;renewal_no:number;signed_on:string;service_start_on:string;
   service_end_on:string;payment_cycle:string;total_value:number;status:string;
-  decision_reason:string|null;submitted_at:string|null};
+  decision_reason:string|null;gap_reason:string|null;submitted_at:string|null};
 const statuses: Record<string,string> = {
   PENDING_ACCOUNTING:'Đang chờ Kế toán', NEEDS_INFO:'Cần bổ sung', CONFIRMED:'Đã xác nhận', REJECTED:'Đã từ chối'
+};
+// Inclusive calendar year, matching the API date convention (including leap-day starts).
+const calendarYearEnd = (value:string) => {
+  const [year,month,day] = value.split('-').map(Number);
+  if(!year||!month||!day)return '';
+  const anniversaryDay = Math.min(day,new Date(Date.UTC(year+1,month,0)).getUTCDate());
+  const end = new Date(Date.UTC(year+1,month-1,anniversaryDay-1));
+  return end.toISOString().slice(0,10);
 };
 const localDay = () => new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 
@@ -28,6 +36,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
   const [end,setEnd]=useState('');
   const [cycle,setCycle]=useState('YEARLY');
   const [amount,setAmount]=useState('');
+  const [gapReason,setGapReason]=useState('');
   const [file,setFile]=useState<File|null>(null);
   const [returnId,setReturnId]=useState<number|null>(null);
   const canSubmit=abilities.includes('channel_sales.renewal.submit')||abilities.includes('*');
@@ -50,20 +59,26 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     return()=>{live=false;};
   },[apiBase,token,contractId]);
   const selected=eligible.find(x=>String(x.id)===contractId);
+  const previousEnd=selected?.latest_end_on??selected?.source_end_on??null;
+  const expectedNext=previousEnd?new Date(Date.parse(previousEnd.slice(0,10)+'T00:00:00Z')+86400000).toISOString().slice(0,10):null;
+  const gapDetected=Boolean(expectedNext&&start>expectedNext);
   const send=async(e:SyntheticEvent<HTMLFormElement>)=>{
     e.preventDefault();
     if(!contractId||!file||!start||!end||!signedOn||!amount){appNotice.error('Vui lòng nhập đầy đủ thông tin và hợp đồng đã ký.');return;}
-    if(end<start){appNotice.error('Ngày kết thúc không thể trước ngày bắt đầu.');return;}
+    if(end!==calendarYearEnd(start)){appNotice.error('Kỳ tái ký phải đủ một năm lịch tính từ ngày bắt đầu.');return;}
+    if(!previousEnd){appNotice.error('Hợp đồng nguồn chưa có hạn dịch vụ được xác minh.');return;}
+    if(start<=previousEnd.slice(0,10)){appNotice.error('Ngày bắt đầu phải sau ngày kết thúc kỳ liền trước.');return;}
+    if(gapDetected&&!gapReason.trim()){appNotice.error('Vui lòng nhập lý do khoảng trống giữa hai kỳ dịch vụ.');return;}
     setSaving(true);
     try{
       const form=new FormData();form.set('kind','RENEWAL');form.set('file',file);
       const proof=await channelRequest<{data:{id:number}}>(apiBase,token,'/evidence',{method:'POST',body:form});
       const payload={idempotency_key:crypto.randomUUID(),signed_on:signedOn,
-        service_start_on:start,service_end_on:end,payment_cycle:cycle,total_value:Number(amount),evidence_id:proof.data.id};
+        service_start_on:start,service_end_on:end,payment_cycle:cycle,total_value:Number(amount),gap_reason:gapDetected?gapReason.trim():null,evidence_id:proof.data.id};
       await channelRequest(apiBase,token,returnId?`/renewals/${returnId}/resubmit`:`/contracts/${contractId}/renewals`,
         {method:'POST',body:JSON.stringify(payload)});
       appNotice.success('Đã gửi hồ sơ tái ký trực tiếp Kế toán.');
-      setFile(null);setAmount('');setStart('');setEnd('');setReturnId(null);
+      setFile(null);setAmount('');setStart('');setEnd('');setReturnId(null);setGapReason('');
       await load();
       const updated=await channelRequest<{data:Renewal[]}>(apiBase,token,`/contracts/${contractId}/renewals`);
       setRows(updated.data);
@@ -77,7 +92,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
       <label htmlFor="kc02-contract" className="block space-y-2 text-sm">
         <span className="font-medium">Hợp đồng được phép tái ký</span>
         <select id="kc02-contract" className="w-full rounded-lg border bg-background p-2"
-          value={contractId} onChange={e=>{setContractId(e.target.value);setReturnId(null);}}>
+          value={contractId} onChange={e=>{setContractId(e.target.value);setReturnId(null);setGapReason('');}}>
           <option value="">Chọn hợp đồng...</option>
           {eligible.map(x=><option key={x.id} value={x.id}>{x.school_name} · {x.contract_code}</option>)}
         </select>
@@ -97,9 +112,10 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           </div>
           <p className="mt-1">{channelMoney(r.total_value)} · {r.payment_cycle==='MONTHLY'?'Theo tháng':'Theo năm'}</p>
           {r.decision_reason&&<p className="mt-1 text-amber-700">Phản hồi: {r.decision_reason}</p>}
+          {r.gap_reason&&<p className="mt-1 text-muted-foreground">Lý do gián đoạn: {r.gap_reason}</p>}
           {r.status==='NEEDS_INFO'&&<Button variant="outline" size="sm" className="mt-2" type="button"
             onClick={()=>{setReturnId(r.id);setSignedOn(r.signed_on.slice(0,10));setStart(r.service_start_on.slice(0,10));
-              setEnd(r.service_end_on.slice(0,10));setCycle(r.payment_cycle);setAmount(String(r.total_value));}}>
+              setEnd(r.service_end_on.slice(0,10));setCycle(r.payment_cycle);setAmount(String(r.total_value));setGapReason(r.gap_reason??'');}}>
             Bổ sung hồ sơ này
           </Button>}
         </div>)}
@@ -121,7 +137,13 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
               onChange={e=>setFile(e.target.files?.[0]??null)}/>
           </label>
         </div>
-        <p className="text-xs text-muted-foreground">Ngày kết thúc phải theo chứng từ đã ký; không tự gia hạn quyền Sales hoặc ghi nhận khoản thu.</p>
+        {gapDetected&&<label htmlFor="kc02-gap-reason" className="block space-y-1 text-sm">
+          Lý do khoảng trống giữa hai kỳ dịch vụ *
+          <Input id="kc02-gap-reason" required maxLength={1000} value={gapReason}
+            placeholder="Ví dụ: Nhà trường tạm ngừng sử dụng trước khi tái ký"
+            onChange={e=>setGapReason(e.target.value)}/>
+        </label>}
+        <p className="text-xs text-muted-foreground">Kỳ mới phải đủ một năm lịch. Khoảng trống được phép nếu có lý do; không tự thay đổi quyền bảo vệ Sales, lịch thu hoặc hoa hồng.</p>
         <Button disabled={saving} type="submit">{saving?'Đang gửi...':'Gửi trực tiếp Kế toán'}</Button>
       </form>}
     </>}

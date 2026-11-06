@@ -44,6 +44,8 @@ public static class SchoolProposalAlertEndpoints
         alerts.MapGet("/contract-expiry", async (HttpContext http, KidsfitDbContext db, CancellationToken ct) =>
         {
             var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+            if (!access.Has(Permissions.ChannelSalesView) && !access.Has(Permissions.SchoolSupportManage))
+                return Results.Ok(new { unread_count = 0, data = Array.Empty<object>() });
             var visibleContracts = access.Contracts(db).Select(x => x.Id);
             var alertsQuery = db.ContractExpiryAlerts.AsNoTracking().Where(x =>
                 x.RecipientUserId == access.UserId && x.Status == "OPEN"
@@ -81,6 +83,8 @@ public static class SchoolProposalAlertEndpoints
             KidsfitDbContext db, CancellationToken ct) =>
         {
             var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+            if (!access.Has(Permissions.ChannelSalesView) && !access.Has(Permissions.SchoolSupportManage))
+                throw new KeyNotFoundException();
             var visibleContracts = access.Contracts(db).Select(x => x.Id);
             var alert = db.ContractExpiryAlerts.Where(x => x.Id == id
                 && x.RecipientUserId == access.UserId && x.Status == "OPEN"

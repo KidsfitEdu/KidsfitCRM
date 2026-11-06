@@ -46,7 +46,13 @@ public static class SchoolProposalAlertEndpoints
             var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
             if (!access.Has(Permissions.ChannelSalesView) && !access.Has(Permissions.SchoolSupportManage))
                 return Results.Ok(new { unread_count = 0, data = Array.Empty<object>() });
-            var visibleContracts = access.Contracts(db).Select(x => x.Id);
+            var visibleContracts = access.Contracts(db)
+                .Where(c => c.Status == "ACTIVE" && c.VerifiedAt != null
+                    && c.RequiresSchoolVerification
+                    && !db.ContractCancellations.Any(cancel => cancel.ContractId == c.Id))
+                .Select(x => x.Id);
+            var isCollaborator = await db.OrganizationMemberships.AnyAsync(m =>
+                m.UserId == access.UserId && m.Status == "ACTIVE" && m.MembershipType == "COLLABORATOR", ct);
             var alertsQuery = db.ContractExpiryAlerts.AsNoTracking().Where(x =>
                 x.RecipientUserId == access.UserId && x.Status == "OPEN"
                 && visibleContracts.Contains(x.ContractId));
@@ -74,7 +80,7 @@ public static class SchoolProposalAlertEndpoints
                     school_name = x.SchoolName,
                     message = ContractExpiryMessage(x.Kind, x.MilestoneOn),
                     due_at = x.DueOn,
-                    target = x.OwnerUserId == access.UserId ? "role-sales-staff-customers"
+                    target = x.OwnerUserId == access.UserId ? (isCollaborator ? "role-collaborator-approaches" : "role-sales-staff-customers")
                         : x.CareUserId == access.UserId ? "role-customer-care-customers" : "manager-contracts"
                 })
             });
@@ -85,7 +91,11 @@ public static class SchoolProposalAlertEndpoints
             var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
             if (!access.Has(Permissions.ChannelSalesView) && !access.Has(Permissions.SchoolSupportManage))
                 throw new KeyNotFoundException();
-            var visibleContracts = access.Contracts(db).Select(x => x.Id);
+            var visibleContracts = access.Contracts(db)
+                .Where(c => c.Status == "ACTIVE" && c.VerifiedAt != null
+                    && c.RequiresSchoolVerification
+                    && !db.ContractCancellations.Any(cancel => cancel.ContractId == c.Id))
+                .Select(x => x.Id);
             var alert = db.ContractExpiryAlerts.Where(x => x.Id == id
                 && x.RecipientUserId == access.UserId && x.Status == "OPEN"
                 && visibleContracts.Contains(x.ContractId));

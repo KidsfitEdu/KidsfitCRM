@@ -20,6 +20,7 @@ public static class ContractRenewalEndpoints
 
     public static void Map(RouteGroupBuilder channel)
     {
+        channel.MapGet("/renewals/eligible", Eligible).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapGet("/contracts/{contractId:long}/renewals", Mine).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/contracts/{contractId:long}/renewals", Submit).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/renewals/{id:long}/resubmit", Resubmit).RequireAuthorization(Permissions.ContractRenewalSubmit);
@@ -179,6 +180,29 @@ public static class ContractRenewalEndpoints
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { data = new { id = renewal.Id } });
+    }
+
+    public static async Task<IResult> Eligible(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
+        var now = DateTime.UtcNow;
+        var contracts = await (from c in access.Contracts(db).AsNoTracking()
+            join school in db.ChannelCustomers.AsNoTracking() on c.CustomerId equals school.Id
+            where c.OwnerUserId == access.UserId && c.Status == "ACTIVE" && c.VerifiedAt != null
+                && !db.ContractCancellations.Any(cancel => cancel.ContractId == c.Id)
+                && db.CustomerProtections.Any(p => p.ContractId == c.Id
+                    && p.OwnerUserId == access.UserId && p.OwnerOrganizationId == c.OwnerOrganizationId
+                    && p.SourceType == "CONTRACT" && p.Status == "ACTIVE" && p.EffectiveFrom <= now && p.EffectiveUntil > now)
+            orderby c.ServiceEndOn, c.Id
+            select new { id = c.Id, contract_code = c.ContractCode, school_name = school.DisplayName,
+                source_end_on = c.ServiceEndOn,
+                latest_end_on = db.ContractRenewals.Where(r => r.ContractId == c.Id && r.Status == "CONFIRMED")
+                    .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceEndOn).FirstOrDefault(),
+                pending = db.ContractRenewals.Any(r => r.ContractId == c.Id &&
+                    (r.Status == "PENDING_ACCOUNTING" || r.Status == "NEEDS_INFO")) })
+            .Take(100).ToArrayAsync(ct);
+        return Results.Ok(new { data = contracts });
     }
 
     public static async Task<IResult> Mine(long contractId, HttpContext http,

@@ -220,14 +220,16 @@ public static class AccountingContractEndpoints
         DateOnly? ServiceStartOn, DateOnly? ServiceEndOn, string? PaymentCycle);
 
     /// <summary>
-    /// Accountant enters a term from a signed, already verified contract.
+    /// Admin may record a missing term once for a verified legacy contract.
     /// It is metadata only; no renewal, repricing, receipt, protection or commission mutation.
     /// </summary>
     public static async Task<IResult> SetServiceTerm(long id, SetServiceTermRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        if (!access.Has(Permissions.ChannelSalesRecordRevenue)) return Results.Forbid();
+        // Legacy-only correction: regular Accountants may not set contract terms anymore.
+        // Admin all-scope permission is required, retaining the existing one-time audit behavior.
+        if (!access.All || !access.Has(Permissions.ChannelSalesRecordRevenue)) return Results.Forbid();
         if (!request.ServiceStartOn.HasValue)
             throw ApiValidationException.For("service_start_on", "Vui lòng chọn ngày bắt đầu dịch vụ theo hợp đồng.");
         if (!request.ServiceEndOn.HasValue)

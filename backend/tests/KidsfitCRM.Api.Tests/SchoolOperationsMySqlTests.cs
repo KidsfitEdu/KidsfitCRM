@@ -64,6 +64,37 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task Nt01CreatesScopedServiceNoticeOnlyOnceAndResolvesOnChangedServiceTerm()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var today = ContractExpiryAlertService.BusinessDate(DateTime.UtcNow);
+        await using var db = fixture.Open();
+        var contract = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        contract.ServiceStartOn = today.AddMonths(-11);
+        contract.ServiceEndOn = today.AddDays(30);
+        contract.PaymentCycle = "YEARLY";
+        await db.SaveChangesAsync(Ct);
+
+        var created = await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.True(created >= 2);
+        var notices = await db.ContractExpiryAlerts.AsNoTracking()
+            .Where(x => x.ContractId == contractId).ToArrayAsync(Ct);
+        Assert.Equal(2, notices.Length);
+        Assert.All(notices, x => Assert.Equal("SERVICE_BEFORE_30", x.Kind));
+        Assert.Contains(notices, x => x.RecipientUserId == scenario.Seller.UserId);
+        Assert.Contains(notices, x => x.RecipientUserId == scenario.Manager.UserId);
+        Assert.DoesNotContain(notices, x => x.RecipientUserId == scenario.Peer.UserId);
+
+        await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId, Ct));
+
+        contract.ServiceEndOn = today.AddDays(90);
+        await db.SaveChangesAsync(Ct);
+        await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId && x.Status == "RESOLVED", Ct));
+    }
+
     [MySqlFact] public async Task CheckeeConfirmationAutomaticallyActivatesExactlyOneFiveYearSchoolProtection()
     {
         var scenario = await Arrange();

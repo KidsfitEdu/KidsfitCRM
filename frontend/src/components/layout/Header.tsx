@@ -31,7 +31,7 @@ type ExpiryNotice = {
   school_name: string;
   message: string;
   due_at: string;
-  target: 'role-sales-staff-customers' | 'role-customer-care-customers' | 'manager-contracts';
+  target: 'role-sales-staff-customers' | 'role-collaborator-approaches' | 'role-customer-care-customers' | 'manager-contracts';
 };
 type ExpiryNotificationsResponse = { unread_count: number; data: ExpiryNotice[] };
 const initials = (name: string) => name.split(' ').slice(-2).map(p => p[0]).join('').toUpperCase();

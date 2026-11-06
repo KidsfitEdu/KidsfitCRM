@@ -91,11 +91,11 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
      description="Hồ sơ Sales gửi trực tiếp. Kế toán đối chiếu hợp đồng, kỳ dịch vụ, giá trị và chứng từ trước khi xác nhận."/>
    {!canReview?<p role="alert">Tài khoản chưa có quyền xem hồ sơ tái ký.</p>:<>
      <form className="flex flex-wrap items-end gap-2" onSubmit={e=>{e.preventDefault();setQuery(search.trim());setPage(1);}}>
-       <label className="space-y-1 text-sm">Tìm trường / hợp đồng / Sales
-         <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên trường hoặc mã hợp đồng"/>
+       <label htmlFor="kc02-search" className="space-y-1 text-sm">Tìm trường / hợp đồng / Sales
+         <Input id="kc02-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên trường hoặc mã hợp đồng"/>
        </label>
-       <label className="space-y-1 text-sm">Trạng thái
-         <select value={status} className="block w-full rounded-lg border bg-background p-2" onChange={e=>{setStatus(e.target.value);setPage(1);}}>
+       <label htmlFor="kc02-status" className="space-y-1 text-sm">Trạng thái
+         <select id="kc02-status" value={status} className="block w-full rounded-lg border bg-background p-2" onChange={e=>{setStatus(e.target.value);setPage(1);}}>
            <option value="ALL">Tất cả</option><option value="PENDING_ACCOUNTING">Chờ Kế toán</option>
            <option value="NEEDS_INFO">Cần bổ sung</option><option value="CONFIRMED">Đã xác nhận</option>
            <option value="REJECTED">Đã từ chối</option>

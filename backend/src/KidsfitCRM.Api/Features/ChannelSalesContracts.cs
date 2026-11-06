@@ -38,7 +38,10 @@ public sealed record ReportSalesContractRequest(
     decimal? MaintenanceFee = null,
     decimal? SetupFee = null,
     string? ContractNote = null,
-    int? BranchCount = null);
+    int? BranchCount = null,
+    DateOnly? ServiceStartOn = null,
+    DateOnly? ServiceEndOn = null,
+    string? PaymentCycle = null);
 
 public sealed record ContractPaymentInstallment(DateOnly DueOn, decimal Amount);
 

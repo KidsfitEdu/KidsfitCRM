@@ -93,6 +93,8 @@ export function SalesFocusPage({section, ...props}: Props) {
           {[
             {id:'main',label:'Trường đang phụ trách',icon:UsersRound},
             {id:'invitations',label:'Chờ nhận phân bổ',icon:School},
+            ...(section==='customers' && can('channel_sales.renewal.submit')
+              ? [{id:'renewals',label:'Hợp đồng tái ký',icon:School}] : []),
           ].map(item => <button key={item.id} type="button" title={item.label}
             onClick={() => setSubview(item.id as typeof subview)}
             aria-current={subview === item.id ? 'page' : undefined}

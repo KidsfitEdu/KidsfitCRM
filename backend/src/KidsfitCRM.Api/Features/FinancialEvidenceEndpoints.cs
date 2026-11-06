@@ -85,6 +85,15 @@ public static class FinancialEvidenceEndpoints
             ?? throw new KeyNotFoundException();
         var permitted = proof.AttachedAt is null
             ? proof.UploadedByUserId == http.UserId()
+            : proof.ContractRenewalId.HasValue && proof.Kind == "RENEWAL"
+                ? access.Has(Permissions.ContractRenewalReview) &&
+                    await db.ContractRenewals.AnyAsync(r => r.Id == proof.ContractRenewalId.Value
+                        && access.Contracts(db).Any(c => c.Id == r.ContractId)
+                        && (access.All || (access.Organization &&
+                            db.SalesContracts.Any(c => c.Id == r.ContractId && access.OrganizationIds.Contains(c.OwnerOrganizationId)))), ct)
+                    || (proof.UploadedByUserId == access.UserId &&
+                        await db.ContractRenewals.AnyAsync(r => r.Id == proof.ContractRenewalId.Value
+                            && r.SubmittedByUserId == access.UserId, ct))
             : proof.PayoutId.HasValue && proof.Kind == "PAYOUT"
                 ? await access.Payouts(db).AnyAsync(x => x.Id == proof.PayoutId.Value, ct)
                 : proof.ContractId.HasValue

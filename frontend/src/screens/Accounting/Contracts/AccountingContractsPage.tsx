@@ -150,7 +150,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     const today = accountingBusinessDay(new Date());
     if (today < start) return 'Chưa bắt đầu';
     if (today > end) return 'Đã hết hạn';
-    const warning = new Date(Date.UTC(...(today.split('-').map((n,i)=>Number(n)-(i===1?1:0)) as [number,number,number])));
+    const warning = new Date(today + 'T00:00:00Z');
     warning.setUTCDate(warning.getUTCDate()+30);
     return end <= warning.toISOString().slice(0,10)?'Sắp hết hạn':'Còn hiệu lực';
   };
@@ -347,7 +347,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         </AppButton>
       </form>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[930px] text-left text-sm">
+        <table className="w-full min-w-[1160px] text-left text-sm">
           <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white">
             <tr>
               <th className="px-5 py-4">Nhà trường</th>

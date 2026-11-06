@@ -222,7 +222,8 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             if (request.ServicePlan is not ("SCHOOL_YEAR" or "MONTHLY_9"))
                 throw ApiValidationException.For("service_plan", "Cần chọn gói năm học hoặc gói hàng tháng.");
             // Only fee-based KC-01 submissions enforce the new mapping; legacy contracts remain untouched.
-            ContractServicePlanPolicy.RequireMatchingCycle(request.ServicePlan, cycle);
+            if (hasServiceTerm)
+                ContractServicePlanPolicy.RequireMatchingCycle(request.ServicePlan, cycle);
             ChannelSalesValidation.WholeDong(request.MaintenanceFee.Value, "maintenance_fee", positive: false);
             ChannelSalesValidation.WholeDong(request.SetupFee.Value, "setup_fee", positive: false);
             try

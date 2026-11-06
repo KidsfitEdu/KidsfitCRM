@@ -42,7 +42,7 @@ type Props = RolePageProps & {section: SalesSection};
 export function SalesFocusPage({section, ...props}: Props) {
   const {apiBase, token, abilities, workspace, onChanged, search, setSearch, salesWorkflow} = props;
   const proposalActionRef = useRef<{open: () => void} | null>(null);
-  const [subview, setSubview] = useState<'main' | 'invitations'>(() =>
+  const [subview, setSubview] = useState<'main' | 'invitations' | 'renewals'>(() =>
     salesWorkflow === 'invitations' ? 'invitations' : 'main'
   );
   useEffect(() => {

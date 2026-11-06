@@ -208,6 +208,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct);
         var renewal = await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == renewalId, Ct);
         Assert.Equal("CONFIRMED", renewal.Status);
+        var current = Json(await AccountingContractEndpoints.Detail(contractId, Http(accountant), db, Ct))
+            .GetProperty("data");
+        Assert.Equal(newEnd.ToString("yyyy-MM-dd"), current.GetProperty("service_end_on").GetString());
+        Assert.Equal(source.ServiceEndOn.Value.ToString("yyyy-MM-dd"), current.GetProperty("source_service_end_on").GetString());
         var unchanged = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
         Assert.Equal(originalMoney, unchanged.TotalValue);
         Assert.Equal(originalProtection, unchanged.ProtectionUntil);

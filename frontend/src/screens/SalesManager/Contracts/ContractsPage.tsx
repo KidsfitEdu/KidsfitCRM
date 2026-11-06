@@ -1,3 +1,4 @@
+import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -170,7 +171,7 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
          </div>
          <div className="grid gap-3 sm:grid-cols-2">
            {[["Mã hợp đồng",detail.data.contract_code],["Ngày ký",channelDate(detail.data.signed_on)],
-             ["Giá trị",channelMoney(detail.data.total_value)],["Gói dịch vụ",detail.data.service_plan||'Chưa khai báo'],
+             ["Giá trị",channelMoney(detail.data.total_value)],["Gói dịch vụ",getServicePlanLabel(detail.data.service_plan)],
              ["Bắt đầu dịch vụ",detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
              ["Kết thúc dịch vụ",detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
              ["Chu kỳ thanh toán",detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],

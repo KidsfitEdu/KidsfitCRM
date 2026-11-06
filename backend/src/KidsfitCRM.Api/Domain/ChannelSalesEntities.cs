@@ -116,6 +116,11 @@ public sealed class SalesContract : EntityBase
     public string ContractCode { get; set; } = "";
     public DateOnly SignedOn { get; set; }
     public DateOnly? EffectiveOn { get; set; }
+    // Explicit signed-document service dates. Null for legacy 9-month/unknown contracts.
+    public DateOnly? ServiceStartOn { get; set; }
+    public DateOnly? ServiceEndOn { get; set; }
+    // Metadata only: independent of historical ServicePlan and financial schedules.
+    public string? PaymentCycle { get; set; }
     public decimal TotalValue { get; set; }
     public string? ServicePlan { get; set; }
     public string? ContractNote { get; set; }

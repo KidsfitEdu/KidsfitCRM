@@ -89,10 +89,20 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
         Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId, Ct));
 
-        contract.ServiceEndOn = today.AddDays(90);
+        // A KC-02 renewal confirmed for the next year supersedes the old expiry milestone.
+        var renewalStart = today.AddDays(31);
+        db.ContractRenewals.Add(new ContractRenewal
+        {
+            ContractId = contractId, RenewalNo = 1, Status = "CONFIRMED",
+            SubmittedByUserId = scenario.Seller.UserId, SignedOn = today,
+            IdempotencyKey = Key(), RequestFingerprint = Key(),
+            ServiceStartOn = renewalStart, ServiceEndOn = renewalStart.AddYears(1).AddDays(-1),
+            PaymentCycle = "YEARLY", TotalValue = 1_000_000
+        });
         await db.SaveChangesAsync(Ct);
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
         Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId && x.Status == "RESOLVED", Ct));
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId, Ct));
     }
 
     [MySqlFact] public async Task CheckeeConfirmationAutomaticallyActivatesExactlyOneFiveYearSchoolProtection()

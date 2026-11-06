@@ -1,3 +1,5 @@
+using KidsfitCRM.Api.Common;
+
 namespace KidsfitCRM.Api.Features;
 
 public sealed record RegisterApproachRequest(

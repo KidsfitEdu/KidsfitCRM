@@ -550,17 +550,17 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     <AppDialog open={termFormOpen} onOpenChange={open=>{if(!open&&!termSaving)setTermFormOpen(false);}}
       busy={termSaving} title="Ghi nhận thời hạn dịch vụ" description="Nhập đúng ngày và chu kỳ thanh toán theo hợp đồng đã ký. Chỉ ghi nhận một lần, không sửa lịch thu hoặc hoa hồng.">
       <form noValidate className="space-y-4" onSubmit={event=>void saveTerm(event)}>
-        <label className="block space-y-1"><span>Ngày bắt đầu dịch vụ *</span>
-          <Input type="date" value={termStart} onChange={e=>{
+        <label htmlFor="kc01-service-start" className="block space-y-1"><span>Ngày bắt đầu dịch vụ *</span>
+          <Input id="kc01-service-start" type="date" value={termStart} onChange={e=>{
             setTermStart(e.target.value);
             if (!termEnd) setTermEnd(suggestTermEnd(e.target.value));
             setTermError('');
           }}/></label>
-        <label className="block space-y-1"><span>Ngày kết thúc dịch vụ theo hợp đồng *</span>
-          <Input type="date" value={termEnd} onChange={e=>{setTermEnd(e.target.value);setTermError('');}}/></label>
+        <label htmlFor="kc01-service-end" className="block space-y-1"><span>Ngày kết thúc dịch vụ theo hợp đồng *</span>
+          <Input id="kc01-service-end" type="date" value={termEnd} onChange={e=>{setTermEnd(e.target.value);setTermError('');}}/></label>
         <p className="text-xs text-muted-foreground">Gợi ý 12 tháng chỉ mang tính tham khảo; ngày trên hợp đồng ký là nguồn chính xác.</p>
-        <label className="block space-y-1"><span>Chu kỳ thanh toán *</span>
-          <select className="w-full rounded-lg border bg-background p-2" value={termCycle} onChange={e=>setTermCycle(e.target.value)}>
+        <label htmlFor="kc01-payment-cycle" className="block space-y-1"><span>Chu kỳ thanh toán *</span>
+          <select id="kc01-payment-cycle" className="w-full rounded-lg border bg-background p-2" value={termCycle} onChange={e=>setTermCycle(e.target.value)}>
             <option value="YEARLY">Theo năm</option><option value="MONTHLY">Theo tháng</option>
           </select></label>
         {termError&&<p role="alert" className="text-sm text-destructive">{termError}</p>}

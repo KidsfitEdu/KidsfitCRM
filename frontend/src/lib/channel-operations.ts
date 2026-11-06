@@ -218,6 +218,16 @@ export const channelMoney = (value: number) =>
     currency: 'VND',
     maximumFractionDigits: 0,
   }).format(value);
+/** Format non-negative whole VND values while typing; retain digits until submission. */
+export const formatMoneyInput = (value: string) => {
+  const digits = value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+/** Convert a formatted VND input to the numeric amount expected by the API. */
+export const parseMoneyInput = (value: string) =>
+  Number(value.replace(/\./g, ''));
+
 export const channelDate = (value: string | null) =>
   value
     ? new Intl.DateTimeFormat('vi-VN', {

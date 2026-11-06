@@ -13,7 +13,8 @@ type Revision = { id: number; contract_code: string; school_name: string; reason
 type ContractDetail = {
   data: {
     id: number; customer_id: number; status: string; can_resubmit: boolean;
-    signed_on: string; service_plan: string | null; student_count: number | null;
+    signed_on: string; service_plan: string | null; service_start_on: string | null;
+    service_end_on: string | null; payment_cycle: string | null; student_count: number | null;
     branch_count: number | null; contract_note: string | null;
     maintenance_fee: number | null; setup_fee: number;
     revision_reason: string | null;
@@ -93,6 +94,9 @@ function RevisionEditor({
   const [selectedUnits, setSelectedUnits] = useState<number[]>(detail.school_units.map(x => x.id));
   const [note, setNote] = useState(original.contract_note ?? '');
   const [signedOn, setSignedOn] = useState(original.signed_on.slice(0, 10));
+  const [serviceStartOn,setServiceStartOn] = useState(original.service_start_on?.slice(0,10)??'');
+  const [serviceEndOn,setServiceEndOn] = useState(original.service_end_on?.slice(0,10)??'');
+  const [paymentCycle,setPaymentCycle] = useState(original.payment_cycle === 'MONTHLY'?'MONTHLY':'YEARLY');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<ContractErrors>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +117,7 @@ function RevisionEditor({
     event.preventDefault();
     if (busy) return;
     const issues = validateContract({
-      signedOn, plan, students, branches, selectedUnitCount: selectedUnits.length,
+      signedOn, serviceStartOn, serviceEndOn, paymentCycle, plan, students, branches, selectedUnitCount: selectedUnits.length,
       maintenance, setup, note, file, existingEvidence: detail.evidence.length > 0,
     });
     setErrors(issues);
@@ -141,6 +145,9 @@ function RevisionEditor({
         body: JSON.stringify({
           evidence_id: evidenceId,
           signed_on: signedOn,
+          service_start_on: serviceStartOn,
+          service_end_on: serviceEndOn,
+          payment_cycle: paymentCycle,
           service_plan: plan,
           student_count: Number(students),
           branch_count: Number(branches),
@@ -169,6 +176,31 @@ function RevisionEditor({
       <input type="date" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e => { setSignedOn(e.target.value); clearError("signed_on"); }}
         className="block h-10 w-full rounded-xl border bg-background px-3 text-sm" />
       {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
+    </fieldset>
+    <fieldset className="space-y-3 rounded-xl border p-3">
+      <legend className="px-1 text-sm font-semibold">Thời hạn sử dụng theo hợp đồng *</legend>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1.5 text-sm">Ngày bắt đầu dịch vụ *
+          <input type="date" data-field="service_start_on" value={serviceStartOn}
+            aria-invalid={!!errors.service_start_on} onChange={e=>{setServiceStartOn(e.target.value);clearError('service_start_on');}}
+            className="block h-10 w-full rounded-xl border bg-background px-3"/>
+          {errors.service_start_on&&<span role="alert" className="text-xs text-red-700">{errors.service_start_on}</span>}
+        </label>
+        <label className="space-y-1.5 text-sm">Ngày kết thúc dịch vụ *
+          <input type="date" data-field="service_end_on" value={serviceEndOn}
+            aria-invalid={!!errors.service_end_on} onChange={e=>{setServiceEndOn(e.target.value);clearError('service_end_on');}}
+            className="block h-10 w-full rounded-xl border bg-background px-3"/>
+          {errors.service_end_on&&<span role="alert" className="text-xs text-red-700">{errors.service_end_on}</span>}
+        </label>
+      </div>
+      <label className="block space-y-1.5 text-sm">Chu kỳ thanh toán *
+        <select data-field="payment_cycle" value={paymentCycle}
+          onChange={e=>{setPaymentCycle(e.target.value);clearError('payment_cycle');}}
+          className="block h-10 w-full rounded-xl border bg-background px-3">
+          <option value="YEARLY">Theo năm</option><option value="MONTHLY">Theo tháng</option>
+        </select>
+        {errors.payment_cycle&&<span role="alert" className="text-xs text-red-700">{errors.payment_cycle}</span>}
+      </label>
     </fieldset>
     <fieldset className="space-y-2">
       <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>

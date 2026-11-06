@@ -175,7 +175,8 @@ public static class DatabaseSeeder
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
         rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
-        rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund];
+        rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund, Permissions.ContractRenewalReview, Permissions.ContractRenewalConfirm];
+        rolePermissions["SALES"] = [.. rolePermissions["SALES"], Permissions.ContractRenewalSubmit];
         rolePermissions["CUSTOMER_SERVICE"] = [.. rolePermissions["CUSTOMER_SERVICE"], Permissions.SchoolSupportManage];
         rolePermissions["CHECKEE"] = [.. rolePermissions["CHECKEE"], Permissions.SchoolTechnicalSupportHandle];
         foreach (var bundle in rolePermissions)

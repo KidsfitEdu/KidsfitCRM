@@ -371,7 +371,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
                 <td className="px-5 py-4 align-middle">
                   <p className="font-semibold text-foreground">{row.school_name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
                 </td>
                 <td className="px-4 py-4 align-middle">
                   <p className="font-medium">{row.owner_name}</p>
@@ -418,7 +418,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           <p className="flex items-center gap-2 text-muted-foreground"><UserRound className="size-4" aria-hidden="true"/>
             Phụ trách: {detail.data.owner_name} · {detail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
           </p>
-          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
+          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>

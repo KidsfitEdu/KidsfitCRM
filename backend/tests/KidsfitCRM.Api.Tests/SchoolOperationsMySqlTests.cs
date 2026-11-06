@@ -196,6 +196,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var request = legacyShape with {
             ServiceStartOn = beginning, ServiceEndOn = ending, PaymentCycle = "YEARLY"
         };
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.ReportSignedContract(registration,
+                request with { PaymentCycle = "MONTHLY" }, scenario.Seller.UserId, Http(), Ct));
         var contractId = await actions.ReportSignedContract(registration,
             request, scenario.Seller.UserId, Http(), Ct);
         var contract = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);

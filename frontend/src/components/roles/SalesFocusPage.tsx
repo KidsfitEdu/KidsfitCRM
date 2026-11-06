@@ -7,6 +7,7 @@ import { AppButton } from '@/components/common/buttons/app-button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';
 import { SalesIncomePage } from './SalesIncomePage';
+import { ContractRenewalSalesPanel } from './ContractRenewalSalesPanel';
 import type { RolePageProps } from '@/types/role-pages';
 
 type SalesSection = 'schools' | 'customers' | 'activities' | 'proposals' | 'income';

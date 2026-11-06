@@ -33,6 +33,15 @@ public static class ContractExpiryAlertService
     public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now, CancellationToken ct = default)
     {
         var today = BusinessDate(now);
+        // Canceled or no-longer-verified contracts may fall out of the candidate query;
+        // resolve their older notices before scanning ACTIVE contracts.
+        await db.ContractExpiryAlerts.Where(a => a.Status == "OPEN"
+            && !db.SalesContracts.Any(c => c.Id == a.ContractId
+                && c.Status == "ACTIVE" && c.VerifiedAt != null && c.RequiresSchoolVerification
+                && !db.ContractCancellations.Any(x => x.ContractId == c.Id)))
+            .ExecuteUpdateAsync(x => x.SetProperty(a => a.Status, "RESOLVED")
+                .SetProperty(a => a.ResolvedAt, now)
+                .SetProperty(a => a.UpdatedAt, now), ct);
         var contracts = await db.SalesContracts.AsNoTracking()
             .Where(c => c.Status == "ACTIVE" && c.VerifiedAt != null && c.RequiresSchoolVerification)
             .Select(c => new { c.Id, c.OwnerUserId, c.OwnerOrganizationId,

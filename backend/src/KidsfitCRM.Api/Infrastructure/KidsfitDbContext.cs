@@ -154,6 +154,9 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Money<SalesContract>(b, x => x.TotalValue);
         DateOnlyProperty(b.Entity<SalesContract>().Property(x => x.SignedOn));
         DateOnlyProperty(b.Entity<SalesContract>().Property(x => x.EffectiveOn));
+        DateOnlyProperty(b.Entity<SalesContract>().Property(x => x.ServiceStartOn));
+        DateOnlyProperty(b.Entity<SalesContract>().Property(x => x.ServiceEndOn));
+        b.Entity<SalesContract>().Property(x => x.PaymentCycle).HasMaxLength(16);
 
         b.Entity<SalesContractItem>().Property(x => x.Description).HasMaxLength(255);
         b.Entity<SalesContractItem>().Property(x => x.Quantity).HasPrecision(12, 2);

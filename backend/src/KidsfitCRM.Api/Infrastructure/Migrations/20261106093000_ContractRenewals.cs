@@ -17,7 +17,7 @@ public sealed class ContractRenewals : Migration
             name: "contract_renewals",
             columns: table => new
             {
-                id = table.Column<long>(type: "bigint", nullable: false).Annotation("MySQL:ValueGenerationStrategy", MySQL.EntityFrameworkCore.Metadata.MySQLValueGenerationStrategy.IdentityColumn),
+                id = table.Column<long>(type: "bigint", nullable: false).Annotation("MySQL:ValueGenerationStrategy", MySql.EntityFrameworkCore.Metadata.MySQLValueGenerationStrategy.IdentityColumn),
                 contract_id = table.Column<long>(type: "bigint", nullable: false),
                 renewal_no = table.Column<int>(type: "int", nullable: false),
                 idempotency_key = table.Column<string>(type: "varchar(120)", maxLength: 120, collation: "utf8mb4_bin", nullable: false),
@@ -53,7 +53,7 @@ public sealed class ContractRenewals : Migration
             name: "contract_renewal_events",
             columns: table => new
             {
-                id = table.Column<long>(type: "bigint", nullable: false).Annotation("MySQL:ValueGenerationStrategy", MySQL.EntityFrameworkCore.Metadata.MySQLValueGenerationStrategy.IdentityColumn),
+                id = table.Column<long>(type: "bigint", nullable: false).Annotation("MySQL:ValueGenerationStrategy", MySql.EntityFrameworkCore.Metadata.MySQLValueGenerationStrategy.IdentityColumn),
                 contract_renewal_id = table.Column<long>(type: "bigint", nullable: false),
                 actor_user_id = table.Column<long>(type: "bigint", nullable: false),
                 event_type = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false),

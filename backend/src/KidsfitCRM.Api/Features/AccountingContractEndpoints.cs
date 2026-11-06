@@ -1,4 +1,5 @@
 using KidsfitCRM.Api.Common;
+using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,32 @@ namespace KidsfitCRM.Api.Features;
 /// <summary>Contract-oriented accounting read model. All queries are scoped in SQL, never only in UI.</summary>
 public static class AccountingContractEndpoints
 {
+    // Explicit period states: a future confirmed renewal must never be labeled "currently in use".
+    public sealed record ServicePeriod(DateOnly start_on, DateOnly end_on, string payment_cycle,
+        long? renewal_id, int? renewal_no, string? gap_reason);
+    public sealed record PeriodTimeline(ServicePeriod? current_period, ServicePeriod? next_confirmed_period,
+        ServicePeriod? latest_confirmed_period, ServicePeriod? previous_period,
+        ServicePeriod[] period_history);
+
+    public static PeriodTimeline BuildTimeline(DateOnly? sourceStart, DateOnly? sourceEnd,
+        string? sourcePaymentCycle, IEnumerable<ContractRenewal> confirmed, DateOnly today)
+    {
+        var periods = new List<ServicePeriod>();
+        if (sourceStart.HasValue && sourceEnd.HasValue)
+            periods.Add(new ServicePeriod(sourceStart.Value, sourceEnd.Value, sourcePaymentCycle ?? "YEARLY", null, null, null));
+        var renewalPeriods = confirmed.Where(x => x.Status == "CONFIRMED")
+            .Select(x => new ServicePeriod(x.ServiceStartOn, x.ServiceEndOn, x.PaymentCycle,
+                x.Id, x.RenewalNo, x.GapReason))
+            .OrderBy(x => x.start_on).ThenBy(x => x.end_on).ToArray();
+        periods.AddRange(renewalPeriods);
+        var ordered = periods.OrderBy(x => x.start_on).ThenBy(x => x.end_on).ToArray();
+        var current = ordered.LastOrDefault(x => x.start_on <= today && today <= x.end_on);
+        var upcoming = ordered.FirstOrDefault(x => x.start_on > today);
+        var previous = ordered.LastOrDefault(x => x.end_on < today);
+        var latest = renewalPeriods.LastOrDefault();
+        return new PeriodTimeline(current, upcoming, latest, previous, ordered);
+    }
+
     public static async Task<IResult> SchoolUnits(long customerId, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
@@ -82,7 +109,10 @@ public static class AccountingContractEndpoints
                               owner_name = owner.Name,
                               owner_user_id = contract.OwnerUserId,
                               verified_at = contract.VerifiedAt,
-                              // Latest confirmed renewal is the current service period; source contract remains immutable.
+                              source_service_start_on = contract.ServiceStartOn,
+                              source_service_end_on = contract.ServiceEndOn,
+                              source_payment_cycle = contract.PaymentCycle,
+                              // Legacy end fields remain unchanged for compatible clients; explicit period states follow below.
                               service_start_on = db.ContractRenewals.Where(r => r.ContractId == contract.Id && r.Status == "CONFIRMED")
                                   .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceStartOn).FirstOrDefault() ?? contract.ServiceStartOn,
                               service_end_on = db.ContractRenewals.Where(r => r.ContractId == contract.Id && r.Status == "CONFIRMED")
@@ -96,7 +126,23 @@ public static class AccountingContractEndpoints
                               commission = access.Commissions(db).Where(x => x.ContractId == contract.Id).Sum(x => (decimal?)x.Amount) ?? 0,
                               contract_status = contract.Status,
                           }).Skip((pageNumber - 1) * size).Take(size).ToArrayAsync(ct);
-        return Results.Ok(new { data = rows, owners, total, page = pageNumber, page_size = size });
+        var rowIds = rows.Select(x => x.id).ToArray();
+        var confirmed = await db.ContractRenewals.AsNoTracking()
+            .Where(x => rowIds.Contains(x.ContractId) && x.Status == "CONFIRMED").ToArrayAsync(ct);
+        var byContract = confirmed.ToLookup(x => x.ContractId);
+        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        var output = rows.Select(row =>
+        {
+            var timeline = BuildTimeline(row.source_service_start_on, row.source_service_end_on,
+                row.source_payment_cycle, byContract[row.id], today);
+            return new {
+                row.id, row.contract_code, row.school_name, row.owner_name, row.owner_user_id, row.verified_at,
+                row.service_start_on, row.service_end_on, row.payment_cycle, row.personnel_type, row.total_value,
+                row.received, row.refunded, row.commission, row.contract_status,
+                timeline.current_period, timeline.next_confirmed_period, timeline.latest_confirmed_period
+            };
+        }).ToArray();
+        return Results.Ok(new { data = output, owners, total, page = pageNumber, page_size = size });
     }
 
     public static async Task<IResult> Detail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
@@ -114,6 +160,7 @@ public static class AccountingContractEndpoints
                                   effective_on = c.EffectiveOn, status = c.Status, verified_at = c.VerifiedAt,
                                   source_service_start_on = c.ServiceStartOn,
                                   source_service_end_on = c.ServiceEndOn,
+                                  source_payment_cycle = c.PaymentCycle,
                                   service_start_on = db.ContractRenewals.Where(r => r.ContractId == c.Id && r.Status == "CONFIRMED")
                                       .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceStartOn).FirstOrDefault() ?? c.ServiceStartOn,
                                   service_end_on = db.ContractRenewals.Where(r => r.ContractId == c.Id && r.Status == "CONFIRMED")
@@ -131,6 +178,10 @@ public static class AccountingContractEndpoints
                                   owner_organization_id = c.OwnerOrganizationId
                               }).SingleOrDefaultAsync(ct);
         if (contract is null) throw new KeyNotFoundException();
+        var confirmedPeriods = await db.ContractRenewals.AsNoTracking().Where(x => x.ContractId == id
+            && x.Status == "CONFIRMED").OrderBy(x => x.ServiceStartOn).ToArrayAsync(ct);
+        var timeline = BuildTimeline(contract.source_service_start_on, contract.source_service_end_on,
+            contract.source_payment_cycle, confirmedPeriods, ChannelSalesValidation.BusinessDate(DateTime.UtcNow));
         var schedules = await db.RevenueSchedules.AsNoTracking().Where(x => x.ContractId == id)
             .OrderBy(x => x.DueOn).Select(x => new { id = x.Id, due_on = x.DueOn,
                 amount_due = x.AmountDue, amount_received = x.AmountReceived, status = x.Status }).ToArrayAsync(ct);
@@ -160,7 +211,9 @@ public static class AccountingContractEndpoints
         var selectedUnitIds = System.Text.Json.JsonSerializer.Deserialize<long[]>(contract.school_unit_ids_json ?? "[]") ?? [];
         var schoolUnits = await db.SchoolUnits.AsNoTracking().Where(x => selectedUnitIds.Contains(x.Id))
             .Select(x => new { id = x.Id, name = x.Name }).ToArrayAsync(ct);
-        return Results.Ok(new { data = contract, schedules, receipts, ledger, payouts, evidence, school_units = schoolUnits });
+        return Results.Ok(new { data = contract, schedules, receipts, ledger, payouts, evidence, school_units = schoolUnits,
+            timeline.current_period, timeline.next_confirmed_period, timeline.latest_confirmed_period,
+            timeline.previous_period, timeline.period_history });
     }
 
     public sealed record SetServiceTermRequest(

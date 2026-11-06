@@ -410,9 +410,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     </section>
     <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
       title="KIDSFIT CRM - CHI TIẾT HỢP ĐỒNG" description="Chi tiết hợp đồng kế toán">
-      {!detail ? <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p> : <div className="space-y-6 text-sm">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
+      {!detail ? <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p> : <div className="space-y-5 text-sm">
+        <div className="space-y-2 rounded-xl bg-muted/25 p-4 sm:p-5">
+          <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
           <h2 className="text-xl font-bold">{detail.data.school_name}</h2>
           <p className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
             <span>{[detail.data.school_address, detail.data.school_district, detail.data.school_province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</span>
@@ -422,15 +422,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           </p>
           <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>
           <Metric label="Nhà trường đã trả" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0))}/>
           <Metric label="Hoa hồng" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
           <Metric label="Hoa hồng đã chuyển" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
         </div>
-        <section className="space-y-3 border-t pt-5">
-          <h3 className="text-lg font-bold text-foreground">1. Thông tin hợp đồng</h3>
-          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+          <h3 className="text-base font-bold text-foreground">Thông tin hợp đồng</h3>
+          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&_dd]:break-words [&_dd]:leading-6 [&_dt]:text-xs">
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
             <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
@@ -442,7 +442,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
-          <section className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+          <section className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
             <h4 className="font-semibold">Kỳ sử dụng và tái ký đã xác nhận</h4>
             {detail.next_confirmed_period&&<p className="text-sm">
               <strong>Kỳ tiếp theo đã xác nhận · Chưa bắt đầu:</strong> {channelDate(detail.next_confirmed_period.start_on)} – {channelDate(detail.next_confirmed_period.end_on)}
@@ -468,16 +468,18 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
               <ExternalLink className="size-4 shrink-0" aria-hidden="true"/>
             </button>)}
           {detail.evidence.every(x=>x.kind!=='CONTRACT') && <p className="text-muted-foreground">Chưa có file hợp đồng đính kèm. {detail.data.evidence_reference ?? ''}</p>}
-          <h4 className="pt-2 font-semibold">Lịch thanh toán theo hợp đồng</h4>
+          </section>
+        <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+          <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>
           {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
           {detail.schedules.map(x=><div key={x.id} className="flex items-center justify-between gap-3 border-b py-2">
             <div><div>Hạn {channelDate(x.due_on)}</div><div className="text-xs text-muted-foreground">{x.status}</div></div>
             <div className="text-right tabular-nums">{channelMoney(x.amount_due)}<div className="text-xs text-muted-foreground">Đã trả {channelMoney(x.amount_received)}</div></div>
           </div>)}
         </section>
-        <section className="space-y-3 border-t pt-5">
+        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-bold text-foreground">2. Nhà trường thanh toán</h3>
+            <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
               onClick={()=>{setFieldErrors({});setAmountInput('');setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
@@ -511,9 +513,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             </table>
           </div>
         </section>
-        <section className="space-y-3 border-t pt-5">
+        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-bold text-foreground">3. Hoa hồng Sales</h3>
+            <h3 className="text-base font-bold text-foreground">Hoa hồng Sales</h3>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
               onClick={()=>{setFieldErrors({});setAmountInput(formatMoneyInput(String(detail.payouts.find(x=>x.status==='APPROVED')?.net_amount??'')));setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
             {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <div className="flex flex-wrap items-center gap-2">
@@ -649,5 +651,5 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
 }
 
 function Metric({ label, value }: {label:string;value:string}) {
-  return <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-lg font-bold tabular-nums">{value}</p></div>;
+  return <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm"><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-2 text-xl font-bold tabular-nums tracking-tight">{value}</p></div>;
 }

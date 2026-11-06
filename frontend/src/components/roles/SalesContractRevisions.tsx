@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { FileUp, RefreshCw, FileText } from 'lucide-react';
+import { paymentCycleForPlan } from '@/lib/contract-payment-plan';
 import { validateContract, type ContractField, type ContractErrors } from '@/lib/contract-validation';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -96,7 +97,6 @@ function RevisionEditor({
   const [signedOn, setSignedOn] = useState(original.signed_on.slice(0, 10));
   const [serviceStartOn,setServiceStartOn] = useState(original.service_start_on?.slice(0,10)??'');
   const [serviceEndOn,setServiceEndOn] = useState(original.service_end_on?.slice(0,10)??'');
-  const [paymentCycle,setPaymentCycle] = useState(original.payment_cycle === 'MONTHLY'?'MONTHLY':'YEARLY');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<ContractErrors>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +107,7 @@ function RevisionEditor({
     delete next[field];
     return next;
   });
+  const paymentCycle = paymentCycleForPlan(plan);
   const total = Number(maintenance) * (plan === 'MONTHLY_9' ? 9 : 1) + Number(setup);
   const validMoney = maintenance !== '' && setup !== '' &&
     Number.isSafeInteger(Number(maintenance)) && Number(maintenance) >= 0 &&
@@ -193,17 +194,9 @@ function RevisionEditor({
           {errors.service_end_on&&<span role="alert" className="text-xs text-red-700">{errors.service_end_on}</span>}
         </label>
       </div>
-      <label className="block space-y-1.5 text-sm">Chu kỳ thanh toán *
-        <select data-field="payment_cycle" value={paymentCycle}
-          onChange={e=>{setPaymentCycle(e.target.value);clearError('payment_cycle');}}
-          className="block h-10 w-full rounded-xl border bg-background px-3">
-          <option value="YEARLY">Theo năm</option><option value="MONTHLY">Theo tháng</option>
-        </select>
-        {errors.payment_cycle&&<span role="alert" className="text-xs text-red-700">{errors.payment_cycle}</span>}
-      </label>
     </fieldset>
     <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
+      <legend className="text-sm font-semibold">Gói dịch vụ & hình thức thanh toán *</legend>
       <label className="flex items-center gap-2 text-sm">
         <input type="radio" name="revision_payment_plan" checked={plan === 'SCHOOL_YEAR'}
           onChange={() => { setPlan('SCHOOL_YEAR'); clearError("service_plan"); }} />

@@ -62,6 +62,10 @@ public static class ContractExpiryAlertService
                 && db.OrganizationMemberships.Any(manager => manager.UserId == m.ManagerUserId.Value
                     && manager.OrganizationId == m.OrganizationId && manager.Status == "ACTIVE"))
             .Select(m => new { m.UserId, m.OrganizationId, m.ManagerUserId }).ToArrayAsync(ct);
+        var activeOrgMemberships = (await db.OrganizationMemberships.AsNoTracking()
+            .Where(m => m.Status == "ACTIVE")
+            .Select(m => new { m.UserId, m.OrganizationId }).ToArrayAsync(ct))
+            .Select(m => (m.UserId, m.OrganizationId)).ToHashSet();
         var activeUsers = (await (from user in db.Users.AsNoTracking()
             join member in db.OrganizationMemberships.AsNoTracking() on user.Id equals member.UserId
             join org in db.Organizations.AsNoTracking() on member.OrganizationId equals org.Id
@@ -85,15 +89,20 @@ public static class ContractExpiryAlertService
             }
             var serviceEnd = finalEnds.TryGetValue(contract.Id, out var confirmedEnd)
                 ? confirmedEnd : contract.ServiceEndOn;
-            var recipients = new HashSet<long> { contract.OwnerUserId };
-            if (contract.CareUserId.HasValue && contract.CareOrganizationId.HasValue)
+            var recipients = new HashSet<long>();
+            if (activeOrgMemberships.Contains((contract.OwnerUserId, contract.OwnerOrganizationId)))
+                recipients.Add(contract.OwnerUserId);
+            if (contract.CareUserId.HasValue && contract.CareOrganizationId.HasValue
+                && activeOrgMemberships.Contains((contract.CareUserId.Value, contract.CareOrganizationId.Value)))
                 recipients.Add(contract.CareUserId.Value);
             foreach (var manager in membership.Where(x => x.UserId == contract.OwnerUserId
                 && x.OrganizationId == contract.OwnerOrganizationId && x.ManagerUserId.HasValue))
                 recipients.Add(manager.ManagerUserId!.Value);
             recipients.IntersectWith(activeUsers);
 
-            var rightsRecipientsForContract = new HashSet<long> { contract.OwnerUserId };
+            var rightsRecipientsForContract = new HashSet<long>();
+            if (activeOrgMemberships.Contains((contract.OwnerUserId, contract.OwnerOrganizationId)))
+                rightsRecipientsForContract.Add(contract.OwnerUserId);
             foreach (var manager in membership.Where(x => x.UserId == contract.OwnerUserId
                 && x.OrganizationId == contract.OwnerOrganizationId && x.ManagerUserId.HasValue))
                 rightsRecipientsForContract.Add(manager.ManagerUserId!.Value);

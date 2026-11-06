@@ -188,6 +188,16 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             p.OwnerUserId == scenario.Seller.UserId && p.OwnerOrganizationId == source.OwnerOrganizationId &&
             p.EffectiveFrom <= DateTime.UtcNow && p.EffectiveUntil > DateTime.UtcNow),
             $"Grant missing current owner: {string.Join("; ", grant.Select(p => $"{p.SourceType}/{p.Status}/{p.OwnerUserId}/{p.OwnerOrganizationId}/{p.EffectiveFrom:O}/{p.EffectiveUntil:O}"))}");
+        Assert.Equal(scenario.Seller.UserId, source.OwnerUserId);
+        var ownerAccess = await ChannelSalesAccess.Load(db, scenario.Seller.UserId, Ct);
+        Assert.True(await ownerAccess.Contracts(db).AnyAsync(c => c.Id == contractId, Ct),
+            "The Sales owner must have read access to the verified source contract.");
+        var nowForSql = DateTime.UtcNow;
+        Assert.True(await db.CustomerProtections.AnyAsync(p => p.ContractId == contractId
+            && p.OwnerUserId == scenario.Seller.UserId && p.OwnerOrganizationId == source.OwnerOrganizationId
+            && p.SourceType == "CONTRACT" && p.Status == "ACTIVE"
+            && p.EffectiveFrom <= nowForSql && p.EffectiveUntil > nowForSql, Ct),
+            "SQL active protection query must find the owner.");
         var submitted = Json(await ContractRenewalEndpoints.Submit(contractId, request,
             Http(scenario.Seller.UserId), db, Ct));
         var renewalId = submitted.GetProperty("data").GetProperty("id").GetInt64();

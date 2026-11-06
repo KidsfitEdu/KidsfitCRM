@@ -269,6 +269,104 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(0, await db.ContractRenewals.CountAsync(x => x.ContractId == contractId && x.Status != "CONFIRMED", Ct));
     }
 
+
+    [Fact] public void ConfirmedFuturePeriodIsNotReportedAsCurrent()
+    {
+        var today = new DateOnly(2026, 11, 6);
+        var sourceStart = new DateOnly(2026, 1, 1);
+        var sourceEnd = new DateOnly(2026, 12, 31);
+        var first = new ContractRenewal {
+            ContractId = 1, RenewalNo = 1, Status = "CONFIRMED",
+            ServiceStartOn = new DateOnly(2027, 1, 1),
+            ServiceEndOn = new DateOnly(2027, 12, 31), PaymentCycle = "YEARLY"
+        };
+        var timeline = AccountingContractEndpoints.BuildTimeline(sourceStart, sourceEnd, "MONTHLY", [first], today);
+        Assert.Equal(sourceStart, timeline.current_period?.start_on);
+        Assert.Equal(first.ServiceStartOn, timeline.next_confirmed_period?.start_on);
+        Assert.Equal("MONTHLY", timeline.current_period?.payment_cycle);
+        Assert.Equal(2, timeline.period_history.Length);
+
+        var advanced = AccountingContractEndpoints.BuildTimeline(sourceStart, sourceEnd, "MONTHLY",
+            [first], new DateOnly(2027, 1, 1));
+        Assert.Equal(first.ServiceStartOn, advanced.current_period?.start_on);
+        Assert.Null(advanced.next_confirmed_period);
+
+        var gap = AccountingContractEndpoints.BuildTimeline(sourceStart, sourceEnd, "MONTHLY", [
+            new ContractRenewal {
+                ContractId = 1, RenewalNo = 1, Status = "CONFIRMED",
+                ServiceStartOn = new DateOnly(2027, 2, 1),
+                ServiceEndOn = new DateOnly(2028, 1, 31), PaymentCycle = "YEARLY",
+                GapReason = "Trường tạm ngừng sử dụng"
+            }
+        ], new DateOnly(2027, 1, 15));
+        Assert.Null(gap.current_period);
+        Assert.Equal(new DateOnly(2027, 2, 1), gap.next_confirmed_period?.start_on);
+        Assert.Equal(sourceEnd, gap.previous_period?.end_on);
+    }
+
+    [MySqlFact] public async Task ResubmitValidatesAnnualYearSourceOverlapAndGapBeforeAccounting()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        await using var db = fixture.Open();
+        var source = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        source.ServiceStartOn = today;
+        source.ServiceEndOn = today.AddYears(1).AddDays(-1);
+        source.PaymentCycle = "YEARLY";
+        await db.SaveChangesAsync(Ct);
+        var next = source.ServiceEndOn.Value.AddDays(1);
+        var end = next.AddYears(1).AddDays(-1);
+        var document = new FinancialEvidence {
+            Kind = "RENEWAL", UploadedByUserId = scenario.Seller.UserId,
+            FileName = "signed.pdf", MimeType = "application/pdf", Bytes = [37, 80, 68, 70, 45],
+            Sha256 = new string('D', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        db.FinancialEvidences.Add(document);
+        await db.SaveChangesAsync(Ct);
+        var submitted = Json(await ContractRenewalEndpoints.Submit(contractId,
+            new(Key(), today, next, end, "MONTHLY", 1_000_000, document.Id),
+            Http(scenario.Seller.UserId), db, Ct));
+        var id = submitted.GetProperty("data").GetProperty("id").GetInt64();
+        await ContractRenewalEndpoints.RequestInfo(id, new("Bổ sung hợp đồng"),
+            Http(accountant), db, Ct);
+        var replacement = new FinancialEvidence {
+            Kind = "RENEWAL", UploadedByUserId = scenario.Seller.UserId,
+            FileName = "revised.pdf", MimeType = "application/pdf", Bytes = [37, 80, 68, 70, 45],
+            Sha256 = new string('E', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        db.FinancialEvidences.Add(replacement);
+        await db.SaveChangesAsync(Ct);
+        var overlappingStart = source.ServiceEndOn.Value.AddDays(-30);
+        await Assert.ThrowsAsync<ApiValidationException>(() => ContractRenewalEndpoints.Resubmit(id,
+            new(Key(), today, overlappingStart, overlappingStart.AddYears(1).AddDays(-1),
+                "YEARLY", 1_000_000, replacement.Id),
+            Http(scenario.Seller.UserId), db, Ct));
+        var gapStart = next.AddDays(14);
+        var gapEnd = gapStart.AddYears(1).AddDays(-1);
+        await Assert.ThrowsAsync<ApiValidationException>(() => ContractRenewalEndpoints.Resubmit(id,
+            new(Key(), today, gapStart, gapEnd, "YEARLY", 1_000_000, replacement.Id),
+            Http(scenario.Seller.UserId), db, Ct));
+        await Assert.ThrowsAsync<ApiValidationException>(() => ContractRenewalEndpoints.Resubmit(id,
+            new(Key(), today, gapStart, gapEnd.AddDays(1), "YEARLY", 1_000_000,
+                replacement.Id, "Trường tạm ngưng"),
+            Http(scenario.Seller.UserId), db, Ct));
+        await ContractRenewalEndpoints.Resubmit(id,
+            new(Key(), today, gapStart, gapEnd, "YEARLY", 1_000_000,
+                replacement.Id, "Trường tạm ngưng sử dụng"),
+            Http(scenario.Seller.UserId), db, Ct);
+        await ContractRenewalEndpoints.Confirm(id, Http(accountant), db, Ct);
+        var persisted = await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == id, Ct);
+        Assert.Equal("CONFIRMED", persisted.Status);
+        Assert.Equal("Trường tạm ngưng sử dụng", persisted.GapReason);
+        var view = Json(await AccountingContractEndpoints.Detail(contractId, Http(accountant), db, Ct));
+        Assert.Equal(today.ToString("yyyy-MM-dd"),
+            view.GetProperty("current_period").GetProperty("start_on").GetString());
+        Assert.Equal(gapStart.ToString("yyyy-MM-dd"),
+            view.GetProperty("next_confirmed_period").GetProperty("start_on").GetString());
+    }
+
     [MySqlFact] public async Task ManagerInvitationInfersOrganizationAndDeadlineWithoutFormInputs()
     {
         var scenario = await Arrange();

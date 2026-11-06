@@ -1,6 +1,6 @@
 /** Shared client-side validation for initial reports and manager-requested corrections. */
 export type ContractField =
-  | 'signed_on' | 'service_plan' | 'student_count' | 'branch_count'
+  | 'signed_on' | 'service_start_on' | 'service_end_on' | 'payment_cycle' | 'service_plan' | 'student_count' | 'branch_count'
   | 'maintenance_fee' | 'setup_fee' | 'total_value' | 'contract_note' | 'contract_file';
 export type ContractErrors = Partial<Record<ContractField, string>>;
 
@@ -10,6 +10,9 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 export type ContractValidationInput = {
   signedOn: string;
+  serviceStartOn: string;
+  serviceEndOn: string;
+  paymentCycle: string;
   registeredOn?: string | null;
   plan: string;
   students: string;
@@ -31,6 +34,15 @@ export function validateContract(input: ContractValidationInput): ContractErrors
       input.signedOn > localBusinessDate() ||
       (input.registeredOn && input.signedOn < input.registeredOn.slice(0, 10)))
     errors.signed_on = 'Ngày ký hợp đồng không hợp lệ hoặc nằm ngoài thời gian được phép.';
+  const start = isoDate.test(input.serviceStartOn) ? new Date(input.serviceStartOn + 'T00:00:00Z') : null;
+  const end = isoDate.test(input.serviceEndOn) ? new Date(input.serviceEndOn + 'T00:00:00Z') : null;
+  if (!start || Number.isNaN(start.getTime()) || start.toISOString().slice(0,10) !== input.serviceStartOn)
+    errors.service_start_on = 'Vui lòng nhập ngày bắt đầu dịch vụ hợp lệ.';
+  if (!end || Number.isNaN(end.getTime()) || end.toISOString().slice(0,10) !== input.serviceEndOn ||
+      (start && end < start))
+    errors.service_end_on = 'Ngày kết thúc không được trước ngày bắt đầu dịch vụ.';
+  if (input.paymentCycle !== 'MONTHLY' && input.paymentCycle !== 'YEARLY')
+    errors.payment_cycle = 'Vui lòng chọn chu kỳ thanh toán hợp lệ.';
   if (input.plan !== 'SCHOOL_YEAR' && input.plan !== 'MONTHLY_9')
     errors.service_plan = 'Vui lòng chọn hình thức thanh toán.';
   if (!digits.test(input.students) || !Number.isSafeInteger(Number(input.students)) ||

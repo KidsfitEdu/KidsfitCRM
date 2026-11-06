@@ -31,6 +31,7 @@ type Detail = {
     id: number; contract_id: number; contract_code: string; school_name: string;
     school_address: string | null; school_province: string | null; sales_name: string;
     signed_on: string; total_value: number; service_plan: string | null; student_count: number | null;
+    service_start_on: string | null; service_end_on: string | null; payment_cycle: string | null;
     evidence_reference: string | null; contract_status: string; reconciliation_status: string;
     dispute_reason: string | null; can_verify: boolean; can_feedback: boolean;
   };
@@ -229,6 +230,9 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
               ['Ngày ký',channelDate(detail.data.signed_on)],
               ['Giá trị hợp đồng',channelMoney(detail.data.total_value)],
               ['Gói dịch vụ',detail.data.service_plan ?? 'Chưa khai báo'],
+              ['Ngày bắt đầu dịch vụ',detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
+              ['Ngày kết thúc dịch vụ',detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
+              ['Chu kỳ thanh toán',detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],
               ['Số học sinh',String(detail.data.student_count ?? 'Chưa khai báo')],
             ].map(([label,value]) => <div key={label} className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">{label}</p>

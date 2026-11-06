@@ -186,8 +186,11 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
              <ExternalLink className="size-4" aria-hidden="true"/>
            </button>):<p className="text-muted-foreground">Chưa có file đính kèm. {detail.data.evidence_reference??''}</p>}
          </section>
-         <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Trường điểm triển khai</h3>
-           <p>{detail.school_units.length?detail.school_units.map(x=>x.name).join(', '):'Chỉ trường chính / chưa khai báo'}</p>
+         <section className="space-y-2 border-t pt-4">
+           <h3 className="font-bold">Trường điểm / Phân hiệu triển khai</h3>
+           {detail.school_units.length > 0
+             ? <ul className="list-inside list-disc space-y-1">{detail.school_units.map(unit=><li key={unit.id}>{unit.name}</li>)}</ul>
+             : <p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
          </section>
          <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Lịch thanh toán</h3>
            {detail.installments.map((item,i)=><div key={i} className="flex justify-between gap-3 border-b py-2">

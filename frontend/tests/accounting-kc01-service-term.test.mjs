@@ -69,3 +69,18 @@ test('KC-01 backend validates the plan-cycle pairing without changing installmen
   assert.match(revision, /ContractServicePlanPolicy.RequireMatchingCycle\(contract.ServicePlan, contract.PaymentCycle\)/);
   assert.match(initial, /Payment schedules are created by Accounting/);
 });
+
+test('KC-01 Accounting separates signed original term from the currently active period', () => {
+  const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  const backend = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
+  for (const key of ['source_service_start_on', 'source_service_end_on', 'source_payment_cycle']) {
+    assert.match(ui, new RegExp('detail\\.data\\.' + key));
+    assert.ok(backend.includes(key + ' = c.'), key);
+  }
+  assert.match(ui, /Hợp đồng gốc · Chưa bắt đầu/);
+  assert.match(ui, /Kỳ tiếp theo đã xác nhận · Chưa bắt đầu/);
+  assert.match(ui, /Tạm gián đoạn giữa các kỳ dịch vụ/);
+  assert.match(ui, /periodLabel\\(period,detail\\.current_period,detail\\.next_confirmed_period/);
+  assert.match(ui, /next \\? \\x60Bắt đầu/);
+  assert.doesNotMatch(ui, /detail\\.current_period\\?channelDate\\(detail\\.current_period\\.start_on\\):'Không có kỳ đang sử dụng'/);
+});

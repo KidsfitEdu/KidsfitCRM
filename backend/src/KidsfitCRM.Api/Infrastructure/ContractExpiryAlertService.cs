@@ -163,16 +163,18 @@ public static class ContractExpiryAlertService
                 && x.Status == "OPEN").ToArrayAsync(ct);
             foreach (var item in open)
             {
-                if ((item.Kind.StartsWith("SERVICE_GAP_", StringComparison.Ordinal)
-                    || item.Kind == "SERVICE_INTERRUPTED")
-                    ? (!validGapStarts.Contains(item.MilestoneOn)
-                        || !recipients.Contains(item.RecipientUserId))
-                    : ((item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
-                    && (!serviceEnd.HasValue || item.MilestoneOn != serviceEnd.Value || !recipients.Contains(item.RecipientUserId)))
-                    || (item.Kind.StartsWith("PROTECTION_", StringComparison.Ordinal)
+                var isGap = item.Kind.StartsWith("SERVICE_GAP_", StringComparison.Ordinal)
+                    || item.Kind == "SERVICE_INTERRUPTED";
+                var obsoleteGap = isGap && (!validGapStarts.Contains(item.MilestoneOn)
+                    || !recipients.Contains(item.RecipientUserId));
+                var obsoleteService = !isGap && item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
+                    && (!serviceEnd.HasValue || item.MilestoneOn != serviceEnd.Value
+                        || !recipients.Contains(item.RecipientUserId));
+                var obsoleteProtection = item.Kind.StartsWith("PROTECTION_", StringComparison.Ordinal)
                     && (!protections.Any(p => p.ContractId == contract.Id
                         && BusinessDate(p.EffectiveUntil) == item.MilestoneOn)
-                        || !rightsRecipientsForContract.Contains(item.RecipientUserId)))))
+                        || !rightsRecipientsForContract.Contains(item.RecipientUserId));
+                if (obsoleteGap || obsoleteService || obsoleteProtection)
                 {
                     item.Status = "RESOLVED";
                     item.ResolvedAt = now;

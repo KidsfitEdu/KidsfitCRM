@@ -156,6 +156,119 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             x.Action == "RECORD_CONTRACT_SERVICE_TERM", Ct));
     }
 
+    [MySqlFact] public async Task RenewalGoesStraightToAccountingWithoutChangingOwnerOrFinancialLedger()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        await using var db = fixture.Open();
+        var source = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        var originalMoney = source.TotalValue;
+        var originalProtection = source.ProtectionUntil;
+        var initialLedgerCount = await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct);
+        var initialReceipts = await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct);
+        var initialSchedules = await db.RevenueSchedules.CountAsync(x => x.ContractId == contractId, Ct);
+        var start = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        source.ServiceStartOn = start;
+        source.ServiceEndOn = start.AddYears(1).AddDays(-1);
+        source.PaymentCycle = "MONTHLY";
+        await db.SaveChangesAsync(Ct);
+        var newStart = source.ServiceEndOn.Value.AddDays(1);
+        var newEnd = newStart.AddYears(1).AddDays(-1);
+        var evidence = new FinancialEvidence { Kind = "RENEWAL", UploadedByUserId = scenario.Seller.UserId,
+            FileName = "renewal.pdf", MimeType = "application/pdf", Bytes = [37,80,68,70,45],
+            Sha256 = new string('A', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        db.FinancialEvidences.Add(evidence);
+        await db.SaveChangesAsync(Ct);
+        var request = new ContractRenewalEndpoints.SubmitRequest(Key(), start,
+            newStart, newEnd, "YEARLY", 2_000_000m, evidence.Id);
+        var grant = await db.CustomerProtections.AsNoTracking().Where(p => p.ContractId == contractId).ToArrayAsync(Ct);
+        Assert.True(grant.Length > 0, "No contract protection after KIDSFIT grant.");
+        Assert.True(grant.Any(p => p.SourceType == "CONTRACT" && p.Status == "ACTIVE" &&
+            p.OwnerUserId == scenario.Seller.UserId && p.OwnerOrganizationId == source.OwnerOrganizationId &&
+            p.EffectiveFrom <= DateTime.UtcNow && p.EffectiveUntil > DateTime.UtcNow),
+            $"Grant missing current owner: {string.Join("; ", grant.Select(p => $"{p.SourceType}/{p.Status}/{p.OwnerUserId}/{p.OwnerOrganizationId}/{p.EffectiveFrom:O}/{p.EffectiveUntil:O}"))}");
+        Assert.Equal(scenario.Seller.UserId, source.OwnerUserId);
+        var ownerAccess = await ChannelSalesAccess.Load(db, scenario.Seller.UserId, Ct);
+        Assert.True(await ownerAccess.Contracts(db).AnyAsync(c => c.Id == contractId, Ct),
+            "The Sales owner must have read access to the verified source contract.");
+        var nowForSql = DateTime.UtcNow;
+        Assert.True(await db.CustomerProtections.AnyAsync(p => p.ContractId == contractId
+            && p.OwnerUserId == scenario.Seller.UserId && p.OwnerOrganizationId == source.OwnerOrganizationId
+            && p.SourceType == "CONTRACT" && p.Status == "ACTIVE"
+            && p.EffectiveFrom <= nowForSql && p.EffectiveUntil > nowForSql, Ct),
+            "SQL active protection query must find the owner.");
+        var submitted = Json(await ContractRenewalEndpoints.Submit(contractId, request,
+            Http(scenario.Seller.UserId), db, Ct));
+        var renewalId = submitted.GetProperty("data").GetProperty("id").GetInt64();
+        var listed = Json(await ContractRenewalEndpoints.Queue(Http(accountant), db,
+            null, "PENDING_ACCOUNTING", 1, 100, Ct));
+        Assert.Contains(listed.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == renewalId);
+        await ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct);
+        var renewal = await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == renewalId, Ct);
+        Assert.Equal("CONFIRMED", renewal.Status);
+        var current = Json(await AccountingContractEndpoints.Detail(contractId, Http(accountant), db, Ct))
+            .GetProperty("data");
+        Assert.Equal(newEnd.ToString("yyyy-MM-dd"), current.GetProperty("service_end_on").GetString());
+        Assert.Equal(source.ServiceEndOn.Value.ToString("yyyy-MM-dd"), current.GetProperty("source_service_end_on").GetString());
+        var unchanged = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+        Assert.Equal(originalMoney, unchanged.TotalValue);
+        Assert.Equal(originalProtection, unchanged.ProtectionUntil);
+        Assert.Equal(scenario.Seller.UserId, unchanged.OwnerUserId);
+        Assert.Equal(initialLedgerCount, await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(initialReceipts, await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(initialSchedules, await db.RevenueSchedules.CountAsync(x => x.ContractId == contractId, Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct));
+    }
+
+    [MySqlFact] public async Task RenewalReturnsToSalesAndResubmitsDirectlyWithoutCheckeeOrManager()
+    {
+        var s = await Arrange();
+        var contractId = await ActiveContract(s);
+        var accountant = (await AddMember(s.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        await using var db = fixture.Open();
+        var source = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        source.ServiceStartOn = today;
+        source.ServiceEndOn = today.AddYears(1).AddDays(-1);
+        source.PaymentCycle = "YEARLY";
+        await db.SaveChangesAsync(Ct);
+        var next = source.ServiceEndOn.Value.AddDays(1);
+        var last = next.AddYears(1).AddDays(-1);
+        var proof = new FinancialEvidence { Kind = "RENEWAL", UploadedByUserId = s.Seller.UserId,
+            FileName = "renew1.pdf", MimeType = "application/pdf", Bytes = [37,80,68,70,45],
+            Sha256 = new string('B', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        db.FinancialEvidences.Add(proof);
+        await db.SaveChangesAsync(Ct);
+        var request = new ContractRenewalEndpoints.SubmitRequest(Key(), today, next, last, "MONTHLY", 1_500_000, proof.Id);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => ContractRenewalEndpoints.Submit(
+            contractId, request, Http(s.Peer.UserId), db, Ct));
+        var first = Json(await ContractRenewalEndpoints.Submit(
+            contractId, request, Http(s.Seller.UserId), db, Ct));
+        var renewalId = first.GetProperty("data").GetProperty("id").GetInt64();
+        var replay = Json(await ContractRenewalEndpoints.Submit(
+            contractId, request, Http(s.Seller.UserId), db, Ct));
+        Assert.Equal(renewalId, replay.GetProperty("data").GetProperty("id").GetInt64());
+        await ContractRenewalEndpoints.RequestInfo(renewalId, new("Bổ sung chữ ký trên bản tái ký"),
+            Http(accountant), db, Ct);
+        Assert.Equal("NEEDS_INFO", (await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == renewalId)).Status);
+        var newProof = new FinancialEvidence { Kind = "RENEWAL", UploadedByUserId = s.Seller.UserId,
+            FileName = "renew1-signed.pdf", MimeType = "application/pdf", Bytes = [37,80,68,70,45],
+            Sha256 = new string('C', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        db.FinancialEvidences.Add(newProof);
+        await db.SaveChangesAsync(Ct);
+        await ContractRenewalEndpoints.Resubmit(renewalId,
+            new ContractRenewalEndpoints.SubmitRequest(Key(), today, next, last, "YEARLY", 1_500_000, newProof.Id),
+            Http(s.Seller.UserId), db, Ct);
+        await ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct);
+        Assert.Equal("CONFIRMED", (await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == renewalId)).Status);
+        Assert.Equal(4, await db.ContractRenewalEvents.CountAsync(x => x.ContractRenewalId == renewalId, Ct));
+        Assert.Equal(2, await db.FinancialEvidences.CountAsync(x => x.ContractRenewalId == renewalId, Ct));
+        Assert.Equal(0, await db.ContractRenewals.CountAsync(x => x.ContractId == contractId && x.Status != "CONFIRMED", Ct));
+    }
+
     [MySqlFact] public async Task ManagerInvitationInfersOrganizationAndDeadlineWithoutFormInputs()
     {
         var scenario = await Arrange();

@@ -16,7 +16,7 @@ public static class FinancialEvidenceEndpoints
         if (!http.Request.HasFormContentType) throw ApiValidationException.For("file", "Cần gửi form multipart có ảnh hoặc hợp đồng.");
         var form = await http.Request.ReadFormAsync(ct);
         var kind = form["kind"].ToString().Trim().ToUpperInvariant();
-        if (kind is not ("RECEIPT" or "PAYOUT" or "CONTRACT"))
+        if (kind is not ("RECEIPT" or "PAYOUT" or "CONTRACT" or "RENEWAL"))
             throw ApiValidationException.For("kind", "Loại chứng từ không hợp lệ.");
         var file = form.Files.GetFile("file") ?? throw ApiValidationException.For("file", "Thiếu tệp chứng từ.");
         if (file.Length <= 0 || file.Length > MaxBytes)
@@ -28,6 +28,10 @@ public static class FinancialEvidenceEndpoints
         if (kind == "CONTRACT")
         {
             if (!access.Has(Permissions.ChannelSalesReportContract)) return Results.Forbid();
+        }
+        else if (kind == "RENEWAL")
+        {
+            if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
         }
         else if (kind == "RECEIPT")
         {
@@ -53,8 +57,8 @@ public static class FinancialEvidenceEndpoints
         var webp = bytes.Length >= 12 && System.Text.Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF"
             && System.Text.Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP";
         var pdf = bytes.Length >= 5 && System.Text.Encoding.ASCII.GetString(bytes, 0, 5) == "%PDF-";
-        if (!(jpeg || png || webp || (kind == "CONTRACT" && pdf)))
-            throw ApiValidationException.For("file", kind == "CONTRACT"
+        if (!(jpeg || png || webp || ((kind == "CONTRACT" || kind == "RENEWAL") && pdf)))
+            throw ApiValidationException.For("file", kind is "CONTRACT" or "RENEWAL"
                 ? "Hợp đồng phải là PDF hoặc ảnh JPG/PNG/WEBP hợp lệ."
                 : "Chứng từ chuyển khoản phải là ảnh JPG/PNG/WEBP hợp lệ.");
         var mime = jpeg ? "image/jpeg" : png ? "image/png" : webp ? "image/webp" : "application/pdf";
@@ -81,6 +85,15 @@ public static class FinancialEvidenceEndpoints
             ?? throw new KeyNotFoundException();
         var permitted = proof.AttachedAt is null
             ? proof.UploadedByUserId == http.UserId()
+            : proof.ContractRenewalId.HasValue && proof.Kind == "RENEWAL"
+                ? access.Has(Permissions.ContractRenewalReview) &&
+                    await db.ContractRenewals.AnyAsync(r => r.Id == proof.ContractRenewalId.Value
+                        && access.Contracts(db).Any(c => c.Id == r.ContractId)
+                        && (access.All || (access.Organization &&
+                            db.SalesContracts.Any(c => c.Id == r.ContractId && access.OrganizationIds.Contains(c.OwnerOrganizationId)))), ct)
+                    || (proof.UploadedByUserId == access.UserId &&
+                        await db.ContractRenewals.AnyAsync(r => r.Id == proof.ContractRenewalId.Value
+                            && r.SubmittedByUserId == access.UserId, ct))
             : proof.PayoutId.HasValue && proof.Kind == "PAYOUT"
                 ? await access.Payouts(db).AnyAsync(x => x.Id == proof.PayoutId.Value, ct)
                 : proof.ContractId.HasValue

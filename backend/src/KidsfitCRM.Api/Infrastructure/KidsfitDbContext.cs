@@ -30,6 +30,8 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<PayoutItem> PayoutItems => Set<PayoutItem>();
     public DbSet<PayoutEvent> PayoutEvents => Set<PayoutEvent>();
     public DbSet<FinancialEvidence> FinancialEvidences => Set<FinancialEvidence>();
+    public DbSet<ContractRenewal> ContractRenewals => Set<ContractRenewal>();
+    public DbSet<ContractRenewalEvent> ContractRenewalEvents => Set<ContractRenewalEvent>();
     public DbSet<ReconciliationCase> ReconciliationCases => Set<ReconciliationCase>();
     public DbSet<ReconciliationEvent> ReconciliationEvents => Set<ReconciliationEvent>();
 
@@ -70,6 +72,23 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.RevenueReceiptId).IsUnique();
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.PayoutId);
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.ContractId);
+        modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.ContractRenewalId);
+        var renewal = modelBuilder.Entity<ContractRenewal>();
+        renewal.Property(x => x.Status).HasMaxLength(24);
+        renewal.Property(x => x.PaymentCycle).HasMaxLength(16);
+        renewal.Property(x => x.DecisionReason).HasMaxLength(1000);
+        renewal.Property(x => x.IdempotencyKey).HasMaxLength(120).UseCollation("utf8mb4_bin");
+        renewal.Property(x => x.RequestFingerprint).HasMaxLength(64).UseCollation("utf8mb4_bin");
+        renewal.HasIndex(x => x.IdempotencyKey).IsUnique();
+        renewal.HasIndex(x => new { x.ContractId, x.RenewalNo }).IsUnique();
+        renewal.HasIndex(x => new { x.Status, x.SubmittedAt });
+        DateOnlyProperty(renewal.Property(x => x.SignedOn));
+        DateOnlyProperty(renewal.Property(x => x.ServiceStartOn));
+        DateOnlyProperty(renewal.Property(x => x.ServiceEndOn));
+        Money<ContractRenewal>(modelBuilder, x => x.TotalValue);
+        modelBuilder.Entity<ContractRenewalEvent>().Property(x => x.EventType).HasMaxLength(32);
+        modelBuilder.Entity<ContractRenewalEvent>().Property(x => x.Reason).HasMaxLength(1000);
+        modelBuilder.Entity<ContractRenewalEvent>().HasIndex(x => new { x.ContractRenewalId, x.CreatedAt });
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => new { x.UploadedByUserId, x.CreatedAt });
         ConfigureSchools(modelBuilder);
         ConfigureSchoolOperations(modelBuilder);
@@ -245,6 +264,12 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<ApproachRegistration, ChannelCustomer>(x => x.CustomerId); Restrict<ApproachRegistration, User>(x => x.OwnerUserId); Restrict<ApproachRegistration, Organization>(x => x.OwnerOrganizationId); Restrict<ApproachRegistration, User>(x => x.CreatedByUserId);
         Restrict<CustomerActivity, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerActivity, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerActivity, User>(x => x.UserId);
         Restrict<SalesContract, ChannelCustomer>(x => x.CustomerId); Restrict<SalesContract, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<SalesContract, User>(x => x.OwnerUserId); Restrict<SalesContract, Organization>(x => x.OwnerOrganizationId); Restrict<SalesContract, User>(x => x.ReportedByUserId);
+        Restrict<ContractRenewal, SalesContract>(x => x.ContractId);
+        Restrict<ContractRenewal, User>(x => x.SubmittedByUserId);
+        Restrict<ContractRenewal, User>(x => x.ReviewedByUserId);
+        Restrict<ContractRenewalEvent, ContractRenewal>(x => x.ContractRenewalId);
+        Restrict<ContractRenewalEvent, User>(x => x.ActorUserId);
+        Restrict<FinancialEvidence, ContractRenewal>(x => x.ContractRenewalId);
         Restrict<SalesContractItem, SalesContract>(x => x.ContractId); Restrict<SalesContractItem, CheckeeProductPackage>(x => x.ProductPackageId);
         Restrict<CustomerProtection, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerProtection, User>(x => x.OwnerUserId); Restrict<CustomerProtection, Organization>(x => x.OwnerOrganizationId); Restrict<CustomerProtection, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerProtection, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, SalesContract>(x => x.ContractId);

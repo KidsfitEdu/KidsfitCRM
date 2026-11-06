@@ -124,6 +124,9 @@ public static class DatabaseSeeder
             (Permissions.SchoolWorkflowPolicyManage, "Xác nhận chính sách vận hành trường"),
             (Permissions.ChannelSalesContractCancel, "Ghi nhận quyết định hủy hợp đồng"),
             (Permissions.ChannelSalesRevenueRefund, "Ghi nhận khoản hoàn tiền thực tế"),
+            (Permissions.ContractRenewalSubmit, "Gửi hồ sơ tái ký trực tiếp kế toán"),
+            (Permissions.ContractRenewalReview, "Xem và yêu cầu bổ sung hồ sơ tái ký"),
+            (Permissions.ContractRenewalConfirm, "Xác nhận hoặc từ chối hồ sơ tái ký"),
         };
         var existingPermissionCodes = await db.Permissions.Where(x => x.Code.StartsWith("channel_sales.")).Select(x => x.Code).ToArrayAsync();
         db.Permissions.AddRange(channelPermissionSeeds.Where(x => !existingPermissionCodes.Contains(x.Code)).Select(x => new Permission
@@ -172,7 +175,8 @@ public static class DatabaseSeeder
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
         rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
-        rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund];
+        rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund, Permissions.ContractRenewalReview, Permissions.ContractRenewalConfirm];
+        rolePermissions["SALES"] = [.. rolePermissions["SALES"], Permissions.ContractRenewalSubmit];
         rolePermissions["CUSTOMER_SERVICE"] = [.. rolePermissions["CUSTOMER_SERVICE"], Permissions.SchoolSupportManage];
         rolePermissions["CHECKEE"] = [.. rolePermissions["CHECKEE"], Permissions.SchoolTechnicalSupportHandle];
         foreach (var bundle in rolePermissions)

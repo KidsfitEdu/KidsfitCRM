@@ -7,6 +7,7 @@ import { AppButton } from '@/components/common/buttons/app-button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';
 import { SalesIncomePage } from './SalesIncomePage';
+import { ContractRenewalSalesPanel } from './ContractRenewalSalesPanel';
 import type { RolePageProps } from '@/types/role-pages';
 
 type SalesSection = 'schools' | 'customers' | 'activities' | 'proposals' | 'income';
@@ -41,7 +42,7 @@ type Props = RolePageProps & {section: SalesSection};
 export function SalesFocusPage({section, ...props}: Props) {
   const {apiBase, token, abilities, workspace, onChanged, search, setSearch, salesWorkflow} = props;
   const proposalActionRef = useRef<{open: () => void} | null>(null);
-  const [subview, setSubview] = useState<'main' | 'invitations'>(() =>
+  const [subview, setSubview] = useState<'main' | 'invitations' | 'renewals'>(() =>
     salesWorkflow === 'invitations' ? 'invitations' : 'main'
   );
   useEffect(() => {
@@ -92,6 +93,8 @@ export function SalesFocusPage({section, ...props}: Props) {
           {[
             {id:'main',label:'Trường đang phụ trách',icon:UsersRound},
             {id:'invitations',label:'Chờ nhận phân bổ',icon:School},
+            ...(section==='customers' && can('channel_sales.renewal.submit')
+              ? [{id:'renewals',label:'Hợp đồng tái ký',icon:School}] : []),
           ].map(item => <button key={item.id} type="button" title={item.label}
             onClick={() => setSubview(item.id as typeof subview)}
             aria-current={subview === item.id ? 'page' : undefined}
@@ -103,7 +106,9 @@ export function SalesFocusPage({section, ...props}: Props) {
           </button>)}
         </div>
       </nav>}
-      {table}
+      {section==='customers' && subview==='renewals'
+        ? <ContractRenewalSalesPanel apiBase={apiBase} token={token} abilities={abilities}/>
+        : table}
     </section> : table}
     {section === 'customers' && !apiBase && <p className="text-xs text-muted-foreground">
       Dữ liệu xem trước không đại diện cho quyền sở hữu trường thực tế.

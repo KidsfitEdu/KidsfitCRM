@@ -82,9 +82,13 @@ public static class AccountingContractEndpoints
                               owner_name = owner.Name,
                               owner_user_id = contract.OwnerUserId,
                               verified_at = contract.VerifiedAt,
-                              service_start_on = contract.ServiceStartOn,
-                              service_end_on = contract.ServiceEndOn,
-                              payment_cycle = contract.PaymentCycle,
+                              // Latest confirmed renewal is the current service period; source contract remains immutable.
+                              service_start_on = db.ContractRenewals.Where(r => r.ContractId == contract.Id && r.Status == "CONFIRMED")
+                                  .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceStartOn).FirstOrDefault() ?? contract.ServiceStartOn,
+                              service_end_on = db.ContractRenewals.Where(r => r.ContractId == contract.Id && r.Status == "CONFIRMED")
+                                  .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceEndOn).FirstOrDefault() ?? contract.ServiceEndOn,
+                              payment_cycle = db.ContractRenewals.Where(r => r.ContractId == contract.Id && r.Status == "CONFIRMED")
+                                  .OrderByDescending(r => r.ServiceEndOn).Select(r => r.PaymentCycle).FirstOrDefault() ?? contract.PaymentCycle,
                               personnel_type = contract.OwnerPersonnelType,
                               total_value = contract.TotalValue,
                               received = db.RevenueReceipts.Where(x => x.ContractId == contract.Id && x.Status == "COMPLETED").Sum(x => (decimal?)x.Amount) ?? 0,
@@ -108,9 +112,14 @@ public static class AccountingContractEndpoints
                                   owner_name = owner.Name, owner_user_id = c.OwnerUserId,
                                   personnel_type = c.OwnerPersonnelType, signed_on = c.SignedOn,
                                   effective_on = c.EffectiveOn, status = c.Status, verified_at = c.VerifiedAt,
-                                  service_start_on = c.ServiceStartOn,
-                                  service_end_on = c.ServiceEndOn,
-                                  payment_cycle = c.PaymentCycle,
+                                  source_service_start_on = c.ServiceStartOn,
+                                  source_service_end_on = c.ServiceEndOn,
+                                  service_start_on = db.ContractRenewals.Where(r => r.ContractId == c.Id && r.Status == "CONFIRMED")
+                                      .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceStartOn).FirstOrDefault() ?? c.ServiceStartOn,
+                                  service_end_on = db.ContractRenewals.Where(r => r.ContractId == c.Id && r.Status == "CONFIRMED")
+                                      .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceEndOn).FirstOrDefault() ?? c.ServiceEndOn,
+                                  payment_cycle = db.ContractRenewals.Where(r => r.ContractId == c.Id && r.Status == "CONFIRMED")
+                                      .OrderByDescending(r => r.ServiceEndOn).Select(r => r.PaymentCycle).FirstOrDefault() ?? c.PaymentCycle,
                                   protection_until = db.CustomerProtections.Where(p =>
                                       p.ContractId == c.Id && p.SourceType == "CONTRACT" &&
                                       p.Status == "ACTIVE" && p.EffectiveUntil > DateTime.UtcNow)

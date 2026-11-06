@@ -271,6 +271,34 @@ public sealed class ReconciliationEvent : EntityBase
     public string? Reason { get; set; }
 }
 
+/// <summary>A separately accounted yearly renewal; never changes the original contract, protection or ledger.</summary>
+public sealed class ContractRenewal : EntityBase
+{
+    public long ContractId { get; set; }
+    public int RenewalNo { get; set; }
+    public string IdempotencyKey { get; set; } = "";
+    public string RequestFingerprint { get; set; } = "";
+    public long SubmittedByUserId { get; set; }
+    public DateOnly SignedOn { get; set; }
+    public DateOnly ServiceStartOn { get; set; }
+    public DateOnly ServiceEndOn { get; set; }
+    public string PaymentCycle { get; set; } = "YEARLY";
+    public decimal TotalValue { get; set; }
+    public string Status { get; set; } = "DRAFT";
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    public long? ReviewedByUserId { get; set; }
+    public string? DecisionReason { get; set; }
+}
+
+public sealed class ContractRenewalEvent : EntityBase
+{
+    public long ContractRenewalId { get; set; }
+    public long ActorUserId { get; set; }
+    public string EventType { get; set; } = "";
+    public string? Reason { get; set; }
+}
+
 /** Private, immutable proof bytes for a single contract, receipt or payout. Never expose in public URLs. */
 public sealed class FinancialEvidence : EntityBase
 {
@@ -278,6 +306,7 @@ public sealed class FinancialEvidence : EntityBase
     public long? ContractId { get; set; }
     public long? RevenueReceiptId { get; set; }
     public long? PayoutId { get; set; }
+    public long? ContractRenewalId { get; set; }
     public long UploadedByUserId { get; set; }
     public string FileName { get; set; } = "";
     public string MimeType { get; set; } = "";

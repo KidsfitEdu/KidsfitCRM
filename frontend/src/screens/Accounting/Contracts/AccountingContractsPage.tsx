@@ -5,7 +5,6 @@ import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCc
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
-import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -51,15 +50,15 @@ type Detail = {
   school_units: {id:number;name:string}[];
 };
 
-export function AccountingContractsPage({ apiBase, token, abilities }: {
+export function AccountingContractsPage({ apiBase, token, abilities, financialView }: {
   apiBase: string; token: string; abilities: string[]; onChanged: () => Promise<void>;
+  financialView: 'CURRENT' | 'HISTORY';
 }) {
   const [rows, setRows] = useState<ContractRow[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [ownerUserId, setOwnerUserId] = useState('ALL');
-  const [financialView, setFinancialView] = useState<'CURRENT' | 'HISTORY'>('CURRENT');
   const [owners, setOwners] = useState<{ id: number; name: string }[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -315,19 +314,7 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
     setPage(1);
   };
   return <div className="space-y-5">
-    <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Hợp đồng & hoa hồng"
-      description="Theo dõi hợp đồng đã được CHECKEE xác minh, doanh thu và hoa hồng theo người phụ trách." />
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
-    <fieldset className="flex flex-wrap gap-2" aria-label="Nhóm hợp đồng kế toán">
-      <Button type="button" variant={financialView === 'CURRENT' ? 'default' : 'outline'}
-        aria-pressed={financialView === 'CURRENT'} onClick={() => { setFinancialView('CURRENT'); setOwnerUserId('ALL'); setPage(1); }}>
-        Hợp đồng đã xác minh
-      </Button>
-      <Button type="button" variant={financialView === 'HISTORY' ? 'default' : 'outline'}
-        aria-pressed={financialView === 'HISTORY'} onClick={() => { setFinancialView('HISTORY'); setOwnerUserId('ALL'); setPage(1); }}>
-        Lịch sử tài chính
-      </Button>
-    </fieldset>
     <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
       <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="relative min-w-[190px] flex-1">
@@ -347,42 +334,54 @@ export function AccountingContractsPage({ apiBase, token, abilities }: {
         </AppButton>
       </form>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1160px] text-left text-sm">
-          <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white">
             <tr>
-              <th className="px-5 py-4">Nhà trường</th>
-              <th className="px-4 py-4">Phụ trách</th>
-              <th className="px-4 py-4">Hết hạn dịch vụ</th>
-              <th className="px-4 py-4">Trạng thái dịch vụ</th>
-              <th className="px-4 py-4 text-right">Giá trị hợp đồng</th>
-              <th className="px-4 py-4 text-right">Thực thu</th>
-              <th className="px-4 py-4 text-right">Hoa hồng</th>
-              <th className="px-5 py-4 text-center">Thao tác</th>
+              <th scope="col" className="px-5 py-3">Nhà trường</th>
+              <th scope="col" className="px-4 py-3">Phụ trách</th>
+              <th scope="col" className="px-4 py-3">Dịch vụ</th>
+              <th scope="col" className="px-4 py-3 text-right">Giá trị HĐ</th>
+              <th scope="col" className="px-4 py-3 text-right">Tài chính</th>
+              <th scope="col" className="px-5 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
-            {rows.map(row=><tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
-              <td className="px-5 py-4 align-middle">
-                <p className="font-semibold text-foreground">{row.school_name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
-              </td>
-              <td className="px-4 py-4 align-middle">
-                <p>{row.owner_name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
-              </td>
-              <td className="px-4 py-4 align-middle">{row.service_end_on?channelDate(row.service_end_on):'Chưa cập nhật'}</td>
-              <td className="px-4 py-4 align-middle">{serviceStatus(row.service_start_on,row.service_end_on,row.contract_status)}</td>
-              <td className="px-4 py-4 text-right align-middle tabular-nums">{channelMoney(row.total_value)}</td>
-              <td className="px-4 py-4 text-right align-middle tabular-nums">{channelMoney(row.received-row.refunded)}</td>
-              <td className="px-4 py-4 text-right align-middle font-semibold tabular-nums">{channelMoney(row.commission)}</td>
-              <td className="px-5 py-4 text-center align-middle">
-                <Button type="button" variant="outline" size="icon" onClick={()=>setSelected(row.id)}
-                  aria-label={`Xem chi tiết ${row.contract_code}`} title={`Xem hợp đồng ${row.contract_code}`}>
-                  <Eye className="size-4"/>
-                </Button>
-              </td>
-            </tr>)}
+            {rows.map(row => {
+              const status = serviceStatus(row.service_start_on, row.service_end_on, row.contract_status);
+              const statusTone = status === 'Còn hiệu lực'
+                ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
+                : status === 'Sắp hết hạn'
+                  ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300'
+                  : 'border-border bg-muted/50 text-muted-foreground';
+              return <tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
+                <td className="px-5 py-4 align-middle">
+                  <p className="font-semibold text-foreground">{row.school_name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Chờ KIDSFIT' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
+                </td>
+                <td className="px-4 py-4 align-middle">
+                  <p className="font-medium">{row.owner_name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}</p>
+                </td>
+                <td className="px-4 py-4 align-middle">
+                  <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${statusTone}`}>{status}</span>
+                  <p className="mt-1 text-xs text-muted-foreground">{row.service_end_on ? `Đến ${channelDate(row.service_end_on)}` : 'Chưa có hạn dịch vụ'}</p>
+                </td>
+                <td className="px-4 py-4 text-right align-middle tabular-nums font-medium">{channelMoney(row.total_value)}</td>
+                <td className="px-4 py-4 text-right align-middle tabular-nums">
+                  <p className="font-medium">{channelMoney(row.received - row.refunded)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Thực thu</p>
+                  <p className="mt-2 font-semibold">{channelMoney(row.commission)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Hoa hồng ghi nhận</p>
+                </td>
+                <td className="px-5 py-4 text-center align-middle">
+                  <Button type="button" variant="outline" size="icon" onClick={() => setSelected(row.id)}
+                    aria-label={`Xem chi tiết ${row.contract_code}`} title={`Xem hợp đồng ${row.contract_code}`}>
+                    <Eye className="size-4"/>
+                  </Button>
+                </td>
+              </tr>;
+            })}
           </tbody>
         </table>
       </div>

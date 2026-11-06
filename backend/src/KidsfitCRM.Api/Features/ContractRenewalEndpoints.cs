@@ -303,7 +303,7 @@ public static class ContractRenewalEndpoints
                 owner_name = owner.Name, r.RenewalNo, r.SignedOn, r.ServiceStartOn, r.ServiceEndOn,
                 r.PaymentCycle, r.TotalValue, r.GapReason, r.Status, r.DecisionReason, r.SubmittedAt,
                 source_service_start_on = c.ServiceStartOn, source_service_end_on = c.ServiceEndOn,
-                source_total_value = c.TotalValue } }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+                source_payment_cycle = c.PaymentCycle, source_total_value = c.TotalValue } }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         var evidence = await db.FinancialEvidences.AsNoTracking().Where(x => x.ContractRenewalId == id && x.AttachedAt != null)
             .OrderBy(x => x.CreatedAt).Select(x => new { id = x.Id, file_name = x.FileName,
                 uploaded_at = x.CreatedAt }).ToArrayAsync(ct);
@@ -312,7 +312,17 @@ public static class ContractRenewalEndpoints
             where e.ContractRenewalId == id
             orderby e.CreatedAt, e.Id
             select new { event_type = e.EventType, actor_name = u.Name, e.Reason, e.CreatedAt }).ToArrayAsync(ct);
-        return Results.Ok(new { renewal.data, evidence, events });
+        var confirmed = await db.ContractRenewals.AsNoTracking()
+            .Where(x => x.ContractId == renewal.data.ContractId && x.Status == "CONFIRMED")
+            .ToArrayAsync(ct);
+        var timeline = AccountingContractEndpoints.BuildTimeline(
+            renewal.data.source_service_start_on, renewal.data.source_service_end_on,
+            renewal.data.source_payment_cycle, confirmed, ChannelSalesValidation.BusinessDate(DateTime.UtcNow));
+        var precedingPeriod = timeline.period_history
+            .Where(x => x.end_on < renewal.data.ServiceStartOn)
+            .OrderByDescending(x => x.end_on).FirstOrDefault();
+        return Results.Ok(new { renewal.data, evidence, events,
+            preceding_period = precedingPeriod, timeline.current_period, timeline.next_confirmed_period });
     }
 
     private static async Task<IResult> Decide(long id, string action, string? reason,

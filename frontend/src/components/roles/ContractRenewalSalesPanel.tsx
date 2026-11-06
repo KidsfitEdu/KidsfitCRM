@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     return()=>{live=false;};
   },[apiBase,token,contractId]);
   const selected=eligible.find(x=>String(x.id)===contractId);
-  const send=async(e:FormEvent<HTMLFormElement>)=>{
+  const send=async(e:SyntheticEvent<HTMLFormElement>)=>{
     e.preventDefault();
     if(!contractId||!file||!start||!end||!signedOn||!amount){appNotice.error('Vui lòng nhập đầy đủ thông tin và hợp đồng đã ký.');return;}
     if(end<start){appNotice.error('Ngày kết thúc không thể trước ngày bắt đầu.');return;}
@@ -107,17 +107,17 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
       {selected&&(returnId!==null||!selected.pending)&&<form className="space-y-3 rounded-xl border p-4" onSubmit={send}>
         <h3 className="font-semibold">{returnId?'Gửi lại hồ sơ cần bổ sung':'Gửi hợp đồng tái ký'}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm">Ngày ký *<Input type="date" required value={signedOn} onChange={e=>setSignedOn(e.target.value)}/></label>
-          <label className="space-y-1 text-sm">Ngày bắt đầu dịch vụ *<Input type="date" required value={start} onChange={e=>setStart(e.target.value)}/></label>
-          <label className="space-y-1 text-sm">Ngày kết thúc theo hợp đồng *<Input type="date" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
-          <label className="space-y-1 text-sm">Chu kỳ thanh toán *
-            <select className="block w-full rounded-lg border bg-background p-2" value={cycle} onChange={e=>setCycle(e.target.value)}>
+          <label htmlFor="kc02-signed" className="space-y-1 text-sm">Ngày ký *<Input id="kc02-signed" type="date" required value={signedOn} onChange={e=>setSignedOn(e.target.value)}/></label>
+          <label htmlFor="kc02-start" className="space-y-1 text-sm">Ngày bắt đầu dịch vụ *<Input id="kc02-start" type="date" required value={start} onChange={e=>setStart(e.target.value)}/></label>
+          <label htmlFor="kc02-end" className="space-y-1 text-sm">Ngày kết thúc theo hợp đồng *<Input id="kc02-end" type="date" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
+          <label htmlFor="kc02-cycle" className="space-y-1 text-sm">Chu kỳ thanh toán *
+            <select id="kc02-cycle" className="block w-full rounded-lg border bg-background p-2" value={cycle} onChange={e=>setCycle(e.target.value)}>
               <option value="MONTHLY">Theo tháng</option><option value="YEARLY">Theo năm</option>
             </select>
           </label>
-          <label className="space-y-1 text-sm">Giá trị kỳ tái ký (VNĐ) *<Input type="number" min="1" step="1" required value={amount} onChange={e=>setAmount(e.target.value)}/></label>
-          <label className="space-y-1 text-sm">File hợp đồng đã ký (PDF hoặc ảnh, tối đa 5 MB) *
-            <Input type="file" accept=".pdf,image/jpeg,image/png,image/webp" required
+          <label htmlFor="kc02-amount" className="space-y-1 text-sm">Giá trị kỳ tái ký (VNĐ) *<Input id="kc02-amount" type="number" min="1" step="1" required value={amount} onChange={e=>setAmount(e.target.value)}/></label>
+          <label htmlFor="kc02-file" className="space-y-1 text-sm">File hợp đồng đã ký (PDF hoặc ảnh, tối đa 5 MB) *
+            <Input id="kc02-file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required
               onChange={e=>setFile(e.target.files?.[0]??null)}/>
           </label>
         </div>

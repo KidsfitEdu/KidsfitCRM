@@ -182,6 +182,12 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await db.SaveChangesAsync(Ct);
         var request = new ContractRenewalEndpoints.SubmitRequest(Key(), start,
             newStart, newEnd, "YEARLY", 2_000_000m, evidence.Id);
+        var grant = await db.CustomerProtections.AsNoTracking().Where(p => p.ContractId == contractId).ToArrayAsync(Ct);
+        Assert.True(grant.Length > 0, "No contract protection after KIDSFIT grant.");
+        Assert.True(grant.Any(p => p.SourceType == "CONTRACT" && p.Status == "ACTIVE" &&
+            p.OwnerUserId == scenario.Seller.UserId && p.OwnerOrganizationId == source.OwnerOrganizationId &&
+            p.EffectiveFrom <= DateTime.UtcNow && p.EffectiveUntil > DateTime.UtcNow),
+            $"Grant missing current owner: {string.Join("; ", grant.Select(p => $"{p.SourceType}/{p.Status}/{p.OwnerUserId}/{p.OwnerOrganizationId}/{p.EffectiveFrom:O}/{p.EffectiveUntil:O}"))}");
         var submitted = Json(await ContractRenewalEndpoints.Submit(contractId, request,
             Http(scenario.Seller.UserId), db, Ct));
         var renewalId = submitted.GetProperty("data").GetProperty("id").GetInt64();

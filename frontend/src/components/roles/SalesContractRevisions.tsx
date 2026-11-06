@@ -86,7 +86,7 @@ function RevisionEditor({
   onDone: () => Promise<void>; onClose: () => void;
 }) {
   const original = detail.data;
-  const [plan, setPlan] = useState(original.service_plan === 'MONTHLY_9' ? 'MONTHLY_9' : 'SCHOOL_YEAR');
+  const [plan, setPlan] = useState<'SCHOOL_YEAR' | 'MONTHLY_9'>(original.service_plan === 'MONTHLY_9' ? 'MONTHLY_9' : 'SCHOOL_YEAR');
   const [maintenance, setMaintenance] = useState(
     original.maintenance_fee === null ? '' : String(original.maintenance_fee));
   const [setup, setSetup] = useState(String(original.setup_fee ?? 0));

@@ -15,8 +15,10 @@ test('Accounting filters verified contracts with owner id and uses scoped owner 
   assert.match(ui, /owner\.id/);
   assert.match(ui, /value=\{String\(owner\.id\)\}/);
   assert.match(ui, /Tất cả người phụ trách/);
-  assert.match(ui, /Hợp đồng đã xác minh/);
-  assert.match(ui, /Lịch sử tài chính/);
+  const page = read('src/screens/Accounting/Revenue/RevenuePage.tsx');
+  assert.match(page, /id: 'contracts', label: 'Hợp đồng'/);
+  assert.match(page, /id: 'renewals', label: 'Hồ sơ tái ký'/);
+  assert.match(page, /id: 'history', label: 'Lịch sử tài chính'/);
   assert.doesNotMatch(ui, /<option value="SALES">Nhân viên<\/option>/);
   assert.doesNotMatch(ui, /<option value="COLLABORATOR">CTV<\/option>/);
 });

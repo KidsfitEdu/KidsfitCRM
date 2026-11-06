@@ -1,9 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Eye, RotateCcw, Search } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppPagination } from '@/components/common/app-pagination';
+import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
@@ -28,44 +31,83 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
  const [page,setPage]=useState(1);
  const [pageSize,setPageSize]=useState(20);
  const [total,setTotal]=useState(0);
- const [loading,setLoading]=useState(false);
+ const [loading, setLoading] = useState(true);
+ const [listError, setListError] = useState(false);
+ const [listRevision, setListRevision] = useState(0);
  const [selected,setSelected]=useState<number|null>(null);
- const [detail,setDetail]=useState<Detail|null>(null);
+ const [loadedDetail, setLoadedDetail] = useState<Detail | null>(null);
+ const [detailError, setDetailError] = useState(false);
+ const [detailRevision, setDetailRevision] = useState(0);
+ const detail = loadedDetail?.data.id === selected ? loadedDetail : null;
  const [reason,setReason]=useState('');
  const [action,setAction]=useState<'confirm'|'reject'|'request-info'|null>(null);
  const [saving,setSaving]=useState(false);
  const canReview=abilities.includes('channel_sales.renewal.review')||abilities.includes('*');
  const canConfirm=abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*');
- const load=useCallback(async()=>{
-   if(!apiBase||!token||!canReview)return;
+ const connected = Boolean(apiBase && token);
+ useEffect(() => {
+   if (!connected || !canReview) return;
+   let live = true;
+   const args = new URLSearchParams({ page: String(page), page_size: String(pageSize), status });
+   if (query) args.set('search', query);
    setLoading(true);
-   try{
-     const args=new URLSearchParams({page:String(page),page_size:String(pageSize),status});
-     if(query)args.set('search',query);
-     const result=await channelRequest<List>(apiBase,token,`/accounting/renewals?${args}`);
-     setRows(result.data);setTotal(result.total);
-   }catch(e){appNotice.error('Không tải được hồ sơ tái ký.',e instanceof Error?e.message:'Vui lòng thử lại.');}
-   finally{setLoading(false);}
- },[apiBase,token,canReview,page,pageSize,status,query]);
- useEffect(()=>{void load();},[load]);
- const read=useCallback(async(id:number)=>{
-   try{
-     const data=await channelRequest<Detail>(apiBase,token,`/accounting/renewals/${id}`);
-     setDetail(data);
-   }catch(e){appNotice.error('Không tải được chi tiết tái ký.',e instanceof Error?e.message:'Vui lòng thử lại.');}
- },[apiBase,token]);
- useEffect(()=>{if(selected!==null)void read(selected);else setDetail(null);},[selected,read]);
- const process=async()=>{
-   if(!selected||!action)return;
+   setListError(false);
+   void channelRequest<List>(apiBase, token, `/accounting/renewals?${args}`)
+     .then(result => {
+       if (!live) return;
+       const lastPage = Math.max(1, Math.ceil(result.total / pageSize));
+       if (page > lastPage) {
+         setPage(lastPage);
+         return;
+       }
+       setRows(result.data);
+       setTotal(result.total);
+     })
+     .catch(() => { if (live) setListError(true); })
+     .finally(() => { if (live) setLoading(false); });
+   return () => { live = false; };
+ }, [apiBase, token, connected, canReview, page, pageSize, status, query, listRevision]);
+
+ useEffect(() => {
+   if (!connected || !canReview || selected === null) return;
+   let live = true;
+   void channelRequest<Detail>(apiBase, token, `/accounting/renewals/${selected}`)
+     .then(result => { if (live) setLoadedDetail(result); })
+     .catch(() => { if (live) setDetailError(true); });
+   return () => { live = false; };
+ }, [apiBase, token, connected, canReview, selected, detailRevision]);
+
+ const selectRenewal = (id: number | null) => {
+   setLoadedDetail(null);
+   setDetailError(false);
+   setAction(null);
+   setReason('');
+   setSelected(id);
+ };
+
+ const resetFilters = () => {
+   setSearch('');
+   setQuery('');
+   setStatus('ALL');
+   setPage(1);
+ };
+
+ const process = async () => {
+   if (!detail || !action || saving || !canReview || detail.data.status !== 'PENDING_ACCOUNTING') return;
+   if (action !== 'request-info' && !canConfirm) return;
    if(action!=='confirm'&&!reason.trim()){appNotice.error('Cần nhập lý do xử lý hồ sơ.');return;}
    setSaving(true);
    try{
-     await channelRequest(apiBase,token,`/accounting/renewals/${selected}/${action}`,{
+     await channelRequest(apiBase,token,`/accounting/renewals/${detail.data.id}/${action}`,{
        method:'POST',...(action==='confirm'?{}:{body:JSON.stringify({reason:reason.trim()})})
      });
      appNotice.success(action==='confirm'?'Đã xác nhận kỳ dịch vụ tái ký.':
        action==='reject'?'Đã từ chối hồ sơ tái ký.':'Đã yêu cầu Sales bổ sung.');
-     setAction(null);setReason('');await read(selected);await load();
+     setAction(null);
+     setReason('');
+     setLoadedDetail(null);
+     setDetailRevision(value => value + 1);
+     setListRevision(value => value + 1);
    }catch(e){appNotice.error('Không xử lý được hồ sơ.',e instanceof Error?e.message:'Vui lòng thử lại.');}
    finally{setSaving(false);}
  };
@@ -85,58 +127,112 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
      window.addEventListener('pagehide',()=>URL.revokeObjectURL(uri),{once:true});
    }catch(e){tab.close();appNotice.error('Không mở được chứng từ.',e instanceof Error?e.message:'Vui lòng thử lại.');}
  };
- return <div className="min-w-0 space-y-4">
-   <p className="text-sm text-muted-foreground">Hồ sơ Sales gửi trực tiếp để Kế toán đối chiếu kỳ dịch vụ, giá trị và chứng từ trước khi xác nhận.</p>
-   {!canReview?<p role="alert">Tài khoản chưa có quyền xem hồ sơ tái ký.</p>:<>
-     <form className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 sm:p-5" onSubmit={e=>{e.preventDefault();setQuery(search.trim());setPage(1);}}>
-       <label htmlFor="kc02-search" className="min-w-[210px] flex-1 space-y-1 text-sm">Tìm trường / hợp đồng / Sales
-         <Input id="kc02-search" className="h-11 rounded-xl" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên trường hoặc mã hợp đồng"/>
-       </label>
-       <label htmlFor="kc02-status" className="w-full space-y-1 text-sm sm:w-52">Trạng thái
-         <select id="kc02-status" value={status} className="block h-11 w-full rounded-xl border bg-background px-3" onChange={e=>{setStatus(e.target.value);setPage(1);}}>
-           <option value="ALL">Tất cả</option><option value="PENDING_ACCOUNTING">Chờ Kế toán</option>
-           <option value="NEEDS_INFO">Cần bổ sung</option><option value="CONFIRMED">Đã xác nhận</option>
-           <option value="REJECTED">Đã từ chối</option>
-         </select>
-       </label>
-       <Button type="submit">Tìm kiếm</Button>
-       <Button type="button" variant="outline" onClick={()=>{setSearch('');setQuery('');setStatus('ALL');setPage(1);}}>Đặt lại bộ lọc</Button>
+ const hasFilters = Boolean(query || status !== 'ALL');
+
+ if (!canReview || !connected) {
+   return <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">
+     {!canReview ? 'Tài khoản chưa có quyền xem hồ sơ tái ký.' : 'Cần đăng nhập để tải hồ sơ tái ký.'}
+   </p>;
+ }
+
+ return <div className="min-w-0 space-y-5">
+   <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card" aria-label="Danh sách hồ sơ tái ký">
+     <form className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-4 sm:px-5"
+       onSubmit={event => { event.preventDefault(); setQuery(search.trim()); setPage(1); }}>
+       <div className="relative min-w-0 basis-full sm:min-w-[190px] sm:flex-1">
+         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+         <Input aria-label="Tìm theo tên trường, mã hợp đồng hoặc Sales phụ trách"
+           className="h-11 w-full rounded-xl pl-10" value={search} onChange={event => setSearch(event.target.value)}
+           placeholder="Tên trường, mã hợp đồng, Sales phụ trách..."/>
+       </div>
+       <AppNativeSelect aria-label="Lọc theo trạng thái hồ sơ" value={status} containerClassName="w-full sm:w-60"
+         onChange={event => { setStatus(event.target.value); setPage(1); }}>
+         <option value="ALL">Tất cả trạng thái</option>
+         {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+       </AppNativeSelect>
+       <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+       <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
+         aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>
+         <RotateCcw className="size-4" aria-hidden="true"/>
+       </AppButton>
      </form>
-     <div className="overflow-x-auto rounded-xl border border-border bg-card">
-       <table className="w-full min-w-[850px] text-left text-sm">
-         <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white"><tr>
-           <th className="px-4 py-3">Nhà trường / Hợp đồng gốc</th>
-           <th className="px-4 py-3">Sales phụ trách</th>
-           <th className="px-4 py-3">Kỳ tái ký</th>
-           <th className="px-4 py-3 text-right">Giá trị</th>
-           <th className="px-4 py-3">Trạng thái</th>
-           <th className="px-4 py-3">Thao tác</th>
-         </tr></thead>
-         <tbody>{rows.map(row=><tr key={row.id} className="border-t">
-           <td className="px-4 py-3"><p className="font-semibold">{row.school_name}</p>
-             <p className="text-xs text-muted-foreground">{row.contract_code} · Lần {row.renewal_no}</p></td>
-           <td className="px-4 py-3">{row.owner_name}</td>
-           <td className="px-4 py-3">{channelDate(row.service_start_on)} – {channelDate(row.service_end_on)}</td>
-           <td className="px-4 py-3 text-right tabular-nums">{channelMoney(row.total_value)}</td>
-           <td className="px-4 py-3"><span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${row.status==='CONFIRMED'?'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300':row.status==='PENDING_ACCOUNTING'?'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300':'border-border bg-muted/50 text-muted-foreground'}`}>{labels[row.status]??row.status}</span></td>
-           <td className="px-4 py-3"><Button variant="outline" size="sm" type="button" onClick={()=>setSelected(row.id)}>Xem chi tiết</Button></td>
-         </tr>)}</tbody>
+     <section className="overflow-x-auto" aria-label="Bảng hồ sơ tái ký" aria-busy={loading}>
+       <table className="w-full min-w-[900px] text-left text-sm">
+         <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white">
+           <tr>
+             <th scope="col" className="px-5 py-3">Nhà trường / Hợp đồng gốc</th>
+             <th scope="col" className="px-4 py-3">Sales phụ trách</th>
+             <th scope="col" className="px-4 py-3">Kỳ tái ký</th>
+             <th scope="col" className="px-4 py-3 text-right">Giá trị</th>
+             <th scope="col" className="px-4 py-3">Trạng thái</th>
+             <th scope="col" className="px-5 py-3 text-center">Thao tác</th>
+           </tr>
+         </thead>
+         <tbody className="divide-y divide-border/70">
+           {!loading && !listError && rows.map(row => {
+             const statusTone = row.status === 'CONFIRMED'
+               ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
+               : row.status === 'PENDING_ACCOUNTING'
+                 ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300'
+                 : 'border-border bg-muted/50 text-muted-foreground';
+             return <tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
+               <td className="px-5 py-4 align-middle">
+                 <p className="font-semibold text-foreground">{row.school_name}</p>
+                 <p className="mt-1 text-xs text-muted-foreground">{row.contract_code} · Lần {row.renewal_no}</p>
+               </td>
+               <td className="px-4 py-4 align-middle font-medium">{row.owner_name}</td>
+               <td className="px-4 py-4 align-middle">{channelDate(row.service_start_on)} – {channelDate(row.service_end_on)}</td>
+               <td className="px-4 py-4 text-right align-middle tabular-nums font-medium">{channelMoney(row.total_value)}</td>
+               <td className="px-4 py-4 align-middle">
+                 <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${statusTone}`}>{labels[row.status] ?? row.status}</span>
+               </td>
+               <td className="px-5 py-4 text-center align-middle">
+                 <Button type="button" variant="outline" size="icon" onClick={() => selectRenewal(row.id)}
+                   aria-label={`Xem hồ sơ tái ký lần ${row.renewal_no} của ${row.contract_code}`} title="Xem chi tiết hồ sơ">
+                   <Eye className="size-4" aria-hidden="true"/>
+                 </Button>
+               </td>
+             </tr>;
+           })}
+         </tbody>
        </table>
-       {!loading&&!rows.length&&<p className="p-8 text-center text-sm text-muted-foreground">Không có hồ sơ phù hợp.</p>}
-     </div>
-     <AppPagination page={page} pageSize={pageSize} total={total} onPageChange={setPage}
-       onPageSizeChange={size=>{setPageSize(size);setPage(1);}} itemLabel="hồ sơ tái ký" disabled={loading}/>
-     <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open){setSelected(null);setAction(null);setReason('');}}}
-       title="KẾ TOÁN - HỒ SƠ TÁI KÝ" description={detail?.data.school_name??'Xem hồ sơ tái ký'} wide>
-       {!detail?<p className="text-sm">Đang tải chi tiết...</p>:<div className="space-y-5 text-sm">
-         <div className="rounded-lg border p-3">
-           <h3 className="font-semibold">{detail.data.school_name}</h3>
-           <p className="text-muted-foreground">Hợp đồng gốc: {detail.data.contract_code} · Sales: {detail.data.owner_name}</p>
-           <p>Hạn dịch vụ gốc: {detail.data.source_service_end_on?channelDate(detail.data.source_service_end_on):'Chưa cập nhật'}</p>
-           <p>Giá trị hợp đồng gốc: {channelMoney(detail.data.source_total_value)}</p>
+     </section>
+     {loading ? <output className="block p-10 text-center text-sm text-muted-foreground">Đang tải hồ sơ tái ký...</output>
+       : listError ? <div role="alert" className="space-y-2 p-8 text-center text-sm">
+         <p>Không tải được danh sách hồ sơ tái ký.</p>
+         <Button type="button" variant="outline" onClick={() => setListRevision(value => value + 1)}>Thử lại</Button>
+       </div>
+         : rows.length === 0 && <output className="block p-10 text-center text-sm text-muted-foreground">
+           {hasFilters ? 'Không có hồ sơ phù hợp. Hãy thử bộ lọc khác.' : 'Chưa có hồ sơ tái ký.'}
+         </output>}
+     <AppPagination page={page} pageSize={pageSize} total={listError ? 0 : total} onPageChange={setPage}
+       onPageSizeChange={size => { setPageSize(size); setPage(1); }} itemLabel="hồ sơ tái ký"
+       showSummary={false} pageSizeOptions={[20, 50, 100]} disabled={loading || listError}/>
+   </section>
+   <AppDrawer wide compactAccountingHeader open={selected !== null}
+     onOpenChange={open => { if (!open && !saving) selectRenewal(null); }}
+     title="KIDSFIT CRM - CHI TIẾT TÁI KÝ" description="Chi tiết hồ sơ tái ký kế toán">
+     {detailError ? <div role="alert" className="space-y-2 text-sm">
+       <p>Không tải được chi tiết hồ sơ tái ký.</p>
+       <Button type="button" variant="outline" onClick={() => {
+         setDetailError(false);
+         setDetailRevision(value => value + 1);
+       }}>Thử lại</Button>
+     </div> : !detail ? <output className="block text-sm text-muted-foreground">Đang tải chi tiết...</output>
+       : <div className="space-y-6 text-sm">
+         <div className="space-y-1">
+           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hồ sơ tái ký · Lần {detail.data.renewal_no}</p>
+           <h2 className="text-xl font-bold">{detail.data.school_name}</h2>
          </div>
+         <section className="space-y-2 rounded-lg border border-border bg-muted/20 p-4">
+           <h3 className="font-semibold">Hợp đồng gốc</h3>
+           <p>Mã hợp đồng: {detail.data.contract_code}</p>
+           <p>Sales phụ trách: {detail.data.owner_name}</p>
+           <p>Hạn dịch vụ gốc: {detail.data.source_service_end_on ? channelDate(detail.data.source_service_end_on) : 'Chưa cập nhật'}</p>
+           <p>Giá trị hợp đồng gốc: {channelMoney(detail.data.source_total_value)}</p>
+         </section>
          <section className="space-y-2">
-           <h3 className="font-semibold">1. Thông tin tái ký lần {detail.data.renewal_no}</h3>
+           <h3 className="font-semibold">Kỳ tái ký đề xuất</h3>
            <p>Ngày ký: {channelDate(detail.data.signed_on)}</p>
            <p>Kỳ mới: {channelDate(detail.data.service_start_on)} – {channelDate(detail.data.service_end_on)}</p>
            <p>Thanh toán: {detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Theo năm'}</p>
@@ -145,17 +241,17 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
            {detail.data.decision_reason&&<p>Lý do xử lý: {detail.data.decision_reason}</p>}
          </section>
          <section className="space-y-2 border-t pt-4">
-           <h3 className="font-semibold">2. Chứng từ hợp đồng đã ký</h3>
+           <h3 className="font-semibold">Chứng từ hợp đồng đã ký</h3>
            {detail.evidence.map(e=><Button key={e.id} type="button" variant="outline" onClick={()=>void openProof(e.id,e.file_name)}>
              Xem {e.file_name}</Button>)}
            {detail.evidence.length===0&&<p role="alert">Thiếu chứng từ hợp đồng.</p>}
          </section>
          <section className="space-y-2 border-t pt-4">
-           <h3 className="font-semibold">3. Lịch sử xử lý</h3>
+           <h3 className="font-semibold">Lịch sử xử lý</h3>
            {detail.events.map((e,i)=><p key={i}>{channelDate(e.created_at)} · {e.actor_name} · {e.event_type}{e.reason?` · ${e.reason}`:''}</p>)}
          </section>
          {detail.data.status==='PENDING_ACCOUNTING'&&<section className="space-y-3 border-t pt-4">
-           <h3 className="font-semibold">4. Kế toán xử lý</h3>
+           <h3 className="font-semibold">Kế toán xử lý</h3>
            <div className="flex flex-wrap gap-2">
              <Button type="button" disabled={!canConfirm||saving} onClick={()=>{setAction('confirm');setReason('');}}>Xác nhận</Button>
              <Button type="button" variant="outline" disabled={saving} onClick={()=>{setAction('request-info');setReason('');}}>Yêu cầu bổ sung</Button>
@@ -171,7 +267,6 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
            </div>}
          </section>}
        </div>}
-     </AppDrawer>
-   </>}
+   </AppDrawer>
  </div>;
 }

@@ -1,3 +1,4 @@
+import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 'use client';
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
@@ -395,7 +396,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
             <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
-            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_plan==='SCHOOL_YEAR'?'Năm học':detail.data.service_plan==='MONTHLY_9'?'Thanh toán theo tháng':'Chưa khai báo'}</dd></div>
+            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{getServicePlanLabel(detail.data.service_plan)}</dd></div>
             <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?channelDate(detail.current_period.start_on):'Không có kỳ đang sử dụng'}</dd></div>
             <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?channelDate(detail.current_period.end_on):'Không có kỳ đang sử dụng'}</dd></div>
             <div><dt className="text-muted-foreground">Chu kỳ thanh toán</dt><dd className="mt-1 font-medium">{detail.current_period?.payment_cycle==='MONTHLY'?'Theo tháng':detail.current_period?.payment_cycle==='YEARLY'?'Theo năm':'Không có kỳ đang sử dụng'}</dd></div>

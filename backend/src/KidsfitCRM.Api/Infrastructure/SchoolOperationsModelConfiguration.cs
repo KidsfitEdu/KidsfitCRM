@@ -66,6 +66,8 @@ public sealed partial class KidsfitDbContext
         nt01.Property(x => x.Kind).HasMaxLength(40);
         nt01.Property(x => x.Status).HasMaxLength(24);
         nt01.Property(x => x.DeduplicationKey).HasMaxLength(180).UseCollation("utf8mb4_bin");
+        DateOnlyProperty(nt01.Property(x => x.DueOn));
+        DateOnlyProperty(nt01.Property(x => x.MilestoneOn));
         nt01.HasIndex(x => x.DeduplicationKey).IsUnique();
         nt01.HasIndex(x => new { x.RecipientUserId, x.Status, x.CreatedAt });
         nt01.HasIndex(x => new { x.ContractId, x.Status });

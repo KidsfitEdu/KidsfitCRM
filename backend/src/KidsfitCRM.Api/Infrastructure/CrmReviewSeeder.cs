@@ -118,6 +118,93 @@ internal static class CrmReviewSeeder
     private static string Fingerprint(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
+    private static DateTime ReviewServiceStart(DateTime now, string schoolCode)
+    {
+        // The second service year is near expiration for Sales, and recently expired for CTV.
+        var followingPeriod = now.AddDays(schoolCode == "SCH0001" ? 20 : -14);
+        return followingPeriod.AddYears(-2);
+    }
+
+    private static async Task SeedRenewalExamplesAsync(KidsfitDbContext db, SalesContract contract,
+        long accountantId, bool salesScenario, DateTime now)
+    {
+        // Leave pre-existing demo contracts without service dates and user-created renewals alone.
+        if (contract.Status != "ACTIVE" || contract.VerifiedAt is not DateTime verifiedAt ||
+            contract.ServiceEndOn is not DateOnly originalEnd ||
+            await db.ContractRenewals.AnyAsync(x => x.ContractId == contract.Id))
+            return;
+
+        var firstStart = originalEnd.AddDays(1);
+        var nextStart = firstStart.AddYears(1);
+        var firstSubmitted = firstStart.AddDays(-21);
+        var nextSubmitted = nextStart.AddDays(salesScenario ? -30 : 10);
+        if (nextSubmitted > DateOnly.FromDateTime(now.AddHours(7)) ||
+            firstSubmitted < DateOnly.FromDateTime(verifiedAt.AddHours(7)))
+            return;
+
+        var paymentCycle = salesScenario ? "MONTHLY" : "YEARLY";
+        var scenarios = new List<(string Status, DateOnly Start, DateOnly Submitted, string? Reason)>
+        {
+            ("CONFIRMED", firstStart, firstSubmitted, null)
+        };
+        if (salesScenario)
+            scenarios.Add(("PENDING_ACCOUNTING", nextStart, nextSubmitted, null));
+        else
+        {
+            scenarios.Add(("REJECTED", nextStart, nextSubmitted.AddDays(-8),
+                "Bản hợp đồng đính kèm ghi sai kỳ dịch vụ."));
+            scenarios.Add(("NEEDS_INFO", nextStart, nextSubmitted,
+                "Vui lòng bổ sung trang có chữ ký của nhà trường."));
+        }
+
+        // Synthetic PDF used to exercise authenticated file viewing in the Accounting drawer.
+        var proof = Convert.FromBase64String(
+            "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMTM5ID4+CnN0cmVhbQpCVCAvRjEgMjAgVGYgNTQgNzQ1IFRkIChLSURTRklUIENSTSAtIERFTU8gT05MWSkgVGogMCAtMzAgVGQgL0YxIDEyIFRmIChTeW50aGV0aWMgcmVuZXdhbCBhdHRhY2htZW50LiBObyBzaWduYXR1cmVzIG9yIGxlZ2FsIGVmZmVjdC4pIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjQxIDAwMDAwIG4gCjAwMDAwMDAzMTEgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo1MDEKJSVFT0YK");
+        var checksum = Convert.ToHexString(SHA256.HashData(proof));
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        for (var i = 0; i < scenarios.Count; i++)
+        {
+            var scenario = scenarios[i];
+            var submittedAt = scenario.Submitted.ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc);
+            var reviewedAt = scenario.Status == "PENDING_ACCOUNTING" ? (DateTime?)null : submittedAt.AddHours(2);
+            var key = $"review-renewal-{contract.ContractCode}-{i + 1}";
+            var renewal = new ContractRenewal
+            {
+                ContractId = contract.Id, RenewalNo = i + 1, IdempotencyKey = key,
+                RequestFingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key))),
+                SubmittedByUserId = contract.OwnerUserId,
+                SignedOn = scenario.Submitted, ServiceStartOn = scenario.Start,
+                ServiceEndOn = scenario.Start.AddYears(1).AddDays(-1), PaymentCycle = paymentCycle,
+                TotalValue = contract.TotalValue, Status = scenario.Status, SubmittedAt = submittedAt,
+                ReviewedAt = reviewedAt, ReviewedByUserId = reviewedAt.HasValue ? accountantId : null,
+                DecisionReason = scenario.Reason, CreatedAt = submittedAt, UpdatedAt = reviewedAt ?? submittedAt
+            };
+            db.ContractRenewals.Add(renewal);
+            await db.SaveChangesAsync();
+
+            db.FinancialEvidences.Add(new FinancialEvidence
+            {
+                ContractRenewalId = renewal.Id, Kind = "RENEWAL", UploadedByUserId = contract.OwnerUserId,
+                FileName = $"DEMO-{contract.ContractCode}-TAI-KY-{renewal.RenewalNo}.pdf",
+                MimeType = "application/pdf", Sha256 = checksum, Bytes = proof,
+                AttachedAt = submittedAt, CreatedAt = submittedAt, UpdatedAt = submittedAt
+            });
+            db.ContractRenewalEvents.Add(new ContractRenewalEvent
+            {
+                ContractRenewalId = renewal.Id, ActorUserId = contract.OwnerUserId,
+                EventType = "SUBMITTED", CreatedAt = submittedAt, UpdatedAt = submittedAt
+            });
+            if (reviewedAt is DateTime decisionAt)
+                db.ContractRenewalEvents.Add(new ContractRenewalEvent
+                {
+                    ContractRenewalId = renewal.Id, ActorUserId = accountantId, EventType = scenario.Status,
+                    Reason = scenario.Reason, CreatedAt = decisionAt, UpdatedAt = decisionAt
+                });
+        }
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+
     public static async Task SeedAsync(KidsfitDbContext db, IPasswordHasher<User> hasher,
         string sharedPassword, DateTime now, string contentRootPath)
     {
@@ -270,7 +357,7 @@ internal static class CrmReviewSeeder
             await db.SaveChangesAsync();
         }
 
-        var activeApproaches = new Dictionary<string, long>();
+        var activeApproaches = new Dictionary<string, ApproachRegistration>();
         foreach (var school in fixture.Schools.Where(x => x.Owner is not null))
         {
             var owner = school.Owner == "CTV" ? ctv : sales;
@@ -280,18 +367,19 @@ internal static class CrmReviewSeeder
             if (approach is null)
             {
                 var completed = school.ContractStatus == "ACTIVE";
+                var signedAt = completed ? ReviewServiceStart(now, school.Code).AddDays(-10) : now;
                 approach = new ApproachRegistration {
                     CustomerId = schoolKeys[school.Code].CustomerId,
                     OwnerUserId = owner.Id, OwnerOrganizationId = org.Id, CreatedByUserId = owner.Id,
                     Status = completed ? "CONVERTED" : "ACTIVE",
-                    RegisteredAt = completed ? now.AddDays(-25) : now.AddDays(-2),
-                    ProtectedUntil = completed ? now.AddDays(-20) : now.AddDays(3),
+                    RegisteredAt = completed ? signedAt.AddDays(-3) : now.AddDays(-2),
+                    ProtectedUntil = completed ? signedAt.AddDays(2) : now.AddDays(3),
                     Source = "REVIEW_FIXTURE", Note = "Tình huống giả lập phục vụ đánh giá CRM",
-                    IdempotencyKey = key, CreatedAt = now.AddDays(-25), UpdatedAt = now };
+                    IdempotencyKey = key, CreatedAt = completed ? signedAt.AddDays(-3) : now.AddDays(-2), UpdatedAt = now };
                 db.ApproachRegistrations.Add(approach);
                 await db.SaveChangesAsync();
             }
-            activeApproaches[school.Code] = approach.Id;
+            activeApproaches[school.Code] = approach;
             if (school.ContractStatus != "ACTIVE" &&
                 !await db.CustomerProtections.AnyAsync(x => x.ApproachRegistrationId == approach.Id))
                 db.CustomerProtections.Add(new CustomerProtection {
@@ -324,18 +412,25 @@ internal static class CrmReviewSeeder
             if (contract is null)
             {
                 var verified = school.ReconciliationStatus == "CONFIRMED";
-                var start = now.AddDays(-10);
+                var approach = activeApproaches[school.Code];
+                var active = school.ContractStatus == "ACTIVE";
+                var start = active ? approach.RegisteredAt.AddDays(13) : now.AddDays(-10);
+                var signedAt = active ? approach.RegisteredAt.AddDays(3) : now.AddDays(-20);
+                var serviceStart = DateOnly.FromDateTime(start.AddHours(7));
                 contract = new SalesContract {
                     CustomerId = schoolKeys[school.Code].CustomerId,
-                    ApproachRegistrationId = activeApproaches[school.Code],
+                    ApproachRegistrationId = approach.Id,
                     OwnerUserId = owner.Id, OwnerOrganizationId = org.Id,
                     OwnerPersonnelType = school.Owner == "CTV" ? "COLLABORATOR" : "SALES",
                     ReportedByUserId = owner.Id, ContractCode = contractCode,
-                    SignedOn = DateOnly.FromDateTime(now.AddDays(-20)),
+                    SignedOn = DateOnly.FromDateTime(signedAt.AddHours(7)),
+                    ServiceStartOn = active ? serviceStart : null,
+                    ServiceEndOn = active ? serviceStart.AddYears(1).AddDays(-1) : null,
+                    PaymentCycle = active ? school.Code == "SCH0001" ? "MONTHLY" : "YEARLY" : null,
                     TotalValue = school.ContractValue, Currency = "VND",
                     Status = school.ContractStatus!, StudentCount = school.StudentCount,
                     ServicePlan = "SCHOOL_YEAR", SchoolUnitIdsJson = "[]",
-                    ManagerReviewedAt = school.ContractStatus is "PENDING_REVIEW" or "NEEDS_REVISION" ? null : now.AddDays(-12),
+                    ManagerReviewedAt = school.ContractStatus is "PENDING_REVIEW" or "NEEDS_REVISION" ? null : start.AddDays(-2),
                     ManagerReviewedByUserId = school.ContractStatus is "PENDING_REVIEW" or "NEEDS_REVISION" ? null : directManager.Id,
                     RequiresSchoolVerification = true, VerifiedAt = verified ? start : null,
                     ProtectionStartsAt = school.ContractStatus == "ACTIVE" ? start : now,
@@ -344,7 +439,7 @@ internal static class CrmReviewSeeder
                     CareOrganizationId = school.ContractStatus == "ACTIVE" ? kidsfit.Id : null,
                     EvidenceReference = "Tình huống hợp đồng hư cấu; không phải bằng chứng ký kết thật",
                     IdempotencyKey = "review-contract-" + school.Code,
-                    CreatedAt = now.AddDays(-20), UpdatedAt = now };
+                    CreatedAt = signedAt, UpdatedAt = now };
                 db.SalesContracts.Add(contract);
                 await db.SaveChangesAsync();
                 db.SalesContractItems.Add(new SalesContractItem {
@@ -366,23 +461,24 @@ internal static class CrmReviewSeeder
             var caseRecord = await db.ReconciliationCases.SingleOrDefaultAsync(x => x.ContractId == contract.Id);
             if (caseRecord is null)
             {
+                var reviewAt = contract.ManagerReviewedAt ?? now.AddDays(-12);
                 caseRecord = new ReconciliationCase {
                     ContractId = contract.Id, CustomerId = contract.CustomerId,
                     CheckeeOrganizationId = checkee.Id,
                     Status = school.ReconciliationStatus ?? "AWAITING_MANAGER",
-                    OpenedAt = now.AddDays(-12),
-                    ResolvedAt = school.ReconciliationStatus == "CONFIRMED" ? now.AddDays(-10) : null,
+                    OpenedAt = reviewAt,
+                    ResolvedAt = contract.VerifiedAt,
                     CreatedAt = now, UpdatedAt = now };
                 db.ReconciliationCases.Add(caseRecord);
                 await db.SaveChangesAsync();
                 db.ReconciliationEvents.Add(new ReconciliationEvent {
                     ReconciliationCaseId = caseRecord.Id, ActorUserId = directManager.Id,
-                    EventType = "MANAGER_FORWARDED", CreatedAt = now.AddDays(-12), UpdatedAt = now });
+                    EventType = "MANAGER_FORWARDED", CreatedAt = reviewAt, UpdatedAt = now });
                 if (school.ReconciliationStatus == "CONFIRMED")
                     db.ReconciliationEvents.Add(new ReconciliationEvent {
                         ReconciliationCaseId = caseRecord.Id, ActorUserId = checkeeUser.Id,
                         EventType = "CONFIRMED", Reason = "Tình huống xác minh hợp đồng hư cấu",
-                        CreatedAt = now.AddDays(-10), UpdatedAt = now });
+                        CreatedAt = contract.VerifiedAt!.Value, UpdatedAt = now });
             }
             if (school.ContractStatus == "ACTIVE")
             {
@@ -457,6 +553,7 @@ internal static class CrmReviewSeeder
         {
             var contractCode = "REV-CONTRACT-" + school.Code;
             var contract = await db.SalesContracts.SingleAsync(x => x.ContractCode == contractCode);
+            await SeedRenewalExamplesAsync(db, contract, accountant.Id, school.Code == "SCH0001", now);
             var assignedCare = school.Code == "SCH0001" ? care : care2;
             if (!await db.ContractCareHandovers.AnyAsync(x => x.ContractId == contract.Id))
                 db.ContractCareHandovers.Add(new ContractCareHandover {
@@ -522,7 +619,7 @@ internal static class CrmReviewSeeder
                 Reason = fixture.Invitation.Reason,
                 IdempotencyKey = "review-invite-" + fixture.Invitation.SchoolCode,
                 CreatedAt = now, UpdatedAt = now });
-        var extensionApproachId = activeApproaches[fixture.Extension.SchoolCode];
+        var extensionApproachId = activeApproaches[fixture.Extension.SchoolCode].Id;
         if (!await db.SchoolExtensionRequests.AnyAsync(x => x.IdempotencyKey == "review-extension-" + fixture.Extension.SchoolCode))
         {
             var approach = await db.ApproachRegistrations.SingleAsync(x => x.Id == extensionApproachId);

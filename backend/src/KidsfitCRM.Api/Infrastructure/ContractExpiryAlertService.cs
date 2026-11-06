@@ -55,6 +55,12 @@ public static class ContractExpiryAlertService
             join member in db.OrganizationMemberships.AsNoTracking() on user.Id equals member.UserId
             join org in db.Organizations.AsNoTracking() on member.OrganizationId equals org.Id
             where user.Status == "ACTIVE" && member.Status == "ACTIVE" && org.Status == "ACTIVE"
+                && (from ur in db.UserRoles
+                    join rp in db.PermissionRoles on ur.RoleId equals rp.RoleId
+                    join permission in db.Permissions on rp.PermissionId equals permission.Id
+                    where ur.UserId == user.Id && (permission.Code == "channel_sales.customer.view"
+                        || permission.Code == "school_support.manage")
+                    select ur.UserId).Any()
             select user.Id).Distinct().ToArrayAsync(ct)).ToHashSet();
 
         var created = 0;
@@ -76,14 +82,17 @@ public static class ContractExpiryAlertService
                 recipients.Add(manager.ManagerUserId!.Value);
             recipients.IntersectWith(activeUsers);
 
-            var validKeys = new HashSet<string>(StringComparer.Ordinal);
+            var rightsRecipientsForContract = new HashSet<long> { contract.OwnerUserId };
+            foreach (var manager in membership.Where(x => x.UserId == contract.OwnerUserId
+                && x.OrganizationId == contract.OwnerOrganizationId && x.ManagerUserId.HasValue))
+                rightsRecipientsForContract.Add(manager.ManagerUserId!.Value);
+            rightsRecipientsForContract.IntersectWith(activeUsers);
             if (serviceEnd.HasValue)
             {
                 foreach (var (kind, due) in Milestones("SERVICE", serviceEnd.Value, today))
                 foreach (var recipient in recipients)
                 {
                     var key = $"nt01:{contract.Id}:service:{serviceEnd:yyyyMMdd}:{kind}:{recipient}";
-                    validKeys.Add(key);
                     created += await InsertAsync(db, contract.Id, recipient, kind, serviceEnd.Value, due, key, now, ct);
                 }
             }
@@ -91,14 +100,12 @@ public static class ContractExpiryAlertService
                 && p.OwnerUserId == contract.OwnerUserId))
             {
                 // Owner / direct manager only. CSKH does not receive sales-rights notifications.
-                var rightsRecipients = recipients.Where(x => x != contract.CareUserId ||
-                    x == contract.OwnerUserId).ToArray();
+                var rightsRecipients = rightsRecipientsForContract;
                 var expires = BusinessDate(protection.EffectiveUntil);
                 foreach (var (kind, due) in Milestones("PROTECTION", expires, today))
                 foreach (var recipient in rightsRecipients)
                 {
                     var key = $"nt01:{contract.Id}:protection:{expires:yyyyMMdd}:{kind}:{recipient}";
-                    validKeys.Add(key);
                     created += await InsertAsync(db, contract.Id, recipient, kind, expires, due, key, now, ct);
                 }
             }
@@ -108,12 +115,12 @@ public static class ContractExpiryAlertService
                 && x.Status == "OPEN").ToArrayAsync(ct);
             foreach (var item in open)
             {
-                if (item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
-                    && (!serviceEnd.HasValue || item.MilestoneOn != serviceEnd.Value || !recipients.Contains(item.RecipientUserId))
-                    || item.Kind.StartsWith("PROTECTION_", StringComparison.Ordinal)
+                if ((item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
+                    && (!serviceEnd.HasValue || item.MilestoneOn != serviceEnd.Value || !recipients.Contains(item.RecipientUserId)))
+                    || (item.Kind.StartsWith("PROTECTION_", StringComparison.Ordinal)
                     && (!protections.Any(p => p.ContractId == contract.Id
                         && BusinessDate(p.EffectiveUntil) == item.MilestoneOn)
-                        || !recipients.Contains(item.RecipientUserId)))
+                        || !rightsRecipientsForContract.Contains(item.RecipientUserId))))
                 {
                     item.Status = "RESOLVED";
                     item.ResolvedAt = now;

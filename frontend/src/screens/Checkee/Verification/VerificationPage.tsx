@@ -1,6 +1,6 @@
-import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 'use client';
 
+import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { useCallback, useEffect, useState } from 'react';
 import { BadgeCheck, Eye, FileText, MessageSquareWarning, ExternalLink } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';

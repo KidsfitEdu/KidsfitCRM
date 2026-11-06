@@ -17,7 +17,8 @@ type Contract = { id:number;school_name:string;sales_name:string;contract_code:s
 type ListResponse = {data:Contract[];total:number;page:number;page_size:number};
 type Detail = {
  data:{id:number;contract_code:string;school_name:string;school_address:string|null;school_province:string|null;
- sales_name:string;signed_on:string;total_value:number;status:string;service_plan:string|null;student_count:number|null;
+ sales_name:string;signed_on:string;total_value:number;status:string;service_plan:string|null;
+ service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;student_count:number|null;
  evidence_reference:string|null;can_review:boolean;can_return:boolean;can_resubmit:boolean;reconciliation_status:string|null};
  evidence:{id:number;file_name:string;mime_type:string;created_at:string}[];
  installments:{due_on:string;amount:number;status:string}[];
@@ -170,6 +171,9 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
          <div className="grid gap-3 sm:grid-cols-2">
            {[["Mã hợp đồng",detail.data.contract_code],["Ngày ký",channelDate(detail.data.signed_on)],
              ["Giá trị",channelMoney(detail.data.total_value)],["Gói dịch vụ",detail.data.service_plan||'Chưa khai báo'],
+             ["Bắt đầu dịch vụ",detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
+             ["Kết thúc dịch vụ",detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
+             ["Chu kỳ thanh toán",detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],
              ["Số học sinh",String(detail.data.student_count??'Chưa khai báo')]].map(([label,value])=>
              <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold">{value}</p></div>)}
          </div>

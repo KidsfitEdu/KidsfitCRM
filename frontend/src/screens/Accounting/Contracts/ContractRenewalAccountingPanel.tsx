@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppPagination } from '@/components/common/app-pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,16 +85,15 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
      window.addEventListener('pagehide',()=>URL.revokeObjectURL(uri),{once:true});
    }catch(e){tab.close();appNotice.error('Không mở được chứng từ.',e instanceof Error?e.message:'Vui lòng thử lại.');}
  };
- return <div className="space-y-5">
-   <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Hồ sơ tái ký"
-     description="Hồ sơ Sales gửi trực tiếp. Kế toán đối chiếu hợp đồng, kỳ dịch vụ, giá trị và chứng từ trước khi xác nhận."/>
+ return <div className="min-w-0 space-y-4">
+   <p className="text-sm text-muted-foreground">Hồ sơ Sales gửi trực tiếp để Kế toán đối chiếu kỳ dịch vụ, giá trị và chứng từ trước khi xác nhận.</p>
    {!canReview?<p role="alert">Tài khoản chưa có quyền xem hồ sơ tái ký.</p>:<>
-     <form className="flex flex-wrap items-end gap-2" onSubmit={e=>{e.preventDefault();setQuery(search.trim());setPage(1);}}>
-       <label htmlFor="kc02-search" className="space-y-1 text-sm">Tìm trường / hợp đồng / Sales
-         <Input id="kc02-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên trường hoặc mã hợp đồng"/>
+     <form className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 sm:p-5" onSubmit={e=>{e.preventDefault();setQuery(search.trim());setPage(1);}}>
+       <label htmlFor="kc02-search" className="min-w-[210px] flex-1 space-y-1 text-sm">Tìm trường / hợp đồng / Sales
+         <Input id="kc02-search" className="h-11 rounded-xl" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên trường hoặc mã hợp đồng"/>
        </label>
-       <label htmlFor="kc02-status" className="space-y-1 text-sm">Trạng thái
-         <select id="kc02-status" value={status} className="block w-full rounded-lg border bg-background p-2" onChange={e=>{setStatus(e.target.value);setPage(1);}}>
+       <label htmlFor="kc02-status" className="w-full space-y-1 text-sm sm:w-52">Trạng thái
+         <select id="kc02-status" value={status} className="block h-11 w-full rounded-xl border bg-background px-3" onChange={e=>{setStatus(e.target.value);setPage(1);}}>
            <option value="ALL">Tất cả</option><option value="PENDING_ACCOUNTING">Chờ Kế toán</option>
            <option value="NEEDS_INFO">Cần bổ sung</option><option value="CONFIRMED">Đã xác nhận</option>
            <option value="REJECTED">Đã từ chối</option>
@@ -104,9 +102,9 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
        <Button type="submit">Tìm kiếm</Button>
        <Button type="button" variant="outline" onClick={()=>{setSearch('');setQuery('');setStatus('ALL');setPage(1);}}>Đặt lại bộ lọc</Button>
      </form>
-     <div className="overflow-x-auto rounded-xl border">
-       <table className="w-full min-w-[970px] text-left text-sm">
-         <thead className="bg-[#1b5e20] text-xs uppercase text-white"><tr>
+     <div className="overflow-x-auto rounded-xl border border-border bg-card">
+       <table className="w-full min-w-[850px] text-left text-sm">
+         <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white"><tr>
            <th className="px-4 py-3">Nhà trường / Hợp đồng gốc</th>
            <th className="px-4 py-3">Sales phụ trách</th>
            <th className="px-4 py-3">Kỳ tái ký</th>
@@ -120,7 +118,7 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
            <td className="px-4 py-3">{row.owner_name}</td>
            <td className="px-4 py-3">{channelDate(row.service_start_on)} – {channelDate(row.service_end_on)}</td>
            <td className="px-4 py-3 text-right tabular-nums">{channelMoney(row.total_value)}</td>
-           <td className="px-4 py-3">{labels[row.status]??row.status}</td>
+           <td className="px-4 py-3"><span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${row.status==='CONFIRMED'?'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300':row.status==='PENDING_ACCOUNTING'?'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300':'border-border bg-muted/50 text-muted-foreground'}`}>{labels[row.status]??row.status}</span></td>
            <td className="px-4 py-3"><Button variant="outline" size="sm" type="button" onClick={()=>setSelected(row.id)}>Xem chi tiết</Button></td>
          </tr>)}</tbody>
        </table>

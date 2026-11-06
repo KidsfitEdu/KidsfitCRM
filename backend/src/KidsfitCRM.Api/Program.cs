@@ -185,6 +185,9 @@ public static class Permissions
     public const string SchoolWorkflowPolicyManage = "channel_sales.school.workflow_policy.manage";
     public const string ChannelSalesContractCancel = "channel_sales.contract.cancel";
     public const string ChannelSalesRevenueRefund = "channel_sales.revenue.refund";
+    public const string ContractRenewalSubmit = "channel_sales.renewal.submit";
+    public const string ContractRenewalReview = "channel_sales.renewal.review";
+    public const string ContractRenewalConfirm = "channel_sales.renewal.confirm";
     public static readonly string[] SchoolOperations = [SchoolProposalSubmit, SchoolProposalReview, SchoolAllocationManage, SchoolExtensionReview,
         SchoolDisputeResolve, SchoolEscalationResolve, SchoolHandoverManage, SchoolCareAssign, SchoolSupportManage, SchoolTechnicalSupportHandle, SchoolWorkflowPolicyManage,
         ChannelSalesContractCancel, ChannelSalesRevenueRefund];

@@ -1,22 +1,48 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { ContractRenewalAccountingPanel } from '../Contracts/ContractRenewalAccountingPanel';
-
-import type { RolePageProps } from '@/types/role-pages';
 import { AccountingContractsPage } from '../Contracts/AccountingContractsPage';
+import type { RolePageProps } from '@/types/role-pages';
 
-/** Accounting contracts, receipts and commission overview; financial writes remain permission gated. */
+type AccountingTab = 'contracts' | 'renewals' | 'history';
+
+const tabs: { id: AccountingTab; label: string }[] = [
+  { id: 'contracts', label: 'Hợp đồng' },
+  { id: 'renewals', label: 'Hồ sơ tái ký' },
+  { id: 'history', label: 'Lịch sử tài chính' },
+];
+
+/** Shared Accounting page shell; tabs do not change financial permissions or API behavior. */
 export function RevenuePage({ apiBase, token, onChanged, abilities }: RolePageProps) {
-  // A dedicated inbox uses the existing Accounting route; financial contract tabs remain untouched.
-  const [renewals,setRenewals] = useState(false);
-  return <div className="space-y-4">
-    <nav aria-label="Nhóm hồ sơ Kế toán" className="flex flex-wrap gap-2">
-      <Button type="button" variant={!renewals?'default':'outline'} aria-pressed={!renewals} onClick={()=>setRenewals(false)}>Hợp đồng & hoa hồng</Button>
-      <Button type="button" variant={renewals?'default':'outline'} aria-pressed={renewals} onClick={()=>setRenewals(true)}>Hồ sơ tái ký</Button>
+  const [tab, setTab] = useState<AccountingTab>('contracts');
+
+  return <div className="min-w-0 space-y-5">
+    <AppPageHeader
+      eyebrow="KẾ TOÁN / KIDSFIT CRM"
+      title="Hợp đồng & hoa hồng"
+      description="Quản lý hợp đồng đã xác minh, hồ sơ tái ký, doanh thu và hoa hồng theo người phụ trách."
+    />
+    <nav aria-label="Chức năng Kế toán" className="flex flex-wrap gap-x-6 gap-y-1 border-b border-border">
+      {tabs.map(item => <button
+        key={item.id}
+        type="button"
+        aria-current={tab === item.id ? 'page' : undefined}
+        onClick={() => setTab(item.id)}
+        className={`-mb-px border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${tab === item.id
+          ? 'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
+          : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}
+      >{item.label}</button>)}
     </nav>
-    {renewals?<ContractRenewalAccountingPanel apiBase={apiBase} token={token} abilities={abilities}/>:
-      <AccountingContractsPage apiBase={apiBase} token={token} onChanged={onChanged} abilities={abilities}/>}
+    {tab === 'renewals'
+      ? <ContractRenewalAccountingPanel apiBase={apiBase} token={token} abilities={abilities}/>
+      : <AccountingContractsPage
+          apiBase={apiBase}
+          token={token}
+          onChanged={onChanged}
+          abilities={abilities}
+          financialView={tab === 'history' ? 'HISTORY' : 'CURRENT'}
+        />}
   </div>;
 }

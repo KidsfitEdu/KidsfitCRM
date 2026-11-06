@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, Minus, Plus, RotateCcw, X, ZoomIn } from 'lucide-react';
+import { Download, Minus, RotateCcw, X, ZoomIn } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 

@@ -115,6 +115,47 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             verifiedContract, Http(accountant), db, Ct)).GetProperty("data").GetProperty("id").GetInt64());
     }
 
+    [MySqlFact] public async Task AccountantRecordsServiceTermWithoutRepricingOrExtendingProtection()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        await using var db = fixture.Open();
+        var before = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+        var originalTotal = before.TotalValue;
+        var originalPlan = before.ServicePlan;
+        var originalProtection = before.ProtectionUntil;
+        var originalSchedules = await db.RevenueSchedules.Where(x => x.ContractId == contractId)
+            .Select(x => new { x.DueOn, x.AmountDue }).ToArrayAsync(Ct);
+        Assert.Null(before.ServiceStartOn);
+        Assert.Null(before.ServiceEndOn);
+        Assert.Null(before.PaymentCycle);
+
+        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        var start = today;
+        var end = today.AddYears(1).AddDays(-1);
+        await AccountingContractEndpoints.SetServiceTerm(contractId,
+            new(start, end, "MONTHLY"), Http(accountant), db, Ct);
+        var detail = Json(await AccountingContractEndpoints.Detail(contractId, Http(accountant), db, Ct))
+            .GetProperty("data");
+        Assert.Equal(start.ToString("yyyy-MM-dd"), detail.GetProperty("service_start_on").GetString());
+        Assert.Equal(end.ToString("yyyy-MM-dd"), detail.GetProperty("service_end_on").GetString());
+        Assert.Equal("MONTHLY", detail.GetProperty("payment_cycle").GetString());
+        var modified = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+        Assert.Equal(originalTotal, modified.TotalValue);
+        Assert.Equal(originalPlan, modified.ServicePlan);
+        Assert.Equal(originalProtection, modified.ProtectionUntil);
+        var afterSchedules = await db.RevenueSchedules.Where(x => x.ContractId == contractId)
+            .Select(x => new { x.DueOn, x.AmountDue }).ToArrayAsync(Ct);
+        Assert.Equal(originalSchedules, afterSchedules);
+        await AccountingContractEndpoints.SetServiceTerm(contractId,
+            new(start, end, "MONTHLY"), Http(accountant), db, Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() => AccountingContractEndpoints.SetServiceTerm(
+            contractId, new(start, end.AddDays(1), "YEARLY"), Http(accountant), db, Ct));
+        Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityId == contractId &&
+            x.Action == "RECORD_CONTRACT_SERVICE_TERM", Ct));
+    }
+
     [MySqlFact] public async Task ManagerInvitationInfersOrganizationAndDeadlineWithoutFormInputs()
     {
         var scenario = await Arrange();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { Plus, School, UsersRound } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
@@ -20,7 +20,7 @@ const copy: Record<SalesSection, {title:string;description:string}> = {
   },
   customers: {
     title: 'Trường của tôi',
-    description: 'Hồ sơ trường, cập nhật tư vấn và lịch sử tiếp cận.',
+    description: 'Quản lý trường đang phụ trách, tiếp nhận phân bổ và hồ sơ hợp đồng tái ký.',
   },
   activities: {
     title: 'Tiếp cận & tư vấn',
@@ -84,27 +84,22 @@ export function SalesFocusPage({section, ...props}: Props) {
         className="h-10 rounded-lg px-4"
         leadingIcon={<Plus className="size-4" aria-hidden="true"/>}
         onClick={() => proposalActionRef.current?.open()}>Thêm mới</AppButton> : undefined}/>
-    {contained ? <section className={section === 'customers'
-      ? 'min-w-0 bg-white dark:bg-card'
-      : 'min-w-0 bg-white dark:bg-card'}>
+    {contained ? <section className="min-w-0 space-y-5">
       {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
-        className="flex w-full items-end border-b border-border/70 bg-white px-4 dark:bg-card sm:px-5">
-        <div className="flex w-full items-end gap-3 sm:gap-5 lg:w-[30%]">
-          {[
-            {id:'main',label:'Trường đang phụ trách',icon:UsersRound},
-            {id:'invitations',label:'Chờ nhận phân bổ',icon:School},
-            ...(section==='customers' && can('channel_sales.renewal.submit')
-              ? [{id:'renewals',label:'Hợp đồng tái ký',icon:School}] : []),
-          ].map(item => <button key={item.id} type="button" title={item.label}
-            onClick={() => setSubview(item.id as typeof subview)}
-            aria-current={subview === item.id ? 'page' : undefined}
-            className={`flex min-h-12 min-w-0 flex-1 items-center justify-center gap-1.5 border-b-[3px] bg-transparent px-1 pt-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary sm:text-sm lg:text-[12px] xl:text-[13px] ${subview === item.id
-              ? 'border-[#1b5e20] font-semibold text-[#1b5e20] dark:border-[#a5d6a7] dark:text-[#a5d6a7]'
-              : 'border-transparent font-medium text-muted-foreground hover:border-[#1b5e20]/35 hover:text-[#1b5e20] dark:hover:text-[#a5d6a7]'}`}>
-            <item.icon className="size-3.5 shrink-0" aria-hidden="true"/>
-            <span className="min-w-0 leading-snug">{item.label}</span>
-          </button>)}
-        </div>
+        className="flex flex-wrap gap-x-6 gap-y-1 border-b border-border bg-transparent">
+        {[
+          {id:'main',label:'Trường đang phụ trách'},
+          {id:'invitations',label:'Chờ nhận phân bổ'},
+          ...(section==='customers' && can('channel_sales.renewal.submit')
+            ? [{id:'renewals',label:'Hợp đồng tái ký'}] : []),
+        ].map(item => <button key={item.id} type="button"
+          onClick={() => setSubview(item.id as typeof subview)}
+          aria-current={subview === item.id ? 'page' : undefined}
+          className={`-mb-px border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${subview === item.id
+            ? 'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
+            : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
+          {item.label}
+        </button>)}
       </nav>}
       {section==='customers' && subview==='renewals'
         ? <ContractRenewalSalesPanel apiBase={apiBase} token={token} abilities={abilities}/>

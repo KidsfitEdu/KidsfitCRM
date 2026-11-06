@@ -29,6 +29,10 @@ public static class FinancialEvidenceEndpoints
         {
             if (!access.Has(Permissions.ChannelSalesReportContract)) return Results.Forbid();
         }
+        else if (kind == "RENEWAL")
+        {
+            if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
+        }
         else if (kind == "RECEIPT")
         {
             if (!access.Has(Permissions.ChannelSalesRecordRevenue)) return Results.Forbid();

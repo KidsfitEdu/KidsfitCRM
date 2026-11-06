@@ -175,7 +175,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         await Assert.ThrowsAsync<ApiValidationException>(() => actions.ChangeSchoolCapacity(ctv.MembershipId, new(20, ""), admin, Http(), Ct));
     }
 
-    [MySqlFact] public async Task SchoolContractRequiresReviewVerificationAndExplicitKidsfitProtection()
+    [MySqlFact] public async Task SchoolContractRequiresManagerReviewAndAutomaticCheckeeProtection()
     {
         var customerId = (await Import(1))[0]; var ctv = await Ctv();
         var admin = await User("admin@kidsfit.vn"); var partner = await User("partner@kidsfit.vn"); var checkee = await User("checkee@kidsfit.vn");
@@ -196,9 +196,9 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         await actions.ReviewSchoolContract(contractId, partner, Http(), Ct);
         await actions.ReviewSchoolContract(contractId, partner, Http(), Ct);
         await actions.Reconcile(reconciliation, true, new("Đã xác minh"), checkee, Http(), Ct);
-        Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId));
+        Assert.Single(await db.CustomerProtections.Where(x => x.ContractId == contractId).ToArrayAsync());
         await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.GrantSchoolProtection(contractId, partner, Http(), Ct));
-        await actions.GrantSchoolProtection(contractId, admin, Http(), Ct);
+        // Legacy KIDSFIT grant endpoint is idempotent but no longer part of the normal flow.
         await actions.GrantSchoolProtection(contractId, admin, Http(), Ct);
         var contract = await db.SalesContracts.FindAsync(contractId);
         Assert.Equal("ACTIVE", contract!.Status);
@@ -281,9 +281,11 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         db.ChangeTracker.Clear();
         await actions.RegisterCustomerApproach(Claim(customer, Key()), newOwner.UserId, Http(), Ct);
         var reconciliation = await db.ReconciliationCases.Where(x => x.ContractId == contractId).Select(x => x.Id).SingleAsync();
-        await actions.Reconcile(reconciliation, true, new(null), checkee, Http(), Ct);
-        await Assert.ThrowsAsync<ApiConflictException>(() => actions.GrantSchoolProtection(contractId, admin, Http(), Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.Reconcile(reconciliation, true, new(null), checkee, Http(), Ct));
         Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId));
+        Assert.NotEqual("ACTIVE", await db.SalesContracts.Where(x => x.Id == contractId)
+            .Select(x => x.Status).SingleAsync());
         Assert.Equal(newOwner.UserId, await db.CustomerProtections.Where(x => x.CustomerId == customer && x.Status == "ACTIVE" && x.EffectiveUntil > DateTime.UtcNow).Select(x => x.OwnerUserId).SingleAsync());
     }
 
@@ -456,8 +458,9 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         Assert.Equal(3, await db.FinancialEvidences.CountAsync(x => x.ContractId == contractId));
         Assert.Equal("PENDING", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
         await actions.Reconcile(caseId, true, new("CHECKEE xác minh hợp lệ"), checkee, Http(), Ct);
-        Assert.Equal("PENDING_KIDSFIT", (await db.SalesContracts.FindAsync(contractId))!.Status);
-        Assert.False(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId));
+        Assert.Equal("ACTIVE", (await db.SalesContracts.FindAsync(contractId))!.Status);
+        Assert.Single(await db.CustomerProtections.Where(x => x.ContractId == contractId
+            && x.SourceType == "CONTRACT" && x.Status == "ACTIVE").ToArrayAsync());
     }
 
     [MySqlFact] public async Task CheckeeVerificationReadModelHasScopedDetailHistoryAndRealPageCounts()
@@ -492,8 +495,12 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         Assert.Equal(row.GetProperty("contract_code").GetString(),
             detail.GetProperty("data").GetProperty("contract_code").GetString());
         Assert.True(detail.GetProperty("data").GetProperty("can_verify").GetBoolean());
-        Assert.NotEmpty(detail.GetProperty("evidence").EnumerateArray());
-        Assert.NotEmpty(detail.GetProperty("history").EnumerateArray());
+        var selectedContract = detail.GetProperty("data").GetProperty("contract_id").GetInt64();
+        var expectedEvidence = await db.FinancialEvidences.CountAsync(x => x.ContractId == selectedContract
+            && x.Kind == "CONTRACT" && x.AttachedAt != null);
+        Assert.Equal(expectedEvidence, detail.GetProperty("evidence").GetArrayLength());
+        var expectedEvents = await db.ReconciliationEvents.CountAsync(x => x.ReconciliationCaseId == caseId);
+        Assert.Equal(expectedEvents, detail.GetProperty("history").GetArrayLength());
 
         var waiting = await db.ReconciliationCases
             .Where(x => x.Status == "AWAITING_MANAGER")

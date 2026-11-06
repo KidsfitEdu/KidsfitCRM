@@ -417,7 +417,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
               {period.gap_reason&&<p className="w-full text-xs text-muted-foreground">Lý do gián đoạn: {period.gap_reason}</p>}
             </div>)}
           </section>
-          <div><p className="text-muted-foreground">Trường điểm triển khai</p><p className="mt-1">{detail.school_units.length ? detail.school_units.map(x=>x.name).join(', ') : 'Chỉ trường chính / chưa khai báo'}</p></div>
+          <div className="space-y-2">
+            <p className="text-muted-foreground">Trường điểm / Phân hiệu triển khai</p>
+            {detail.school_units.length > 0
+              ? <ul className="list-inside list-disc space-y-1">{detail.school_units.map(unit=><li key={unit.id} className="font-medium">{unit.name}</li>)}</ul>
+              : <p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
+          </div>
           {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><button key={x.id} type="button"
             className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/40"
             onClick={()=>void viewEvidence(x.id,x.file_name,true)} title="Mở hợp đồng trong tab mới">

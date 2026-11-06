@@ -16,7 +16,7 @@ public static class FinancialEvidenceEndpoints
         if (!http.Request.HasFormContentType) throw ApiValidationException.For("file", "Cần gửi form multipart có ảnh hoặc hợp đồng.");
         var form = await http.Request.ReadFormAsync(ct);
         var kind = form["kind"].ToString().Trim().ToUpperInvariant();
-        if (kind is not ("RECEIPT" or "PAYOUT" or "CONTRACT"))
+        if (kind is not ("RECEIPT" or "PAYOUT" or "CONTRACT" or "RENEWAL"))
             throw ApiValidationException.For("kind", "Loại chứng từ không hợp lệ.");
         var file = form.Files.GetFile("file") ?? throw ApiValidationException.For("file", "Thiếu tệp chứng từ.");
         if (file.Length <= 0 || file.Length > MaxBytes)

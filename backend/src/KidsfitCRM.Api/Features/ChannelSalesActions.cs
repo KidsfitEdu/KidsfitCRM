@@ -568,6 +568,10 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         var contractId = await db.ReconciliationCases.Where(x => x.Id == caseId).Select(x => (long?)x.ContractId).SingleOrDefaultAsync(cancellationToken) ?? throw new KeyNotFoundException();
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var now = DateTime.UtcNow;
+        // Lock customer before contract to serialize protection transitions with Sales and KIDSFIT legacy workflows.
+        var customerId = await db.SalesContracts.Where(x => x.Id == contractId)
+            .Select(x => x.CustomerId).SingleAsync(cancellationToken);
+        var customer = await LockCustomer(customerId, cancellationToken) ?? throw new KeyNotFoundException();
         var schoolContract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {contractId} FOR UPDATE").SingleAsync(cancellationToken);
         var reconciliation = await db.ReconciliationCases.FromSqlInterpolated($"SELECT * FROM reconciliation_cases WHERE id = {caseId} FOR UPDATE").SingleOrDefaultAsync(cancellationToken) ?? throw new KeyNotFoundException();
         await EnsureOrganizationScope(reconciliation.CheckeeOrganizationId, actorId, cancellationToken);
@@ -587,9 +591,41 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 throw new ApiConflictException("Cần quản lý kiểm tra và chuyển hồ sơ trước khi CHECKEE xác minh.");
             if (confirm && schoolContract.VerifiedAt is null)
             {
+                // CHECKEE verification and five-year protection activate atomically.
+                // Never override an unrelated owner's active protection.
+                if (await db.CustomerProtections.AnyAsync(x => x.CustomerId == customerId
+                    && x.Status == "ACTIVE" && x.EffectiveUntil > now
+                    && x.ApproachRegistrationId != schoolContract.ApproachRegistrationId, cancellationToken))
+                    throw new ApiConflictException("Trường hiện có quyền bảo vệ khác. Cần giải quyết tranh chấp, không ghi đè quyền.");
+
+                var registration = await db.ApproachRegistrations.FromSqlInterpolated(
+                    $"SELECT * FROM approach_registrations WHERE id = {schoolContract.ApproachRegistrationId} FOR UPDATE")
+                    .SingleAsync(cancellationToken);
+                if (registration.Status is "CANCELLED" or "EXPIRED")
+                    throw new ApiConflictException("Quyền tiếp cận của hợp đồng không còn hợp lệ; cần kiểm tra trước khi xác minh.");
+
                 schoolContract.VerifiedAt = now;
-                schoolContract.Status = "PENDING_KIDSFIT";
+                schoolContract.ProtectionStartsAt = now;
+                schoolContract.ProtectionUntil = now.AddYears(5);
+                schoolContract.Status = "ACTIVE";
                 schoolContract.UpdatedAt = now;
+                customer.LifecycleStatus = "CONTRACTED";
+                customer.UpdatedAt = now;
+                registration.Status = "CONVERTED";
+                registration.UpdatedAt = now;
+                await db.CustomerProtections.Where(x => x.ApproachRegistrationId == registration.Id
+                    && x.SourceType == "APPROACH" && x.Status == "ACTIVE")
+                    .ExecuteUpdateAsync(x => x.SetProperty(p => p.Status, "CONVERTED")
+                        .SetProperty(p => p.UpdatedAt, now), cancellationToken);
+                db.CustomerProtections.Add(new CustomerProtection {
+                    CustomerId = customerId, OwnerUserId = schoolContract.OwnerUserId,
+                    OwnerOrganizationId = schoolContract.OwnerOrganizationId,
+                    ContractId = schoolContract.Id, SourceType = "CONTRACT",
+                    EffectiveFrom = now, EffectiveUntil = now.AddYears(5),
+                    CreatedAt = now, UpdatedAt = now
+                });
+                Audit.Add(db, actorId, "AUTO_GRANT_VERIFIED_SCHOOL_PROTECTION", nameof(SalesContract),
+                    schoolContract.Id, null, new { schoolContract.VerifiedAt, schoolContract.ProtectionUntil }, http);
             }
         }
         reconciliation.Status = confirm ? "CONFIRMED" : "DISPUTED";

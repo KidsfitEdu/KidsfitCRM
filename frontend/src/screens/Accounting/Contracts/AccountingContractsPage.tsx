@@ -81,13 +81,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
-  const [termFormOpen,setTermFormOpen] = useState(false);
-  const [termStart,setTermStart] = useState('');
-  const [termEnd,setTermEnd] = useState('');
-  const [termCycle,setTermCycle] = useState('YEARLY');
-  const [termError,setTermError] = useState('');
-  const [termSaving,setTermSaving] = useState(false);
-
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
   const connected = Boolean(apiBase && token && canView);
   const load = useCallback(async () => {
@@ -123,36 +116,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
-  // A twelve-month date is only a suggestion: the signed contract is authoritative.
-  const suggestTermEnd = (start: string) => {
-    const parts = start.split('-').map(Number);
-    if (parts.length !== 3 || parts.some(n=>!Number.isInteger(n))) return '';
-    const [year,month,day] = parts;
-    const end = new Date(Date.UTC(year+1,month-1,day-1));
-    return end.toISOString().slice(0,10);
-  };
-  const saveTerm = async (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selected || !termStart || !termEnd || termEnd < termStart) {
-      setTermError('Nhập ngày bắt đầu và kết thúc hợp lệ theo hợp đồng đã ký.'); return;
-    }
-    setTermError('');setTermSaving(true);
-    try {
-      await channelRequest(apiBase,token,`/accounting/contracts/${selected}/service-term`,{
-        method:'PUT',body:JSON.stringify({
-          service_start_on:termStart,service_end_on:termEnd,payment_cycle:termCycle
-        })
-      });
-      setTermFormOpen(false);
-      setDetailRevision(n=>n+1);
-      void load();
-      appNotice.success('Đã ghi nhận thời hạn dịch vụ theo hợp đồng.');
-    } catch (err) {
-      if (err instanceof ChannelRequestError && err.status === 422) {
-        setTermError(Object.values(err.errors).flat()[0] ?? err.message);
-      } else appNotice.error('Không thể ghi nhận thời hạn dịch vụ.',err instanceof Error?err.message:'Vui lòng thử lại.');
-    } finally {setTermSaving(false);}
-  };
   const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
     if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
     if (!start || !end) return 'Chưa cập nhật';
@@ -453,11 +416,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
               {period.gap_reason&&<p className="w-full text-xs text-muted-foreground">Lý do gián đoạn: {period.gap_reason}</p>}
             </div>)}
           </section>
-          {canRecordRevenue && detail.data.status==='ACTIVE' && !detail.data.service_start_on && !detail.data.service_end_on && !detail.data.payment_cycle && <div>
-            <Button type="button" variant="outline" onClick={()=>{
-              setTermStart('');setTermEnd('');setTermCycle('YEARLY');setTermError('');setTermFormOpen(true);
-            }}>Ghi nhận thời hạn theo hợp đồng</Button>
-          </div>}
           <div><p className="text-muted-foreground">Trường điểm triển khai</p><p className="mt-1">{detail.school_units.length ? detail.school_units.map(x=>x.name).join(', ') : 'Chỉ trường chính / chưa khai báo'}</p></div>
           {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><button key={x.id} type="button"
             className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/40"
@@ -574,29 +532,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
         </section>
       </div>}
     </AppDrawer>
-    <AppDialog open={termFormOpen} onOpenChange={open=>{if(!open&&!termSaving)setTermFormOpen(false);}}
-      busy={termSaving} title="Ghi nhận thời hạn dịch vụ" description="Nhập đúng ngày và chu kỳ thanh toán theo hợp đồng đã ký. Chỉ ghi nhận một lần, không sửa lịch thu hoặc hoa hồng.">
-      <form noValidate className="space-y-4" onSubmit={event=>void saveTerm(event)}>
-        <label htmlFor="kc01-service-start" className="block space-y-1"><span>Ngày bắt đầu dịch vụ *</span>
-          <Input id="kc01-service-start" type="date" value={termStart} onChange={e=>{
-            setTermStart(e.target.value);
-            if (!termEnd) setTermEnd(suggestTermEnd(e.target.value));
-            setTermError('');
-          }}/></label>
-        <label htmlFor="kc01-service-end" className="block space-y-1"><span>Ngày kết thúc dịch vụ theo hợp đồng *</span>
-          <Input id="kc01-service-end" type="date" value={termEnd} onChange={e=>{setTermEnd(e.target.value);setTermError('');}}/></label>
-        <p className="text-xs text-muted-foreground">Gợi ý 12 tháng chỉ mang tính tham khảo; ngày trên hợp đồng ký là nguồn chính xác.</p>
-        <label htmlFor="kc01-payment-cycle" className="block space-y-1"><span>Chu kỳ thanh toán *</span>
-          <select id="kc01-payment-cycle" className="w-full rounded-lg border bg-background p-2" value={termCycle} onChange={e=>setTermCycle(e.target.value)}>
-            <option value="YEARLY">Theo năm</option><option value="MONTHLY">Theo tháng</option>
-          </select></label>
-        {termError&&<p role="alert" className="text-sm text-destructive">{termError}</p>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={termSaving} onClick={()=>setTermFormOpen(false)}>Hủy</Button>
-          <Button type="submit" disabled={termSaving}>{termSaving?'Đang lưu...':'Ghi nhận'}</Button>
-        </div>
-      </form>
-    </AppDialog>
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">

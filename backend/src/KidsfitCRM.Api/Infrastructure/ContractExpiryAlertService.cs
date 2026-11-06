@@ -51,7 +51,7 @@ public static class ContractExpiryAlertService
         var contractIds = contracts.Select(x => x.Id).ToArray();
         var renewals = await db.ContractRenewals.AsNoTracking()
             .Where(x => contractIds.Contains(x.ContractId) && x.Status == "CONFIRMED")
-            .Select(x => new { x.ContractId, x.ServiceEndOn }).ToArrayAsync(ct);
+            .Select(x => new { x.ContractId, x.ServiceStartOn, x.ServiceEndOn }).ToArrayAsync(ct);
         var finalEnds = renewals.GroupBy(x => x.ContractId).ToDictionary(x => x.Key, x => x.Max(v => v.ServiceEndOn));
         var protections = await db.CustomerProtections.AsNoTracking()
             .Where(p => p.ContractId.HasValue && contractIds.Contains(p.ContractId.Value)
@@ -107,6 +107,34 @@ public static class ContractExpiryAlertService
                 && x.OrganizationId == contract.OwnerOrganizationId && x.ManagerUserId.HasValue))
                 rightsRecipientsForContract.Add(manager.ManagerUserId!.Value);
             rightsRecipientsForContract.IntersectWith(activeUsers);
+            // When a later confirmed renewal leaves a gap, notify about the interruption
+            // rather than incorrectly treating the school as fully terminated.
+            var validGapStarts = new HashSet<DateOnly>();
+            DateOnly? previousEnd = contract.ServiceEndOn;
+            foreach (var confirmed in renewals.Where(x => x.ContractId == contract.Id)
+                .OrderBy(x => x.ServiceStartOn))
+            {
+                if (previousEnd.HasValue && confirmed.ServiceStartOn > previousEnd.Value.AddDays(1))
+                {
+                    var gapStart = previousEnd.Value.AddDays(1);
+                    if (today < confirmed.ServiceStartOn)
+                    {
+                        validGapStarts.Add(gapStart);
+                        foreach (var leadDays in new[] { 30, 15, 7, 0 })
+                        {
+                            if (today != gapStart.AddDays(-leadDays)) continue;
+                            var kind = leadDays == 0 ? "SERVICE_INTERRUPTED" : $"SERVICE_GAP_BEFORE_{leadDays}";
+                            foreach (var recipient in recipients)
+                            {
+                                var key = $"nt01:{contract.Id}:gap:{gapStart:yyyyMMdd}:{kind}:{recipient}";
+                                created += await InsertAsync(db, contract.Id, recipient, kind, gapStart, today, key, now, ct);
+                            }
+                        }
+                    }
+                }
+                previousEnd = confirmed.ServiceEndOn;
+            }
+
             if (serviceEnd.HasValue)
             {
                 foreach (var (kind, due) in Milestones("SERVICE", serviceEnd.Value, today))
@@ -135,12 +163,16 @@ public static class ContractExpiryAlertService
                 && x.Status == "OPEN").ToArrayAsync(ct);
             foreach (var item in open)
             {
-                if ((item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
+                if ((item.Kind.StartsWith("SERVICE_GAP_", StringComparison.Ordinal)
+                    || item.Kind == "SERVICE_INTERRUPTED")
+                    ? (!validGapStarts.Contains(item.MilestoneOn)
+                        || !recipients.Contains(item.RecipientUserId))
+                    : ((item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
                     && (!serviceEnd.HasValue || item.MilestoneOn != serviceEnd.Value || !recipients.Contains(item.RecipientUserId)))
                     || (item.Kind.StartsWith("PROTECTION_", StringComparison.Ordinal)
                     && (!protections.Any(p => p.ContractId == contract.Id
                         && BusinessDate(p.EffectiveUntil) == item.MilestoneOn)
-                        || !rightsRecipientsForContract.Contains(item.RecipientUserId))))
+                        || !rightsRecipientsForContract.Contains(item.RecipientUserId)))))
                 {
                     item.Status = "RESOLVED";
                     item.ResolvedAt = now;

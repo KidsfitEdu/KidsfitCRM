@@ -1,3 +1,5 @@
+using KidsfitCRM.Api.Common;
+
 namespace KidsfitCRM.Api.Features;
 
 public sealed record RegisterApproachRequest(
@@ -38,7 +40,10 @@ public sealed record ReportSalesContractRequest(
     decimal? MaintenanceFee = null,
     decimal? SetupFee = null,
     string? ContractNote = null,
-    int? BranchCount = null);
+    int? BranchCount = null,
+    DateOnly? ServiceStartOn = null,
+    DateOnly? ServiceEndOn = null,
+    string? PaymentCycle = null);
 
 public sealed record ContractPaymentInstallment(DateOnly DueOn, decimal Amount);
 
@@ -75,4 +80,21 @@ public static class CommissionPersonnelTypes
         "PARTNER_COLLABORATOR" => "COLLABORATOR",
         var code => code,
     };
+}
+
+public static class ContractServicePlanPolicy
+{
+    public static string PaymentCycleFor(string servicePlan) => servicePlan switch
+    {
+        "SCHOOL_YEAR" => "YEARLY",
+        "MONTHLY_9" => "MONTHLY",
+        _ => throw ApiValidationException.For("service_plan", "Gói dịch vụ không hợp lệ."),
+    };
+
+    public static void RequireMatchingCycle(string servicePlan, string paymentCycle)
+    {
+        if (PaymentCycleFor(servicePlan) != paymentCycle)
+            throw ApiValidationException.For("payment_cycle",
+                "Chu kỳ thanh toán không khớp gói dịch vụ đã chọn.");
+    }
 }

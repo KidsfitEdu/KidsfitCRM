@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { FileUp, RefreshCw, FileText } from 'lucide-react';
+import { paymentCycleForPlan } from '@/lib/contract-payment-plan';
 import { validateContract, type ContractField, type ContractErrors } from '@/lib/contract-validation';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -13,7 +14,8 @@ type Revision = { id: number; contract_code: string; school_name: string; reason
 type ContractDetail = {
   data: {
     id: number; customer_id: number; status: string; can_resubmit: boolean;
-    signed_on: string; service_plan: string | null; student_count: number | null;
+    signed_on: string; service_plan: string | null; service_start_on: string | null;
+    service_end_on: string | null; payment_cycle: string | null; student_count: number | null;
     branch_count: number | null; contract_note: string | null;
     maintenance_fee: number | null; setup_fee: number;
     revision_reason: string | null;
@@ -84,7 +86,7 @@ function RevisionEditor({
   onDone: () => Promise<void>; onClose: () => void;
 }) {
   const original = detail.data;
-  const [plan, setPlan] = useState(original.service_plan === 'MONTHLY_9' ? 'MONTHLY_9' : 'SCHOOL_YEAR');
+  const [plan, setPlan] = useState<'SCHOOL_YEAR' | 'MONTHLY_9'>(original.service_plan === 'MONTHLY_9' ? 'MONTHLY_9' : 'SCHOOL_YEAR');
   const [maintenance, setMaintenance] = useState(
     original.maintenance_fee === null ? '' : String(original.maintenance_fee));
   const [setup, setSetup] = useState(String(original.setup_fee ?? 0));
@@ -93,6 +95,8 @@ function RevisionEditor({
   const [selectedUnits, setSelectedUnits] = useState<number[]>(detail.school_units.map(x => x.id));
   const [note, setNote] = useState(original.contract_note ?? '');
   const [signedOn, setSignedOn] = useState(original.signed_on.slice(0, 10));
+  const [serviceStartOn,setServiceStartOn] = useState(original.service_start_on?.slice(0,10)??'');
+  const [serviceEndOn,setServiceEndOn] = useState(original.service_end_on?.slice(0,10)??'');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<ContractErrors>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,6 +107,7 @@ function RevisionEditor({
     delete next[field];
     return next;
   });
+  const paymentCycle = paymentCycleForPlan(plan);
   const total = Number(maintenance) * (plan === 'MONTHLY_9' ? 9 : 1) + Number(setup);
   const validMoney = maintenance !== '' && setup !== '' &&
     Number.isSafeInteger(Number(maintenance)) && Number(maintenance) >= 0 &&
@@ -113,7 +118,7 @@ function RevisionEditor({
     event.preventDefault();
     if (busy) return;
     const issues = validateContract({
-      signedOn, plan, students, branches, selectedUnitCount: selectedUnits.length,
+      signedOn, serviceStartOn, serviceEndOn, paymentCycle, plan, students, branches, selectedUnitCount: selectedUnits.length,
       maintenance, setup, note, file, existingEvidence: detail.evidence.length > 0,
     });
     setErrors(issues);
@@ -141,6 +146,9 @@ function RevisionEditor({
         body: JSON.stringify({
           evidence_id: evidenceId,
           signed_on: signedOn,
+          service_start_on: serviceStartOn,
+          service_end_on: serviceEndOn,
+          payment_cycle: paymentCycle,
           service_plan: plan,
           student_count: Number(students),
           branch_count: Number(branches),
@@ -170,8 +178,25 @@ function RevisionEditor({
         className="block h-10 w-full rounded-xl border bg-background px-3 text-sm" />
       {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
     </fieldset>
+    <fieldset className="space-y-3 rounded-xl border p-3">
+      <legend className="px-1 text-sm font-semibold">Thời hạn sử dụng theo hợp đồng *</legend>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1.5 text-sm">Ngày bắt đầu dịch vụ *
+          <input type="date" data-field="service_start_on" value={serviceStartOn}
+            aria-invalid={!!errors.service_start_on} onChange={e=>{setServiceStartOn(e.target.value);clearError('service_start_on');}}
+            className="block h-10 w-full rounded-xl border bg-background px-3"/>
+          {errors.service_start_on&&<span role="alert" className="text-xs text-red-700">{errors.service_start_on}</span>}
+        </label>
+        <label className="space-y-1.5 text-sm">Ngày kết thúc dịch vụ *
+          <input type="date" data-field="service_end_on" value={serviceEndOn}
+            aria-invalid={!!errors.service_end_on} onChange={e=>{setServiceEndOn(e.target.value);clearError('service_end_on');}}
+            className="block h-10 w-full rounded-xl border bg-background px-3"/>
+          {errors.service_end_on&&<span role="alert" className="text-xs text-red-700">{errors.service_end_on}</span>}
+        </label>
+      </div>
+    </fieldset>
     <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
+      <legend className="text-sm font-semibold">Gói dịch vụ & hình thức thanh toán *</legend>
       <label className="flex items-center gap-2 text-sm">
         <input type="radio" name="revision_payment_plan" checked={plan === 'SCHOOL_YEAR'}
           onChange={() => { setPlan('SCHOOL_YEAR'); clearError("service_plan"); }} />

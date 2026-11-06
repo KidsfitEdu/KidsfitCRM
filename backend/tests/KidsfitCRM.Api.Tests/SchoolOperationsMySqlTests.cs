@@ -177,11 +177,63 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             verifiedContract, Http(accountant), db, Ct)).GetProperty("data").GetProperty("id").GetInt64());
     }
 
-    [MySqlFact] public async Task AccountantRecordsServiceTermWithoutRepricingOrExtendingProtection()
+    [MySqlFact] public async Task SalesTermIsMandatoryInNewFeeBasedSchoolContractAndSurvivesCheckeeVerification()
+    {
+        var scenario = await Arrange();
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registration = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId),
+            scenario.Seller.UserId, Http(), Ct);
+        var signed = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        var beginning = signed.AddDays(2);
+        var ending = beginning.AddYears(1).AddDays(-1);
+        var package = await db.CheckeeProductPackages.Select(x => x.Id).FirstAsync(Ct);
+        var legacyShape = new ReportSalesContractRequest(Key(), "TERM-" + Key(), signed,
+            null, package, 1_000_000, null, "SIGNED-CONTRACT", ServicePlan: "SCHOOL_YEAR",
+            StudentCount: 100, BranchCount: 0, MaintenanceFee: 1_000_000, SetupFee: 0);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.ReportSignedContract(registration,
+            legacyShape, scenario.Seller.UserId, Http(), Ct));
+        var request = legacyShape with {
+            ServiceStartOn = beginning, ServiceEndOn = ending, PaymentCycle = "YEARLY"
+        };
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.ReportSignedContract(registration,
+                request with { PaymentCycle = "MONTHLY" }, scenario.Seller.UserId, Http(), Ct));
+        var contractId = await actions.ReportSignedContract(registration,
+            request, scenario.Seller.UserId, Http(), Ct);
+        var contract = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+        Assert.Equal("PENDING_REVIEW", contract.Status);
+        Assert.Equal(beginning, contract.ServiceStartOn);
+        Assert.Equal(ending, contract.ServiceEndOn);
+        Assert.Equal("YEARLY", contract.PaymentCycle);
+
+        var managerView = Json(await ManagerContractEndpoints.Detail(contractId,
+            Http(scenario.Manager.UserId), db, Ct)).GetProperty("data");
+        Assert.Equal(beginning.ToString("yyyy-MM-dd"),
+            managerView.GetProperty("service_start_on").GetString());
+        await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
+        var caseId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
+            .Select(x => x.Id).SingleAsync(Ct);
+        var checkee = await User("checkee@kidsfit.vn");
+        var checkeeView = Json(await CheckeeVerificationEndpoints.Detail(caseId,
+            Http(checkee), db, Ct)).GetProperty("data");
+        Assert.Equal(ending.ToString("yyyy-MM-dd"),
+            checkeeView.GetProperty("service_end_on").GetString());
+        await actions.Reconcile(caseId, true, new("Kỳ dịch vụ khớp hợp đồng đã ký"), checkee, Http(), Ct);
+        var verified = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
+        Assert.Equal("ACTIVE", verified.Status);
+        Assert.Equal(beginning, verified.ServiceStartOn);
+        Assert.Equal(ending, verified.ServiceEndOn);
+        Assert.Equal("YEARLY", verified.PaymentCycle);
+        Assert.Equal(verified.VerifiedAt!.Value.AddYears(5), verified.ProtectionUntil);
+    }
+
+    [MySqlFact] public async Task OnlyAdminCanRepairLegacyServiceTermWithoutRepricingOrExtendingProtection()
     {
         var scenario = await Arrange();
         var contractId = await ActiveContract(scenario);
         var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        var admin = await User("admin@kidsfit.vn");
         await using var db = fixture.Open();
         var before = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
         var originalTotal = before.TotalValue;
@@ -196,8 +248,11 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
         var start = today;
         var end = today.AddYears(1).AddDays(-1);
-        await AccountingContractEndpoints.SetServiceTerm(contractId,
+        var rejected = await AccountingContractEndpoints.SetServiceTerm(contractId,
             new(start, end, "MONTHLY"), Http(accountant), db, Ct);
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ForbidHttpResult>(rejected);
+        await AccountingContractEndpoints.SetServiceTerm(contractId,
+            new(start, end, "MONTHLY"), Http(admin), db, Ct);
         var detail = Json(await AccountingContractEndpoints.Detail(contractId, Http(accountant), db, Ct))
             .GetProperty("data");
         Assert.Equal(start.ToString("yyyy-MM-dd"), detail.GetProperty("service_start_on").GetString());
@@ -213,7 +268,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await AccountingContractEndpoints.SetServiceTerm(contractId,
             new(start, end, "MONTHLY"), Http(accountant), db, Ct);
         await Assert.ThrowsAsync<ApiConflictException>(() => AccountingContractEndpoints.SetServiceTerm(
-            contractId, new(start, end.AddDays(1), "YEARLY"), Http(accountant), db, Ct));
+            contractId, new(start, end.AddDays(1), "YEARLY"), Http(admin), db, Ct));
         Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityId == contractId &&
             x.Action == "RECORD_CONTRACT_SERVICE_TERM", Ct));
     }

@@ -1,5 +1,6 @@
 'use client';
 
+import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, FileCheck2, FileText, Send, Undo2, ExternalLink } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -17,7 +18,8 @@ type Contract = { id:number;school_name:string;sales_name:string;contract_code:s
 type ListResponse = {data:Contract[];total:number;page:number;page_size:number};
 type Detail = {
  data:{id:number;contract_code:string;school_name:string;school_address:string|null;school_province:string|null;
- sales_name:string;signed_on:string;total_value:number;status:string;service_plan:string|null;student_count:number|null;
+ sales_name:string;signed_on:string;total_value:number;status:string;service_plan:string|null;
+ service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;student_count:number|null;
  evidence_reference:string|null;can_review:boolean;can_return:boolean;can_resubmit:boolean;reconciliation_status:string|null};
  evidence:{id:number;file_name:string;mime_type:string;created_at:string}[];
  installments:{due_on:string;amount:number;status:string}[];
@@ -169,7 +171,10 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
          </div>
          <div className="grid gap-3 sm:grid-cols-2">
            {[["Mã hợp đồng",detail.data.contract_code],["Ngày ký",channelDate(detail.data.signed_on)],
-             ["Giá trị",channelMoney(detail.data.total_value)],["Gói dịch vụ",detail.data.service_plan||'Chưa khai báo'],
+             ["Giá trị",channelMoney(detail.data.total_value)],["Gói dịch vụ",getServicePlanLabel(detail.data.service_plan)],
+             ["Bắt đầu dịch vụ",detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
+             ["Kết thúc dịch vụ",detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
+             ["Chu kỳ thanh toán",detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],
              ["Số học sinh",String(detail.data.student_count??'Chưa khai báo')]].map(([label,value])=>
              <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold">{value}</p></div>)}
          </div>
@@ -181,8 +186,11 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
              <ExternalLink className="size-4" aria-hidden="true"/>
            </button>):<p className="text-muted-foreground">Chưa có file đính kèm. {detail.data.evidence_reference??''}</p>}
          </section>
-         <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Trường điểm triển khai</h3>
-           <p>{detail.school_units.length?detail.school_units.map(x=>x.name).join(', '):'Chỉ trường chính / chưa khai báo'}</p>
+         <section className="space-y-2 border-t pt-4">
+           <h3 className="font-bold">Trường điểm / Phân hiệu triển khai</h3>
+           {detail.school_units.length > 0
+             ? <ul className="list-inside list-disc space-y-1">{detail.school_units.map(unit=><li key={unit.id}>{unit.name}</li>)}</ul>
+             : <p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
          </section>
          <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Lịch thanh toán</h3>
            {detail.installments.map((item,i)=><div key={i} className="flex justify-between gap-3 border-b py-2">

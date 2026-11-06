@@ -1,5 +1,6 @@
 'use client';
 
+import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
@@ -67,6 +68,7 @@ type Detail = {
   period_history:ServicePeriod[];
   data: { id: number; contract_code: string; school_name: string; school_address: string | null; school_district: string | null; school_province: string | null; owner_name: string; personnel_type: string | null;
     signed_on: string; effective_on: string | null; status: string; verified_at: string | null; total_value: number; evidence_reference: string | null; owner_organization_id: number; owner_user_id: number; service_plan:string|null;student_count:number|null;
+    source_service_start_on:string|null;source_service_end_on:string|null;source_payment_cycle:string|null;
     service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;
     protection_until:string|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
@@ -100,13 +102,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
-  const [termFormOpen,setTermFormOpen] = useState(false);
-  const [termStart,setTermStart] = useState('');
-  const [termEnd,setTermEnd] = useState('');
-  const [termCycle,setTermCycle] = useState('YEARLY');
-  const [termError,setTermError] = useState('');
-  const [termSaving,setTermSaving] = useState(false);
-
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
   const connected = Boolean(apiBase && token && canView);
   const load = useCallback(async () => {
@@ -142,36 +137,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
-  // A twelve-month date is only a suggestion: the signed contract is authoritative.
-  const suggestTermEnd = (start: string) => {
-    const parts = start.split('-').map(Number);
-    if (parts.length !== 3 || parts.some(n=>!Number.isInteger(n))) return '';
-    const [year,month,day] = parts;
-    const end = new Date(Date.UTC(year+1,month-1,day-1));
-    return end.toISOString().slice(0,10);
+  const periodLabel = (period: ServicePeriod, current: ServicePeriod|null, next: ServicePeriod|null, today: string) => {
+    if (current?.start_on === period.start_on && current?.end_on === period.end_on)
+      return 'Đang sử dụng';
+    if (period.end_on < today) return 'Đã kết thúc';
+    if (next?.start_on === period.start_on && next?.end_on === period.end_on)
+      return period.renewal_id === null ? 'Hợp đồng gốc · Chưa bắt đầu' : 'Kỳ tiếp theo đã xác nhận · Chưa bắt đầu';
+    return period.start_on > today ? 'Chưa bắt đầu' : 'Đã xác nhận';
   };
-  const saveTerm = async (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selected || !termStart || !termEnd || termEnd < termStart) {
-      setTermError('Nhập ngày bắt đầu và kết thúc hợp lệ theo hợp đồng đã ký.'); return;
-    }
-    setTermError('');setTermSaving(true);
-    try {
-      await channelRequest(apiBase,token,`/accounting/contracts/${selected}/service-term`,{
-        method:'PUT',body:JSON.stringify({
-          service_start_on:termStart,service_end_on:termEnd,payment_cycle:termCycle
-        })
-      });
-      setTermFormOpen(false);
-      setDetailRevision(n=>n+1);
-      void load();
-      appNotice.success('Đã ghi nhận thời hạn dịch vụ theo hợp đồng.');
-    } catch (err) {
-      if (err instanceof ChannelRequestError && err.status === 422) {
-        setTermError(Object.values(err.errors).flat()[0] ?? err.message);
-      } else appNotice.error('Không thể ghi nhận thời hạn dịch vụ.',err instanceof Error?err.message:'Vui lòng thử lại.');
-    } finally {setTermSaving(false);}
-  };
+
   const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
     if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
     if (!start || !end) return 'Chưa cập nhật';
@@ -378,9 +352,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             {rows.map(row => {
               const current=row.current_period;
               const next=row.next_confirmed_period;
-              const status = current ? serviceStatus(current.start_on, current.end_on, row.contract_status)
-                : row.contract_status==='CANCELLED' ? 'Đã hủy hợp đồng'
-                : next ? 'Chưa bắt đầu kỳ mới' : 'Không có kỳ đang sử dụng';
+              const today = accountingBusinessDay(new Date());
+              const status = row.contract_status==='CANCELLED' ? 'Đã hủy hợp đồng'
+                : current ? serviceStatus(current.start_on, current.end_on, row.contract_status)
+                : next ? 'Chưa bắt đầu sử dụng' : row.service_end_on && row.service_end_on < today
+                  ? 'Đã hết hạn' : 'Chưa có thông tin kỳ dịch vụ';
               const statusTone = status === 'Còn hiệu lực'
                 ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
                 : status === 'Sắp hết hạn'
@@ -398,8 +374,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
                 </td>
                 <td className="px-4 py-4 align-middle">
                   <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${statusTone}`}>{status}</span>
-                  <p className="mt-1 text-xs text-muted-foreground">{current ? `Đến ${channelDate(current.end_on)}` : 'Chưa có kỳ đang sử dụng'}</p>
-                  {next&&<p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">Kỳ tiếp theo đã xác nhận: {channelDate(next.start_on)}</p>}
+                  <p className="mt-1 text-xs text-muted-foreground">{current
+                    ? `Đến ${channelDate(current.end_on)}`
+                    : next ? `Bắt đầu ${channelDate(next.start_on)}`
+                    : row.service_end_on && row.service_end_on < today
+                      ? `Đã kết thúc ${channelDate(row.service_end_on)}`
+                      : 'Chưa có kỳ dịch vụ hợp lệ'}</p>
+                  {next&&current&&<p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">Kỳ tiếp theo đã xác nhận: {channelDate(next.start_on)}</p>}
                 </td>
                 <td className="px-4 py-4 text-right align-middle tabular-nums font-medium">{channelMoney(row.total_value)}</td>
                 <td className="px-4 py-4 text-right align-middle tabular-nums">
@@ -451,33 +432,34 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
             <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
-            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{detail.data.service_plan==='SCHOOL_YEAR'?'Năm học':detail.data.service_plan==='MONTHLY_9'?'Thanh toán theo tháng':'Chưa khai báo'}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?channelDate(detail.current_period.start_on):'Không có kỳ đang sử dụng'}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?channelDate(detail.current_period.end_on):'Không có kỳ đang sử dụng'}</dd></div>
-            <div><dt className="text-muted-foreground">Chu kỳ thanh toán</dt><dd className="mt-1 font-medium">{detail.current_period?.payment_cycle==='MONTHLY'?'Theo tháng':detail.current_period?.payment_cycle==='YEARLY'?'Theo năm':'Không có kỳ đang sử dụng'}</dd></div>
-            <div><dt className="text-muted-foreground">Trạng thái dịch vụ</dt><dd className="mt-1 font-medium">{detail.current_period?serviceStatus(detail.current_period.start_on,detail.current_period.end_on,detail.data.status):'Không có kỳ đang sử dụng'}</dd></div>
+            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{getServicePlanLabel(detail.data.service_plan)}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_service_start_on?channelDate(detail.data.source_service_start_on):'Chưa có thông tin kỳ dịch vụ'}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_service_end_on?channelDate(detail.data.source_service_end_on):'Chưa có thông tin kỳ dịch vụ'}</dd></div>
+            <div><dt className="text-muted-foreground">Chu kỳ thanh toán (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_payment_cycle==='MONTHLY'?'Theo tháng':detail.data.source_payment_cycle==='YEARLY'?'Theo năm':'Chưa có thông tin kỳ dịch vụ'}</dd></div>
+            <div><dt className="text-muted-foreground">Trạng thái dịch vụ hiện tại</dt><dd className="mt-1 font-medium">{detail.data.status==='CANCELLED'?'Đã hủy hợp đồng':detail.current_period?serviceStatus(detail.current_period.start_on,detail.current_period.end_on,detail.data.status):detail.next_confirmed_period?'Chưa bắt đầu sử dụng':detail.previous_period?'Đã kết thúc kỳ trước':'Chưa có thông tin kỳ dịch vụ'}</dd></div>
             <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
           <section className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
             <h4 className="font-semibold">Kỳ sử dụng và tái ký đã xác nhận</h4>
             {detail.next_confirmed_period&&<p className="text-sm">
-              <strong>Kỳ tiếp theo đã xác nhận · Chưa bắt đầu:</strong> {channelDate(detail.next_confirmed_period.start_on)} – {channelDate(detail.next_confirmed_period.end_on)}
+              <strong>{detail.next_confirmed_period.renewal_id===null?'Hợp đồng gốc · Chưa bắt đầu':'Kỳ tiếp theo đã xác nhận · Chưa bắt đầu'}:</strong> {channelDate(detail.next_confirmed_period.start_on)} – {channelDate(detail.next_confirmed_period.end_on)}
             </p>}
-            {!detail.current_period&&<p className="text-sm text-amber-700">Hiện không có kỳ sử dụng đang hiệu lực.</p>}
+            {!detail.current_period&&detail.previous_period&&detail.next_confirmed_period&&<p className="text-sm text-amber-700">Tạm gián đoạn giữa các kỳ dịch vụ.</p>}
+            {!detail.current_period&&!(detail.previous_period&&detail.next_confirmed_period)&&<p className="text-sm text-amber-700">{detail.next_confirmed_period?'Kỳ dịch vụ đã xác nhận, chưa đến ngày bắt đầu.':detail.previous_period?'Kỳ dịch vụ đã kết thúc.':'Chưa có thông tin kỳ dịch vụ.'}</p>}
             {detail.period_history.length===0&&<p className="text-muted-foreground">Chưa có kỳ dịch vụ đáng tin cậy.</p>}
             {detail.period_history.map(period=><div key={period.renewal_id??'source'} className="flex flex-wrap justify-between gap-2 border-t border-border/70 pt-2 text-sm">
               <span>{period.renewal_no===null?'Hợp đồng gốc':`Tái ký lần ${period.renewal_no}`} · {channelDate(period.start_on)} – {channelDate(period.end_on)}</span>
-              <span className="text-muted-foreground">{detail.current_period?.start_on===period.start_on?'Đang sử dụng':detail.next_confirmed_period?.start_on===period.start_on?'Kỳ tiếp theo':period.end_on<accountingBusinessDay(new Date())?'Đã kết thúc':'Đã xác nhận'}</span>
+              <span className="text-muted-foreground">{periodLabel(period,detail.current_period,detail.next_confirmed_period,accountingBusinessDay(new Date()))}</span>
               {period.gap_reason&&<p className="w-full text-xs text-muted-foreground">Lý do gián đoạn: {period.gap_reason}</p>}
             </div>)}
           </section>
-          {canRecordRevenue && detail.data.status==='ACTIVE' && !detail.data.service_start_on && !detail.data.service_end_on && !detail.data.payment_cycle && <div>
-            <Button type="button" variant="outline" onClick={()=>{
-              setTermStart('');setTermEnd('');setTermCycle('YEARLY');setTermError('');setTermFormOpen(true);
-            }}>Ghi nhận thời hạn theo hợp đồng</Button>
-          </div>}
-          <div><p className="text-muted-foreground">Trường điểm triển khai</p><p className="mt-1">{detail.school_units.length ? detail.school_units.map(x=>x.name).join(', ') : 'Chỉ trường chính / chưa khai báo'}</p></div>
+          <div className="space-y-2">
+            <p className="text-muted-foreground">Trường điểm / Phân hiệu triển khai</p>
+            {detail.school_units.length > 0
+              ? <ul className="list-inside list-disc space-y-1">{detail.school_units.map(unit=><li key={unit.id} className="font-medium">{unit.name}</li>)}</ul>
+              : <p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
+          </div>
           {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><button key={x.id} type="button"
             className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/40"
             onClick={()=>void viewEvidence(x.id,x.file_name,true)} title="Mở hợp đồng trong tab mới">
@@ -629,29 +611,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
         </section>
       </div>}
     </AppDrawer>
-    <AppDialog open={termFormOpen} onOpenChange={open=>{if(!open&&!termSaving)setTermFormOpen(false);}}
-      busy={termSaving} title="Ghi nhận thời hạn dịch vụ" description="Nhập đúng ngày và chu kỳ thanh toán theo hợp đồng đã ký. Chỉ ghi nhận một lần, không sửa lịch thu hoặc hoa hồng.">
-      <form noValidate className="space-y-4" onSubmit={event=>void saveTerm(event)}>
-        <label htmlFor="kc01-service-start" className="block space-y-1"><span>Ngày bắt đầu dịch vụ *</span>
-          <Input id="kc01-service-start" type="date" value={termStart} onChange={e=>{
-            setTermStart(e.target.value);
-            if (!termEnd) setTermEnd(suggestTermEnd(e.target.value));
-            setTermError('');
-          }}/></label>
-        <label htmlFor="kc01-service-end" className="block space-y-1"><span>Ngày kết thúc dịch vụ theo hợp đồng *</span>
-          <Input id="kc01-service-end" type="date" value={termEnd} onChange={e=>{setTermEnd(e.target.value);setTermError('');}}/></label>
-        <p className="text-xs text-muted-foreground">Gợi ý 12 tháng chỉ mang tính tham khảo; ngày trên hợp đồng ký là nguồn chính xác.</p>
-        <label htmlFor="kc01-payment-cycle" className="block space-y-1"><span>Chu kỳ thanh toán *</span>
-          <select id="kc01-payment-cycle" className="w-full rounded-lg border bg-background p-2" value={termCycle} onChange={e=>setTermCycle(e.target.value)}>
-            <option value="YEARLY">Theo năm</option><option value="MONTHLY">Theo tháng</option>
-          </select></label>
-        {termError&&<p role="alert" className="text-sm text-destructive">{termError}</p>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={termSaving} onClick={()=>setTermFormOpen(false)}>Hủy</Button>
-          <Button type="submit" disabled={termSaving}>{termSaving?'Đang lưu...':'Ghi nhận'}</Button>
-        </div>
-      </form>
-    </AppDialog>
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">

@@ -38,6 +38,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { channelDate, channelRequest } from '@/lib/channel-operations';
+import { paymentCycleForPlan } from '@/lib/contract-payment-plan';
 import { validateContract, type ContractErrors, type ContractField } from '@/lib/contract-validation';
 import type {
   ChannelCustomer,
@@ -1112,6 +1113,8 @@ function ContractDialog({
     return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   });
   const [note, setNote] = useState('');
+  const [serviceStartOn, setServiceStartOn] = useState('');
+  const [serviceEndOn, setServiceEndOn] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<ContractErrors>({});
   const clearError = (key: ContractField) => setErrors(old => {
@@ -1119,6 +1122,7 @@ function ContractDialog({
     const next = { ...old }; delete next[key]; return next;
   });
   const [requestKey] = useState(() => idempotencyKey('contract'));
+  const paymentCycle = paymentCycleForPlan(plan);
   const multiplier = plan === 'MONTHLY_9' ? 9 : 1;
   const maintenance = Number(maintenanceFee);
   const setup = Number(setupFee);
@@ -1147,7 +1151,7 @@ function ContractDialog({
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
       if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
       const issues = validateContract({
-        signedOn, plan, students: studentCount, branches: branchCount,
+        signedOn, serviceStartOn, serviceEndOn, paymentCycle, plan, students: studentCount, branches: branchCount,
         selectedUnitCount: selectedUnitIds.length, maintenance: maintenanceFee,
         setup: setupFee, note, file, existingEvidence: false,
       });
@@ -1172,6 +1176,9 @@ function ContractDialog({
       await onSubmit({
         idempotency_key: requestKey,
         signed_on: signedOn,
+        service_start_on: serviceStartOn,
+        service_end_on: serviceEndOn,
+        payment_cycle: paymentCycle,
         product_package_id: packages[0].id,
         service_plan: plan,
         student_count: Number(studentCount),
@@ -1199,8 +1206,32 @@ function ContractDialog({
           <Input name="signed_on" type="date" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e=>{setSignedOn(e.target.value);clearError("signed_on");}}/>
           {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
         </Field>
+        <fieldset className="space-y-3 rounded-xl border border-border p-4">
+          <legend className="px-2 text-sm font-semibold">Thời hạn sử dụng theo hợp đồng *</legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Ngày bắt đầu dịch vụ *">
+              <Input type="date" data-field="service_start_on" value={serviceStartOn}
+                aria-invalid={!!errors.service_start_on} onChange={e=>{
+                  setServiceStartOn(e.target.value);clearError('service_start_on');
+                  if(!serviceEndOn && e.target.value){
+                    const date = new Date(e.target.value+'T00:00:00Z');
+                    date.setUTCFullYear(date.getUTCFullYear()+1);
+                    date.setUTCDate(date.getUTCDate()-1);
+                    setServiceEndOn(date.toISOString().slice(0,10));
+                  }
+                }}/>
+              {errors.service_start_on&&<p role="alert" className="text-xs text-red-700">{errors.service_start_on}</p>}
+            </Field>
+            <Field label="Ngày kết thúc dịch vụ *">
+              <Input type="date" data-field="service_end_on" value={serviceEndOn}
+                aria-invalid={!!errors.service_end_on} onChange={e=>{setServiceEndOn(e.target.value);clearError('service_end_on');}}/>
+              {errors.service_end_on&&<p role="alert" className="text-xs text-red-700">{errors.service_end_on}</p>}
+            </Field>
+          </div>
+          <p className="text-xs text-muted-foreground">Ngày kết thúc gợi ý sau một năm; vui lòng đối chiếu ngày thực tế trên hợp đồng. CHECKEE sẽ xác minh trước khi kỳ dịch vụ có hiệu lực.</p>
+        </fieldset>
         <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold">Hình thức thanh toán *</legend>
+          <legend className="text-sm font-semibold">Gói dịch vụ & hình thức thanh toán *</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="service_plan_choice" value="SCHOOL_YEAR"
               checked={plan==='SCHOOL_YEAR'} onChange={()=>{setPlan('SCHOOL_YEAR');clearError('service_plan');}}/>

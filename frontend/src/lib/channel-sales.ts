@@ -98,6 +98,9 @@ export type CustomerActivityInput = {
 export type ReportContractInput = {
   idempotency_key: string;
   signed_on: string;
+  service_start_on: string;
+  service_end_on: string;
+  payment_cycle: 'MONTHLY' | 'YEARLY';
   product_package_id: number;
   total_value: number;
   first_payment_due_on?: string;

@@ -59,7 +59,7 @@ public static class ContractExpiryAlertService
                     join rp in db.PermissionRoles on ur.RoleId equals rp.RoleId
                     join permission in db.Permissions on rp.PermissionId equals permission.Id
                     where ur.UserId == user.Id && (permission.Code == "channel_sales.customer.view"
-                        || permission.Code == "school_support.manage")
+                        || permission.Code == "channel_sales.school.support.manage")
                     select ur.UserId).Any()
             select user.Id).Distinct().ToArrayAsync(ct)).ToHashSet();
 

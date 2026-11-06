@@ -289,6 +289,8 @@ public sealed class ContractRenewal : EntityBase
     public DateTime? ReviewedAt { get; set; }
     public long? ReviewedByUserId { get; set; }
     public string? DecisionReason { get; set; }
+    /// <summary>Required only when a renewal starts after the day immediately following the preceding period.</summary>
+    public string? GapReason { get; set; }
 }
 
 public sealed class ContractRenewalEvent : EntityBase

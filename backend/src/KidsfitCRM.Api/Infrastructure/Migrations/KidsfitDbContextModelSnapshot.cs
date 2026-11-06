@@ -1904,6 +1904,19 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("varchar(32)")
                         .HasColumnName("service_plan");
 
+                    b.Property<DateTime?>("ServiceStartOn")
+                        .HasColumnType("date")
+                        .HasColumnName("service_start_on");
+
+                    b.Property<DateTime?>("ServiceEndOn")
+                        .HasColumnType("date")
+                        .HasColumnName("service_end_on");
+
+                    b.Property<string>("PaymentCycle")
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("payment_cycle");
+
                     b.Property<int?>("BranchCount")
                         .HasColumnType("int")
                         .HasColumnName("branch_count");

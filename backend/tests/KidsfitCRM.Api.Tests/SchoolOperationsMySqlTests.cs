@@ -64,6 +64,117 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task Nt01ProtectionReminderIsScopedToOwnerAndManagerAndIsIdempotent()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var now = DateTime.UtcNow;
+        var today = ContractExpiryAlertService.BusinessDate(now);
+        await using var db = fixture.Open();
+        var protection = await db.CustomerProtections.SingleAsync(x =>
+            x.ContractId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE", Ct);
+        // Use local noon to avoid UTC-local date transitions during the test.
+        protection.EffectiveUntil = today.AddDays(30).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
+        await db.SaveChangesAsync(Ct);
+
+        await ContractExpiryAlertService.SweepAsync(db, now, Ct);
+        var alerts = await db.ContractExpiryAlerts.AsNoTracking()
+            .Where(x => x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30")
+            .ToArrayAsync(Ct);
+        Assert.Equal(2, alerts.Length);
+        Assert.Contains(alerts, x => x.RecipientUserId == scenario.Seller.UserId);
+        Assert.Contains(alerts, x => x.RecipientUserId == scenario.Manager.UserId);
+        Assert.DoesNotContain(alerts, x => x.RecipientUserId == scenario.Peer.UserId);
+        await ContractExpiryAlertService.SweepAsync(db, now, Ct);
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x =>
+            x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30", Ct));
+
+        protection.EffectiveUntil = today.AddDays(60).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
+        await db.SaveChangesAsync(Ct);
+        await ContractExpiryAlertService.SweepAsync(db, now, Ct);
+        Assert.Equal(0, await db.ContractExpiryAlerts.CountAsync(x =>
+            x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30" && x.Status == "OPEN", Ct));
+    }
+
+    [MySqlFact] public async Task Nt01WarnsAboutConfirmedRenewalGapWithoutClaimingFullTermination()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var today = ContractExpiryAlertService.BusinessDate(DateTime.UtcNow);
+        await using var db = fixture.Open();
+        var source = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        source.ServiceStartOn = today.AddMonths(-11);
+        source.ServiceEndOn = today.AddDays(29);
+        source.PaymentCycle = "YEARLY";
+        var renewalStart = today.AddDays(50);
+        var renewal = new ContractRenewal
+        {
+            ContractId = contractId, RenewalNo = 1, Status = "CONFIRMED",
+            SubmittedByUserId = scenario.Seller.UserId, SignedOn = today,
+            IdempotencyKey = Key(), RequestFingerprint = Key(), TotalValue = 1_000_000,
+            ServiceStartOn = renewalStart, ServiceEndOn = renewalStart.AddYears(1).AddDays(-1),
+            PaymentCycle = "YEARLY", GapReason = "Trường tạm dừng triển khai."
+        };
+        db.ContractRenewals.Add(renewal);
+        await db.SaveChangesAsync(Ct);
+
+        await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        var alerts = await db.ContractExpiryAlerts.AsNoTracking().Where(a => a.ContractId == contractId).ToArrayAsync(Ct);
+        Assert.Equal(2, alerts.Length);
+        Assert.All(alerts, a => Assert.Equal("SERVICE_GAP_BEFORE_30", a.Kind));
+        Assert.All(alerts, a => Assert.Equal(today.AddDays(30), a.MilestoneOn));
+
+        // Correcting a future gap into a contiguous renewal makes the old gap notices stale.
+        renewal.ServiceStartOn = source.ServiceEndOn!.Value.AddDays(1);
+        renewal.ServiceEndOn = renewal.ServiceStartOn.AddYears(1).AddDays(-1);
+        renewal.GapReason = null;
+        await db.SaveChangesAsync(Ct);
+        await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(a =>
+            a.ContractId == contractId && a.Status == "RESOLVED", Ct));
+    }
+
+    [MySqlFact] public async Task Nt01CreatesScopedServiceNoticeOnlyOnceAndResolvesOnChangedServiceTerm()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var today = ContractExpiryAlertService.BusinessDate(DateTime.UtcNow);
+        await using var db = fixture.Open();
+        var contract = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        contract.ServiceStartOn = today.AddMonths(-11);
+        contract.ServiceEndOn = today.AddDays(30);
+        contract.PaymentCycle = "YEARLY";
+        await db.SaveChangesAsync(Ct);
+
+        var created = await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.True(created >= 2);
+        var notices = await db.ContractExpiryAlerts.AsNoTracking()
+            .Where(x => x.ContractId == contractId).ToArrayAsync(Ct);
+        Assert.Equal(2, notices.Length);
+        Assert.All(notices, x => Assert.Equal("SERVICE_BEFORE_30", x.Kind));
+        Assert.Contains(notices, x => x.RecipientUserId == scenario.Seller.UserId);
+        Assert.Contains(notices, x => x.RecipientUserId == scenario.Manager.UserId);
+        Assert.DoesNotContain(notices, x => x.RecipientUserId == scenario.Peer.UserId);
+
+        await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId, Ct));
+
+        // A KC-02 renewal confirmed for the next year supersedes the old expiry milestone.
+        var renewalStart = today.AddDays(31);
+        db.ContractRenewals.Add(new ContractRenewal
+        {
+            ContractId = contractId, RenewalNo = 1, Status = "CONFIRMED",
+            SubmittedByUserId = scenario.Seller.UserId, SignedOn = today,
+            IdempotencyKey = Key(), RequestFingerprint = Key(),
+            ServiceStartOn = renewalStart, ServiceEndOn = renewalStart.AddYears(1).AddDays(-1),
+            PaymentCycle = "YEARLY", TotalValue = 1_000_000
+        });
+        await db.SaveChangesAsync(Ct);
+        await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId && x.Status == "RESOLVED", Ct));
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x => x.ContractId == contractId, Ct));
+    }
+
     [MySqlFact] public async Task CheckeeConfirmationAutomaticallyActivatesExactlyOneFiveYearSchoolProtection()
     {
         var scenario = await Arrange();

@@ -64,6 +64,38 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task Nt01ProtectionReminderIsScopedToOwnerAndManagerAndIsIdempotent()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var now = DateTime.UtcNow;
+        var today = ContractExpiryAlertService.BusinessDate(now);
+        await using var db = fixture.Open();
+        var protection = await db.CustomerProtections.SingleAsync(x =>
+            x.ContractId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE", Ct);
+        // Use local noon to avoid UTC-local date transitions during the test.
+        protection.EffectiveUntil = today.AddDays(30).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
+        await db.SaveChangesAsync(Ct);
+
+        await ContractExpiryAlertService.SweepAsync(db, now, Ct);
+        var alerts = await db.ContractExpiryAlerts.AsNoTracking()
+            .Where(x => x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30")
+            .ToArrayAsync(Ct);
+        Assert.Equal(2, alerts.Length);
+        Assert.Contains(alerts, x => x.RecipientUserId == scenario.Seller.UserId);
+        Assert.Contains(alerts, x => x.RecipientUserId == scenario.Manager.UserId);
+        Assert.DoesNotContain(alerts, x => x.RecipientUserId == scenario.Peer.UserId);
+        await ContractExpiryAlertService.SweepAsync(db, now, Ct);
+        Assert.Equal(2, await db.ContractExpiryAlerts.CountAsync(x =>
+            x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30", Ct));
+
+        protection.EffectiveUntil = today.AddDays(60).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
+        await db.SaveChangesAsync(Ct);
+        await ContractExpiryAlertService.SweepAsync(db, now, Ct);
+        Assert.Equal(0, await db.ContractExpiryAlerts.CountAsync(x =>
+            x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30" && x.Status == "OPEN", Ct));
+    }
+
     [MySqlFact] public async Task Nt01WarnsAboutConfirmedRenewalGapWithoutClaimingFullTermination()
     {
         var scenario = await Arrange();

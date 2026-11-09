@@ -48,9 +48,8 @@ public static class CustomerCareEndpoints
         if (term.Length > 190)
             throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
         var requestedStatus = (status ?? "ALL").Trim().ToUpperInvariant();
-        if (requestedStatus is not ("ALL" or "CONTINUOUS" or "INTERRUPTED"
-            or "THRESHOLD_REACHED" or "NEEDS_CARE"))
-            throw ApiValidationException.For("status", "Trạng thái lọc không hợp lệ.");
+        if (requestedStatus is not ("ALL" or "HAS_TICKET" or "SUPPORTED" or "NOT_SUPPORTED"))
+            throw ApiValidationException.For("status", "Bộ lọc hỗ trợ không hợp lệ.");
 
         var assignedContracts = await Assigned(db, access).AsNoTracking()
             .Where(c => c.Status == "ACTIVE" && c.VerifiedAt.HasValue)
@@ -76,9 +75,6 @@ public static class CustomerCareEndpoints
             .Select(g => new { CustomerId = g.Key, LastAt = g.Max(a => a.CreatedAt) })
             .ToDictionaryAsync(a => a.CustomerId, a => a.LastAt, ct);
 
-        var now = DateTime.UtcNow;
-        var today = ContractExpiryAlertService.BusinessDate(now);
-        var exceptionHours = configuration.GetValue<int>("GI01:AccountingExceptionHours");
         var result = new List<CareSchoolOverview>();
         foreach (var group in groups)
         {
@@ -87,50 +83,18 @@ public static class CustomerCareEndpoints
                 && !(school.Phone?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
                 && !group.Any(c => c.ContractCode.Contains(term, StringComparison.OrdinalIgnoreCase)))
                 continue;
-
             var contract = group.First();
             var openTickets = group.Sum(c => tickets.GetValueOrDefault(c.Id));
-            var interruption = await ServiceInterruptionService.AssessAsync(
-                db, group.Key, today, now, ct, exceptionHours);
-            var raw = interruption?.Status ?? "NO_SERVICE";
-            var service = interruption?.Assessment.Status switch
-            {
-                ServiceInterruptionPolicy.AssessmentStatus.Continuous => "CONTINUOUS",
-                ServiceInterruptionPolicy.AssessmentStatus.Interrupted => "INTERRUPTED",
-                ServiceInterruptionPolicy.AssessmentStatus.ThresholdReached => "THRESHOLD_REACHED",
-                ServiceInterruptionPolicy.AssessmentStatus.HistoricalThresholdRequiresReview =>
-                    "HISTORICALTHRESHOLDREQUIRESREVIEW",
-                _ => "MISSINGSERVICETERM"
-            };
-
-            // Actions are CSKH-only follow-ups, not Sales rights decisions.
-            string? careAction;
-            if (openTickets > 0) careAction = "FOLLOW_UP_TICKET";
-            else if (interruption?.HasPendingRenewal == true) careAction = "FOLLOW_UP_ACCOUNTING";
-            else if (raw.StartsWith("EXCEPTION_", StringComparison.Ordinal))
-                careAction = "ESCALATE_CASE";
-            else if (service == "THRESHOLD_REACHED") careAction = "FOLLOW_UP_12M";
-            else if (service == "INTERRUPTED" && interruption?.Assessment.ThresholdOn is DateOnly threshold
-                && threshold.DayNumber - today.DayNumber <= 30)
-                careAction = "CONTACT_PRIORITY";
-            else if (service == "INTERRUPTED") careAction = "CONTACT_SCHOOL";
-            else if (service is "MISSINGSERVICETERM" or "HISTORICALTHRESHOLDREQUIRESREVIEW")
-                careAction = "ESCALATE_CASE";
-            else careAction = null;
-
-            if (requestedStatus != "ALL" && (requestedStatus == "NEEDS_CARE"
-                ? careAction is null : service != requestedStatus))
+            var hasSupport = lastCalls.TryGetValue(group.Key, out var last);
+            if (requestedStatus == "HAS_TICKET" && openTickets == 0 ||
+                requestedStatus == "SUPPORTED" && !hasSupport ||
+                requestedStatus == "NOT_SUPPORTED" && hasSupport)
                 continue;
-
             result.Add(new CareSchoolOverview(
                 contract.Id, group.Key, contract.ContractCode, contract.Status,
                 contract.VerifiedAt, school.DisplayName, school.ContactName,
                 school.Phone, school.Email, openTickets,
-                lastCalls.TryGetValue(group.Key, out var last) ? last : null,
-                group.Count(), service, raw, careAction,
-                interruption?.Assessment.GapStartOn, interruption?.Assessment.ThresholdOn,
-                interruption?.Assessment.NextServiceStartOn,
-                interruption?.HasPendingRenewal ?? false));
+                hasSupport ? last : null, group.Count()));
         }
         var total = result.Count;
         return Results.Ok(new { data = result.Skip((p - 1) * size).Take(size).ToArray(),
@@ -140,10 +104,7 @@ public static class CustomerCareEndpoints
     private sealed record CareSchoolOverview(
         long Id, long CustomerId, string ContractCode, string Status, DateTime? VerifiedAt,
         string SchoolName, string? ContactName, string? Phone, string? Email,
-        int OpenTickets, DateTime? LastSupportAt, int EligibleContractCount,
-        string ServiceStatus, string Gi01Status, string? CareAction,
-        DateOnly? GapStartOn, DateOnly? ThresholdOn, DateOnly? NextServiceStartOn,
-        bool HasPendingRenewal);
+        int OpenTickets, DateTime? LastSupportAt, int EligibleContractCount);
 
     public static async Task<IResult> SchoolDetail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {

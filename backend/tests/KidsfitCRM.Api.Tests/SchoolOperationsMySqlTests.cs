@@ -1801,7 +1801,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Contains(mine.GetProperty("data").EnumerateArray(), x =>
             x.GetProperty("customer_id").GetInt64() == scenario.CustomerId);
         var careFiltered = Json(await CustomerCareEndpoints.Schools(Http(care), db,
-            new ConfigurationBuilder().Build(), contractCode, "NEEDS_CARE", 1, 20, Ct));
+            new ConfigurationBuilder().Build(), contractCode, "HAS_TICKET", 1, 20, Ct));
         Assert.True(careFiltered.GetProperty("total").GetInt32()
             <= mine.GetProperty("total").GetInt32());
         var notMine = Json(await CustomerCareEndpoints.Schools(Http(other.UserId), db,

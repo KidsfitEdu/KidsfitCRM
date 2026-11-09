@@ -1,3 +1,4 @@
+using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 

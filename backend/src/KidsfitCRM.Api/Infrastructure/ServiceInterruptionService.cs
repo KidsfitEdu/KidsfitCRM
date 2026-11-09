@@ -54,6 +54,13 @@ public static class ServiceInterruptionService
                 c.OwnerOrganizationId != protection.OwnerOrganizationId)) status = "EXCEPTION_OWNERSHIP";
             else status = "THRESHOLD_REACHED";
         }
+        if (assessment.Status == ServiceInterruptionPolicy.AssessmentStatus.ThresholdReached
+            && activeProtections.Length == 0 && assessment.GapStartOn.HasValue
+            && await db.ServiceInterruptionEvents.AnyAsync(e => e.CustomerId == customerId
+                && e.GapStartOn == assessment.GapStartOn.Value && e.Status == "RELEASED", ct))
+        {
+            status = "RELEASED";
+        }
         return new(customerId, contracts[0].Id, contracts[0].OwnerUserId,
             contracts[0].OwnerOrganizationId, assessment, pending, dispute,
             protection?.Id, protection?.EffectiveUntil, status);

@@ -10,6 +10,7 @@ public sealed class ServiceInterruptionEvent : EntityBase
     public DateOnly ThresholdOn { get; set; }
     public string Status { get; set; } = "REVIEW_REQUIRED";
     public string Reason { get; set; } = "";
+    public string SourceSnapshot { get; set; } = "{}";
     public string DeduplicationKey { get; set; } = "";
     public DateTime ProcessedAt { get; set; }
 }

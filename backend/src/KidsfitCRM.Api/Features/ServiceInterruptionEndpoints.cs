@@ -84,6 +84,8 @@ public static class ServiceInterruptionEndpoints
             ContractExpiryAlertService.BusinessDate(DateTime.UtcNow), DateTime.UtcNow, ct,
             configuration.GetValue<int>("GI01:AccountingExceptionHours"))
             ?? throw new KeyNotFoundException();
+        if (!await access.Contracts(db).AnyAsync(c => c.Id == snapshot.ContractId, ct))
+            throw new KeyNotFoundException();
         var scopedContractIds = await access.Contracts(db)
             .Where(c => c.CustomerId == customerId).Select(c => c.Id).ToArrayAsync(ct);
         var events = await db.ServiceInterruptionEvents.AsNoTracking()

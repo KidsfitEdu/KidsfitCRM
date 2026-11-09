@@ -14,7 +14,7 @@ public static class ServiceInterruptionService
         DateTime? ProtectionUntil, string Status);
 
     public static async Task<Snapshot?> AssessAsync(KidsfitDbContext db, long customerId,
-        DateOnly today, DateTime utcNow, CancellationToken ct)
+        DateOnly today, DateTime utcNow, CancellationToken ct, int accountingExceptionHours = 0)
     {
         var contracts = await db.SalesContracts.AsNoTracking()
             .Where(c => c.CustomerId == customerId && c.Status == "ACTIVE" && c.VerifiedAt != null
@@ -37,19 +37,32 @@ public static class ServiceInterruptionService
             : ServiceInterruptionPolicy.Evaluate(today, periods[0].StartOn, periods[0].EndOn, periods.Skip(1));
         var pending = await db.ContractRenewals.AnyAsync(r => contractIds.Contains(r.ContractId)
             && (r.Status == "PENDING_ACCOUNTING" || r.Status == "NEEDS_INFO" || r.Status == "DRAFT"), ct);
-        var dispute = await db.SchoolDisputes.AnyAsync(d => d.CustomerId == customerId && d.Status == "OPEN", ct);
+        var dispute = await db.SchoolDisputes.AnyAsync(d => d.CustomerId == customerId
+            && d.Status != "RESOLVED" && d.Status != "REJECTED" && d.Status != "CLOSED", ct);
         var activeProtections = await db.CustomerProtections.AsNoTracking()
-            .Where(p => p.CustomerId == customerId && p.SourceType == "CONTRACT"
+            .Where(p => p.CustomerId == customerId
                 && p.Status == "ACTIVE" && p.EffectiveFrom <= utcNow && p.EffectiveUntil > utcNow)
             .OrderByDescending(p => p.EffectiveUntil).ToArrayAsync(ct);
         var protection = activeProtections.FirstOrDefault();
         var status = assessment.Status.ToString().ToUpperInvariant();
         if (assessment.Status == ServiceInterruptionPolicy.AssessmentStatus.ThresholdReached)
         {
-            if (pending) status = "EXCEPTION_ACCOUNTING";
+            if (pending)
+            {
+                if (accountingExceptionHours <= 0)
+                    status = "EXCEPTION_CONFIG_REQUIRED";
+                else
+                {
+                    var deadlineUtc = assessment.ThresholdOn!.Value
+                        .ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddHours(-7)
+                        .AddHours(accountingExceptionHours);
+                    status = utcNow >= deadlineUtc ? "EXCEPTION_OVERDUE" : "EXCEPTION_ACCOUNTING";
+                }
+            }
             else if (dispute) status = "EXCEPTION_DISPUTE";
-            else if (activeProtections.Length != 1) status = "EXCEPTION_OWNERSHIP";
-            else if (!contractIds.Contains(protection!.ContractId ?? -1)) status = "EXCEPTION_OWNERSHIP";
+            else if (activeProtections.Length != 1 || protection!.SourceType != "CONTRACT")
+                status = "EXCEPTION_OWNERSHIP";
+            else if (!contractIds.Contains(protection.ContractId ?? -1)) status = "EXCEPTION_OWNERSHIP";
             else if (contracts.Any(c => c.OwnerUserId != protection.OwnerUserId ||
                 c.OwnerOrganizationId != protection.OwnerOrganizationId)) status = "EXCEPTION_OWNERSHIP";
             else status = "THRESHOLD_REACHED";
@@ -71,7 +84,7 @@ public static class ServiceInterruptionService
     /// No unchecked historical release. Registration locks the same customer row.
     /// </summary>
     public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now,
-        bool enableRelease, CancellationToken ct = default)
+        bool enableRelease, CancellationToken ct = default, int accountingExceptionHours = 0)
     {
         var today = ContractExpiryAlertService.BusinessDate(now);
         var candidates = await db.CustomerProtections.AsNoTracking()
@@ -87,7 +100,8 @@ public static class ServiceInterruptionService
             await db.ChannelCustomers.FromSqlInterpolated(
                 $"SELECT * FROM channel_customers WHERE id = {customerId} FOR UPDATE")
                 .SingleAsync(ct);
-            var snapshot = await AssessAsync(db, customerId, today, now, ct);
+            var snapshot = await AssessAsync(db, customerId, today, now, ct,
+                accountingExceptionHours);
             if (snapshot is null || snapshot.Assessment.ThresholdOn is null ||
                 snapshot.Assessment.GapStartOn is null)
             {
@@ -153,7 +167,9 @@ public sealed class ServiceInterruptionWorker(
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
             var enable = configuration.GetValue<bool>("GI01:EnableAutomaticRelease");
-            var released = await ServiceInterruptionService.SweepAsync(db, DateTime.UtcNow, enable, ct);
+            var accountingExceptionHours = configuration.GetValue<int>("GI01:AccountingExceptionHours");
+            var released = await ServiceInterruptionService.SweepAsync(db, DateTime.UtcNow,
+                enable, ct, accountingExceptionHours);
             if (released != 0) logger.LogInformation("GI-01 released {Count} customer rights.", released);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }

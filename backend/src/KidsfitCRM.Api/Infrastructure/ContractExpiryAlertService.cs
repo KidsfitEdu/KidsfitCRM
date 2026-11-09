@@ -44,7 +44,7 @@ public static class ContractExpiryAlertService
                 .SetProperty(a => a.UpdatedAt, now), ct);
         var contracts = await db.SalesContracts.AsNoTracking()
             .Where(c => c.Status == "ACTIVE" && c.VerifiedAt != null && c.RequiresSchoolVerification)
-            .Select(c => new { c.Id, c.OwnerUserId, c.OwnerOrganizationId,
+            .Select(c => new { c.Id, c.CustomerId, c.OwnerUserId, c.OwnerOrganizationId,
                 c.CareUserId, c.CareOrganizationId, c.ServiceEndOn })
             .ToArrayAsync(ct);
         if (contracts.Length == 0) return 0;
@@ -160,11 +160,10 @@ public static class ContractExpiryAlertService
             // GI-01: per-recipient notice milestones from the entire verified service timeline.
             // This does not alter customer rights; actual release belongs to GI-01 worker.
             var interruption = await ServiceInterruptionService.AssessAsync(
-                db, contract.Id == 0 ? -1 : (await db.SalesContracts.AsNoTracking()
-                    .Where(x => x.Id == contract.Id).Select(x => x.CustomerId).SingleAsync(ct)), today, now, ct);
+                db, contract.CustomerId, today, now, ct);
             if (interruption?.Assessment.ThresholdOn is DateOnly threshold
                 && interruption.Status != "CONTINUOUS"
-                && interruption.Status != "MISSINGERVICETERM")
+                && interruption.Status != "MISSINGSERVICETERM")
             {
                 foreach (var (daysBefore, due) in ServiceInterruptionPolicy.WarningMilestones(threshold))
                 {

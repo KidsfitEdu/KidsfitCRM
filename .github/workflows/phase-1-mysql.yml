@@ -133,6 +133,7 @@ jobs:
           Seed__DisposableDatabase: "true"
           Seed__ReviewFixtures: "true"
           Seed__Gi01Scenarios: "true"
+          Seed__Gi01SweepAfterSeed: "true"
           Seed__AccountingScenarios: "false"
           GI01__EnableAutomaticRelease: "false"
           ASPNETCORE_ENVIRONMENT: "Development"
@@ -142,10 +143,12 @@ jobs:
           mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_gi01_demo_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
           dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
           dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'GI01-DEMO-%';" | grep -x 3
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'GI01-DEMO-%';" | grep -x 4
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='CONFIRMED';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='PENDING_ACCOUNTING';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='RELEASED';" | grep -x 0
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='RELEASED';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0010' AND p.status='RELEASED';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0008' AND p.status='ACTIVE';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM service_interruption_events;" | grep -x 0
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_gi01_demo_ci;"
       - name: Full EF migrations, seed replay, transaction and concurrency tests

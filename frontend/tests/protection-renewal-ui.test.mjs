@@ -13,6 +13,7 @@ test('SL-02/MG-01 protection renewal uses standard CRM table and filter componen
   assert.match(ui, /className="overflow-x-auto"/);
   assert.match(ui, /aria-label="Lọc trạng thái hồ sơ"/);
   assert.match(ui, /aria-label="Lọc nguồn hồ sơ"/);
+  assert.match(ui, /aria-label="Lọc tổ chức Sales"/);
   assert.match(ui, /aria-label="Tổng hợp hồ sơ bảo vệ"/);
   assert.match(ui, /onPageSizeChange=\{size=>/);
   assert.doesNotMatch(ui, /window\.prompt|window\.confirm/);

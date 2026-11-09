@@ -53,7 +53,12 @@ public static class DatabaseSeeder
             if (config.GetValue<bool>("Seed:Nt01Scenarios"))
                 await Nt01DemoSeeder.SeedAsync(db, DateTime.UtcNow);
             if (config.GetValue<bool>("Seed:Gi01Scenarios"))
+            {
                 await ServiceInterruptionDemoSeeder.SeedAsync(db, DateTime.UtcNow);
+                // Disposable-only integration smoke test. Never executes on a production database.
+                if (config.GetValue<bool>("Seed:Gi01SweepAfterSeed"))
+                    await ServiceInterruptionService.SweepAsync(db, DateTime.UtcNow, true);
+            }
         }
         else
         {

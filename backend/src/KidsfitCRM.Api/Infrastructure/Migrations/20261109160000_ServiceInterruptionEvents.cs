@@ -25,6 +25,7 @@ public sealed class ServiceInterruptionEvents : Migration
                 threshold_on = table.Column<DateOnly>(type: "date", nullable: false),
                 status = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false),
                 reason = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false),
+                source_snapshot = table.Column<string>(type: "json", nullable: false),
                 deduplication_key = table.Column<string>(type: "varchar(180)", maxLength: 180, nullable: false,
                     collation: "utf8mb4_bin"),
                 processed_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),

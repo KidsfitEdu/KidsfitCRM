@@ -16,7 +16,7 @@ public static class ServiceInterruptionEndpoints
     }
 
     public static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
-        string? search, string? status, int? page, int? pageSize, CancellationToken ct)
+        IConfiguration configuration, string? search, string? status, int? page, int? pageSize, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var today = ContractExpiryAlertService.BusinessDate(DateTime.UtcNow);
@@ -35,7 +35,8 @@ public static class ServiceInterruptionEndpoints
         var rows = new List<object>();
         foreach (var id in ids)
         {
-            var snapshot = await ServiceInterruptionService.AssessAsync(db, id, today, now, ct);
+            var snapshot = await ServiceInterruptionService.AssessAsync(db, id, today, now, ct,
+                configuration.GetValue<int>("GI01:AccountingExceptionHours"));
             if (snapshot is null) continue;
             if (snapshot.Status == "CONTINUOUS") continue;
             if (!string.IsNullOrWhiteSpace(status) &&
@@ -70,13 +71,14 @@ public static class ServiceInterruptionEndpoints
     }
 
     public static async Task<IResult> Detail(long customerId, HttpContext http,
-        KidsfitDbContext db, CancellationToken ct)
+        KidsfitDbContext db, IConfiguration configuration, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!await access.Contracts(db).AnyAsync(c => c.CustomerId == customerId, ct))
             throw new KeyNotFoundException();
         var snapshot = await ServiceInterruptionService.AssessAsync(db, customerId,
-            ContractExpiryAlertService.BusinessDate(DateTime.UtcNow), DateTime.UtcNow, ct)
+            ContractExpiryAlertService.BusinessDate(DateTime.UtcNow), DateTime.UtcNow, ct,
+            configuration.GetValue<int>("GI01:AccountingExceptionHours"))
             ?? throw new KeyNotFoundException();
         var scopedContractIds = await access.Contracts(db)
             .Where(c => c.CustomerId == customerId).Select(c => c.Id).ToArrayAsync(ct);

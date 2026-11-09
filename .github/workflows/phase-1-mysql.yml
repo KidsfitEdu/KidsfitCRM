@@ -125,6 +125,29 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='WAITING_RENEWAL';" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM protection_renewal_cases;" | grep -x 0
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_sl02_demo_ci;"
+      - name: GI-01 isolated 12-month interruption seed and audit safety
+        env:
+          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_gi01_demo_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
+          Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
+          Seed__DemoPassword: "ephemeral-ci-demo-only-not-a-real-secret"
+          Seed__DisposableDatabase: "true"
+          Seed__ReviewFixtures: "true"
+          Seed__Gi01Scenarios: "true"
+          Seed__AccountingScenarios: "false"
+          GI01__EnableAutomaticRelease: "false"
+          ASPNETCORE_ENVIRONMENT: "Development"
+        run: |
+          set -euo pipefail
+          export MYSQL_PWD='ephemeral-ci-only'
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_gi01_demo_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'GI01-DEMO-%';" | grep -x 3
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='CONFIRMED';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='PENDING_ACCOUNTING';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='RELEASED';" | grep -x 0
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM service_interruption_events;" | grep -x 0
+          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_gi01_demo_ci;"
       - name: Full EF migrations, seed replay, transaction and concurrency tests
         run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
       - name: Separate synthetic backup and restore smoke test

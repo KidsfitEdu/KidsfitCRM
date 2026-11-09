@@ -104,6 +104,27 @@ jobs:
           test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'PROTECTION_BEFORE_7';")" -gt 0
           mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM contract_expiry_alerts;" | grep -x 0
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_nt01_ui_ci;"
+      - name: SL-02 isolated five-school UI fixtures and idempotent replay
+        env:
+          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_sl02_demo_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
+          Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
+          Seed__DemoPassword: "ephemeral-ci-demo-only-not-a-real-secret"
+          Seed__DisposableDatabase: "true"
+          Seed__ReviewFixtures: "true"
+          Seed__ProtectionRenewalScenarios: "true"
+          Seed__AccountingScenarios: "false"
+          ASPNETCORE_ENVIRONMENT: "Development"
+        run: |
+          set -euo pipefail
+          export MYSQL_PWD='ephemeral-ci-only'
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_sl02_demo_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'SL02-DEMO-%';" | grep -x 5
+          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='PENDING_MANAGER';" | grep -x 2
+          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='WAITING_RENEWAL';" | grep -x 2
+          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM protection_renewal_cases;" | grep -x 0
+          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_sl02_demo_ci;"
       - name: Full EF migrations, seed replay, transaction and concurrency tests
         run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
       - name: Separate synthetic backup and restore smoke test

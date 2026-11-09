@@ -22,6 +22,8 @@ public static class DatabaseSeeder
             throw new InvalidOperationException("NT-01 scenarios require Seed:ReviewFixtures=true on a disposable database.");
         if (config.GetValue<bool>("Seed:ProtectionRenewalScenarios") && !config.GetValue<bool>("Seed:ReviewFixtures"))
             throw new InvalidOperationException("SL-02 demo requires isolated Seed:ReviewFixtures=true.");
+        if (config.GetValue<bool>("Seed:Gi01Scenarios") && !config.GetValue<bool>("Seed:ReviewFixtures"))
+            throw new InvalidOperationException("GI-01 demo requires isolated Seed:ReviewFixtures=true.");
         var hasher = services.GetRequiredService<IPasswordHasher<User>>();
         var now = DateTime.UtcNow;
         if (!await db.Roles.AnyAsync())
@@ -50,6 +52,8 @@ public static class DatabaseSeeder
             // NT-01 UI scenarios are opt-in and allowed only with isolated review fixtures.
             if (config.GetValue<bool>("Seed:Nt01Scenarios"))
                 await Nt01DemoSeeder.SeedAsync(db, DateTime.UtcNow);
+            if (config.GetValue<bool>("Seed:Gi01Scenarios"))
+                await ServiceInterruptionDemoSeeder.SeedAsync(db, DateTime.UtcNow);
         }
         else
         {

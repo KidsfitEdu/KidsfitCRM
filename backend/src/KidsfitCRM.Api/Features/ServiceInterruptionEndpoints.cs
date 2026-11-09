@@ -38,6 +38,10 @@ public static class ServiceInterruptionEndpoints
             var snapshot = await ServiceInterruptionService.AssessAsync(db, id, today, now, ct,
                 configuration.GetValue<int>("GI01:AccountingExceptionHours"));
             if (snapshot is null) continue;
+            // The newest owner/contract may belong to another organization.
+            // Do not expose its audit or contract ID through an older scoped contract.
+            if (!await access.Contracts(db).AnyAsync(x => x.Id == snapshot.ContractId, ct))
+                continue;
             if (snapshot.Status == "CONTINUOUS") continue;
             if (!string.IsNullOrWhiteSpace(status) &&
                 !snapshot.Status.Equals(status.Trim(), StringComparison.OrdinalIgnoreCase)) continue;

@@ -88,7 +88,7 @@ public sealed partial class ChannelSalesActions
                 .SingleAsync(ct);
             if (invitation.Status != "PENDING") continue;
             invitation.Status = "CANCELLED";
-            invitation.ResponseReason = "Quản lý thu hồi quyền tiếp cận; cần phân bổ lại.";
+            invitation.ResponseReason = "Thu hồi để phân bổ lại.";
             invitation.RespondedAt = now;
             invitation.UpdatedAt = now;
             cancelledInvitations++;

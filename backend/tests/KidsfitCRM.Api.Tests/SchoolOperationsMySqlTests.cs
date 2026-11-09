@@ -6,6 +6,7 @@ using KidsfitCRM.Api.Features;
 using KidsfitCRM.Api.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using MySql.Data.MySqlClient;
 
 namespace KidsfitCRM.Api.Tests;
@@ -1793,9 +1794,18 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await actions.AssignContractCare(contract, new(Key(), care, careOrg, "Admin phân công hỗ trợ trường"),
             admin, Http(admin), Ct);
         var contractCode = await db.SalesContracts.Where(x => x.Id == contract).Select(x => x.ContractCode).SingleAsync();
-        var mine = Json(await CustomerCareEndpoints.Schools(Http(care), db, contractCode, 1, 20, Ct));
+        var mine = Json(await CustomerCareEndpoints.Schools(Http(care), db,
+            new ConfigurationBuilder().Build(), contractCode, null, 1, 20, Ct));
         Assert.Contains(mine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
-        var notMine = Json(await CustomerCareEndpoints.Schools(Http(other.UserId), db, null, 1, 20, Ct));
+        Assert.Equal(1, mine.GetProperty("total").GetInt32());
+        Assert.Contains(mine.GetProperty("data").EnumerateArray(), x =>
+            x.GetProperty("customer_id").GetInt64() == scenario.CustomerId);
+        var careFiltered = Json(await CustomerCareEndpoints.Schools(Http(care), db,
+            new ConfigurationBuilder().Build(), contractCode, "HAS_TICKET", 1, 20, Ct));
+        Assert.True(careFiltered.GetProperty("total").GetInt32()
+            <= mine.GetProperty("total").GetInt32());
+        var notMine = Json(await CustomerCareEndpoints.Schools(Http(other.UserId), db,
+            new ConfigurationBuilder().Build(), null, null, 1, 20, Ct));
         Assert.DoesNotContain(notMine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.SchoolDetail(
             contract, Http(other.UserId), db, Ct));

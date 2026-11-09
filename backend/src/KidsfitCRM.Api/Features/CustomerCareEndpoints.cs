@@ -34,36 +34,77 @@ public static class CustomerCareEndpoints
     private static (int page, int size) Pagination(int? page, int? page_size) =>
         (Math.Clamp(page ?? 1, 1, 10000), Math.Clamp(page_size ?? 20, 1, 100));
 
+    /// <summary>
+    /// Server-scoped CSKH overview, exactly one row per school. Filter before
+    /// pagination; preserve a representative assigned contract for call/ticket URLs.
+    /// </summary>
     public static async Task<IResult> Schools(HttpContext http, KidsfitDbContext db,
-        string? search, int? page, int? page_size, CancellationToken ct)
+        IConfiguration configuration, string? search, string? status,
+        int? page, int? page_size, CancellationToken ct)
     {
         var access = await CareAccess(http, db, ct);
         var (p, size) = Pagination(page, page_size);
         var term = search?.Trim() ?? "";
-        if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
-        // Ticket selection lists only actively supported contracts assigned to the caller.
-        var eligible = Assigned(db, access).AsNoTracking()
-            .Where(c => c.Status == "ACTIVE" && c.VerifiedAt.HasValue);
-        var query = eligible.Where(c => term == ""
-            || c.ContractCode.Contains(term)
-            || db.ChannelCustomers.Any(x => x.Id == c.CustomerId
-                && (x.DisplayName.Contains(term) || (x.Phone != null && x.Phone.Contains(term)))));
-        var total = await query.CountAsync(ct);
-        var rows = await query.OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
-            .Skip((p - 1) * size).Take(size)
-            .Select(c => new {
-                c.Id, c.CustomerId, c.ContractCode, c.Status, c.VerifiedAt,
-                eligible_contract_count = eligible.Count(other => other.CustomerId == c.CustomerId),
-                school_name = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.DisplayName).First(),
-                contact_name = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.ContactName).First(),
-                phone = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.Phone).First(),
-                email = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.Email).First(),
-                open_tickets = db.CustomerSupportCases.Count(t => t.ContractId == c.Id && t.Status != "RESOLVED"),
-                last_support_at = db.CustomerActivities.Where(a => a.CustomerId == c.CustomerId && a.ActivityType == "SUPPORT")
-                    .Max(a => (DateTime?)a.CreatedAt),
-            }).ToArrayAsync(ct);
-        return Results.Ok(new { data = rows, total, page = p, page_size = size });
+        if (term.Length > 190)
+            throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
+        var requestedStatus = (status ?? "ALL").Trim().ToUpperInvariant();
+        if (requestedStatus is not ("ALL" or "HAS_TICKET" or "SUPPORTED" or "NOT_SUPPORTED"))
+            throw ApiValidationException.For("status", "Bộ lọc hỗ trợ không hợp lệ.");
+
+        var assignedContracts = await Assigned(db, access).AsNoTracking()
+            .Where(c => c.Status == "ACTIVE" && c.VerifiedAt.HasValue)
+            .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
+            .Select(c => new { c.Id, c.CustomerId, c.ContractCode, c.Status, c.VerifiedAt,
+                c.CreatedAt })
+            .ToArrayAsync(ct);
+        var groups = assignedContracts.GroupBy(c => c.CustomerId).ToArray();
+        var customerIds = groups.Select(g => g.Key).ToArray();
+        var customers = await db.ChannelCustomers.AsNoTracking()
+            .Where(c => customerIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.DisplayName, c.ContactName, c.Phone, c.Email })
+            .ToDictionaryAsync(c => c.Id, ct);
+        var contractIds = assignedContracts.Select(c => c.Id).ToArray();
+        var tickets = await db.CustomerSupportCases.AsNoTracking()
+            .Where(t => contractIds.Contains(t.ContractId) && t.Status != "RESOLVED")
+            .GroupBy(t => t.ContractId)
+            .Select(g => new { ContractId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(t => t.ContractId, t => t.Count, ct);
+        var lastCalls = await db.CustomerActivities.AsNoTracking()
+            .Where(a => customerIds.Contains(a.CustomerId) && a.ActivityType == "SUPPORT")
+            .GroupBy(a => a.CustomerId)
+            .Select(g => new { CustomerId = g.Key, LastAt = g.Max(a => a.CreatedAt) })
+            .ToDictionaryAsync(a => a.CustomerId, a => a.LastAt, ct);
+
+        var result = new List<CareSchoolOverview>();
+        foreach (var group in groups)
+        {
+            if (!customers.TryGetValue(group.Key, out var school)) continue;
+            if (term.Length != 0 && !school.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                && !(school.Phone?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                && !group.Any(c => c.ContractCode.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            var contract = group.First();
+            var openTickets = group.Sum(c => tickets.GetValueOrDefault(c.Id));
+            var hasSupport = lastCalls.TryGetValue(group.Key, out var last);
+            if (requestedStatus == "HAS_TICKET" && openTickets == 0 ||
+                requestedStatus == "SUPPORTED" && !hasSupport ||
+                requestedStatus == "NOT_SUPPORTED" && hasSupport)
+                continue;
+            result.Add(new CareSchoolOverview(
+                contract.Id, group.Key, contract.ContractCode, contract.Status,
+                contract.VerifiedAt, school.DisplayName, school.ContactName,
+                school.Phone, school.Email, openTickets,
+                hasSupport ? last : null, group.Count()));
+        }
+        var total = result.Count;
+        return Results.Ok(new { data = result.Skip((p - 1) * size).Take(size).ToArray(),
+            total, page = p, page_size = size });
     }
+
+    private sealed record CareSchoolOverview(
+        long Id, long CustomerId, string ContractCode, string Status, DateTime? VerifiedAt,
+        string SchoolName, string? ContactName, string? Phone, string? Email,
+        int OpenTickets, DateTime? LastSupportAt, int EligibleContractCount);
 
     public static async Task<IResult> SchoolDetail(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
@@ -77,17 +118,21 @@ public static class CustomerCareEndpoints
             phone = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.Phone).First(),
             email = db.ChannelCustomers.Where(x => x.Id == c.CustomerId).Select(x => x.Email).First(),
         }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        var assignedContractIds = await Assigned(db, access).AsNoTracking()
+            .Where(c => c.CustomerId == contract.CustomerId && c.Status == "ACTIVE"
+                && c.VerifiedAt.HasValue)
+            .Select(c => c.Id).ToArrayAsync(ct);
         var logs = await db.CustomerActivities.AsNoTracking().Where(a => a.CustomerId == contract.CustomerId
             && (a.ActivityType == "SUPPORT" || a.SupportCaseId != null))
             .OrderByDescending(a => a.CreatedAt).Take(100).Select(a => new {
                 a.Id, a.ActivityType, a.SupportCaseId, a.Content, a.NextFollowUpAt, a.CreatedAt,
                 user_name = db.Users.Where(u => u.Id == a.UserId).Select(u => u.Name).FirstOrDefault(),
             }).ToArrayAsync(ct);
-        var tickets = await db.CustomerSupportCases.AsNoTracking().Where(t => t.ContractId == id)
+        var tickets = await db.CustomerSupportCases.AsNoTracking().Where(t => assignedContractIds.Contains(t.ContractId))
             .OrderByDescending(t => t.CreatedAt).Take(100).Select(t => new {
                 t.Id, t.Subject, t.Description, t.Status, t.TicketType, t.CheckeeRespondedAt, t.Outcome, t.CreatedAt
             }).ToArrayAsync(ct);
-        var handovers = await db.ContractCareHandovers.AsNoTracking().Where(h => h.ContractId == id)
+        var handovers = await db.ContractCareHandovers.AsNoTracking().Where(h => assignedContractIds.Contains(h.ContractId))
             .OrderByDescending(h => h.CreatedAt).Take(50).Select(h => new {
                 h.Id, h.Reason, h.CreatedAt,
                 assigned_name = db.Users.Where(u => u.Id == h.AssignedUserId).Select(u => u.Name).FirstOrDefault(),

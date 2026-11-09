@@ -140,7 +140,9 @@ test('CSKH school page separates profile, recording and history into three icon 
   assert.match(source, /icon=\{History\}/);
   assert.match(source, /SchoolProfileDetails units=\{details\.data\.school_units\}/);
   assert.match(source, /title="Cập nhật nhật ký hướng dẫn"/);
-  assert.match(source, /title="Lịch sử hỗ trợ"/);
+  assert.match(source, /title="Lịch sử hướng dẫn"/);
+  assert.match(source, /icon=\{Ticket\}/);
+  assert.doesNotMatch(source, /role="tablist"/);
   assert.match(source, /next_follow_up_at:null/);
   assert.doesNotMatch(source, /Lịch hỗ trợ tiếp theo/);
   assert.doesNotMatch(source, /Lịch sử phân công/);

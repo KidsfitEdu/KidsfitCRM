@@ -6,6 +6,7 @@ import { channelRequest } from '@/lib/channel-operations';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableCellClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
+import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -118,14 +119,14 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
               <td className={adminTableCellClass}><p className="font-semibold">{row.customer_name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p></td>
               <td className={adminTableCellClass+' whitespace-nowrap tabular-nums'}>{day(row.protection_until)}
-                <p className="mt-1 text-xs text-muted-foreground">{labels[row.protection_status]??row.protection_status}</p>
+                <div className="mt-1"><AppStatusBadge status={row.protection_status} label={labels[row.protection_status]??row.protection_status} size="sm"/></div>
               </td>
               <td className={adminTableCellClass}>
-                {labels[row.interruption_status]??row.interruption_status}
+                <AppStatusBadge status={row.interruption_status} label={labels[row.interruption_status]??row.interruption_status}/>
                 {row.threshold_on&&row.interruption_status!=='CONTINUOUS'&&<p className="mt-1 text-xs text-muted-foreground">Mốc 12 tháng: {day(row.threshold_on)}</p>}
               </td>
               <td className={adminTableCellClass}>
-                <span className="font-medium">{labels[row.status]??row.status}</span>
+                <AppStatusBadge status={row.status} label={labels[row.status]??row.status}/>
                 {row.has_pending_renewal&&<p className="mt-1 text-xs text-muted-foreground">Tái ký chờ Kế toán</p>}
               </td>
               <td className={adminTableCellClass}>
@@ -146,7 +147,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
         </table>
       </div>
       <AppPagination page={page} pageSize={pageSize} total={rows.total}
-        pageSizeOptions={[10,20,50]} itemLabel="trường" disabled={loading||sending}
+        pageSizeOptions={[10,20,50]} itemLabel="trường" showSummary={false} disabled={loading||sending}
         onPageChange={setPage} onPageSizeChange={v=>{setPageSize(v);setPage(1);}}/>
     </AdminListPanel>
     <AppDrawer wide open={!!selected} onOpenChange={open=>{if(!open)setSelected(null);}}
@@ -155,14 +156,14 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
         <section className="rounded-xl border p-4">
           <h3 className="font-semibold">Trường và hợp đồng</h3>
           <p className="mt-2">{selected.customer_name} · {selected.contract_code}</p>
-          <p className="mt-1">Trạng thái bảo vệ: <strong>{labels[selected.protection_status]??selected.protection_status}</strong></p>
+          <div className="mt-2 flex flex-wrap items-center gap-2"><span>Trạng thái bảo vệ:</span><AppStatusBadge status={selected.protection_status} label={labels[selected.protection_status]??selected.protection_status}/></div>
           <p>Bảo vệ đến: {day(selected.protection_until)}</p>
           <p>Ưu tiên Sales cũ đến: {day(selected.priority_until)}</p>
           {selected.new_protection_from&&selected.new_protection_until&&<p>Chu kỳ bảo vệ mới: {day(selected.new_protection_from)} – {day(selected.new_protection_until)}</p>}
         </section>
         <section className="space-y-2 rounded-xl border p-4">
           <h3 className="flex items-center gap-2 font-semibold"><CalendarClock className="size-4"/>Gián đoạn dịch vụ 12 tháng</h3>
-          <p>Trạng thái: <strong>{labels[selected.interruption_status]??selected.interruption_status}</strong></p>
+          <div className="flex flex-wrap items-center gap-2"><span>Trạng thái:</span><AppStatusBadge status={selected.interruption_status} label={labels[selected.interruption_status]??selected.interruption_status}/></div>
           <p>Bắt đầu gián đoạn: {day(selected.gap_start_on)}</p>
           <p>Mốc 12 tháng: {day(selected.threshold_on)}</p>
           <p>Kỳ sử dụng tiếp theo: {day(selected.next_service_start_on)}</p>
@@ -171,7 +172,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
         </section>
         <section className="space-y-2 rounded-xl border p-4">
           <h3 className="font-semibold">Hồ sơ gia hạn bảo vệ</h3>
-          <p>Trạng thái: {labels[selected.renewal_status]??selected.renewal_status}</p>
+          <div className="flex flex-wrap items-center gap-2"><span>Trạng thái:</span><AppStatusBadge status={selected.renewal_status} label={labels[selected.renewal_status]??selected.renewal_status}/></div>
           <p>Nguồn yêu cầu: {selected.renewal_source==='AUTO'?'CRM tự tạo':selected.renewal_source==='MANUAL'?'Sales gửi':'Chưa có'}</p>
           <p>Kế toán đã xác nhận kỳ tiếp tục: {selected.renewal_confirmed?'Có':'Chưa'}</p>
           {selected.renewal_note&&<p>Ghi chú: {selected.renewal_note}</p>}
@@ -184,7 +185,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
           {detailError&&<p role="alert" className="text-destructive">{detailError}</p>}
           {!detailError&&history.length===0&&<p className="text-muted-foreground">Chưa có sự kiện GI-01 được ghi nhận.</p>}
           {history.map(h=><div key={h.id} className="rounded-lg border p-3">
-            <p className="font-medium">{labels[h.status]??h.status}</p>
+            <AppStatusBadge status={h.status} label={labels[h.status]??h.status}/>
             <p>{h.reason}</p>
             <p className="text-xs text-muted-foreground">{day(h.processed_at)}</p>
           </div>)}

@@ -31,6 +31,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<PayoutEvent> PayoutEvents => Set<PayoutEvent>();
     public DbSet<FinancialEvidence> FinancialEvidences => Set<FinancialEvidence>();
     public DbSet<ContractRenewal> ContractRenewals => Set<ContractRenewal>();
+    public DbSet<ServiceInterruptionEvent> ServiceInterruptionEvents => Set<ServiceInterruptionEvent>();
     public DbSet<ProtectionRenewalCase> ProtectionRenewalCases => Set<ProtectionRenewalCase>();
     public DbSet<ContractRenewalEvent> ContractRenewalEvents => Set<ContractRenewalEvent>();
     public DbSet<ReconciliationCase> ReconciliationCases => Set<ReconciliationCase>();
@@ -105,6 +106,15 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         renewalProtection.HasIndex(x => new { x.CustomerId, x.Status });
 
 
+        var gi01 = modelBuilder.Entity<ServiceInterruptionEvent>();
+        gi01.Property(x => x.Status).HasMaxLength(32);
+        gi01.Property(x => x.Reason).HasMaxLength(1000);
+        gi01.Property(x => x.DeduplicationKey).HasMaxLength(180).UseCollation("utf8mb4_bin");
+        DateOnlyProperty(gi01.Property(x => x.GapStartOn));
+        DateOnlyProperty(gi01.Property(x => x.ThresholdOn));
+        gi01.HasIndex(x => x.DeduplicationKey).IsUnique();
+        gi01.HasIndex(x => new { x.CustomerId, x.Status });
+        gi01.HasIndex(x => new { x.ContractId, x.ThresholdOn });
         ConfigureForeignKeys(modelBuilder);
 
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
@@ -288,6 +298,9 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<ContractRenewalEvent, User>(x => x.ActorUserId);
         Restrict<FinancialEvidence, ContractRenewal>(x => x.ContractRenewalId);
         Restrict<SalesContractItem, SalesContract>(x => x.ContractId); Restrict<SalesContractItem, CheckeeProductPackage>(x => x.ProductPackageId);
+        Restrict<ServiceInterruptionEvent, ChannelCustomer>(x => x.CustomerId);
+        Restrict<ServiceInterruptionEvent, SalesContract>(x => x.ContractId);
+        Restrict<ServiceInterruptionEvent, CustomerProtection>(x => x.ProtectionId);
         Restrict<CustomerProtection, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerProtection, User>(x => x.OwnerUserId); Restrict<CustomerProtection, Organization>(x => x.OwnerOrganizationId); Restrict<CustomerProtection, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerProtection, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, SalesContract>(x => x.ContractId);
         Restrict<RevenueReceipt, SalesContract>(x => x.ContractId); Restrict<RevenueReceipt, RevenueSchedule>(x => x.RevenueScheduleId); Restrict<RevenueReceipt, User>(x => x.RecordedByUserId);

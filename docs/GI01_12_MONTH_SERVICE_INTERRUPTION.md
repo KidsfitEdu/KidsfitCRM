@@ -1,29 +1,32 @@
-# GI-01 — Service interruption after 12 calendar months (implementation notes)
+# GI-01 — Gián đoạn dịch vụ đủ 12 tháng
 
-## Approved policy
-- The interruption starts on the calendar day after the final inclusive valid service day.
-- Count twelve calendar months, not 365 days. Dates use the Vietnam business calendar.
-- Warn at 30, 15, 7 and 0 days before the threshold.
-- An Accounting-pending renewal at threshold is an exception with an explicitly configured deadline, not an automatic indefinite extension.
-- A renewal confirmed after release does not retake a subsequent Sales owner's valid right.
-- Five-year protection expiry and the 15-day old-owner priority are independent policies.
+## Policy approved by KIDSFIT
+- Start interruption on the day following the last valid inclusive service date.
+- Count **12 calendar months** in the Vietnam business calendar, not 365 days.
+- Send notifications at **30, 15, 7, 0** days before/at threshold.
+- KC-02 renewal pending Accounting at threshold is an exception with an **approved configurable processing window**; never indefinitely reserve ownership.
+- A renewal confirmed after a valid subsequent Sales registration must never silently revert ownership.
+- Five-year protection expiry, SL-02 early application (30 days), and the old-owner priority (15 days) are separate policies.
 
-## Current increment
-- `ServiceInterruptionPolicy` is a pure, side-effect-free calendar assessment. It accepts only verified original terms and Accounting-confirmed renewal terms; callers must perform that database filtering.
-- The policy returns `MissingServiceTerm` for legacy/invalid term dates.
-- It flags a previously completed >=12-month gap as `HistoricalThresholdRequiresReview` instead of retroactively revoking ownership.
-- `ThresholdReached` merely reports calendar eligibility. It is NOT authorization to revoke protection. `CanAutomaticallyRelease` must not be used without all remaining database safeguards.
-- Unit tests cover calendar boundaries, a future confirmed renewal, normal resumed service, historical gaps, missing dates and milestones.
+## Implemented scope in PR #89
+- Pure calendar assessment: `ServiceInterruptionPolicy` merges inclusive verified periods, detects gaps between confirmed terms and future terms, flags missing legacy data and historical gaps for review rather than retroactive revocation.
+- `ServiceInterruptionService` aggregates verified service terms across all noncancelled active contracts for the same customer, checks existing protections/owners, unresolved disputes and pending Accounting renewals.
+- An hourly `ServiceInterruptionWorker` locks the customer and protection rows and records a unique durable decision in `service_interruption_events`. The release action, if enabled, is in the same MySQL transaction. Financial records are never deleted or modified.
+- Read APIs `GET /api/channel-sales/service-interruptions` and `/{customerId}` use the existing role and organization scope.
+- Reuse NT-01 to emit de-duplicated reminders, including director notices on overdue/unconfigured exceptions.
+- Shared Frontend panel embedded under Sales protection, Manager contracts, CSKH customers, Accounting contract tabs and Director overdue overview.
+- Isolated `Seed:Gi01Scenarios` adds fictional GI01-DEMO-SCH0007..0010 to the disposable review fixtures; optional `Seed:Gi01SweepAfterSeed` simulates one actual safe release in CI.
+- Unit tests and a new CI MySQL smoke test verify the demo release, pending Accounting protection and replay idempotency.
 
-## Release safety gates before enabling any worker
-1. Re-read and lock the current customer row and protection record inside one MySQL transaction.
-2. Aggregate service periods across all relevant valid contracts for the same school/customer; never assume a single contract is the whole picture.
-3. Check cancellations, disputes, current owner, 5-year expiration, confirmed periods and pending KC-02 cases **again after acquiring locks**.
-4. Pending Accounting cases require a configurable exception expiry. Do not auto-clear it without approved operational handling.
-5. Persist an idempotent decision and immutable audit data; update the protection and customer availability consistently.
-6. Ensure the registration path cannot race the release transaction, and ensure it respects SL-02/MG-01/KF-01 independently.
-7. Save warnings with per-recipient deduplication; scope every dashboard/API query by organization and user.
-8. Add MySQL integration, concurrency and permission tests before worker registration.
+## Configuration and production gate
+- `GI01:EnableAutomaticRelease=false` (**default OFF**). Must not enable without CI, MySQL concurrency tests, rollout decision and a configured exception workflow.
+- `GI01:AccountingExceptionHours=0` (**default fail-closed**). A pending Accounting renewal becomes `EXCEPTION_CONFIG_REQUIRED` until the business approves a positive processing window; after the configured window passes it becomes `EXCEPTION_OVERDUE` and must be routed to BGĐ, **without automatically revoking on pending status**.
+- `Seed:ReviewFixtures=true`, `Seed:Gi01Scenarios=true` are only valid on `Seed:DisposableDatabase=true`, nonproduction, isolated databases. `Seed:Gi01SweepAfterSeed=true` must NEVER be configured for ordinary production workloads.
+- Do not merge/release automatically until CI on HEAD passes and real MySQL concurrency/authorization review is complete. Review the manual migration against EF snapshot before committing additional migrations.
 
-## Explicitly not yet implemented
-No auto-revocation worker, schema migration, notification delivery, role-based UI or seed changes are activated in this increment. The branch is intentionally a Draft PR until these release gates are covered and tests pass.
+## Important non-goals / follow-up hardening
+- No new role; CHECKEE does not automatically approve yearly renewals.
+- No backdating/automatic reclaim of protection from another Sales.
+- Do not confuse an OPEN notification with a right.
+- Historic contracts, ledger, receipts and commission entries remain available and immutable.
+- Validate end-to-end role scope, MySQL concurrent release/register and alert resolution after resumption. This Draft PR is **not production authorization**.

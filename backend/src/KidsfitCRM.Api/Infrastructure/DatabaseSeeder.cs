@@ -132,6 +132,7 @@ public static class DatabaseSeeder
             (Permissions.ContractRenewalSubmit, "Gửi hồ sơ tái ký trực tiếp kế toán"),
             (Permissions.ContractRenewalReview, "Xem và yêu cầu bổ sung hồ sơ tái ký"),
             (Permissions.ContractRenewalConfirm, "Xác nhận hoặc từ chối hồ sơ tái ký"),
+            (Permissions.ProtectionRenewalApprove, "Duyệt chu kỳ bảo vệ Sales 5 năm tại KIDSFIT"),
         };
         var existingPermissionCodes = await db.Permissions.Where(x => x.Code.StartsWith("channel_sales.")).Select(x => x.Code).ToArrayAsync();
         db.Permissions.AddRange(channelPermissionSeeds.Where(x => !existingPermissionCodes.Contains(x.Code)).Select(x => new Permission
@@ -176,7 +177,7 @@ public static class DatabaseSeeder
         var currentLinks = await db.PermissionRoles.Select(x => new { x.RoleId, x.PermissionId }).ToListAsync();
         foreach (var managerRole in new[] { "SALES_MANAGER" })
             rolePermissions[managerRole] = [.. rolePermissions[managerRole], Permissions.SchoolContractReview, Permissions.SchoolProposalReview,
-                Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage];
+                Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage, Permissions.ProtectionRenewalApprove];
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
         rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];

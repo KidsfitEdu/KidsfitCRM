@@ -7,6 +7,7 @@ import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adm
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppStatusBadge } from '@/components/common/app-status-badge';
+import { protectionServiceStatus, protectionAction } from './protection-overview-presentation';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -118,16 +119,15 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
             {rows.data.map(row=><tr key={row.customer_id} className="even:bg-muted/20 hover:bg-muted/40">
               <td className={adminTableCellClass}><p className="font-semibold">{row.customer_name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p></td>
-              <td className={adminTableCellClass+' whitespace-nowrap tabular-nums'}>{day(row.protection_until)}
-                <div className="mt-1"><AppStatusBadge status={row.protection_status} label={labels[row.protection_status]??row.protection_status} size="sm"/></div>
+              <td className={adminTableCellClass+' whitespace-nowrap tabular-nums'}>{day(row.protection_until)}</td>
+              <td className={adminTableCellClass}>
+                <AppStatusBadge status={protectionServiceStatus(row)}
+                  label={labels[protectionServiceStatus(row)]??protectionServiceStatus(row)}/>
               </td>
               <td className={adminTableCellClass}>
-                <AppStatusBadge status={row.interruption_status} label={labels[row.interruption_status]??row.interruption_status}/>
-                {row.threshold_on&&row.interruption_status!=='CONTINUOUS'&&<p className="mt-1 text-xs text-muted-foreground">Mốc 12 tháng: {day(row.threshold_on)}</p>}
-              </td>
-              <td className={adminTableCellClass}>
-                <AppStatusBadge status={row.status} label={labels[row.status]??row.status}/>
-                {row.has_pending_renewal&&<p className="mt-1 text-xs text-muted-foreground">Tái ký chờ Kế toán</p>}
+                {protectionAction(row) ? <AppStatusBadge status={protectionAction(row)!.status}
+                    label={protectionAction(row)!.label}/> :
+                  <span className="text-muted-foreground" aria-label="Không có việc cần xử lý">—</span>}
               </td>
               <td className={adminTableCellClass}>
                 <div className="flex justify-center gap-2">

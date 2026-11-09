@@ -28,6 +28,18 @@ const visuals:Record<string,StatusVisual> = {
   HISTORICALTHRESHOLDREQUIRESREVIEW:{tone:'warning',icon:Clock3},
   MISSINGSERVICETERM:{tone:'warning',icon:CircleHelp},
   NO_SERVICE:{tone:'neutral',icon:CircleHelp},
+  // Distinct workflow tasks, not service or protection conditions
+  FOLLOW_UP:{tone:'info',icon:Clock3},
+  REVIEW_RIGHTS:{tone:'danger',icon:AlertTriangle},
+  REVIEW_DISPUTE:{tone:'danger',icon:Scale},
+  ACCOUNTING_OVERDUE:{tone:'danger',icon:AlertCircle},
+  REVIEW_CONFIG:{tone:'warning',icon:CircleHelp},
+  REVIEW_HISTORY:{tone:'warning',icon:Clock3},
+  VERIFY_PERIOD:{tone:'warning',icon:FileClock},
+  WAIT_ACCOUNTING:{tone:'warning',icon:FileClock},
+  WAIT_MANAGER:{tone:'warning',icon:Hourglass},
+  REQUEST_REVIEW:{tone:'info',icon:FileClock},
+  REVIEW_REJECTION:{tone:'danger',icon:XCircle},
   // Renewal workflows
   WAITING_RENEWAL:{tone:'warning',icon:FileClock},
   PENDING_MANAGER:{tone:'warning',icon:Hourglass},

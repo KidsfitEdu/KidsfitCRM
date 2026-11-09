@@ -4,14 +4,16 @@ import { useState } from 'react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { ContractRenewalAccountingPanel } from '../Contracts/ContractRenewalAccountingPanel';
 import { AccountingContractsPage } from '../Contracts/AccountingContractsPage';
+import { ServiceInterruptionPanel } from '@/components/crm/ServiceInterruptionPanel';
 import type { RolePageProps } from '@/types/role-pages';
 
-type AccountingTab = 'contracts' | 'renewals' | 'history';
+type AccountingTab = 'contracts' | 'renewals' | 'history' | 'interruptions';
 
 const tabs: { id: AccountingTab; label: string }[] = [
   { id: 'contracts', label: 'Hợp đồng' },
   { id: 'renewals', label: 'Hồ sơ tái ký' },
   { id: 'history', label: 'Lịch sử tài chính' },
+  { id: 'interruptions', label: 'Gián đoạn dịch vụ' },
 ];
 
 /** Shared Accounting page shell; tabs do not change financial permissions or API behavior. */
@@ -35,7 +37,9 @@ export function RevenuePage({ apiBase, token, onChanged, abilities }: RolePagePr
           : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}
       >{item.label}</button>)}
     </nav>
-    {tab === 'renewals'
+    {tab === 'interruptions'
+      ? <ServiceInterruptionPanel apiBase={apiBase} token={token} mode="accounting"/>
+      : tab === 'renewals'
       ? <ContractRenewalAccountingPanel apiBase={apiBase} token={token} abilities={abilities}/>
       : <AccountingContractsPage
           apiBase={apiBase}

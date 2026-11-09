@@ -220,7 +220,17 @@ public static class ContractExpiryAlertService
                     && (!protections.Any(p => p.ContractId == contract.Id
                         && BusinessDate(p.EffectiveUntil) == item.MilestoneOn)
                         || !rightsRecipientsForContract.Contains(item.RecipientUserId));
-                if (obsoleteGap || obsoleteService || obsoleteProtection)
+                var isGi01 = item.Kind.StartsWith("GI01_", StringComparison.Ordinal);
+                var stillApplicableGi01 = interruption?.Assessment.ThresholdOn == item.MilestoneOn
+                    && (item.Kind == "GI01_EXCEPTION_OVERDUE"
+                        ? interruption.Status == "EXCEPTION_OVERDUE"
+                        : item.Kind == "GI01_CONFIG_REQUIRED"
+                            ? interruption.Status == "EXCEPTION_CONFIG_REQUIRED"
+                            : interruption.Status != "CONTINUOUS"
+                                && interruption.Status != "MISSINGSERVICETERM"
+                                && recipients.Contains(item.RecipientUserId));
+                var obsoleteGi01 = isGi01 && !stillApplicableGi01;
+                if (obsoleteGap || obsoleteService || obsoleteProtection || obsoleteGi01)
                 {
                     item.Status = "RESOLVED";
                     item.ResolvedAt = now;

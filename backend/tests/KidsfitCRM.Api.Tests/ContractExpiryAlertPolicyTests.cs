@@ -38,4 +38,14 @@ public sealed class ContractExpiryAlertPolicyTests
         var utc = new DateTime(2026, 11, 5, 18, 30, 0, DateTimeKind.Utc);
         Assert.Equal(new DateOnly(2026, 11, 6), ContractExpiryAlertService.BusinessDate(utc));
     }
+    [Fact]
+    public void Nt01DemoFixturesAreExplicitlyOptInAndCannotRunOnOrdinaryDemoSeed()
+    {
+        var source = System.IO.File.ReadAllText(System.IO.Path.GetFullPath(
+            System.IO.Path.Combine(AppContext.BaseDirectory, "../../../../src/KidsfitCRM.Api/Infrastructure/DatabaseSeeder.cs")));
+        Assert.Contains("Seed:Nt01Scenarios", source);
+        Assert.Contains("Seed:ReviewFixtures", source);
+        Assert.Contains("Nt01DemoSeeder.SeedAsync", source);
+    }
+
 }

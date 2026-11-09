@@ -15,7 +15,7 @@ import { AppButton } from '@/components/common/buttons/app-button';
 
 type RenewalCase = {
   id:number; contract_id:number; customer_name:string; contract_code:string;
-  owner_name:string; status:string; source:string; note:string|null;
+  owner_name:string; organization_name:string; status:string; source:string; note:string|null;
   previous_protection_until:string; priority_until:string;
   decision_reason:string|null; reviewed_at:string|null;
   new_protection_from:string|null; new_protection_until:string|null;
@@ -29,7 +29,7 @@ type EligibleCase = {
 type Response<T> = {data:T;can_approve?:boolean};
 type Row = {
   key:string; id:number|null; contractId:number; school:string; code:string;
-  owner:string; status:string; source:string|null; renewalConfirmed:boolean|null;
+  owner:string; organization:string; status:string; source:string|null; renewalConfirmed:boolean|null;
   protectionUntil:string; priorityUntil:string; newFrom:string|null; newUntil:string|null;
   note:string|null; reason:string|null; reviewedAt:string|null;
   canApprove:boolean; canRequest:boolean;
@@ -62,6 +62,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
   const [status,setStatus]=useState('ALL');
   const [renewal,setRenewal]=useState('ALL');
   const [source,setSource]=useState('ALL');
+  const [organization,setOrganization]=useState('ALL');
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(10);
   const [selected,setSelected]=useState<Row|null>(null);
@@ -91,7 +92,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
       const e=current.get(item.contract_id);
       return {
         key:`case-${item.id}`,id:item.id,contractId:item.contract_id,
-        school:item.customer_name,code:item.contract_code,owner:item.owner_name,
+        school:item.customer_name,code:item.contract_code,owner:item.owner_name,organization:item.organization_name,
         status:item.status,source:item.source,renewalConfirmed:e?.renewal_confirmed??(item.status==='PENDING_MANAGER'||item.status==='APPROVED'?true:item.status==='WAITING_RENEWAL'?false:null),
         protectionUntil:item.previous_protection_until,priorityUntil:item.priority_until,
         newFrom:item.new_protection_from,newUntil:item.new_protection_until,
@@ -103,7 +104,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
     const withRequests=new Set(items.map(x=>x.contract_id));
     const withoutRequests:Row[]=eligible.filter(e=>!withRequests.has(e.contract_id)).map(e=>({
       key:`eligible-${e.contract_id}`,id:null,contractId:e.contract_id,
-      school:e.customer_name,code:e.contract_code,owner:'—',
+      school:e.customer_name,code:e.contract_code,owner:'—',organization:'—',
       status:e.request_status??'NOT_CREATED',source:null,
       renewalConfirmed:e.renewal_confirmed,protectionUntil:e.protected_until,
       priorityUntil:e.priority_until,newFrom:null,newUntil:null,
@@ -112,20 +113,22 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
     return [...withoutRequests,...cases];
   },[eligible,items,mode,canApprove]);
 
+  const organizations=useMemo(()=>[...new Set(rows.map(x=>x.organization).filter(x=>x!=='—'))].sort((a,b)=>a.localeCompare(b,'vi')),[rows]);
   const filtered=useMemo(()=>{
     const text=search.trim().toLocaleLowerCase('vi');
     return rows.filter(row=>(!text||distinctSearch(row).includes(text))
       &&(status==='ALL'||row.status===status)
       &&(source==='ALL'||(source==='NONE'?row.source===null:row.source===source))
+      &&(organization==='ALL'||row.organization===organization)
       &&(renewal==='ALL'||(renewal==='CONFIRMED'?row.renewalConfirmed===true
         :renewal==='NOT_CONFIRMED'?row.renewalConfirmed===false:true)))
       .sort((a,b)=>milliseconds(a.priorityUntil)-milliseconds(b.priorityUntil));
-  },[rows,search,status,source,renewal]);
+  },[rows,search,status,source,organization,renewal]);
   const total=filtered.length;
   const currentPage=Math.min(page,Math.max(1,Math.ceil(total/pageSize)));
   const visible=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
   const count=(key:string)=>rows.filter(x=>x.status===key).length;
-  const reset=()=>{setDraft('');setSearch('');setStatus('ALL');setSource('ALL');setRenewal('ALL');setPage(1);};
+  const reset=()=>{setDraft('');setSearch('');setStatus('ALL');setSource('ALL');setOrganization('ALL');setRenewal('ALL');setPage(1);};
   const changeStatus=(value:string)=>{setStatus(value);setPage(1);};
   const send=async(row:Row,action:'approve'|'reject'|'request')=>{
     if(busy)return;
@@ -195,6 +198,11 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
             <option value="MANUAL">Sales yêu cầu</option>
             {mode==='sales'&&<option value="NONE">Chưa có hồ sơ</option>}
           </AppNativeSelect>
+          {mode==='manager'&&<AppNativeSelect aria-label="Lọc tổ chức Sales" containerClassName="w-full sm:w-44"
+            value={organization} onChange={e=>{setOrganization(e.target.value);setPage(1);}}>
+            <option value="ALL">Tất cả tổ chức</option>
+            {organizations.map(name=><option key={name} value={name}>{name}</option>)}
+          </AppNativeSelect>}
           {mode==='sales'&&<AppNativeSelect aria-label="Lọc xác nhận tái ký" containerClassName="w-full sm:w-44"
             value={renewal} onChange={e=>{setRenewal(e.target.value);setPage(1);}}>
             <option value="ALL">Tất cả tái ký</option>
@@ -207,7 +215,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
           <thead className={adminTableHeadClass}>
             <tr>
               <th scope="col" className="px-5 py-4">Trường học</th>
-              {mode==='manager'&&<th scope="col" className="px-5 py-4">Sales phụ trách</th>}
+              {mode==='manager'&&<th scope="col" className="px-5 py-4">Sales / Tổ chức</th>}
               <th scope="col" className="px-5 py-4">Tái ký</th>
               <th scope="col" className="px-5 py-4">Trạng thái hồ sơ</th>
               <th scope="col" className="px-5 py-4">Bảo vệ cũ</th>
@@ -222,7 +230,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
                 <p className="font-semibold text-foreground">{row.school}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{row.code}</p>
               </td>
-              {mode==='manager'&&<td className={adminTableCellClass}>{row.owner}</td>}
+              {mode==='manager'&&<td className={adminTableCellClass}><p className="font-medium">{row.owner}</p><p className="mt-1 text-xs text-muted-foreground">{row.organization}</p></td>}
               <td className={adminTableCellClass}>
                 {row.renewalConfirmed===null
                   ? <span className="text-xs text-muted-foreground">Xem hồ sơ</span>
@@ -275,7 +283,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thông tin trường</p>
           <p className="mt-2 text-base font-semibold">{rowDetail.school}</p>
           <p className="mt-1 text-muted-foreground">Mã hợp đồng: {rowDetail.code}</p>
-          {mode==='manager'&&<p className="mt-1">Sales: {rowDetail.owner}</p>}
+          {mode==='manager'&&<p className="mt-1">Sales: {rowDetail.owner} · {rowDetail.organization}</p>}
         </div>
         <section className="space-y-2">
           <h4 className="font-semibold">Hồ sơ và tái ký</h4>

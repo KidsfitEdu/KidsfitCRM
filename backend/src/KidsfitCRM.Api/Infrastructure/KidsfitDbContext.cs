@@ -31,6 +31,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<PayoutEvent> PayoutEvents => Set<PayoutEvent>();
     public DbSet<FinancialEvidence> FinancialEvidences => Set<FinancialEvidence>();
     public DbSet<ContractRenewal> ContractRenewals => Set<ContractRenewal>();
+    public DbSet<ProtectionRenewalCase> ProtectionRenewalCases => Set<ProtectionRenewalCase>();
     public DbSet<ContractRenewalEvent> ContractRenewalEvents => Set<ContractRenewalEvent>();
     public DbSet<ReconciliationCase> ReconciliationCases => Set<ReconciliationCase>();
     public DbSet<ReconciliationEvent> ReconciliationEvents => Set<ReconciliationEvent>();
@@ -93,6 +94,16 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => new { x.UploadedByUserId, x.CreatedAt });
         ConfigureSchools(modelBuilder);
         ConfigureSchoolOperations(modelBuilder);
+        var renewalProtection = modelBuilder.Entity<ProtectionRenewalCase>();
+        renewalProtection.Property(x => x.Status).HasMaxLength(32);
+        renewalProtection.Property(x => x.Source).HasMaxLength(16);
+        renewalProtection.Property(x => x.Note).HasMaxLength(1000);
+        renewalProtection.Property(x => x.DecisionReason).HasMaxLength(1000);
+        renewalProtection.Property(x => x.DeduplicationKey).HasMaxLength(160).UseCollation("utf8mb4_bin");
+        renewalProtection.HasIndex(x => x.DeduplicationKey).IsUnique();
+        renewalProtection.HasIndex(x => new { x.OwnerUserId, x.Status });
+        renewalProtection.HasIndex(x => new { x.CustomerId, x.Status });
+
 
         ConfigureForeignKeys(modelBuilder);
 
@@ -266,6 +277,11 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<CustomerActivity, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerActivity, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerActivity, User>(x => x.UserId);
         Restrict<SalesContract, ChannelCustomer>(x => x.CustomerId); Restrict<SalesContract, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<SalesContract, User>(x => x.OwnerUserId); Restrict<SalesContract, Organization>(x => x.OwnerOrganizationId); Restrict<SalesContract, User>(x => x.ReportedByUserId);
         Restrict<ContractRenewal, SalesContract>(x => x.ContractId);
+        Restrict<ProtectionRenewalCase, SalesContract>(x => x.ContractId);
+        Restrict<ProtectionRenewalCase, ChannelCustomer>(x => x.CustomerId);
+        Restrict<ProtectionRenewalCase, User>(x => x.OwnerUserId);
+        Restrict<ProtectionRenewalCase, User>(x => x.ReviewedByUserId);
+
         Restrict<ContractRenewal, User>(x => x.SubmittedByUserId);
         Restrict<ContractRenewal, User>(x => x.ReviewedByUserId);
         Restrict<ContractRenewalEvent, ContractRenewal>(x => x.ContractRenewalId);

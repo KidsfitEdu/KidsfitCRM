@@ -82,6 +82,28 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(DISTINCT care_user_id) FROM sales_contracts WHERE status='ACTIVE';" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM customer_support_cases WHERE ticket_type='SYSTEM_ERROR';" | grep -x 1
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_review_fixture_ci;"
+      - name: NT-01 isolated UI demo scenarios and idempotent replay
+        env:
+          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_nt01_ui_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
+          Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
+          Seed__DemoPassword: "ephemeral-ci-demo-only-not-a-real-secret"
+          Seed__DisposableDatabase: "true"
+          Seed__ReviewFixtures: "true"
+          Seed__Nt01Scenarios: "true"
+          Seed__AccountingScenarios: "false"
+          ASPNETCORE_ENVIRONMENT: "Development"
+        run: |
+          set -euo pipefail
+          export MYSQL_PWD='ephemeral-ci-only'
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_nt01_ui_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
+          mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'NT01-DEMO-%';" | grep -x 10
+          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_BEFORE_30';")" -gt 0
+          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_GAP_BEFORE_30';")" -gt 0
+          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'PROTECTION_BEFORE_7';")" -gt 0
+          mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM contract_expiry_alerts;" | grep -x 0
+          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_nt01_ui_ci;"
       - name: Full EF migrations, seed replay, transaction and concurrency tests
         run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
       - name: Separate synthetic backup and restore smoke test

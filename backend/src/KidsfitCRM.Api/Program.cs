@@ -52,6 +52,7 @@ builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<ChannelSalesActions>();
 builder.Services.AddHostedService<SchoolProposalAlertWorker>();
+builder.Services.AddHostedService<ContractExpiryAlertWorker>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;

@@ -21,6 +21,19 @@ type Notice = {
   message: string;
 };
 type NotificationsResponse = { unread_count: number; data: Notice[] };
+type ExpiryNotice = {
+  id: number;
+  kind: string;
+  read_at: string | null;
+  created_at: string;
+  contract_id: number;
+  contract_code: string;
+  school_name: string;
+  message: string;
+  due_at: string;
+  target: 'role-sales-staff-customers' | 'role-collaborator-approaches' | 'role-customer-care-customers' | 'manager-contracts';
+};
+type ExpiryNotificationsResponse = { unread_count: number; data: ExpiryNotice[] };
 const initials = (name: string) => name.split(' ').slice(-2).map(p => p[0]).join('').toUpperCase();
 
 export function Header({
@@ -49,6 +62,28 @@ export function Header({
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
+
+  const expiryQueryKey = ['crm-contract-expiry-notifications', apiBase, token];
+  const expiryNotifications = useQuery({
+    queryKey: expiryQueryKey,
+    queryFn: () => request<ExpiryNotificationsResponse>('/notifications/contract-expiry', token),
+    enabled: !!apiBase && !!token,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const openExpiryNotice = async (notice: ExpiryNotice) => {
+    setActionError('');
+    try {
+      if (!notice.read_at) {
+        await request('/notifications/contract-expiry/' + notice.id + '/read', token, { method: 'POST' });
+        await client.invalidateQueries({ queryKey: expiryQueryKey });
+      }
+      setOpen(false);
+      onNavigate?.(notice.target);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Không thể đánh dấu thông báo đã đọc.');
+    }
+  };
 
   const openNotice = async (notice: Notice) => {
     setActionError('');
@@ -80,8 +115,8 @@ export function Header({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger render={<Button variant="outline" size="icon" aria-label="Thông báo" className="relative rounded-xl" />}>
           <Bell aria-hidden="true" />
-          {!!notifications.data?.unread_count && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
-            {notifications.data.unread_count > 99 ? '99+' : notifications.data.unread_count}
+          {!!((notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0)) && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+            {(notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0) > 99 ? '99+' : (notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0)}
           </span>}
         </PopoverTrigger>
         <PopoverContent align="end" className="max-h-[430px] w-[min(90vw,360px)] overflow-y-auto p-3">
@@ -89,8 +124,18 @@ export function Header({
           {!apiBase && <p className="text-sm text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
           {notifications.isPending && !!apiBase && <p className="text-sm text-muted-foreground">Đang tải thông báo…</p>}
           {notifications.error && <p role="alert" className="text-sm text-red-600">{notifications.error.message}</p>}
+          {expiryNotifications.error && <p role="alert" className="text-sm text-red-600">{expiryNotifications.error.message}</p>}
           {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
-          {notifications.data?.data.length === 0 && <p className="text-sm text-muted-foreground">Không có đề xuất quá hạn cần xử lý.</p>}
+          {notifications.data?.data.length === 0 && expiryNotifications.data?.data.length === 0 &&
+            <p className="text-sm text-muted-foreground">Hiện không có thông báo cần xử lý.</p>}
+          {expiryNotifications.data?.data.map(notice => <button type="button" key={`contract-${notice.id}`}
+            onClick={() => void openExpiryNotice(notice)}
+            className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
+            <span className="block font-semibold">{notice.school_name}</span>
+            <span className="mt-1 block text-xs text-muted-foreground">{notice.contract_code}</span>
+            <span className="mt-1 block text-muted-foreground">{notice.message}</span>
+            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
+          </button>)}
           {notifications.data?.data.map(notice => <button type="button" key={notice.id}
             onClick={() => void openNotice(notice)}
             className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">

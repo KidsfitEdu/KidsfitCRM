@@ -139,8 +139,12 @@ test('CSKH school page separates profile, recording and history into three icon 
   assert.match(source, /icon=\{SquarePen\}/);
   assert.match(source, /icon=\{History\}/);
   assert.match(source, /SchoolProfileDetails units=\{details\.data\.school_units\}/);
-  assert.match(source, /title="Cập nhật nhật ký hướng dẫn"/);
-  assert.match(source, /title="Lịch sử hỗ trợ"/);
+  // The consolidated CSKH screen uses one drawer with in-drawer tabs instead of
+  // separate "Cập nhật nhật ký hướng dẫn" / "Lịch sử hỗ trợ" drawers.
+  assert.match(source, /title="Chi tiết trường phụ trách"/);
+  assert.match(source, /role="tablist"/);
+  assert.match(source, /setTab\('log'\)/);
+  assert.match(source, /setTab\('history'\)/);
   assert.match(source, /next_follow_up_at:null/);
   assert.doesNotMatch(source, /Lịch hỗ trợ tiếp theo/);
   assert.doesNotMatch(source, /Lịch sử phân công/);

@@ -121,7 +121,7 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
             </td>
             <td className={adminTableCellClass}>
               <AppStatusBadge status={x.service_status ?? 'NO_SERVICE'}
-                label={serviceLabels[x.service_status]??'Cần rà soát dịch vụ'}/>
+                label={serviceLabels[x.service_status ?? 'NO_SERVICE']??'Cần rà soát dịch vụ'}/>
             </td>
             <td className={adminTableCellClass}>
               {x.care_action ? <AppStatusBadge
@@ -187,7 +187,7 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
           <section className="space-y-2 rounded-xl border p-4">
             <h3 className="flex items-center gap-2 font-semibold"><CalendarClock className="size-4"/>Tình trạng sử dụng dịch vụ</h3>
             <AppStatusBadge status={school.service_status ?? 'NO_SERVICE'}
-              label={serviceLabels[school.service_status]??'Cần rà soát dịch vụ'}/>
+              label={serviceLabels[school.service_status ?? 'NO_SERVICE']??'Cần rà soát dịch vụ'}/>
             <p>Bắt đầu gián đoạn: {date(school.gap_start_on)}</p>
             <p>Mốc đủ 12 tháng: {date(school.threshold_on)}</p>
             <p>Kỳ sử dụng tiếp theo: {date(school.next_service_start_on)}</p>

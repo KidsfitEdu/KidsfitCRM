@@ -99,57 +99,9 @@ jobs:
           dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
           dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
           mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'NT01-DEMO-%';" | grep -x 10
-          mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_BEFORE_30';" | grep -E '^[1-9][0-9]*
-        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
-      - name: Separate synthetic backup and restore smoke test
-        run: |
-          set -euo pipefail
-          export MYSQL_PWD='ephemeral-ci-only'
-          # These two schemas exist solely inside the ephemeral CI MySQL service.
-          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE phase1_backup_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE DATABASE phase1_restore_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-          mysql -h127.0.0.1 -uroot phase1_backup_fixture -e "CREATE TABLE synthetic_audit (id BIGINT PRIMARY KEY, note VARCHAR(90) NOT NULL) ENGINE=InnoDB; INSERT INTO synthetic_audit VALUES (1, 'isolated phase1 fixture'), (2, 'no customer data');"
-          mysqldump -h127.0.0.1 -uroot --single-transaction --no-tablespaces phase1_backup_fixture > "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          mysql -h127.0.0.1 -uroot phase1_restore_fixture < "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          rows=$(mysql -h127.0.0.1 -uroot -N phase1_restore_fixture -e "SELECT COUNT(*) FROM synthetic_audit")
-          test "$rows" = "2"
-          mysql -h127.0.0.1 -uroot -e "DROP DATABASE phase1_restore_fixture; DROP DATABASE phase1_backup_fixture;"
-          rm -f "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          echo "PASS: independent synthetic fixture backup and restore, row count 2."
-
-          mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_GAP_BEFORE_30';" | grep -E '^[1-9][0-9]*
-        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
-      - name: Separate synthetic backup and restore smoke test
-        run: |
-          set -euo pipefail
-          export MYSQL_PWD='ephemeral-ci-only'
-          # These two schemas exist solely inside the ephemeral CI MySQL service.
-          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE phase1_backup_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE DATABASE phase1_restore_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-          mysql -h127.0.0.1 -uroot phase1_backup_fixture -e "CREATE TABLE synthetic_audit (id BIGINT PRIMARY KEY, note VARCHAR(90) NOT NULL) ENGINE=InnoDB; INSERT INTO synthetic_audit VALUES (1, 'isolated phase1 fixture'), (2, 'no customer data');"
-          mysqldump -h127.0.0.1 -uroot --single-transaction --no-tablespaces phase1_backup_fixture > "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          mysql -h127.0.0.1 -uroot phase1_restore_fixture < "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          rows=$(mysql -h127.0.0.1 -uroot -N phase1_restore_fixture -e "SELECT COUNT(*) FROM synthetic_audit")
-          test "$rows" = "2"
-          mysql -h127.0.0.1 -uroot -e "DROP DATABASE phase1_restore_fixture; DROP DATABASE phase1_backup_fixture;"
-          rm -f "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          echo "PASS: independent synthetic fixture backup and restore, row count 2."
-
-          mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'PROTECTION_BEFORE_7';" | grep -E '^[1-9][0-9]*
-        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
-      - name: Separate synthetic backup and restore smoke test
-        run: |
-          set -euo pipefail
-          export MYSQL_PWD='ephemeral-ci-only'
-          # These two schemas exist solely inside the ephemeral CI MySQL service.
-          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE phase1_backup_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE DATABASE phase1_restore_fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-          mysql -h127.0.0.1 -uroot phase1_backup_fixture -e "CREATE TABLE synthetic_audit (id BIGINT PRIMARY KEY, note VARCHAR(90) NOT NULL) ENGINE=InnoDB; INSERT INTO synthetic_audit VALUES (1, 'isolated phase1 fixture'), (2, 'no customer data');"
-          mysqldump -h127.0.0.1 -uroot --single-transaction --no-tablespaces phase1_backup_fixture > "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          mysql -h127.0.0.1 -uroot phase1_restore_fixture < "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          rows=$(mysql -h127.0.0.1 -uroot -N phase1_restore_fixture -e "SELECT COUNT(*) FROM synthetic_audit")
-          test "$rows" = "2"
-          mysql -h127.0.0.1 -uroot -e "DROP DATABASE phase1_restore_fixture; DROP DATABASE phase1_backup_fixture;"
-          rm -f "$RUNNER_TEMP/phase1-synthetic-only.sql"
-          echo "PASS: independent synthetic fixture backup and restore, row count 2."
-
+          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_BEFORE_30';")" -gt 0
+          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_GAP_BEFORE_30';")" -gt 0
+          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'PROTECTION_BEFORE_7';")" -gt 0
           mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM contract_expiry_alerts;" | grep -x 0
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_nt01_ui_ci;"
       - name: Full EF migrations, seed replay, transaction and concurrency tests

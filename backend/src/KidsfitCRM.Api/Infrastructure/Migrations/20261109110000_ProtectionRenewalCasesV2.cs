@@ -48,7 +48,22 @@ public sealed class ProtectionRenewalCasesV2 : Migration
         b.CreateIndex("IX_protection_renewal_cases_customer_id_status", "protection_renewal_cases", new[] { "customer_id", "status" });
         b.CreateIndex("IX_protection_renewal_cases_contract_id", "protection_renewal_cases", "contract_id");
         b.CreateIndex("IX_protection_renewal_cases_reviewed_by_user_id", "protection_renewal_cases", "reviewed_by_user_id");
+        // Existing non-demo databases must receive the RBAC permission as well as the table.
+        // Endpoints additionally require an active KIDSFIT manager membership and role.
+        b.Sql(@"INSERT INTO permissions (code, name, `group`, created_at, updated_at)
+                SELECT 'channel_sales.protection.renewal.approve',
+                       'Duyệt chu kỳ bảo vệ Sales 5 năm tại KIDSFIT', 'CHECKEE', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+                WHERE NOT EXISTS (SELECT 1 FROM permissions WHERE code='channel_sales.protection.renewal.approve');");
+        b.Sql(@"INSERT IGNORE INTO permission_role (permission_id, role_id)
+                SELECT p.id, r.id FROM permissions p CROSS JOIN roles r
+                WHERE p.code='channel_sales.protection.renewal.approve' AND r.code='SALES_MANAGER';");
+
     }
 
-    protected override void Down(MigrationBuilder b) => b.DropTable("protection_renewal_cases");
+    protected override void Down(MigrationBuilder b)
+    {
+        b.DropTable("protection_renewal_cases");
+        b.Sql("DELETE FROM permission_role WHERE permission_id IN (SELECT id FROM permissions WHERE code='channel_sales.protection.renewal.approve');");
+        b.Sql("DELETE FROM permissions WHERE code='channel_sales.protection.renewal.approve';");
+    }
 }

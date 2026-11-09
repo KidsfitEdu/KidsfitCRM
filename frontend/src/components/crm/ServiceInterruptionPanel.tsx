@@ -26,6 +26,8 @@ type Detail = {data:{
 const statusLabels:Record<string,string> = {
   INTERRUPTED:'Đang gián đoạn', THRESHOLD_REACHED:'Đủ 12 tháng',
   EXCEPTION_ACCOUNTING:'Chờ Kế toán', EXCEPTION_DISPUTE:'Tranh chấp',
+  EXCEPTION_CONFIG_REQUIRED:'Chưa cấu hình hạn xử lý ngoại lệ',
+  EXCEPTION_OVERDUE:'Ngoại lệ quá hạn, chuyển BGĐ',
   EXCEPTION_OWNERSHIP:'Cần rà soát quyền', RELEASED:'Đã mở lại',
   HISTORICALTHRESHOLDREQUIRESREVIEW:'Cần rà soát lịch sử',
   MISSINGSERVICETERM:'Thiếu thời hạn dịch vụ',

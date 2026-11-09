@@ -88,12 +88,13 @@ public static class ProtectionRenewalEndpoints
             join contract in db.SalesContracts on item.ContractId equals contract.Id
             join customer in db.ChannelCustomers on item.CustomerId equals customer.Id
             join owner in db.Users on item.OwnerUserId equals owner.Id
+            join organization in db.Organizations on item.OwnerOrganizationId equals organization.Id
             orderby item.UpdatedAt descending
             select new
             {
                 item.Id, item.ContractId, item.CustomerId, customer_name = customer.DisplayName,
                 contract.ContractCode, item.OwnerUserId, owner_name = owner.Name,
-                item.OwnerOrganizationId, item.Status, item.Source, item.Note,
+                item.OwnerOrganizationId, organization_name = organization.Name, item.Status, item.Source, item.Note,
                 item.PreviousProtectionUntil, item.PriorityUntil,
                 item.DecisionReason, item.ReviewedAt, item.NewProtectionFrom, item.NewProtectionUntil,
                 can_approve = manager && item.Status == "PENDING_MANAGER"

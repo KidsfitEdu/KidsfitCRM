@@ -83,6 +83,7 @@ public static class ChannelSalesEndpoints
         channel.MapGet("/commissions/me", MyCommissions).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         channel.MapChannelSalesOperations();
         ContractRenewalEndpoints.Map(channel);
+        ProtectionRenewalEndpoints.Map(channel);
         CustomerCareEndpoints.Map(channel);
         CheckeeSupportEndpoints.Map(channel);
         channel.MapSchoolDirectory();

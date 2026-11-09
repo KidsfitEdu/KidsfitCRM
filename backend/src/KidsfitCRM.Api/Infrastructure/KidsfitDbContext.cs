@@ -109,6 +109,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         var gi01 = modelBuilder.Entity<ServiceInterruptionEvent>();
         gi01.Property(x => x.Status).HasMaxLength(32);
         gi01.Property(x => x.Reason).HasMaxLength(1000);
+        gi01.Property(x => x.SourceSnapshot).HasColumnType("json");
         gi01.Property(x => x.DeduplicationKey).HasMaxLength(180).UseCollation("utf8mb4_bin");
         DateOnlyProperty(gi01.Property(x => x.GapStartOn));
         DateOnlyProperty(gi01.Property(x => x.ThresholdOn));

@@ -81,8 +81,8 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
       </button>
     </div>
     {error&&<p role="alert" className="rounded-lg border border-red-200 p-3 text-sm text-red-700">{error}</p>}
-    {message&&<p role="status" className="text-sm text-green-700">{message}</p>}
-    {loading&&<p role="status" className="text-sm text-muted-foreground">Đang tải dữ liệu...</p>}
+    {message&&<output className="block text-sm text-green-700">{message}</output>}
+    {loading&&<output className="block text-sm text-muted-foreground">Đang tải dữ liệu...</output>}
     {mode==='sales'&&<div className="space-y-3">
       <h4 className="font-medium">Trường sắp hết hạn hoặc trong 15 ngày ưu tiên</h4>
       {!loading&&eligible.length===0&&<p className="text-sm text-muted-foreground">Hiện chưa có trường trong khoảng đăng ký lại.</p>}

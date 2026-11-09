@@ -170,13 +170,13 @@ public static class ContractExpiryAlertService
                 // or when the accounting exception SLA has not been configured.
                 if (interruption.Status is "EXCEPTION_OVERDUE" or "EXCEPTION_CONFIG_REQUIRED")
                 {
-                    var directorIds = await (from membership in db.OrganizationMemberships.AsNoTracking()
+                    var directorIds = await (from directorMember in db.OrganizationMemberships.AsNoTracking()
                         join organization in db.Organizations.AsNoTracking()
-                            on membership.OrganizationId equals organization.Id
-                        join user in db.Users.AsNoTracking() on membership.UserId equals user.Id
+                            on directorMember.OrganizationId equals organization.Id
+                        join user in db.Users.AsNoTracking() on directorMember.UserId equals user.Id
                         join ur in db.UserRoles.AsNoTracking() on user.Id equals ur.UserId
                         join role in db.Roles.AsNoTracking() on ur.RoleId equals role.Id
-                        where organization.Code == "KIDSFIT" && membership.Status == "ACTIVE"
+                        where organization.Code == "KIDSFIT" && directorMember.Status == "ACTIVE"
                               && organization.Status == "ACTIVE" && user.Status == "ACTIVE"
                               && role.Code == "DIRECTOR"
                         select user.Id).Distinct().ToArrayAsync(ct);

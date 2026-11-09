@@ -60,13 +60,15 @@ public static class ServiceInterruptionPolicy
 
             var gapStart = end.AddDays(1);
             var threshold = gapStart.AddMonths(12);
-            if (next.StartOn >= threshold && today >= threshold)
+            // A future signed period does not erase its preceding gap.
+            if (today >= gapStart && today < next.StartOn)
+                return new(today >= threshold ? AssessmentStatus.ThresholdReached
+                        : AssessmentStatus.Interrupted, gapStart, threshold, next.StartOn);
+
+            // A previously completed gap must not retroactively revoke rights.
+            if (next.StartOn >= threshold && today >= next.StartOn)
                 return new(AssessmentStatus.HistoricalThresholdRequiresReview,
                     gapStart, threshold, next.StartOn);
-
-            // The only gap relevant to the current date is the one containing today.
-            if (today >= gapStart && today < next.StartOn)
-                return new(AssessmentStatus.Interrupted, gapStart, threshold, next.StartOn);
 
             end = next.EndOn;
         }

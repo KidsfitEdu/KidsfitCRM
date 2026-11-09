@@ -30,7 +30,8 @@ public static class ContractExpiryAlertService
         }
     }
 
-    public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now, CancellationToken ct = default)
+    public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now, CancellationToken ct = default,
+        int accountingExceptionHours = 0)
     {
         var today = BusinessDate(now);
         // Canceled or no-longer-verified contracts may fall out of the candidate query;
@@ -160,11 +161,35 @@ public static class ContractExpiryAlertService
             // GI-01: per-recipient notice milestones from the entire verified service timeline.
             // This does not alter customer rights; actual release belongs to GI-01 worker.
             var interruption = await ServiceInterruptionService.AssessAsync(
-                db, contract.CustomerId, today, now, ct);
+                db, contract.CustomerId, today, now, ct, accountingExceptionHours);
             if (interruption?.Assessment.ThresholdOn is DateOnly threshold
                 && interruption.Status != "CONTINUOUS"
                 && interruption.Status != "MISSINGSERVICETERM")
             {
+                // Director receives a distinct durable exception alert only after the threshold
+                // or when the accounting exception SLA has not been configured.
+                if (interruption.Status is "EXCEPTION_OVERDUE" or "EXCEPTION_CONFIG_REQUIRED")
+                {
+                    var directorIds = await (from membership in db.OrganizationMemberships.AsNoTracking()
+                        join organization in db.Organizations.AsNoTracking()
+                            on membership.OrganizationId equals organization.Id
+                        join user in db.Users.AsNoTracking() on membership.UserId equals user.Id
+                        join ur in db.UserRoles.AsNoTracking() on user.Id equals ur.UserId
+                        join role in db.Roles.AsNoTracking() on ur.RoleId equals role.Id
+                        where organization.Code == "KIDSFIT" && membership.Status == "ACTIVE"
+                              && organization.Status == "ACTIVE" && user.Status == "ACTIVE"
+                              && role.Code == "DIRECTOR"
+                        select user.Id).Distinct().ToArrayAsync(ct);
+                    var exceptionKind = interruption.Status == "EXCEPTION_OVERDUE"
+                        ? "GI01_EXCEPTION_OVERDUE" : "GI01_CONFIG_REQUIRED";
+                    foreach (var directorId in directorIds)
+                    {
+                        var key = $"gi01:director:{interruption.CustomerId}:{threshold:yyyyMMdd}:{exceptionKind}:{directorId}";
+                        created += await InsertAsync(db, contract.Id, directorId, exceptionKind,
+                            threshold, today, key, now, ct);
+                    }
+                }
+
                 foreach (var (daysBefore, due) in ServiceInterruptionPolicy.WarningMilestones(threshold))
                 {
                     if (today != due) continue;
@@ -226,7 +251,7 @@ public static class ContractExpiryAlertService
 }
 
 public sealed class ContractExpiryAlertWorker(IServiceScopeFactory scopes,
-    ILogger<ContractExpiryAlertWorker> logger) : BackgroundService
+    IConfiguration configuration, ILogger<ContractExpiryAlertWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -242,7 +267,8 @@ public sealed class ContractExpiryAlertWorker(IServiceScopeFactory scopes,
         {
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
-            var count = await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, ct);
+            var count = await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, ct,
+                configuration.GetValue<int>("GI01:AccountingExceptionHours"));
             if (count > 0) logger.LogInformation("Created {Count} NT-01 contract notices.", count);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }

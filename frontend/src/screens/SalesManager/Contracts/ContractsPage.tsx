@@ -1,6 +1,7 @@
 'use client';
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
+import { ProtectionRenewalPanel } from '@/components/crm/ProtectionRenewalPanel';
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, FileCheck2, FileText, Send, Undo2, ExternalLink } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
@@ -106,6 +107,7 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
      title="Hợp đồng & xác minh"
      description="Rà soát hợp đồng do Sales báo cáo, chuyển CHECKEE xác minh và theo dõi phản hồi."/>
    {!connected&&<output className="block rounded-xl border p-4 text-sm text-muted-foreground">Chế độ xem thử: đăng nhập hệ thống để xem và duyệt hợp đồng thật.</output>}
+   {apiBase&&token&&<ProtectionRenewalPanel apiBase={apiBase} token={token} mode="manager"/>}
    {error&&<p role="alert" className="rounded-xl border border-red-200 p-3 text-sm text-red-700">{error}</p>}
    <AdminListPanel>
      <AdminListToolbar search={draft} onSearchChange={setDraft}

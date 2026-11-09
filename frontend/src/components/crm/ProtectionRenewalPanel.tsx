@@ -92,7 +92,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
       return {
         key:`case-${item.id}`,id:item.id,contractId:item.contract_id,
         school:item.customer_name,code:item.contract_code,owner:item.owner_name,
-        status:item.status,source:item.source,renewalConfirmed:e?.renewal_confirmed??null,
+        status:item.status,source:item.source,renewalConfirmed:e?.renewal_confirmed??(item.status==='PENDING_MANAGER'||item.status==='APPROVED'?true:item.status==='WAITING_RENEWAL'?false:null),
         protectionUntil:item.previous_protection_until,priorityUntil:item.priority_until,
         newFrom:item.new_protection_from,newUntil:item.new_protection_until,
         note:item.note,reason:item.decision_reason,reviewedAt:item.reviewed_at,
@@ -122,7 +122,8 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
       .sort((a,b)=>milliseconds(a.priorityUntil)-milliseconds(b.priorityUntil));
   },[rows,search,status,source,renewal]);
   const total=filtered.length;
-  const visible=filtered.slice((page-1)*pageSize,page*pageSize);
+  const currentPage=Math.min(page,Math.max(1,Math.ceil(total/pageSize)));
+  const visible=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
   const count=(key:string)=>rows.filter(x=>x.status===key).length;
   const reset=()=>{setDraft('');setSearch('');setStatus('ALL');setSource('ALL');setRenewal('ALL');setPage(1);};
   const changeStatus=(value:string)=>{setStatus(value);setPage(1);};
@@ -225,7 +226,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
               <td className={adminTableCellClass}>
                 {row.renewalConfirmed===null
                   ? <span className="text-xs text-muted-foreground">Xem hồ sơ</span>
-                  : <AdminStatusBadge status={row.renewalConfirmed?'APPROVED':'EXPIRED'}
+                  : <AdminStatusBadge status={row.renewalConfirmed?'APPROVED':'WAITING_RENEWAL'}
                       label={row.renewalConfirmed?'Đã xác nhận':'Chưa xác nhận'}/>}
               </td>
               <td className={adminTableCellClass}>
@@ -262,7 +263,7 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
           </tbody>
         </table>
       </div>
-      <AppPagination page={page} pageSize={pageSize} total={total} itemLabel="hồ sơ"
+      <AppPagination page={currentPage} pageSize={pageSize} total={total} itemLabel="hồ sơ"
         disabled={loading||busy} pageSizeOptions={pageSizeOptions}
         onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </AdminListPanel>

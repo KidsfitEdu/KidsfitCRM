@@ -9,6 +9,7 @@ import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/chann
 import { SalesIncomePage } from './SalesIncomePage';
 import { ContractRenewalSalesPanel } from './ContractRenewalSalesPanel';
 import { ProtectionRenewalPanel } from '@/components/crm/ProtectionRenewalPanel';
+import { ServiceInterruptionPanel } from '@/components/crm/ServiceInterruptionPanel';
 import type { RolePageProps } from '@/types/role-pages';
 
 type SalesSection = 'schools' | 'customers' | 'activities' | 'proposals' | 'income';
@@ -107,7 +108,7 @@ export function SalesFocusPage({section, ...props}: Props) {
       {section==='customers' && subview==='renewals'
         ? <ContractRenewalSalesPanel apiBase={apiBase} token={token} abilities={abilities}/>
         : section==='customers' && subview==='protection'
-          ? <ProtectionRenewalPanel apiBase={apiBase} token={token} mode="sales"/>
+          ? <div className="space-y-6"><ProtectionRenewalPanel apiBase={apiBase} token={token} mode="sales"/><ServiceInterruptionPanel apiBase={apiBase} token={token} mode="sales"/></div>
           : table}
     </section> : table}
     {section === 'customers' && !apiBase && <p className="text-xs text-muted-foreground">

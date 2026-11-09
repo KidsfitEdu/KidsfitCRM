@@ -146,6 +146,8 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'GI01-DEMO-%';" | grep -x 4
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='CONFIRMED';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='PENDING_ACCOUNTING';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM school_disputes WHERE idempotency_key='review-dispute-SCH0007' AND status='OPEN';" | grep -x 0
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='EXCEPTION_DISPUTE';" | grep -x 0
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='RELEASED';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0010' AND p.status='RELEASED';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0008' AND p.status='ACTIVE';" | grep -x 1

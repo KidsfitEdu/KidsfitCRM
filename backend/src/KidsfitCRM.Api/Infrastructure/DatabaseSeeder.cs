@@ -46,7 +46,8 @@ public static class DatabaseSeeder
             if (config.GetValue<bool>("Seed:AccountingScenarios"))
                 throw new InvalidOperationException("Review fixtures and legacy 30% accounting fixtures cannot run together.");
             var env = services.GetRequiredService<IHostEnvironment>();
-            await CrmReviewSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow, env.ContentRootPath);
+            await CrmReviewSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow,
+                env.ContentRootPath, includeReviewDispute: !config.GetValue<bool>("Seed:Gi01Scenarios"));
             if (config.GetValue<bool>("Seed:ProtectionRenewalScenarios"))
                 await ProtectionRenewalDemoSeeder.SeedAsync(db, DateTime.UtcNow);
             // NT-01 UI scenarios are opt-in and allowed only with isolated review fixtures.

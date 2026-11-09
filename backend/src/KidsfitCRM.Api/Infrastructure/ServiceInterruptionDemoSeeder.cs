@@ -5,12 +5,27 @@ namespace KidsfitCRM.Api.Infrastructure;
 
 /// <summary>
 /// Isolated, opt-in GI-01 scenarios. Only for disposable review DBs; never Production.
-/// Reuses the fictional SCH0007..0009 schools so the canonical review import remains intact.
+/// Reuses fictional SCH0007..0010 schools; GI-01 intentionally has no synthetic
+/// dispute, while the backend still checks all real unresolved disputes.
 /// </summary>
 internal static class ServiceInterruptionDemoSeeder
 {
     public static async Task SeedAsync(KidsfitDbContext db, DateTime now)
     {
+        // On disposable DBs seeded before this change, clear ONLY the known
+        // synthetic review dispute for SCH0007. Never delete genuine disputes.
+        // Standalone ReviewFixtures retains its dispute demonstration.
+        var legacyDispute = await db.SchoolDisputes.SingleOrDefaultAsync(d =>
+            d.IdempotencyKey == "review-dispute-SCH0007"
+            && d.Status == "OPEN"
+            && d.Reason == "Cần đối chiếu bằng chứng tiếp cận giữa các nhân sự."
+            && d.EvidenceReference == "Lịch sử liên hệ và trao đổi nội bộ.");
+        if (legacyDispute is not null)
+        {
+            db.SchoolDisputes.Remove(legacyDispute);
+            await db.SaveChangesAsync();
+        }
+
         var today = ContractExpiryAlertService.BusinessDate(now);
         var examples = new[]
         {

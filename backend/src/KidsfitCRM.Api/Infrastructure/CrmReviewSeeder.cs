@@ -206,7 +206,7 @@ internal static class CrmReviewSeeder
     }
 
     public static async Task SeedAsync(KidsfitDbContext db, IPasswordHasher<User> hasher,
-        string sharedPassword, DateTime now, string contentRootPath)
+        string sharedPassword, DateTime now, string contentRootPath, bool includeReviewDispute = true)
     {
         var path = Path.Combine(contentRootPath, "SeedData", "crm-review-data.json");
         if (!File.Exists(path)) throw new FileNotFoundException("CRM review fixture missing.", path);
@@ -633,7 +633,9 @@ internal static class CrmReviewSeeder
                 Status = "PENDING", IdempotencyKey = "review-extension-" + fixture.Extension.SchoolCode,
                 CreatedAt = now, UpdatedAt = now });
         }
-        if (!await db.SchoolDisputes.AnyAsync(x => x.IdempotencyKey == "review-dispute-" + fixture.Dispute.SchoolCode))
+        // GI-01 uses this same school to illustrate a normal 12-month interruption.
+        // Preserve the dispute fixture for standalone review runs only.
+        if (includeReviewDispute && !await db.SchoolDisputes.AnyAsync(x => x.IdempotencyKey == "review-dispute-" + fixture.Dispute.SchoolCode))
             db.SchoolDisputes.Add(new SchoolDispute {
                 CustomerId = schoolKeys[fixture.Dispute.SchoolCode].CustomerId,
                 OrganizationId = kidsfit.Id, OpenedByUserId = manager.Id,

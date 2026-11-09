@@ -49,7 +49,7 @@ public static class ProtectionRenewalEndpoints
         {
             var protectedUntil = await db.CustomerProtections.AsNoTracking()
                 .Where(p => p.ContractId == contract.Id && p.SourceType == "CONTRACT"
-                    && p.OwnerUserId == access.UserId)
+                    && p.OwnerUserId == access.UserId && p.Status == "ACTIVE")
                 .OrderByDescending(p => p.EffectiveUntil)
                 .Select(p => (DateTime?)p.EffectiveUntil).FirstOrDefaultAsync(ct);
             if (!protectedUntil.HasValue || !ProtectionRenewalPolicy.EligibleWindow(now, protectedUntil.Value))
@@ -123,7 +123,7 @@ public static class ProtectionRenewalEndpoints
             throw new KeyNotFoundException();
         var protection = await db.CustomerProtections.AsNoTracking()
             .Where(p => p.ContractId == contractId && p.SourceType == "CONTRACT"
-                && p.OwnerUserId == access.UserId)
+                && p.OwnerUserId == access.UserId && p.Status == "ACTIVE")
             .OrderByDescending(p => p.EffectiveUntil).FirstOrDefaultAsync(ct)
             ?? throw new ApiConflictException("Hợp đồng chưa có chu kỳ bảo vệ hợp lệ.");
         if (!ProtectionRenewalPolicy.EligibleWindow(now, protection.EffectiveUntil))
@@ -194,6 +194,16 @@ public static class ProtectionRenewalEndpoints
             if (!await ProtectionRenewalPolicy.HasConfirmedContinuationAsync(db, contract,
                 item.PreviousProtectionUntil, now, ct))
                 throw new ApiConflictException("Kế toán chưa xác nhận kỳ tái ký tiếp tục sử dụng phần mềm.");
+            var interruption = await ServiceInterruptionService.AssessAsync(db, item.CustomerId,
+                ContractExpiryAlertService.BusinessDate(now), now, ct);
+            if (interruption is not null && interruption.Assessment.Status is
+                (ServiceInterruptionPolicy.AssessmentStatus.ThresholdReached
+                or ServiceInterruptionPolicy.AssessmentStatus.HistoricalThresholdRequiresReview))
+                throw new ApiConflictException("Khách hàng có gián đoạn dịch vụ đủ 12 tháng; cần xử lý quyền bảo vệ theo GI-01.");
+            if (!await db.CustomerProtections.AnyAsync(p => p.ContractId == item.ContractId
+                && p.OwnerUserId == item.OwnerUserId && p.SourceType == "CONTRACT"
+                && p.Status == "ACTIVE", ct))
+                throw new ApiConflictException("Quyền bảo vệ cũ đã kết thúc, không thể gia hạn lại.");
             var from = now > item.PreviousProtectionUntil ? now : item.PreviousProtectionUntil;
             var until = from.AddYears(5);
             if (await db.CustomerProtections.AnyAsync(p => p.CustomerId == item.CustomerId

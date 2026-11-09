@@ -4,6 +4,7 @@ import {useState} from 'react';
 import {useQuery,useQueryClient} from '@tanstack/react-query';
 import {Eye,PhoneCall,TicketPlus,History,SquarePen} from 'lucide-react';
 import {SchoolProfileDetails, type SchoolProfileUnit} from '@/components/crm/schools/school-profile-details';
+import {ServiceInterruptionPanel} from '@/components/crm/ServiceInterruptionPanel';
 import {AppPageHeader} from '@/components/common/app-page-header';
 import {AdminListPanel,AdminListToolbar,AdminIconAction,adminTableClass,adminTableHeadClass,adminTableCellClass} from '@/components/common/admin-list-ui';
 import {AppPagination} from '@/components/common/app-pagination';
@@ -53,6 +54,7 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
     <AppPageHeader eyebrow="CSKH / KIDSFIT CRM" title="Trường phụ trách"
       description="Tra cứu trường được Admin giao, xem liên hệ và ghi lại hướng dẫn sử dụng qua điện thoại."/>
     {!apiBase&&<p className="rounded-xl border p-4 text-sm text-muted-foreground">Bản xem thử chỉ đọc. Kết nối Backend để xem trường phụ trách.</p>}
+    {!!apiBase&&!!token&&<ServiceInterruptionPanel apiBase={apiBase} token={token} mode="care"/>}
     {query.error&&<p role="alert" className="rounded-xl border p-4 text-sm text-destructive">{query.error.message}</p>}
     <AdminListPanel>
       <AdminListToolbar search={searchDraft} onSearchChange={setSearchDraft}

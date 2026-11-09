@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Eye, ClipboardCheck, CheckCircle2, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { AppPageHeader } from '@/components/common/app-page-header';
+import { ServiceInterruptionPanel } from '@/components/crm/ServiceInterruptionPanel';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminListPanel, AdminListToolbar, AdminStatusBadge, AdminIconAction, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppNativeSelect } from '@/components/common/app-native-select';
@@ -67,6 +68,7 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Hồ sơ quá hạn"
       description="Theo dõi đề xuất và gia hạn quá hạn cần xử lý ngoại lệ theo phân quyền."/>
+    {!!apiBase&&!!token&&permitted&&<ServiceInterruptionPanel apiBase={apiBase} token={token} mode="director"/>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}

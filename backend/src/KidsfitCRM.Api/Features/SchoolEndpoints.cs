@@ -125,8 +125,9 @@ public static class SchoolEndpoints
                     && p.Status == "ACTIVE" && p.EffectiveUntil > now)
                 && !db.ApproachRegistrations.Any(a => a.CustomerId == x.CustomerId
                     && a.Status == "ACTIVE" && a.ProtectedUntil > now)
-                && !db.SalesContracts.Any(c => c.CustomerId == x.CustomerId
-                    && c.Status != "CANCELLED" && c.Status != "REJECTED"));
+                && (!db.SalesContracts.Any(c => c.CustomerId == x.CustomerId
+                    && c.Status != "CANCELLED" && c.Status != "REJECTED")
+                    || db.ServiceInterruptionEvents.Any(e => e.CustomerId == x.CustomerId && e.Status == "RELEASED")));
         }
         if (selectedStatus != "ALL")
         {
@@ -175,8 +176,9 @@ public static class SchoolEndpoints
                     && p.Status == "ACTIVE" && p.EffectiveUntil > now)
                 && !db.ApproachRegistrations.Any(a => a.CustomerId == customer.Id
                     && a.Status == "ACTIVE" && a.ProtectedUntil > now)
-                && !db.SalesContracts.Any(c => c.CustomerId == customer.Id
+                && (!db.SalesContracts.Any(c => c.CustomerId == customer.Id
                     && c.Status != "CANCELLED" && c.Status != "REJECTED")
+                    || db.ServiceInterruptionEvents.Any(e => e.CustomerId == customer.Id && e.Status == "RELEASED"))
             select new { unit.Province, unit.Ward })
             .Distinct().OrderBy(x => x.Province).ThenBy(x => x.Ward).ToArrayAsync(ct);
         return Results.Ok(new { data = areas });

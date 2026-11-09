@@ -84,6 +84,8 @@ public static class ChannelSalesEndpoints
         channel.MapChannelSalesOperations();
         ContractRenewalEndpoints.Map(channel);
         ProtectionRenewalEndpoints.Map(channel);
+        SalesProtectionOverviewEndpoints.Map(channel);
+        ServiceInterruptionEndpoints.Map(channel);
         CustomerCareEndpoints.Map(channel);
         CheckeeSupportEndpoints.Map(channel);
         channel.MapSchoolDirectory();

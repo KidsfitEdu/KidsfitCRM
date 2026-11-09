@@ -8,7 +8,7 @@ import { ChannelOperations } from '@/components/crm/channel-operations';
 import { ChannelSalesView, type SalesCustomerMode } from '@/components/crm/channel-sales-view';
 import { SalesIncomePage } from './SalesIncomePage';
 import { ContractRenewalSalesPanel } from './ContractRenewalSalesPanel';
-import { ProtectionRenewalPanel } from '@/components/crm/ProtectionRenewalPanel';
+import { SalesProtectionOverview } from '@/components/crm/SalesProtectionOverview';
 import type { RolePageProps } from '@/types/role-pages';
 
 type SalesSection = 'schools' | 'customers' | 'activities' | 'proposals' | 'income';
@@ -94,7 +94,7 @@ export function SalesFocusPage({section, ...props}: Props) {
           ...(section==='customers' && can('channel_sales.renewal.submit')
             ? [{id:'renewals',label:'Hợp đồng tái ký'}] : []),
           ...(section==='customers' && can('channel_sales.customer.view')
-            ? [{id:'protection',label:'Quyền bảo vệ 5 năm'}] : []),
+            ? [{id:'protection',label:'Quản lý quyền bảo vệ'}] : []),
         ].map(item => <button key={item.id} type="button"
           onClick={() => setSubview(item.id as typeof subview)}
           aria-current={subview === item.id ? 'page' : undefined}
@@ -107,7 +107,7 @@ export function SalesFocusPage({section, ...props}: Props) {
       {section==='customers' && subview==='renewals'
         ? <ContractRenewalSalesPanel apiBase={apiBase} token={token} abilities={abilities}/>
         : section==='customers' && subview==='protection'
-          ? <ProtectionRenewalPanel apiBase={apiBase} token={token} mode="sales"/>
+          ? <SalesProtectionOverview apiBase={apiBase} token={token}/>
           : table}
     </section> : table}
     {section === 'customers' && !apiBase && <p className="text-xs text-muted-foreground">

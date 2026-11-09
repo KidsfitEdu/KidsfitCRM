@@ -54,6 +54,7 @@ builder.Services.AddScoped<ChannelSalesActions>();
 builder.Services.AddHostedService<SchoolProposalAlertWorker>();
 builder.Services.AddHostedService<ContractExpiryAlertWorker>();
 builder.Services.AddHostedService<ProtectionRenewalWorker>();
+builder.Services.AddHostedService<ServiceInterruptionWorker>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;

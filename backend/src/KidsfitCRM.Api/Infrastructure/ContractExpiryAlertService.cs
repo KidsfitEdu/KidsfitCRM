@@ -30,7 +30,8 @@ public static class ContractExpiryAlertService
         }
     }
 
-    public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now, CancellationToken ct = default)
+    public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now, CancellationToken ct = default,
+        int accountingExceptionHours = 0)
     {
         var today = BusinessDate(now);
         // Canceled or no-longer-verified contracts may fall out of the candidate query;
@@ -44,7 +45,7 @@ public static class ContractExpiryAlertService
                 .SetProperty(a => a.UpdatedAt, now), ct);
         var contracts = await db.SalesContracts.AsNoTracking()
             .Where(c => c.Status == "ACTIVE" && c.VerifiedAt != null && c.RequiresSchoolVerification)
-            .Select(c => new { c.Id, c.OwnerUserId, c.OwnerOrganizationId,
+            .Select(c => new { c.Id, c.CustomerId, c.OwnerUserId, c.OwnerOrganizationId,
                 c.CareUserId, c.CareOrganizationId, c.ServiceEndOn })
             .ToArrayAsync(ct);
         if (contracts.Length == 0) return 0;
@@ -157,6 +158,51 @@ public static class ContractExpiryAlertService
                     created += await InsertAsync(db, contract.Id, recipient, kind, expires, due, key, now, ct);
                 }
             }
+            // GI-01: per-recipient notice milestones from the entire verified service timeline.
+            // This does not alter customer rights; actual release belongs to GI-01 worker.
+            var interruption = await ServiceInterruptionService.AssessAsync(
+                db, contract.CustomerId, today, now, ct, accountingExceptionHours);
+            if (interruption?.Assessment.ThresholdOn is DateOnly threshold
+                && interruption.Status != "CONTINUOUS"
+                && interruption.Status != "MISSINGSERVICETERM")
+            {
+                // Director receives a distinct durable exception alert only after the threshold
+                // or when the accounting exception SLA has not been configured.
+                if (interruption.Status is "EXCEPTION_OVERDUE" or "EXCEPTION_CONFIG_REQUIRED")
+                {
+                    var directorIds = await (from directorMember in db.OrganizationMemberships.AsNoTracking()
+                        join organization in db.Organizations.AsNoTracking()
+                            on directorMember.OrganizationId equals organization.Id
+                        join user in db.Users.AsNoTracking() on directorMember.UserId equals user.Id
+                        join ur in db.UserRoles.AsNoTracking() on user.Id equals ur.UserId
+                        join role in db.Roles.AsNoTracking() on ur.RoleId equals role.Id
+                        where organization.Code == "KIDSFIT" && directorMember.Status == "ACTIVE"
+                              && organization.Status == "ACTIVE" && user.Status == "ACTIVE"
+                              && role.Code == "DIRECTOR"
+                        select user.Id).Distinct().ToArrayAsync(ct);
+                    var exceptionKind = interruption.Status == "EXCEPTION_OVERDUE"
+                        ? "GI01_EXCEPTION_OVERDUE" : "GI01_CONFIG_REQUIRED";
+                    foreach (var directorId in directorIds)
+                    {
+                        var key = $"gi01:director:{interruption.CustomerId}:{threshold:yyyyMMdd}:{exceptionKind}:{directorId}";
+                        created += await InsertAsync(db, contract.Id, directorId, exceptionKind,
+                            threshold, today, key, now, ct);
+                    }
+                }
+
+                foreach (var (daysBefore, due) in ServiceInterruptionPolicy.WarningMilestones(threshold))
+                {
+                    if (today != due) continue;
+                    var kind = daysBefore == 0 ? "GI01_THRESHOLD" : $"GI01_BEFORE_{daysBefore}";
+                    foreach (var recipient in recipients)
+                    {
+                        var key = $"gi01:notice:{interruption.CustomerId}:{threshold:yyyyMMdd}:{kind}:{recipient}";
+                        created += await InsertAsync(db, contract.Id, recipient, kind,
+                            threshold, due, key, now, ct);
+                    }
+                }
+            }
+
             // Only expire obsolete OPEN alerts if a later confirmed term supplants their deadline,
             // or if the user has lost their active assignment. Read alerts remain audit history.
             var open = await db.ContractExpiryAlerts.Where(x => x.ContractId == contract.Id
@@ -174,7 +220,17 @@ public static class ContractExpiryAlertService
                     && (!protections.Any(p => p.ContractId == contract.Id
                         && BusinessDate(p.EffectiveUntil) == item.MilestoneOn)
                         || !rightsRecipientsForContract.Contains(item.RecipientUserId));
-                if (obsoleteGap || obsoleteService || obsoleteProtection)
+                var isGi01 = item.Kind.StartsWith("GI01_", StringComparison.Ordinal);
+                var stillApplicableGi01 = interruption?.Assessment.ThresholdOn == item.MilestoneOn
+                    && (item.Kind == "GI01_EXCEPTION_OVERDUE"
+                        ? interruption.Status == "EXCEPTION_OVERDUE"
+                        : item.Kind == "GI01_CONFIG_REQUIRED"
+                            ? interruption.Status == "EXCEPTION_CONFIG_REQUIRED"
+                            : interruption.Status != "CONTINUOUS"
+                                && interruption.Status != "MISSINGSERVICETERM"
+                                && recipients.Contains(item.RecipientUserId));
+                var obsoleteGi01 = isGi01 && !stillApplicableGi01;
+                if (obsoleteGap || obsoleteService || obsoleteProtection || obsoleteGi01)
                 {
                     item.Status = "RESOLVED";
                     item.ResolvedAt = now;
@@ -205,7 +261,7 @@ public static class ContractExpiryAlertService
 }
 
 public sealed class ContractExpiryAlertWorker(IServiceScopeFactory scopes,
-    ILogger<ContractExpiryAlertWorker> logger) : BackgroundService
+    IConfiguration configuration, ILogger<ContractExpiryAlertWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -221,7 +277,8 @@ public sealed class ContractExpiryAlertWorker(IServiceScopeFactory scopes,
         {
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
-            var count = await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, ct);
+            var count = await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, ct,
+                configuration.GetValue<int>("GI01:AccountingExceptionHours"));
             if (count > 0) logger.LogInformation("Created {Count} NT-01 contract notices.", count);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }

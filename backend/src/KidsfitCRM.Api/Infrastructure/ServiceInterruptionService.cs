@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using KidsfitCRM.Api.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -133,14 +134,23 @@ public static class ServiceInterruptionService
             {
                 var key = $"gi01:{customerId}:{snapshot.Assessment.GapStartOn:yyyyMMdd}:{status}";
                 // Unique key also makes concurrent hourly sweeps safe.
+                var sourceSnapshot = JsonSerializer.Serialize(new {
+                    source_contract_id = snapshot.ContractId,
+                    protection_id = snapshot.ProtectionId,
+                    owner_user_id = snapshot.OwnerUserId,
+                    owner_organization_id = snapshot.OwnerOrganizationId,
+                    pending_accounting = snapshot.HasPendingRenewal,
+                    open_dispute = snapshot.HasOpenDispute,
+                    next_service_start_on = snapshot.Assessment.NextServiceStartOn
+                });
                 await db.Database.ExecuteSqlInterpolatedAsync($@"
                     INSERT IGNORE INTO service_interruption_events
                     (customer_id, contract_id, protection_id, gap_start_on,
-                     threshold_on, status, reason, deduplication_key, processed_at,
+                     threshold_on, status, reason, source_snapshot, deduplication_key, processed_at,
                      created_at, updated_at)
                     VALUES ({customerId}, {snapshot.ContractId}, {snapshot.ProtectionId},
                      {snapshot.Assessment.GapStartOn.Value}, {snapshot.Assessment.ThresholdOn.Value},
-                     {status}, {"GI-01 service interruption assessment"}, {key}, {now}, {now}, {now})", ct);
+                     {status}, {"GI-01 service interruption assessment"}, {sourceSnapshot}, {key}, {now}, {now}, {now})", ct);
             }
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);

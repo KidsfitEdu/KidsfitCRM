@@ -14,6 +14,7 @@ public static class ProtectionRenewalEndpoints
     public static void Map(RouteGroupBuilder channel)
     {
         channel.MapGet("/protection-renewals", List).RequireAuthorization(Permissions.ChannelSalesView);
+        channel.MapGet("/protection-renewals/eligible", Eligible).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapPost("/contracts/{contractId:long}/protection-renewal/request-review", RequestReview)
             .RequireAuthorization(Permissions.ChannelSalesRegister);
         channel.MapPost("/protection-renewals/{id:long}/approve", Approve)
@@ -33,6 +34,41 @@ public static class ProtectionRenewalEndpoints
                   join role in db.Roles on roleUser.RoleId equals role.Id
                   where roleUser.UserId == access.UserId && role.Code == "SALES_MANAGER"
                   select role.Id).AnyAsync(ct);
+
+    public static async Task<IResult> Eligible(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        var now = DateTime.UtcNow;
+        var contracts = await db.SalesContracts.AsNoTracking()
+            .Where(c => c.OwnerUserId == access.UserId && c.Status == "ACTIVE"
+                && c.VerifiedAt != null && access.OrganizationIds.Contains(c.OwnerOrganizationId)
+                && !db.ContractCancellations.Any(x => x.ContractId == c.Id))
+            .OrderByDescending(c => c.CreatedAt).Take(200).ToArrayAsync(ct);
+        var data = new List<object>();
+        foreach (var contract in contracts)
+        {
+            var protectedUntil = await db.CustomerProtections.AsNoTracking()
+                .Where(p => p.ContractId == contract.Id && p.SourceType == "CONTRACT"
+                    && p.OwnerUserId == access.UserId)
+                .OrderByDescending(p => p.EffectiveUntil)
+                .Select(p => (DateTime?)p.EffectiveUntil).FirstOrDefaultAsync(ct);
+            if (!protectedUntil.HasValue || !ProtectionRenewalPolicy.EligibleWindow(now, protectedUntil.Value))
+                continue;
+            var item = await db.ProtectionRenewalCases.AsNoTracking()
+                .Where(x => x.ContractId == contract.Id && x.PreviousProtectionUntil == protectedUntil.Value)
+                .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(ct);
+            var confirmed = await ProtectionRenewalPolicy.HasConfirmedContinuationAsync(db,
+                contract, protectedUntil.Value, now, ct);
+            var name = await db.ChannelCustomers.Where(x => x.Id == contract.CustomerId)
+                .Select(x => x.DisplayName).SingleAsync(ct);
+            data.Add(new { contract_id = contract.Id, contract_code = contract.ContractCode,
+                customer_name = name, protected_until = protectedUntil.Value,
+                priority_until = ProtectionRenewalPolicy.PriorityEnds(protectedUntil.Value),
+                renewal_confirmed = confirmed, request_id = item?.Id, request_status = item?.Status,
+                can_request_review = item is null });
+        }
+        return Results.Ok(new { data });
+    }
 
     public static async Task<IResult> List(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {

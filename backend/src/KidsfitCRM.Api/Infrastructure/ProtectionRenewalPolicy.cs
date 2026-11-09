@@ -33,7 +33,7 @@ public static class ProtectionRenewalPolicy
         var start = boundary > BusinessDay(now) ? boundary : BusinessDay(now);
         return await db.ContractRenewals.AnyAsync(r => r.ContractId == contract.Id
             && r.Status == "CONFIRMED" && r.ServiceStartOn <= start.AddDays(1)
-            && r.ServiceEndOn >= start, ct);
+            && r.ServiceEndOn >= start.AddDays(1), ct);
     }
 
     public static async Task<bool> HasPriorityForOtherSalesAsync(KidsfitDbContext db,
@@ -47,11 +47,16 @@ public static class ProtectionRenewalPolicy
         foreach (var c in contracts)
         {
             if (!c.ServiceEndOn.HasValue) continue;
+            var latestConfirmedEnd = await db.ContractRenewals.AsNoTracking()
+                .Where(r => r.ContractId == c.Id && r.Status == "CONFIRMED")
+                .OrderByDescending(r => r.ServiceEndOn)
+                .Select(r => (DateOnly?)r.ServiceEndOn).FirstOrDefaultAsync(ct);
+            var latestServiceEnd = latestConfirmedEnd ?? c.ServiceEndOn.Value;
             var dates = await db.CustomerProtections.AsNoTracking().Where(p =>
                 p.ContractId == c.Id && p.SourceType == "CONTRACT")
                 .OrderByDescending(p => p.EffectiveUntil)
                 .Select(p => p.EffectiveUntil).Take(1).ToArrayAsync(ct);
-            if (dates.Length > 0 && ReservationApplies(now, dates[0], c.ServiceEndOn.Value))
+            if (dates.Length > 0 && ReservationApplies(now, dates[0], latestServiceEnd))
                 return true;
         }
         return false;

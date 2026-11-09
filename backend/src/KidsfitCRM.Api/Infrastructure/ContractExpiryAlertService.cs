@@ -157,6 +157,28 @@ public static class ContractExpiryAlertService
                     created += await InsertAsync(db, contract.Id, recipient, kind, expires, due, key, now, ct);
                 }
             }
+            // GI-01: per-recipient notice milestones from the entire verified service timeline.
+            // This does not alter customer rights; actual release belongs to GI-01 worker.
+            var interruption = await ServiceInterruptionService.AssessAsync(
+                db, contract.Id == 0 ? -1 : (await db.SalesContracts.AsNoTracking()
+                    .Where(x => x.Id == contract.Id).Select(x => x.CustomerId).SingleAsync(ct)), today, now, ct);
+            if (interruption?.Assessment.ThresholdOn is DateOnly threshold
+                && interruption.Status != "CONTINUOUS"
+                && interruption.Status != "MISSINGERVICETERM")
+            {
+                foreach (var (daysBefore, due) in ServiceInterruptionPolicy.WarningMilestones(threshold))
+                {
+                    if (today != due) continue;
+                    var kind = daysBefore == 0 ? "GI01_THRESHOLD" : $"GI01_BEFORE_{daysBefore}";
+                    foreach (var recipient in recipients)
+                    {
+                        var key = $"gi01:notice:{interruption.CustomerId}:{threshold:yyyyMMdd}:{kind}:{recipient}";
+                        created += await InsertAsync(db, contract.Id, recipient, kind,
+                            threshold, due, key, now, ct);
+                    }
+                }
+            }
+
             // Only expire obsolete OPEN alerts if a later confirmed term supplants their deadline,
             // or if the user has lost their active assignment. Read alerts remain audit history.
             var open = await db.ContractExpiryAlerts.Where(x => x.ContractId == contract.Id

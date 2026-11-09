@@ -53,7 +53,7 @@ public static class ProtectionRenewalPolicy
                 .Select(r => (DateOnly?)r.ServiceEndOn).FirstOrDefaultAsync(ct);
             var latestServiceEnd = latestConfirmedEnd ?? c.ServiceEndOn.Value;
             var dates = await db.CustomerProtections.AsNoTracking().Where(p =>
-                p.ContractId == c.Id && p.SourceType == "CONTRACT")
+                p.ContractId == c.Id && p.SourceType == "CONTRACT" && p.Status == "ACTIVE")
                 .OrderByDescending(p => p.EffectiveUntil)
                 .Select(p => p.EffectiveUntil).Take(1).ToArrayAsync(ct);
             if (dates.Length > 0 && ReservationApplies(now, dates[0], latestServiceEnd))
@@ -74,7 +74,7 @@ public static class ProtectionRenewalPolicy
             ct.ThrowIfCancellationRequested();
             var prior = await db.CustomerProtections.AsNoTracking()
                 .Where(p => p.ContractId == c.Id && p.SourceType == "CONTRACT"
-                    && p.OwnerUserId == c.OwnerUserId)
+                    && p.OwnerUserId == c.OwnerUserId && p.Status == "ACTIVE")
                 .OrderByDescending(p => p.EffectiveUntil).FirstOrDefaultAsync(ct);
             if (prior is null || !EligibleWindow(now, prior.EffectiveUntil)) continue;
             if (!await db.Users.AnyAsync(u => u.Id == c.OwnerUserId && u.Status == "ACTIVE", ct)

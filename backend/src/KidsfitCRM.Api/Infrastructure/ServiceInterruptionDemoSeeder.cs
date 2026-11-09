@@ -19,6 +19,8 @@ internal static class ServiceInterruptionDemoSeeder
             new { School = "SCH0008", Sales = "CTV001", Threshold = today,
                 Pending = true, FutureConfirmed = false },
             new { School = "SCH0009", Sales = "SALES001", Threshold = today.AddDays(15),
+                Pending = false, FutureConfirmed = false },
+            new { School = "SCH0010", Sales = "SALES001", Threshold = today,
                 Pending = false, FutureConfirmed = false }
         };
         foreach (var example in examples)

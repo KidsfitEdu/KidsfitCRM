@@ -31,7 +31,7 @@ public static class ServiceInterruptionEndpoints
                     x.Id == c.CustomerId && x.DisplayName.Contains(term)));
         }
         var ids = await allowedContracts.Select(c => c.CustomerId)
-            .Distinct().OrderBy(id => id).Take(1000).ToArrayAsync(ct);
+            .Distinct().OrderBy(id => id).ToArrayAsync(ct);
         var rows = new List<object>();
         foreach (var id in ids)
         {

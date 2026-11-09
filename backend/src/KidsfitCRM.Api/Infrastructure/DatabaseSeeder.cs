@@ -20,6 +20,8 @@ public static class DatabaseSeeder
             throw new InvalidOperationException("Demo seeding is forbidden in Production.");
         if (config.GetValue<bool>("Seed:Nt01Scenarios") && !config.GetValue<bool>("Seed:ReviewFixtures"))
             throw new InvalidOperationException("NT-01 scenarios require Seed:ReviewFixtures=true on a disposable database.");
+        if (config.GetValue<bool>("Seed:ProtectionRenewalScenarios") && !config.GetValue<bool>("Seed:ReviewFixtures"))
+            throw new InvalidOperationException("SL-02 demo requires isolated Seed:ReviewFixtures=true.");
         var hasher = services.GetRequiredService<IPasswordHasher<User>>();
         var now = DateTime.UtcNow;
         if (!await db.Roles.AnyAsync())
@@ -43,6 +45,8 @@ public static class DatabaseSeeder
                 throw new InvalidOperationException("Review fixtures and legacy 30% accounting fixtures cannot run together.");
             var env = services.GetRequiredService<IHostEnvironment>();
             await CrmReviewSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow, env.ContentRootPath);
+            if (config.GetValue<bool>("Seed:ProtectionRenewalScenarios"))
+                await ProtectionRenewalDemoSeeder.SeedAsync(db, DateTime.UtcNow);
             // NT-01 UI scenarios are opt-in and allowed only with isolated review fixtures.
             if (config.GetValue<bool>("Seed:Nt01Scenarios"))
                 await Nt01DemoSeeder.SeedAsync(db, DateTime.UtcNow);
@@ -132,6 +136,7 @@ public static class DatabaseSeeder
             (Permissions.ContractRenewalSubmit, "Gửi hồ sơ tái ký trực tiếp kế toán"),
             (Permissions.ContractRenewalReview, "Xem và yêu cầu bổ sung hồ sơ tái ký"),
             (Permissions.ContractRenewalConfirm, "Xác nhận hoặc từ chối hồ sơ tái ký"),
+            (Permissions.ProtectionRenewalApprove, "Duyệt chu kỳ bảo vệ Sales 5 năm tại KIDSFIT"),
         };
         var existingPermissionCodes = await db.Permissions.Where(x => x.Code.StartsWith("channel_sales.")).Select(x => x.Code).ToArrayAsync();
         db.Permissions.AddRange(channelPermissionSeeds.Where(x => !existingPermissionCodes.Contains(x.Code)).Select(x => new Permission
@@ -176,7 +181,7 @@ public static class DatabaseSeeder
         var currentLinks = await db.PermissionRoles.Select(x => new { x.RoleId, x.PermissionId }).ToListAsync();
         foreach (var managerRole in new[] { "SALES_MANAGER" })
             rolePermissions[managerRole] = [.. rolePermissions[managerRole], Permissions.SchoolContractReview, Permissions.SchoolProposalReview,
-                Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage];
+                Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage, Permissions.ProtectionRenewalApprove];
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
         rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];

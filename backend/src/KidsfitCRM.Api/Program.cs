@@ -53,6 +53,7 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<ChannelSalesActions>();
 builder.Services.AddHostedService<SchoolProposalAlertWorker>();
 builder.Services.AddHostedService<ContractExpiryAlertWorker>();
+builder.Services.AddHostedService<ProtectionRenewalWorker>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
@@ -189,9 +190,10 @@ public static class Permissions
     public const string ContractRenewalSubmit = "channel_sales.renewal.submit";
     public const string ContractRenewalReview = "channel_sales.renewal.review";
     public const string ContractRenewalConfirm = "channel_sales.renewal.confirm";
+    public const string ProtectionRenewalApprove = "channel_sales.protection.renewal.approve";
     public static readonly string[] SchoolOperations = [SchoolProposalSubmit, SchoolProposalReview, SchoolAllocationManage, SchoolExtensionReview,
         SchoolDisputeResolve, SchoolEscalationResolve, SchoolHandoverManage, SchoolCareAssign, SchoolSupportManage, SchoolTechnicalSupportHandle, SchoolWorkflowPolicyManage,
-        ChannelSalesContractCancel, ChannelSalesRevenueRefund, ContractRenewalSubmit, ContractRenewalReview, ContractRenewalConfirm];
+        ChannelSalesContractCancel, ChannelSalesRevenueRefund, ContractRenewalSubmit, ContractRenewalReview, ContractRenewalConfirm, ProtectionRenewalApprove];
     public static readonly string[] All = [.. SchoolOperations, SchoolDirectoryManage, SchoolCapacityManage, SchoolContractReview, SchoolProtectionGrant, ChannelSalesView, ChannelSalesRegister, ChannelSalesActivity, ChannelSalesReportContract, ChannelSalesRecordRevenue, ChannelSalesCommissionView, ChannelSalesReconcile, ChannelSalesManage, ChannelSalesOrganizationScope, ChannelSalesAllScope, ChannelSalesPayoutCreate, ChannelSalesPayoutApprove, ChannelSalesPayoutComplete, ChannelSalesPolicyManage, ChannelSalesTeamManage, ChannelSalesIdentityManage, ChannelSalesCommissionAdjust];
 }
 

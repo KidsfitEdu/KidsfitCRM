@@ -37,3 +37,11 @@ test('CSKH endpoint filters scoped schools by customer before pagination',()=>{
   assert.match(code,/result\.Skip\(\(p - 1\) \* size\)\.Take\(size\)/);
   assert.match(code,/assignedContractIds\.Contains\(t\.ContractId\)/);
 });
+
+test('shared status badge handles absent API fields without crashing',()=>{
+  const badge=read('src/components/common/app-status-badge.tsx');
+  assert.match(badge,/status\?:string\|null/);
+  assert.match(badge,/typeof status==='string' \? status\.trim\(\)\.toUpperCase\(\) : ''/);
+  assert.match(badge,/const displayLabel=typeof label==='string' && label\.trim\(\) \? label : 'Chưa cập nhật'/);
+  assert.doesNotMatch(badge,/visuals\[status\.toUpperCase\(\)\]/);
+});

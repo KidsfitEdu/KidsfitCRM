@@ -17,7 +17,7 @@ import type {RolePageProps} from '@/types/role-pages';
 type School={id:number;customer_id:number;contract_code:string;status:string;verified_at:string|null;
   school_name:string;contact_name:string|null;phone:string|null;email:string|null;
   open_tickets:number;last_support_at:string|null;eligible_contract_count:number;
-  service_status:string;gi01_status:string;care_action:string|null;
+  service_status?:string|null;gi01_status?:string|null;care_action?:string|null;
   gap_start_on:string|null;threshold_on:string|null;next_service_start_on:string|null;
   has_pending_renewal:boolean};
 type List={data:School[];total:number;page:number;page_size:number};
@@ -120,7 +120,7 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
               <p className="mt-1 text-xs text-muted-foreground">{x.phone??'Chưa có SĐT'}</p>
             </td>
             <td className={adminTableCellClass}>
-              <AppStatusBadge status={x.service_status}
+              <AppStatusBadge status={x.service_status ?? 'NO_SERVICE'}
                 label={serviceLabels[x.service_status]??'Cần rà soát dịch vụ'}/>
             </td>
             <td className={adminTableCellClass}>
@@ -186,7 +186,7 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
           </section>
           <section className="space-y-2 rounded-xl border p-4">
             <h3 className="flex items-center gap-2 font-semibold"><CalendarClock className="size-4"/>Tình trạng sử dụng dịch vụ</h3>
-            <AppStatusBadge status={school.service_status}
+            <AppStatusBadge status={school.service_status ?? 'NO_SERVICE'}
               label={serviceLabels[school.service_status]??'Cần rà soát dịch vụ'}/>
             <p>Bắt đầu gián đoạn: {date(school.gap_start_on)}</p>
             <p>Mốc đủ 12 tháng: {date(school.threshold_on)}</p>

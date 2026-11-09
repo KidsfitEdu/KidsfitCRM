@@ -59,10 +59,12 @@ const toneClasses:Record<AppStatusTone,string> = {
 
 /** Reusable presentation-only badge: server status and permission semantics are unchanged. */
 export function AppStatusBadge({status,label,tone,icon:IconOverride,size='md',className}:{
-  status:string; label:string; tone?:AppStatusTone; icon?:LucideIcon;
+  status?:string|null; label?:string|null; tone?:AppStatusTone; icon?:LucideIcon;
   size?:'sm'|'md'; className?:string;
 }) {
-  const visual=visuals[status.toUpperCase()] ?? {tone:'neutral',icon:CircleHelp};
+  const normalizedStatus=typeof status==='string' ? status.trim().toUpperCase() : '';
+  const visual=visuals[normalizedStatus] ?? {tone:'neutral',icon:CircleHelp};
+  const displayLabel=typeof label==='string' && label.trim() ? label : 'Chưa cập nhật';
   const Icon=IconOverride??visual.icon;
   return <span className={cn(
     'inline-flex max-w-full items-center gap-1.5 rounded-full border font-semibold leading-tight',
@@ -70,6 +72,6 @@ export function AppStatusBadge({status,label,tone,icon:IconOverride,size='md',cl
     toneClasses[tone??visual.tone],className
   )}>
     <Icon aria-hidden="true" className="size-3.5 shrink-0"/>
-    <span className="min-w-0 break-words">{label}</span>
+    <span className="min-w-0 break-words">{displayLabel}</span>
   </span>;
 }

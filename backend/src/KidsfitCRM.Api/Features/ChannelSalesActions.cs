@@ -56,6 +56,12 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 return ChannelSalesValidation.Replay(replayAfterLock.Id, replayAfterLock.CreatedByUserId, actorId, replayAfterLock.RequestFingerprint, hash);
             }
             await ExpireElapsedApproach(customer.Id, now, cancellationToken);
+            // SL-02: the old owner retains a 15-day opportunity when service and
+            // five-year protection both expire. This is not a new five-year grant.
+            if (await ProtectionRenewalPolicy.HasPriorityForOtherSalesAsync(
+                db, customer.Id, actorId, now, cancellationToken))
+                throw new ApiConflictException("Trường đang trong 15 ngày ưu tiên tái ký của Sales phụ trách cũ.");
+
 
             var blockingProtection = await db.CustomerProtections.AsNoTracking()
                 .Where(x => x.CustomerId == customer.Id && x.Status == "ACTIVE" && x.EffectiveUntil > now)

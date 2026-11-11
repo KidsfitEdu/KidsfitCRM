@@ -1,7 +1,7 @@
 'use client';
 
 import { Bell, Moon, Search, Sun } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,19 @@ export function Header({
   onNavigate?: (view: View) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const measure = () => {
+      if (headerRef.current)
+        document.documentElement.style.setProperty('--crm-header-height', `${Math.ceil(headerRef.current.getBoundingClientRect().height)}px`);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      document.documentElement.style.removeProperty('--crm-header-height');
+    };
+  }, []);
   const [actionError, setActionError] = useState('');
   const client = useQueryClient();
   const request = createApiClient(apiBase);
@@ -99,7 +112,7 @@ export function Header({
     }
   };
 
-  return <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">
+  return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">
     <div>
       <p className="text-xs font-medium text-muted-foreground">{todayLabel}</p>
       <h1 className="mt-1 text-lg font-bold tracking-[-0.03em] sm:text-xl">Chào buổi sáng, {userName}</h1>

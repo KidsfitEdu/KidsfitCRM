@@ -92,6 +92,9 @@ public static class InitialCrmSeeder
             CreatedAt = now,
             UpdatedAt = now,
         }));
+        // Persist newly added permissions before querying them for role grants.
+        // EF Core queries do not include unsaved Added entities in ToDictionaryAsync.
+        await db.SaveChangesAsync();
 
         var permissionByCode = await db.Permissions.Where(x => x.Code.StartsWith("channel_sales.")).ToDictionaryAsync(x => x.Code);
         var roleByCode = await db.Roles.ToDictionaryAsync(x => x.Code);

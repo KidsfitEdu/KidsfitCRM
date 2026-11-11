@@ -42,6 +42,9 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   const [ready, setReady] = useState(!apiBase);
   const [sessionStatus, setSessionStatus] = useState<'idle'|'checking'|'active'|'offline'|'error'>('idle');
   const [retryIndex, setRetryIndex] = useState(0);
+  const [healthRetryIndex, setHealthRetryIndex] = useState(0);
+  const [healthStatus, setHealthStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [healthError, setHealthError] = useState('');
   const [connectionMessage, setConnectionMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState(demoAccount?.name ?? 'CRM');
@@ -72,10 +75,25 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     const saved = window.sessionStorage.getItem('kidsfit_token');
     if (saved) {
       setSessionStatus('checking');
+      setHealthStatus('online');
       setToken(saved);
     }
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!apiBase || !ready || token || sessionStatus === 'checking') return;
+    let active = true;
+    setHealthStatus('checking');
+    void request('/health').then(() => {
+      if (active) { setHealthError(''); setHealthStatus('online'); }
+    }).catch(cause => {
+      if (!active) return;
+      setHealthError(cause instanceof Error ? cause.message : 'Máy chủ hiện chưa sẵn sàng.');
+      setHealthStatus('offline');
+    });
+    return () => { active = false; };
+  }, [ready, token, sessionStatus, healthRetryIndex]);
 
   useEffect(() => {
     if (!apiBase || !token) return;
@@ -195,6 +213,11 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   if (apiBase && token && (sessionStatus === 'offline' || sessionStatus === 'error'))
     return <MascotLoadingState state={sessionStatus} detail={connectionMessage}
       onRetry={() => { setConnectionMessage(''); setRetryIndex(index => index + 1); }}/>;
+  if (apiBase && !token && healthStatus === 'checking')
+    return <MascotLoadingState state="loading" detail="Cú đang kiểm tra kết nối đến máy chủ KIDSFIT CRM..."/>;
+  if (apiBase && !token && healthStatus === 'offline')
+    return <MascotLoadingState state="offline" detail={healthError}
+      onRetry={() => { setHealthError(''); setHealthRetryIndex(index => index + 1); }}/>;
   if (apiBase && !token) return <LoginPage loading={loading} onLogin={login} />;
 
   return <AppProviders key={demoAccount?.id ?? token}>

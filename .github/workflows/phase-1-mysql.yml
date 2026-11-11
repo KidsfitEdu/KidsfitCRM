@@ -121,7 +121,7 @@ jobs:
           dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
           dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
           mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'SL02-DEMO-%';" | grep -x 5
-          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='PENDING_MANAGER';" | grep -x 2
+          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='WAITING_PROTECTION_EXPIRY';" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='WAITING_RENEWAL';" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM protection_renewal_cases;" | grep -x 0
           mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_sl02_demo_ci;"
@@ -148,7 +148,11 @@ jobs:
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='PENDING_ACCOUNTING';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM school_disputes WHERE idempotency_key='review-dispute-SCH0007' AND status='OPEN';" | grep -x 0
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='EXCEPTION_DISPUTE';" | grep -x 0
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='RELEASED';" | grep -x 1
+          # SCH0007 has no synthetic dispute and a future service start does not erase its completed gap.
+          echo "GI-01 decision status counts:"
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT status, COUNT(*) FROM service_interruption_events GROUP BY status;"
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT c.contract_code,p.status,p.effective_until FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%';"
+          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='RELEASED';" | grep -x 2
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0010' AND p.status='RELEASED';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0008' AND p.status='ACTIVE';" | grep -x 1
           mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM service_interruption_events;" | grep -x 0

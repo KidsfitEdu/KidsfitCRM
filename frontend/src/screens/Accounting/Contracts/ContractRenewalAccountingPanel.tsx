@@ -19,6 +19,8 @@ type Period={start_on:string;end_on:string;payment_cycle:string;renewal_no:numbe
 type Detail={data:Row&{decision_reason:string|null;source_service_start_on:string|null;
  source_service_end_on:string|null;source_total_value:number};
  preceding_period:Period|null;current_period:Period|null;next_confirmed_period:Period|null;
+ protection:{effective_from:string;effective_until:string}|null;
+ protection_case:{status:string;new_protection_from:string|null;new_protection_until:string|null}|null;
  evidence:{id:number;file_name:string;uploaded_at:string}[];
  events:{event_type:string;actor_name:string;reason:string|null;created_at:string}[]};
 const labels:Record<string,string>={PENDING_ACCOUNTING:'Chờ Kế toán',NEEDS_INFO:'Cần bổ sung',
@@ -248,6 +250,13 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
            {detail.data.gap_reason&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"><strong>Lý do gián đoạn:</strong> {detail.data.gap_reason}</p>}
            {detail.data.decision_reason&&<p>Lý do xử lý: {detail.data.decision_reason}</p>}
          </section>
+         <section className="space-y-2 rounded-lg border border-border bg-muted/20 p-4">
+           <h3 className="font-semibold">Quyền bảo vệ Sales (CRM tự tính)</h3>
+           <p>Hạn bảo vệ hiện tại: {detail.protection?channelDate(detail.protection.effective_until):'Chưa xác định'}</p>
+           {detail.protection_case?.status==='APPROVED'
+             ? <p className="text-green-700 dark:text-green-300">Đã cấp chu kỳ 5 năm mới: {channelDate(detail.protection_case.new_protection_from!)} – {channelDate(detail.protection_case.new_protection_until!)}</p>
+             : <p className="text-muted-foreground">Tái ký hằng năm không tự cộng thêm 5 năm. Khi đến hạn, CRM xét quyền theo hợp đồng đã xác nhận và chính sách hiện hành.</p>}
+         </section>
          <section className="space-y-2 border-t pt-4">
            <h3 className="font-semibold">Chứng từ hợp đồng đã ký</h3>
            {detail.evidence.map(e=><Button key={e.id} type="button" variant="outline" onClick={()=>void openProof(e.id,e.file_name)}>
@@ -269,7 +278,7 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
              <p className="font-medium">{actionLabel[action]} hồ sơ?</p>
              {action!=='confirm'&&<label htmlFor="kc02-decision-reason" className="block space-y-1">Lý do *
                <Input id="kc02-decision-reason" value={reason} onChange={e=>setReason(e.target.value)} maxLength={1000}/></label>}
-             <p className="text-xs text-muted-foreground">Xác nhận chỉ tạo kỳ dịch vụ mới. Không ghi nhận thu tiền, hoa hồng hoặc gia hạn bảo vệ Sales.</p>
+             <p className="text-xs text-muted-foreground">Kế toán chỉ xác nhận kỳ dịch vụ và chứng từ. CRM tự kiểm tra bảo vệ 5 năm khi đến hạn; không tự ghi nhận thu tiền hoặc hoa hồng.</p>
              <div className="flex gap-2"><Button type="button" disabled={saving} onClick={()=>void process()}>{saving?'Đang xử lý...':'Đồng ý'}</Button>
                <Button type="button" disabled={saving} variant="outline" onClick={()=>setAction(null)}>Hủy</Button></div>
            </div>}

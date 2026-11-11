@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarClock, Eye, RefreshCw, Send, ShieldCheck } from 'lucide-react';
+import { CalendarClock, Eye, RefreshCw, ShieldCheck } from 'lucide-react';
 import { channelRequest } from '@/lib/channel-operations';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableCellClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppNativeSelect } from '@/components/common/app-native-select';
@@ -10,7 +10,6 @@ import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { protectionServiceStatus, protectionAction } from './protection-overview-presentation';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { appNotice } from '@/components/common/app-toast-provider';
 
 type SchoolProtection = {
   customer_id:number; customer_name:string; contract_id:number; contract_code:string;
@@ -28,9 +27,9 @@ type InterruptionDetail = {data: {history:Event[]}};
 const labels:Record<string,string> = {
   PROTECTED:'Đang bảo vệ', RELEASED:'Đã giải phóng', EXPIRED:'Hết bảo vệ',
   INTERRUPTED:'Đang gián đoạn', THRESHOLD_REACHED:'Đủ 12 tháng',
-  WAITING_RENEWAL:'Chờ Kế toán', PENDING_MANAGER:'Chờ Quản lý',
+  WAITING_RENEWAL:'Chờ tái ký', PENDING_MANAGER:'CRM đang xử lý bảo vệ',
   APPROVED:'Đã cấp chu kỳ mới', REJECTED:'Hồ sơ bị từ chối',
-  NOT_DUE:'Chưa đến kỳ', NOT_CREATED:'Có thể yêu cầu xem xét',
+  NOT_DUE:'Chưa đến kỳ', NOT_CREATED:'Đang theo dõi kỳ bảo vệ', WAITING_PROTECTION_EXPIRY:'Đang chờ đến hạn bảo vệ',
   EXCEPTION_ACCOUNTING:'Ngoại lệ Kế toán', EXCEPTION_OVERDUE:'Ngoại lệ quá hạn',
   EXCEPTION_DISPUTE:'Đang tranh chấp', EXCEPTION_OWNERSHIP:'Rà soát quyền',
   EXCEPTION_CONFIG_REQUIRED:'Chưa cấu hình hạn ngoại lệ',
@@ -53,7 +52,6 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
   const [selected,setSelected]=useState<SchoolProtection|null>(null);
   const [history,setHistory]=useState<Event[]>([]);
   const [detailError,setDetailError]=useState('');
-  const [sending,setSending]=useState(false);
   const load=useCallback(async()=>{
     if(!apiBase||!token)return;
     setLoading(true);setError('');
@@ -75,18 +73,6 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
       .catch(e=>{if(active)setDetailError(e instanceof Error?e.message:'Không tải được lịch sử gián đoạn.');});
     return()=>{active=false;};
   },[apiBase,token,selected]);
-  const requestReview=async(row:SchoolProtection)=>{
-    if(sending||!row.can_request)return;
-    setSending(true);
-    try{
-      await channelRequest(apiBase,token,
-        '/contracts/'+row.contract_id+'/protection-renewal/request-review',
-        {method:'POST',body:JSON.stringify({reason:null})});
-      appNotice.success('Đã gửi yêu cầu xem xét gia hạn quyền bảo vệ.');
-      setSelected(null);await load();
-    }catch(e){appNotice.error('Không gửi được yêu cầu.',e instanceof Error?e.message:'Vui lòng thử lại.');}
-    finally{setSending(false);}
-  };
   const reset=()=>{setDraft('');setSearch('');setStatus('ALL');setPage(1);};
   return <section className="space-y-4" aria-label="Quản lý quyền bảo vệ">
     <header className="flex flex-wrap items-center justify-between gap-3">
@@ -94,7 +80,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
         <h2 className="flex items-center gap-2 text-lg font-semibold"><ShieldCheck className="size-5 text-[#1b5e20]" aria-hidden="true"/>Quản lý quyền bảo vệ</h2>
         <p className="mt-1 text-sm text-muted-foreground">Theo dõi bảo vệ 5 năm, tái ký và gián đoạn 12 tháng trên cùng một danh sách.</p>
       </div>
-      <AppButton tone="neutral" disabled={loading||sending} leadingIcon={<RefreshCw className="size-4"/>} onClick={()=>void load()}>Làm mới</AppButton>
+      <AppButton tone="neutral" disabled={loading} leadingIcon={<RefreshCw className="size-4"/>} onClick={()=>void load()}>Làm mới</AppButton>
     </header>
     {error&&<p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-destructive">{error}</p>}
     <AdminListPanel>
@@ -133,9 +119,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
                 <div className="flex justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem quyền bảo vệ '+row.customer_name}
                     tone="neutral" onClick={()=>setSelected(row)}/>
-                  {row.can_request&&<AdminIconAction icon={Send} tone="green"
-                    disabled={sending} label={'Gửi yêu cầu xem xét '+row.customer_name}
-                    onClick={()=>void requestReview(row)}/>}
+
                 </div>
               </td>
             </tr>)}
@@ -147,7 +131,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
         </table>
       </div>
       <AppPagination page={page} pageSize={pageSize} total={rows.total}
-        pageSizeOptions={[10,20,50]} itemLabel="trường" showSummary={false} disabled={loading||sending}
+        pageSizeOptions={[10,20,50]} itemLabel="trường" showSummary={false} disabled={loading}
         onPageChange={setPage} onPageSizeChange={v=>{setPageSize(v);setPage(1);}}/>
     </AdminListPanel>
     <AppDrawer wide open={!!selected} onOpenChange={open=>{if(!open)setSelected(null);}}
@@ -171,14 +155,13 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
           <p>Tranh chấp: {selected.has_open_dispute?'Có':'Không'}</p>
         </section>
         <section className="space-y-2 rounded-xl border p-4">
-          <h3 className="font-semibold">Hồ sơ gia hạn bảo vệ</h3>
+          <h3 className="font-semibold">Kết quả bảo vệ tự động</h3>
           <div className="flex flex-wrap items-center gap-2"><span>Trạng thái:</span><AppStatusBadge status={selected.renewal_status} label={labels[selected.renewal_status]??selected.renewal_status}/></div>
-          <p>Nguồn yêu cầu: {selected.renewal_source==='AUTO'?'CRM tự tạo':selected.renewal_source==='MANUAL'?'Sales gửi':'Chưa có'}</p>
+          <p>Nguồn xử lý: {selected.renewal_source==='AUTO'?'CRM tự tính':selected.renewal_source==='MANUAL'?'Hồ sơ trước chuyển đổi':'Chưa phát sinh'}</p>
           <p>Kế toán đã xác nhận kỳ tiếp tục: {selected.renewal_confirmed?'Có':'Chưa'}</p>
           {selected.renewal_note&&<p>Ghi chú: {selected.renewal_note}</p>}
           {selected.renewal_reason&&<p>Lý do xử lý: {selected.renewal_reason}</p>}
-          {selected.can_request&&<AppButton tone="green" disabled={sending} leadingIcon={<Send className="size-4"/>}
-            onClick={()=>void requestReview(selected)}>Yêu cầu xem xét gia hạn</AppButton>}
+
         </section>
         <section className="space-y-2">
           <h3 className="font-semibold">Lịch sử gián đoạn và quyết định</h3>
@@ -190,7 +173,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
             <p className="text-xs text-muted-foreground">{day(h.processed_at)}</p>
           </div>)}
         </section>
-        <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">Hết ưu tiên 15 ngày không tự cấp thêm 5 năm bảo vệ; mọi yêu cầu vẫn được Backend xác minh.</p>
+        <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">Thời hạn ưu tiên 15 ngày không kéo dài bảo vệ. CRM chỉ tạo chu kỳ mới khi hợp đồng tái ký đã được Kế toán xác nhận và đáp ứng đầy đủ điều kiện.</p>
       </div>}
     </AppDrawer>
   </section>;

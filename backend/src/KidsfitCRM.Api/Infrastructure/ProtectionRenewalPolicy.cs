@@ -82,8 +82,16 @@ public static class ProtectionRenewalPolicy
                     m.UserId == c.OwnerUserId && m.OrganizationId == c.OwnerOrganizationId
                     && m.Status == "ACTIVE", ct)) continue;
             var hasRenewal = await HasConfirmedContinuationAsync(db, c, prior.EffectiveUntil, now, ct);
+            // Grant first using the same customer-first locking as Accounting.
+            // A confirmed 1-year renewal never grants early; only at the 5-year boundary.
+            if (now >= prior.EffectiveUntil && hasRenewal &&
+                await AutomaticProtectionRenewal.TryGrantAsync(db, c.Id, now, null, ct))
+            {
+                count++;
+                continue;
+            }
             var key = $"sl02:{c.Id}:{prior.EffectiveUntil.Ticks}:{c.OwnerUserId}";
-            var status = hasRenewal ? "PENDING_MANAGER" : "WAITING_RENEWAL";
+            var status = hasRenewal ? "WAITING_PROTECTION_EXPIRY" : "WAITING_RENEWAL";
             // A unique binary key makes concurrent scans and retrying harmless.
             count += await db.Database.ExecuteSqlInterpolatedAsync($@"
                 INSERT IGNORE INTO protection_renewal_cases
@@ -95,8 +103,9 @@ public static class ProtectionRenewalPolicy
                         {status}, {"AUTO"}, {key}, {now}, {now})", ct);
             if (hasRenewal)
                 await db.ProtectionRenewalCases.Where(x => x.DeduplicationKey == key
-                    && x.Status == "WAITING_RENEWAL" && x.PriorityUntil > now)
-                    .ExecuteUpdateAsync(set => set.SetProperty(x => x.Status, "PENDING_MANAGER")
+                    && (x.Status == "WAITING_RENEWAL" || x.Status == "PENDING_MANAGER" || x.Status == "WAITING_PROTECTION_EXPIRY")
+                    && x.PriorityUntil > now)
+                    .ExecuteUpdateAsync(set => set.SetProperty(x => x.Status, "WAITING_PROTECTION_EXPIRY")
                         .SetProperty(x => x.UpdatedAt, now), ct);
         }
         // A pending accounting review never creates indefinite ownership.

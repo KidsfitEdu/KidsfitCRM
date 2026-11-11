@@ -39,10 +39,8 @@ export function protectionAction(row:ProtectionOverviewState):ProtectionAction {
     return {status:'VERIFY_PERIOD',label:'Bổ sung kỳ dịch vụ'};
   if (row.has_pending_renewal || state==='EXCEPTION_ACCOUNTING' || row.renewal_status==='WAITING_RENEWAL')
     return {status:'WAIT_ACCOUNTING',label:'Chờ Kế toán xác nhận'};
-  if (row.renewal_status==='PENDING_MANAGER')
-    return {status:'WAIT_MANAGER',label:'Chờ Quản lý duyệt'};
-  if (row.can_request)
-    return {status:'REQUEST_REVIEW',label:'Yêu cầu xem xét bảo vệ'};
+  if (row.renewal_status==='PENDING_MANAGER' || row.renewal_status==='WAITING_PROTECTION_EXPIRY')
+    return {status:'WAIT_MANAGER',label:'CRM đang chờ đến hạn bảo vệ'};
   if (row.renewal_status==='REJECTED')
     return {status:'REVIEW_REJECTION',label:'Xem hồ sơ bị từ chối'};
   if (state==='INTERRUPTED')

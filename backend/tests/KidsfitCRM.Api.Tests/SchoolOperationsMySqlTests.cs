@@ -97,12 +97,13 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30" && x.Status == "OPEN", Ct));
     }
 
-    [MySqlFact] public async Task Sl02AutomaticallyCreatesOneRequestAndKidsfitManagerGrantsNextFiveYears()
+    [MySqlFact] public async Task Sl02AccountingConfirmedRenewalAutomaticallyGrantsOnceWithoutManager()
     {
         var scenario = await Arrange();
         var contractId = await ActiveContract(scenario);
-        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
-        var expires = today.AddDays(7);
+        var now = DateTime.UtcNow;
+        var today = ChannelSalesValidation.BusinessDate(now);
+        var expires = today.AddDays(-1);
         await using var db = fixture.Open();
         var contract = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
         contract.ServiceStartOn = expires.AddYears(-1).AddDays(1);
@@ -115,7 +116,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         db.ContractRenewals.Add(new ContractRenewal
         {
             ContractId = contractId, RenewalNo = 1, Status = "CONFIRMED",
-            SubmittedByUserId = scenario.Seller.UserId, SignedOn = today,
+            SubmittedByUserId = scenario.Seller.UserId, SignedOn = expires,
             IdempotencyKey = Key(), RequestFingerprint = Key(),
             ServiceStartOn = nextStart,
             ServiceEndOn = nextStart.AddYears(1).AddDays(-1),
@@ -123,21 +124,17 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         });
         await db.SaveChangesAsync(Ct);
 
-        Assert.True(await ProtectionRenewalPolicy.SweepAsync(db, DateTime.UtcNow, Ct) >= 1);
-        await ProtectionRenewalPolicy.SweepAsync(db, DateTime.UtcNow, Ct);
+        await ProtectionRenewalPolicy.SweepAsync(db, now, Ct);
+        await ProtectionRenewalPolicy.SweepAsync(db, now, Ct);
         var item = await db.ProtectionRenewalCases.SingleAsync(x => x.ContractId == contractId, Ct);
-        Assert.Equal("PENDING_MANAGER", item.Status);
+        Assert.Equal("APPROVED", item.Status);
+        Assert.Equal("AUTO", item.Source);
         Assert.Equal(1, await db.ProtectionRenewalCases.CountAsync(x => x.ContractId == contractId, Ct));
-        var manager = await User("manager@kidsfit.vn");
-        var reply = Json(await ProtectionRenewalEndpoints.Approve(item.Id, Http(manager), db, Ct));
-        Assert.Equal("APPROVED", reply.GetProperty("data").GetProperty("status").GetString());
-        var current = await db.CustomerProtections.Where(x => x.ContractId == contractId
+        var protections = await db.CustomerProtections.Where(x => x.ContractId == contractId
             && x.SourceType == "CONTRACT").OrderBy(x => x.EffectiveUntil).ToArrayAsync(Ct);
-        Assert.Equal(2, current.Length);
-        Assert.Equal(oldEnd, current[1].EffectiveFrom);
-        Assert.Equal(oldEnd.AddYears(5), current[1].EffectiveUntil);
-        Assert.Equal(0, await db.ProtectionRenewalCases.CountAsync(x =>
-            x.ContractId == contractId && x.Status == "PENDING_MANAGER", Ct));
+        Assert.Equal(2, protections.Length);
+        Assert.True(protections[1].EffectiveFrom >= oldEnd);
+        Assert.Equal(protections[1].EffectiveFrom.AddYears(5), protections[1].EffectiveUntil);
     }
 
     [MySqlFact] public async Task Sl02BlocksCompetingSalesInGraceWindowWithoutGrantingProtection()

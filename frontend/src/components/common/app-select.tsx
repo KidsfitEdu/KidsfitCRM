@@ -34,6 +34,8 @@ export function AppSelect({
   ariaLabel, value, onValueChange, options, disabled, id, placeholder,
   className, contentClassName, size = 'default',
 }: AppSelectProps) {
+  const selectedLabel = options.find(option => option.value === value)?.label;
+
   return (
     <Select
       value={value}
@@ -46,14 +48,14 @@ export function AppSelect({
         id={id}
         aria-label={ariaLabel}
         className={cn(
-          'h-11 min-w-0 justify-between rounded-xl border border-input bg-background px-3.5 text-left text-sm font-medium text-foreground shadow-sm',
+          '!h-10 min-w-0 justify-between rounded-lg border border-input bg-background px-3.5 text-left text-sm font-medium text-foreground shadow-sm',
           'hover:border-primary/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20',
           'disabled:cursor-not-allowed disabled:opacity-50',
-          size === 'compact' && 'h-10 rounded-lg px-3',
+          size === 'compact' && 'px-3',
           className,
         )}
       >
-        <SelectValue placeholder={placeholder ?? 'Chọn...'} />
+        <SelectValue placeholder={placeholder ?? 'Chọn...'}>{selectedLabel ?? placeholder ?? 'Chọn...'}</SelectValue>
       </SelectTrigger>
       <SelectContent
         side="bottom"

@@ -70,7 +70,7 @@ test('BGĐ workflow policy V1 is created once as inactive DRAFT without overwrit
   assert.match(src,/ManagerReviewHours = 24, AdminReviewHours = 48, InvitationHours = 24/);
   assert.match(src,/MaxExtensionDays = 7, MaxExtensionCount = 3, MaxTotalExtensionDays = 21/);
   assert.match(src,/CreatedByUserId = director\.Id/);
-  assert.doesNotMatch(src,/Status = "ACTIVE"/);
+  assert.match(src,/Version = 1, Status = "DRAFT"/);
 });
 
 test('Admin personnel form still excludes privileged roles from regular account creation', () => {

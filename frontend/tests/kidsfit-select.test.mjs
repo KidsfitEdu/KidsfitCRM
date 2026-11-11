@@ -73,9 +73,12 @@ test('Admin search toolbar controls and branded select use a shared 40px height'
 });
 
 
-test('Dropdown items maintain visible separation between adjacent active and selected highlights',()=>{
+test('Shared select list adds a real gap between adjacent active and selected highlights',()=>{
   const shared=source('src/components/common/app-select.tsx');
-  assert.match(shared,/my-0\.5 min-h-10 rounded-lg/);
+  assert.match(shared,/listClassName="flex flex-col gap-1"/);
+  assert.match(shared,/min-h-10 rounded-lg/);
+  const primitive=source('src/components/ui/select.tsx');
+  assert.match(primitive,/<SelectPrimitive.List className=\{listClassName\}>/);
   assert.match(shared,/focus:bg-primary\/10/);
   assert.match(shared,/data-\[selected\]:bg-primary\/10/);
 });

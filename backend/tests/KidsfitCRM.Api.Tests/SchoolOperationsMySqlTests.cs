@@ -359,6 +359,99 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             verifiedContract, Http(accountant), db, Ct)).GetProperty("data").GetProperty("id").GetInt64());
     }
 
+    [MySqlFact] public async Task AccountingWorkspaceDistinguishesTwelveMonthMilestoneFromReleaseDecision()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        await using var db = fixture.Open();
+        var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        var contract = await db.SalesContracts.SingleAsync(c => c.Id == contractId, Ct);
+        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        var gapStart = today.AddMonths(-12);
+        contract.ServiceStartOn = gapStart.AddYears(-1);
+        contract.ServiceEndOn = gapStart.AddDays(-1);
+        await db.SaveChangesAsync(Ct);
+
+        async Task<string> State()
+        {
+            var response = Json(await AccountingWorkspaceEndpoints.List(
+                Http(accountant), db, contract.ContractCode, "ALL", null, 1, 20, Ct));
+            var rows = response.GetProperty("data").EnumerateArray().ToArray();
+            Assert.Single(rows);
+            return rows[0].GetProperty("service_status").GetString()!;
+        }
+
+        Assert.Equal("THRESHOLD_REACHED", await State());
+        contract.ServiceEndOn = contract.ServiceEndOn.Value.AddDays(-1);
+        await db.SaveChangesAsync(Ct);
+        Assert.Equal("THRESHOLD_OVERDUE", await State());
+
+        // An event alone cannot claim a release while the right is still ACTIVE.
+        var protection = await db.CustomerProtections.SingleAsync(p =>
+            p.ContractId == contractId && p.SourceType == "CONTRACT", Ct);
+        var actualGap = contract.ServiceEndOn.Value.AddDays(1);
+        db.ServiceInterruptionEvents.Add(new ServiceInterruptionEvent {
+            CustomerId = contract.CustomerId, ContractId = contractId,
+            ProtectionId = protection.Id, GapStartOn = actualGap,
+            ThresholdOn = actualGap.AddMonths(12), Status = "RELEASED",
+            Reason = "test fixture", SourceSnapshot = "{}",
+            DeduplicationKey = "accounting:" + Key(), ProcessedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync(Ct);
+        Assert.Equal("THRESHOLD_OVERDUE", await State());
+
+        protection.Status = "RELEASED";
+        await db.SaveChangesAsync(Ct);
+        Assert.Equal("RELEASED", await State());
+    }
+
+    [MySqlFact] public async Task AccountingUnifiedWorkspaceShowsOneContractRowAndPendingRenewals()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        await using var db = fixture.Open();
+        var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        var source = await db.SalesContracts.SingleAsync(c => c.Id == contractId, Ct);
+        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        source.ServiceStartOn = today.AddYears(-1);
+        source.ServiceEndOn = today.AddDays(-1);
+        var confirmed = new ContractRenewal {
+            ContractId = contractId, RenewalNo = 1, Status = "CONFIRMED",
+            SignedOn = today, SubmittedByUserId = scenario.Seller.UserId,
+            ServiceStartOn = today, ServiceEndOn = today.AddYears(1).AddDays(-1),
+            PaymentCycle = "YEARLY", TotalValue = 9_000_000,
+            IdempotencyKey = Key(), RequestFingerprint = Key()
+        };
+        var pending = new ContractRenewal {
+            ContractId = contractId, RenewalNo = 2, Status = "PENDING_ACCOUNTING",
+            SignedOn = today, SubmittedByUserId = scenario.Seller.UserId,
+            ServiceStartOn = today.AddYears(1),
+            ServiceEndOn = today.AddYears(2).AddDays(-1),
+            PaymentCycle = "YEARLY", TotalValue = 9_000_000,
+            IdempotencyKey = Key(), RequestFingerprint = Key()
+        };
+        db.ContractRenewals.AddRange(confirmed, pending);
+        await db.SaveChangesAsync(Ct);
+
+        var result = Json(await AccountingWorkspaceEndpoints.List(Http(accountant), db,
+            source.ContractCode, "PENDING", null, 1, 20, Ct));
+        Assert.Equal(1, result.GetProperty("total").GetInt32());
+        var rows = result.GetProperty("data").EnumerateArray().ToArray();
+        Assert.Single(rows);
+        Assert.Equal(contractId, rows[0].GetProperty("id").GetInt64());
+        Assert.Equal(pending.Id, rows[0].GetProperty("pending_renewal_id").GetInt64());
+        Assert.Equal("CONFIRM_RENEWAL", rows[0].GetProperty("action").GetString());
+        Assert.Equal("CONTINUOUS", rows[0].GetProperty("service_status").GetString());
+
+        var renewals = Json(await AccountingWorkspaceEndpoints.Renewals(
+            contractId, Http(accountant), db, Ct));
+        Assert.Equal(2, renewals.GetProperty("data").GetArrayLength());
+
+        var other = Json(await AccountingWorkspaceEndpoints.List(Http(accountant), db,
+            source.ContractCode, "HISTORY", null, 1, 20, Ct));
+        Assert.Empty(other.GetProperty("data").EnumerateArray());
+    }
+
     [MySqlFact] public async Task SalesTermIsMandatoryInNewFeeBasedSchoolContractAndSurvivesCheckeeVerification()
     {
         var scenario = await Arrange();

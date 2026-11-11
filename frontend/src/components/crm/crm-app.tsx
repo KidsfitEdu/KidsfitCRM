@@ -7,13 +7,14 @@ import { AppProviders } from '@/providers/AppProviders';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { LoginPage } from '@/screens/Auth/Login/LoginPage';
+import { MascotLoadingState } from '@/components/common/mascot-loading-state';
 import { DemoAccess } from '@/components/crm/demo-access';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { nav, type View } from '@/config/navigation';
 import { canonicalSalesView, legacySalesWorkflowTab, salesMenuIds } from '@/config/sales-navigation';
 import { canonicalCheckeeView, viewToPath, pathToView } from '@/config/routes';
 import { canonicalBoardView, canonicalCareView } from '@/config/routes';
-import { createApiClient } from '@/services/api.client';
+import { createApiClient, ApiRequestError, isBackendUnavailable } from '@/services/api.client';
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
 import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
 
@@ -39,6 +40,12 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   const [salesWorkflow, setSalesWorkflow] = useState<'invitations' | 'extensions' | undefined>(() => legacySalesWorkflowTab(initialView ?? 'dashboard'));
   const [token, setToken] = useState('');
   const [ready, setReady] = useState(!apiBase);
+  const [sessionStatus, setSessionStatus] = useState<'idle'|'checking'|'active'|'offline'|'error'>('idle');
+  const [retryIndex, setRetryIndex] = useState(0);
+  const [healthRetryIndex, setHealthRetryIndex] = useState(0);
+  const [healthStatus, setHealthStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [healthError, setHealthError] = useState('');
+  const [connectionMessage, setConnectionMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState(demoAccount?.name ?? 'CRM');
   const [organizationName, setOrganizationName] = useState<string | null>(null);
@@ -66,21 +73,48 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   useEffect(() => {
     if (!apiBase) return;
     const saved = window.sessionStorage.getItem('kidsfit_token');
-    if (saved) setToken(saved);
+    if (saved) {
+      setSessionStatus('checking');
+      setHealthStatus('online');
+      setToken(saved);
+    }
     setReady(true);
   }, []);
 
   useEffect(() => {
-    if (!apiBase || !token) return;
+    if (!apiBase || !ready || token || sessionStatus === 'checking') return;
     let active = true;
-    void loadWorkspace(token).catch(cause => {
+    setHealthStatus('checking');
+    void request('/health').then(() => {
+      if (active) { setHealthError(''); setHealthStatus('online'); }
+    }).catch(cause => {
       if (!active) return;
-      window.sessionStorage.removeItem('kidsfit_token');
-      setToken('');
-      setError(cause instanceof Error ? cause.message : 'Không thể tải dữ liệu CRM.');
+      setHealthError(cause instanceof Error ? cause.message : 'Máy chủ hiện chưa sẵn sàng.');
+      setHealthStatus('offline');
     });
     return () => { active = false; };
-  }, [token, loadWorkspace]);
+  }, [ready, token, sessionStatus, healthRetryIndex]);
+
+  useEffect(() => {
+    if (!apiBase || !token) return;
+    let active = true;
+    setSessionStatus('checking');
+    void loadWorkspace(token).then(() => {
+      if (active) { setConnectionMessage(''); setSessionStatus('active'); }
+    }).catch(cause => {
+      if (!active) return;
+      if (cause instanceof ApiRequestError && cause.status === 401) {
+        window.sessionStorage.removeItem('kidsfit_token');
+        setToken('');
+        setSessionStatus('idle');
+        setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      } else {
+        setConnectionMessage(cause instanceof Error ? cause.message : 'Không thể kết nối máy chủ.');
+        setSessionStatus(isBackendUnavailable(cause) ? 'offline' : 'error');
+      }
+    });
+    return () => { active = false; };
+  }, [token, loadWorkspace, retryIndex]);
 
   useEffect(() => { document.documentElement.classList.toggle('dark', dark); }, [dark]);
 
@@ -94,6 +128,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
       sessionStorage.setItem('kidsfit_token', response.token);
       setUserName(response.user.name);
       setAbilities(response.user.abilities);
+      setSessionStatus('checking');
       setToken(response.token);
     } finally { setLoading(false); }
   };
@@ -104,6 +139,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     sessionStorage.removeItem('kidsfit_token');
     setAbilities([]);
     setToken('');
+    setSessionStatus('idle');
   };
 
   const refresh = async () => {
@@ -172,7 +208,16 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
 
   const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue, salesWorkflow, onSalesNavigate: navigate };
   const todayLabel = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
-  if (!ready) return <main className="grid min-h-screen place-items-center">Đang khởi tạo CRM…</main>;
+  if (!ready || (apiBase && token && sessionStatus === 'checking'))
+    return <MascotLoadingState state="loading" detail={ready ? 'Đang xác thực tài khoản và tải dữ liệu...' : 'Đang khởi tạo CRM...'}/>;
+  if (apiBase && token && (sessionStatus === 'offline' || sessionStatus === 'error'))
+    return <MascotLoadingState state={sessionStatus} detail={connectionMessage}
+      onRetry={() => { setConnectionMessage(''); setRetryIndex(index => index + 1); }}/>;
+  if (apiBase && !token && healthStatus === 'checking')
+    return <MascotLoadingState state="loading" detail="Cú đang kiểm tra kết nối đến máy chủ KIDSFIT CRM..."/>;
+  if (apiBase && !token && healthStatus === 'offline')
+    return <MascotLoadingState state="offline" detail={healthError}
+      onRetry={() => { setHealthError(''); setHealthRetryIndex(index => index + 1); }}/>;
   if (apiBase && !token) return <LoginPage loading={loading} onLogin={login} />;
 
   return <AppProviders key={demoAccount?.id ?? token}>
@@ -183,7 +228,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && <p className="rounded-xl border border-amber-300 p-3 text-sm">Bản xem trước tĩnh, chỉ đọc. Hãy kết nối Backend để thay đổi dữ liệu thực.</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <Suspense fallback={<p>Đang tải màn hình…</p>}>
+          <Suspense fallback={<MascotLoadingState state="loading" fullScreen={false} detail="Đang chuẩn bị màn hình..." />}>
             {isAdmin && <AdminWorkspace section={currentView as import('@/screens/Admin/AdminWorkspace').AdminSection} {...roleProps}/>}
             {isManager && <SalesManagerWorkspace section={currentView as import('@/screens/SalesManager/SalesManagerWorkspace').ManagerSection} {...roleProps}/>}
             {currentView.startsWith('role-board-') && <BoardWorkspace section={currentView.slice('role-board-'.length) as import('@/screens/Board/BoardWorkspace').RoleSection} {...roleProps}/>}

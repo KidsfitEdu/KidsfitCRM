@@ -311,3 +311,73 @@ body { font-family: var(--font-brand); }
   .crm-workspace-content table { font-size: 0.8125rem; }
   .crm-workspace-content table:not(.crm-school-table) :where(th, td) { white-space: nowrap; }
 }
+
+/* Subtle, reduced-motion-friendly mascot startup animation. */
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* KIDSFIT mini owl: gentle movement, blink, wing wave and indeterminate loading. */
+.crm-owl--working .crm-owl-body {
+  transform-origin: 90px 92px;
+  animation: crm-owl-bob 2.7s ease-in-out infinite;
+}
+.crm-owl--working .crm-owl-eyes {
+  transform-origin: center 75px;
+  animation: crm-owl-blink 5.2s ease-in-out infinite;
+}
+.crm-owl--working .crm-owl-wing-left {
+  transform-origin: 47px 100px;
+  animation: crm-owl-wave-left 2.7s ease-in-out infinite;
+}
+.crm-owl--working .crm-owl-wing-right {
+  transform-origin: 133px 100px;
+  animation: crm-owl-wave-right 2.7s ease-in-out infinite;
+}
+.crm-owl--sleeping .crm-owl-body {
+  transform-origin: 90px 92px;
+  animation: crm-owl-breathe 3.8s ease-in-out infinite;
+}
+.crm-owl-zzz { animation: crm-owl-sleep 3s ease-in-out infinite; }
+.crm-owl-progress { animation: crm-owl-progress 1.8s ease-in-out infinite alternate; }
+@keyframes crm-owl-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes crm-owl-blink {
+  0%, 45%, 50%, 100% { transform: scaleY(1); }
+  47% { transform: scaleY(.08); }
+}
+@keyframes crm-owl-wave-left {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-10deg); }
+}
+@keyframes crm-owl-wave-right {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(10deg); }
+}
+@keyframes crm-owl-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+@keyframes crm-owl-sleep {
+  0%, 100% { opacity: .45; transform: translateY(2px); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+@keyframes crm-owl-progress {
+  0% { transform: translateX(-105%); }
+  100% { transform: translateX(315%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crm-owl--working .crm-owl-body,
+  .crm-owl--working .crm-owl-eyes,
+  .crm-owl--working .crm-owl-wing-left,
+  .crm-owl--working .crm-owl-wing-right,
+  .crm-owl--sleeping .crm-owl-body,
+  .crm-owl-zzz,
+  .crm-owl-progress {
+    animation: none !important;
+    transform: none !important;
+  }
+}

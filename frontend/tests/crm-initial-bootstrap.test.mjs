@@ -37,3 +37,11 @@ test('Admin personnel form exposes an accessible password visibility toggle', ()
   assert.match(form,/aria-label=\{showCreatePassword \? 'Ẩn mật khẩu' : 'Hiện mật khẩu'\}/);
   assert.match(form,/autoComplete="new-password"/);
 });
+
+test('initial bootstrap persists permission rows before selecting them for role grants', () => {
+  const initial = source('../backend/src/KidsfitCRM.Api/Infrastructure/InitialCrmSeeder.cs');
+  const add = initial.indexOf('db.Permissions.AddRange(');
+  const save = initial.indexOf('await db.SaveChangesAsync();', add);
+  const lookup = initial.indexOf('var permissionByCode = await db.Permissions', add);
+  assert.ok(add >= 0 && save > add && lookup > save, 'permissions must be persisted before role grant lookup');
+});

@@ -8,6 +8,8 @@ import { AppBrand } from '@/components/common/app-brand';
 import { FormError } from '@/components/common/form-error';
 import { Eye, EyeOff } from 'lucide-react';
 import { validateLogin, type LoginErrors, type LoginField } from '@/lib/login-validation';
+import { isBackendUnavailable } from '@/services/api.client';
+import { MascotLoadingState } from '@/components/common/mascot-loading-state';
 
 export function LoginPage({
   loading,
@@ -20,6 +22,7 @@ export function LoginPage({
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<LoginErrors>({});
   const [serverError, setServerError] = useState('');
+  const [connectionIssue, setConnectionIssue] = useState<'offline' | 'error' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -49,12 +52,32 @@ export function LoginPage({
       else passwordRef.current?.focus();
       return;
     }
+    await attemptLogin();
+  };
+
+  const attemptLogin = async () => {
+    setConnectionIssue(null);
     try {
       await onLogin(email.trim().toLowerCase(), password);
     } catch (cause) {
+      if (isBackendUnavailable(cause)) {
+        setConnectionIssue('offline');
+        return;
+      }
       setServerError(cause instanceof Error ? cause.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
     }
   };
+
+  if (connectionIssue)
+    return <div>
+      <MascotLoadingState state={connectionIssue}
+        detail="Không thể kết nối máy chủ KIDSFIT CRM để đăng nhập. Vui lòng thử lại."
+        onRetry={() => { void attemptLogin(); }}/>
+      <button type="button" onClick={() => { setConnectionIssue(null); setServerError(''); }}
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 rounded-xl border border-border bg-card px-5 py-2 text-sm text-foreground hover:bg-muted">
+        Quay lại đăng nhập
+      </button>
+    </div>;
 
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#101a2b] p-5">

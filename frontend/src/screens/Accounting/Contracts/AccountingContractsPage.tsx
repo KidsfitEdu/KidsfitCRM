@@ -411,7 +411,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                       ? <AppStatusBadge variant="kidsfit-action" status="REVIEW_PERIOD" label="Kiểm tra kỳ dịch vụ"/>
                       :<span className="text-muted-foreground">—</span>}
                 </td>
-                <td className="px-3 py-4 text-left align-middle tabular-nums">
+                <td className="px-3 py-4 text-left align-middle tabular-nums"
+                  aria-label={`Thanh toán của ${row.school_name}`}>
                   <div className="space-y-2">
                     <div>
                       <p className="text-xs text-muted-foreground">Giá trị hợp đồng</p>

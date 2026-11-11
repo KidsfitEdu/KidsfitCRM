@@ -146,7 +146,9 @@ if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
     var db = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
     await db.Database.MigrateAsync();
     if (args.Contains("--seed-demo", StringComparer.OrdinalIgnoreCase) || builder.Configuration.GetValue<bool>("Seed:DemoEnabled"))
-        await DatabaseSeeder.SeedAsync(scope.ServiceProvider);
+        throw new InvalidOperationException("Demo seeding has been disabled. Use --seed-initial on a disposable Development database.");
+    if (args.Contains("--seed-initial", StringComparer.OrdinalIgnoreCase))
+        await InitialCrmSeeder.SeedAsync(scope.ServiceProvider);
     return;
 }
 

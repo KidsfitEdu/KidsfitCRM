@@ -8,7 +8,7 @@ import { AppBrand } from '@/components/common/app-brand';
 import { FormError } from '@/components/common/form-error';
 import { Eye, EyeOff } from 'lucide-react';
 import { validateLogin, type LoginErrors, type LoginField } from '@/lib/login-validation';
-import { isBackendUnavailable } from '@/services/api.client';
+import { ApiRequestError, isBackendUnavailable } from '@/services/api.client';
 import { MascotLoadingState } from '@/components/common/mascot-loading-state';
 
 export function LoginPage({
@@ -23,6 +23,7 @@ export function LoginPage({
   const [errors, setErrors] = useState<LoginErrors>({});
   const [serverError, setServerError] = useState('');
   const [connectionIssue, setConnectionIssue] = useState<'offline' | 'error' | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -56,17 +57,22 @@ export function LoginPage({
   };
 
   const attemptLogin = async () => {
+    if (retrying || loading) return;
+    setRetrying(true);
     setConnectionIssue(null);
     try {
       await onLogin(email.trim().toLowerCase(), password);
     } catch (cause) {
       if (isBackendUnavailable(cause)) {
-        setConnectionIssue('offline');
+        setConnectionIssue(cause instanceof ApiRequestError && cause.kind === 'http' ? 'error' : 'offline');
         return;
       }
       setServerError(cause instanceof Error ? cause.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
-    }
+    } finally { setRetrying(false); }
   };
+
+  if (loading || retrying)
+    return <MascotLoadingState state="loading" detail="Đang kết nối và xác thực tài khoản..." />;
 
   if (connectionIssue)
     return <div>

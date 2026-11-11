@@ -119,3 +119,15 @@ test('Policy edit form omits decision references while API remains audited', () 
   assert.match(screen, /page_size=/);
   assert.match(screen, /policyQuery\.data\?\.pagination\.total/);
 });
+
+test('Board overdue screen excludes the GI-01 panel while keeping escalation queues; Accounting retains service history', () => {
+  const overdue = read('screens/Board/BoardOverduePage.tsx');
+  const accounting = read('screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.doesNotMatch(overdue, /ServiceInterruptionPanel|\/service-interruptions/);
+  assert.match(overdue, /overdue_only=true/);
+  assert.match(overdue, /data\?\.proposals/);
+  assert.match(overdue, /data\?\.extensions/);
+  assert.match(overdue, /AppPagination/);
+  assert.match(accounting, /\/accounting\/contracts\//);
+  assert.match(accounting, /service-history/);
+});

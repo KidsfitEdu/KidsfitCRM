@@ -213,7 +213,7 @@ public static class InitialCrmSeeder
             return user;
         }
 
-        void EnsureSystemMembership(User user, Organization organization, string roleCode)
+        async Task EnsureSystemMembership(User user, Organization organization, string roleCode)
         {
             var membership = await db.OrganizationMemberships.SingleOrDefaultAsync(x =>
                 x.UserId == user.Id && x.OrganizationId == organization.Id);
@@ -233,8 +233,8 @@ public static class InitialCrmSeeder
         var checkee = await EnsureSystemAccount("CHECKEE001", "checkee@kidsfit.vn",
             "Bộ phận xác minh hợp đồng", "CHECKEE", "Seed:CheckeePassword");
         var checkeeOrganization = await db.Organizations.SingleAsync(x => x.Code == "CHECKEE");
-        EnsureSystemMembership(director, kidsfit, "DIRECTOR");
-        EnsureSystemMembership(checkee, checkeeOrganization, "CHECKEE");
+        await EnsureSystemMembership(director, kidsfit, "DIRECTOR");
+        await EnsureSystemMembership(checkee, checkeeOrganization, "CHECKEE");
 
         // Seed a proposal only. BGĐ decides whether and when to activate it.
         // Do not supersede or override existing policies maintained by users.

@@ -69,12 +69,18 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const identity = can('channel_sales.identity.manage');
   const canTeam = can('channel_sales.team.manage');
   const canHandover = can('channel_sales.school.handover.manage');
-  const reload = useCallback(async () => {
-    if (preview || !token) return;
+  const reload = useCallback(async (notifyError = true): Promise<boolean> => {
+    if (preview || !token) return false;
     setBusy(true);
-    try { setManagement(await fetchAdminManagement(apiBase,token)); }
-    catch (e) { appNotice.error('Không tải được nhân sự và đối tác.',e instanceof Error ? e.message : 'Thử lại sau.'); }
-    finally { setBusy(false); }
+    try {
+      setManagement(await fetchAdminManagement(apiBase,token));
+      return true;
+    } catch (e) {
+      if (notifyError)
+        appNotice.operation('personnel-list-load', 'error', 'Không thể tải danh sách nhân sự',
+          e instanceof Error ? e.message : 'Vui lòng thử tải lại.');
+      return false;
+    } finally { setBusy(false); }
   },[apiBase,token,preview]);
   useEffect(() => {void reload();},[reload]);
 
@@ -92,11 +98,34 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     p.account_status!=='SUSPENDED' && ['SALES_MANAGER','PARTNER_ADMIN'].includes(p.membership_type)) ?? [];
   const roleText=(role:string)=>roleNames[role]??management?.roles.find(r=>r.code===role)?.name??role;
 
-  const run=async(task:()=>Promise<unknown>,success:string,close:()=>void)=>{
+  const run=async(task:()=>Promise<unknown>,success:string,close:()=>void,operationId?:string)=>{
     setBusy(true);
-    try{await task();close();setErrors({});appNotice.success(success);await reload();}
-    catch(e){appNotice.error('Không thể hoàn tất thao tác.',e instanceof Error?e.message:'Vui lòng thử lại.');}
-    finally{setBusy(false);}
+    try {
+      await task();
+    } catch (e) {
+      const message=e instanceof Error?e.message:'Vui lòng thử lại.';
+      if (operationId === 'personnel-create') {
+        const detail=message.includes('Email đã được sử dụng')
+          ? 'Email này đã được sử dụng. Vui lòng kiểm tra hoặc nhập email khác.'
+          : message;
+        appNotice.operation(operationId,'error','Không thể tạo tài khoản',detail);
+      } else appNotice.error('Không thể hoàn tất thao tác',message);
+      setBusy(false);
+      return;
+    }
+    close();
+    setErrors({});
+    const refreshed=await reload(false);
+    if (operationId === 'personnel-create') {
+      appNotice.operation(operationId,refreshed?'success':'warning',
+        refreshed?'Tạo tài khoản thành công':'Tài khoản đã được tạo',
+        refreshed?'Tài khoản nhân sự đã được tạo và phân quyền theo tổ chức.':
+          'Tài khoản đã được lưu nhưng danh sách chưa cập nhật. Vui lòng tải lại danh sách.');
+    } else {
+      if (refreshed) appNotice.success(success);
+      else appNotice.warning(success,'Thao tác đã lưu nhưng danh sách chưa cập nhật. Vui lòng tải lại.');
+    }
+    setBusy(false);
   };
   const submitCreate=()=>{
     const err:Record<string,string>={};
@@ -110,7 +139,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       name:createForm.name.trim(),email:createForm.email.trim(),password:createForm.password,
       organization_id:Number(createForm.organization_id),role_code:createForm.role_code,
       manager_user_id:createForm.manager_user_id?Number(createForm.manager_user_id):null,
-    }), 'Đã tạo tài khoản.',()=>{setCreateOpen(false);setCreateForm(blankCreate);});
+    }), 'Đã tạo tài khoản.',()=>{setCreateOpen(false);setCreateForm(blankCreate);},'personnel-create');
   };
   const openEdit=(p:Person)=>{
     setEdit(p);

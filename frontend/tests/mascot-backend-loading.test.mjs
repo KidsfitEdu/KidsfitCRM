@@ -53,13 +53,13 @@ test('Mascot is shared, has retry and respects reduced motion', () => {
   const styles = source('app/globals.css');
   assert.match(mascot, /function KidsfitOwl/);
   assert.match(mascot, /viewBox="0 0 180 146"/);
-  assert.match(mascot, /w-\\[112px\\] sm:w-\\[124px\\]/);
-  assert.match(mascot, /max-w-\\[340px\\]/);
-  assert.match(mascot, /sleeping=\\{!loading\\}/);
+  assert.match(mascot, /w-\[112px\] sm:w-\[124px\]/);
+  assert.match(mascot, /max-w-\[340px\]/);
+  assert.match(mascot, /sleeping=\{!loading\}/);
   assert.match(mascot, /crm-owl-progress/);
   assert.match(mascot, /aria-label="Đang tải dữ liệu/);
   assert.match(mascot, /aria-live=/);
-  assert.match(mascot, /role=\\{loading \\? 'status' : 'alert'\\}/);
+  assert.match(mascot, /role=\{loading \? 'status' : 'alert'\}/);
   assert.match(mascot, /Thử kết nối lại/);
   assert.match(styles, /@keyframes crm-owl-blink/);
   assert.match(styles, /@keyframes crm-owl-breathe/);

@@ -11,7 +11,7 @@ if ($DatabaseName -notmatch '^[A-Za-z0-9_]+$') { throw 'Invalid database identif
 if ($DatabaseName -in @('mysql','information_schema','performance_schema','sys')) { throw 'System database is forbidden.' }
 if ($env:ASPNETCORE_ENVIRONMENT -ne 'Development') { throw 'Only ASPNETCORE_ENVIRONMENT=Development is allowed.' }
 if ($env:Seed__DisposableDatabase -ne 'true') { throw 'Explicit Seed__DisposableDatabase=true is required.' }
-if ([string]::IsNullOrWhiteSpace($env:Seed__DemoPassword)) { throw 'Seed__DemoPassword must be set privately.' }
+if ([string]::IsNullOrWhiteSpace($env:Seed__AdminPassword)) { throw 'Seed__AdminPassword must be set privately.' }
 if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__MySql)) { throw 'ConnectionStrings__MySql must be set in process environment.' }
 $builder = [System.Data.Common.DbConnectionStringBuilder]::new()
 $builder.ConnectionString = $env:ConnectionStrings__MySql
@@ -35,8 +35,8 @@ try {
     Write-Host "Confirmed LOCAL DEMO database: $DatabaseName. This deletes ALL of its tables and records. No backup will be made." -ForegroundColor Red
     dotnet ef database drop --force --context KidsfitDbContext --project src/KidsfitCRM.Api --startup-project src/KidsfitCRM.Api
     if ($LASTEXITCODE -ne 0) { throw 'EF database drop failed; no migration or seed attempted.' }
-    dotnet run --project src/KidsfitCRM.Api -- --migrate --seed-demo
-    if ($LASTEXITCODE -ne 0) { throw 'InitialCRM migration or demo seed failed.' }
+    dotnet run --project src/KidsfitCRM.Api -- --migrate --seed-initial
+    if ($LASTEXITCODE -ne 0) { throw 'InitialCRM migration or initial CRM bootstrap failed.' }
     Write-Host "Reset and seed completed: $DatabaseName" -ForegroundColor Green
 }
 finally { Pop-Location }

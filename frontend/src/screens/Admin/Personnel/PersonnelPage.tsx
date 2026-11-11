@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, Plus, Pencil, LockKeyhole, LockKeyholeOpen, Building2, UsersRound } from 'lucide-react';
+import { Eye, EyeOff, Plus, Pencil, LockKeyhole, LockKeyholeOpen, Building2, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppSelect } from '@/components/common/app-select';
@@ -52,6 +52,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const [detail,setDetail] = useState<Person|null>(null);
   const [createOpen,setCreateOpen] = useState(false);
   const [createForm,setCreateForm] = useState(blankCreate);
+  const [showCreatePassword,setShowCreatePassword] = useState(true);
   const [edit,setEdit] = useState<Person|null>(null);
   const [editForm,setEditForm] = useState({name:'',phone:'',role_code:'SALES',manager_user_id:''});
   const [partnerDetail,setPartnerDetail] = useState<Partner|null>(null);
@@ -296,9 +297,17 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           </div>}
           <div className="min-w-0 space-y-1.5 text-sm font-medium sm:col-span-2">
             <label htmlFor="admin-new-password">Mật khẩu ban đầu (ít nhất 12 ký tự) *</label>
-            <Input id="admin-new-password" type="password" autoComplete="new-password" className="h-11"
-              value={createForm.password} aria-invalid={!!errors.password}
-              onChange={e=>setCreateForm(v=>({...v,password:e.target.value}))}/>
+            <div className="relative">
+              <Input id="admin-new-password" type={showCreatePassword ? 'text' : 'password'} autoComplete="new-password"
+                className="h-11 pr-12" value={createForm.password} aria-invalid={!!errors.password}
+                onChange={e=>setCreateForm(v=>({...v,password:e.target.value}))}/>
+              <button type="button" className="absolute inset-y-0 right-1 flex w-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                onClick={()=>setShowCreatePassword(v=>!v)}
+                aria-label={showCreatePassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                title={showCreatePassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                {showCreatePassword ? <EyeOff aria-hidden="true" className="size-4"/> : <Eye aria-hidden="true" className="size-4"/>}
+              </button>
+            </div>
             <FormError>{errors.password}</FormError>
           </div>
         </div>

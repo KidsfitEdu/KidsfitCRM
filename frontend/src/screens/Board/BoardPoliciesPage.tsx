@@ -8,7 +8,7 @@ import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { PolicyEditorDialog, type PolicyForm } from './PolicyEditorDialog';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { channelRequest } from '@/lib/channel-operations';
@@ -97,11 +97,10 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}
         onReset={()=>{setDraft('');setSearch('');setOrganization('ALL');setPage(1);}}
         searchLabel="Tìm chính sách" placeholder="Tên tổ chức, phiên bản..."
-        filters={<AppNativeSelect aria-label="Lọc tổ chức" containerClassName="w-full sm:w-56"
-          value={organization} onChange={e=>{setOrganization(e.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả tổ chức</option>
-          {(data?.organizations??[]).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
-        </AppNativeSelect>}/>
+        filters={<AppSelect ariaLabel="Lọc tổ chức" className="w-full sm:w-56" value={organization}
+          options={[{value:'ALL',label:'Tất cả tổ chức'},
+            ...(data?.organizations??[]).map(o=>({value:String(o.id),label:o.name}))]}
+          onValueChange={next=>{setOrganization(next);setPage(1);}}/>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass}>
           <thead className={adminTableHeadClass}><tr><th className="px-5 py-4">Tổ chức</th><th className="px-5 py-4">Phiên bản</th><th className="px-5 py-4">Thời hạn xử lý</th><th className="px-5 py-4">Gia hạn</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-right">Thao tác</th></tr></thead>

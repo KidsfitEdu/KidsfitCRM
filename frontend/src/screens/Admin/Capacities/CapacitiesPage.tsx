@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Settings2 } from 'lucide-react';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppPageHeader } from '@/components/common/app-page-header';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { Input } from '@/components/ui/input';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -67,10 +67,9 @@ export function CapacitiesPage({apiBase,token,abilities}:Props) {
         onSearch={()=>{setSearch(searchDraft.trim());setPage(1);}}
         onReset={()=>{setSearchDraft('');setSearch('');setOrganization('ALL');setPage(1);}}
         placeholder="Tìm tên nhân viên hoặc CTV..." searchLabel="Tìm nhân sự hạn mức"
-        filters={<AppNativeSelect aria-label="Lọc tổ chức" containerClassName="h-11 w-full sm:w-[200px]" value={organization}
-          onChange={e=>{setOrganization(e.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả tổ chức</option>{orgs.map(o=><option key={o} value={o}>{o}</option>)}
-        </AppNativeSelect>}/>
+        filters={<AppSelect ariaLabel="Lọc tổ chức" className="w-full sm:w-[200px]" value={organization}
+          options={[{value:'ALL',label:'Tất cả tổ chức'},...orgs.map(o=>({value:String(o),label:String(o)}))]}
+          onValueChange={next=>{setOrganization(next);setPage(1);}}/>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass}>
           <thead className={adminTableHeadClass}><tr>

@@ -7,7 +7,7 @@ import {
   AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge,
   adminTableClass, adminTableCellClass, adminTableHeadClass,
 } from '@/components/common/admin-list-ui';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
@@ -186,29 +186,23 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
         searchLabel="Tìm trường, mã hợp đồng hoặc Sales"
         placeholder="Tên trường, mã hợp đồng, Sales..."
         filters={<>
-          <AppNativeSelect aria-label="Lọc trạng thái hồ sơ" containerClassName="w-full sm:w-52"
-            value={status} onChange={e=>changeStatus(e.target.value)}>
-            <option value="ALL">Tất cả trạng thái</option>
-            {Object.entries(labels).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-          </AppNativeSelect>
-          <AppNativeSelect aria-label="Lọc nguồn hồ sơ" containerClassName="w-full sm:w-44"
-            value={source} onChange={e=>{setSource(e.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả nguồn</option>
-            <option value="AUTO">CRM tự tạo</option>
-            <option value="MANUAL">Sales yêu cầu</option>
-            {mode==='sales'&&<option value="NONE">Chưa có hồ sơ</option>}
-          </AppNativeSelect>
-          {mode==='manager'&&<AppNativeSelect aria-label="Lọc tổ chức Sales" containerClassName="w-full sm:w-44"
-            value={organization} onChange={e=>{setOrganization(e.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả tổ chức</option>
-            {organizations.map(name=><option key={name} value={name}>{name}</option>)}
-          </AppNativeSelect>}
-          {mode==='sales'&&<AppNativeSelect aria-label="Lọc xác nhận tái ký" containerClassName="w-full sm:w-44"
-            value={renewal} onChange={e=>{setRenewal(e.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả tái ký</option>
-            <option value="CONFIRMED">Đã xác nhận</option>
-            <option value="NOT_CONFIRMED">Chưa xác nhận</option>
-          </AppNativeSelect>}
+          <AppSelect ariaLabel="Lọc trạng thái hồ sơ" className="w-full sm:w-52" value={status}
+            options={[{value:'ALL',label:'Tất cả trạng thái'},
+              ...Object.entries(labels).map(([value,label])=>({value,label}))]}
+            onValueChange={changeStatus}/>
+          <AppSelect ariaLabel="Lọc nguồn hồ sơ" className="w-full sm:w-44" value={source}
+            options={[{value:'ALL',label:'Tất cả nguồn'},{value:'AUTO',label:'CRM tự tạo'},
+              {value:'MANUAL',label:'Sales yêu cầu'},
+              ...(mode==='sales'?[{value:'NONE',label:'Chưa có hồ sơ'}]:[])]}
+            onValueChange={next=>{setSource(next);setPage(1);}}/>
+          {mode==='manager'&&<AppSelect ariaLabel="Lọc tổ chức Sales" className="w-full sm:w-44" value={organization}
+            options={[{value:'ALL',label:'Tất cả tổ chức'},
+              ...organizations.map(name=>({value:name,label:name}))]}
+            onValueChange={next=>{setOrganization(next);setPage(1);}}/>}
+          {mode==='sales'&&<AppSelect ariaLabel="Lọc xác nhận tái ký" className="w-full sm:w-44" value={renewal}
+            options={[{value:'ALL',label:'Tất cả tái ký'},{value:'CONFIRMED',label:'Đã xác nhận'},
+              {value:'NOT_CONFIRMED',label:'Chưa xác nhận'}]}
+            onValueChange={next=>{setRenewal(next);setPage(1);}}/>}
         </>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass+' min-w-[1040px]'}>

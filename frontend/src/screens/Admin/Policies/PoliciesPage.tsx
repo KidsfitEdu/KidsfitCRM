@@ -2,7 +2,7 @@
 
 import { useCallback,useEffect,useState } from 'react';
 import { AppPageHeader } from '@/components/common/app-page-header';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AdminListPanel,AdminListToolbar,AdminStatusBadge,adminTableClass,adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { fetchAdminPolicies } from '@/services/policy.service';
@@ -33,13 +33,10 @@ export function PoliciesPage({apiBase,token}:AdminPageProps) {
           onSearch={()=>{setPolicySearch(policyDraft.trim());setPolicyPage(1);}}
           onReset={()=>{setPolicyDraft('');setPolicySearch('');setPolicyStatus('ALL');setPolicyPage(1);}}
           placeholder="Tìm phiên bản hoặc trạng thái..." searchLabel="Tìm chính sách"
-          filters={<AppNativeSelect aria-label="Lọc trạng thái chính sách" containerClassName="h-11 w-full sm:w-[200px]"
-            value={policyStatus} onChange={e=>{setPolicyStatus(e.target.value);setPolicyPage(1);}}>
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="ACTIVE">Đang áp dụng</option>
-            <option value="DRAFT">Bản nháp</option>
-            <option value="SUPERSEDED">Đã thay phiên bản</option>
-          </AppNativeSelect>}/>
+          filters={<AppSelect ariaLabel="Lọc trạng thái chính sách" className="w-full sm:w-[200px]" value={policyStatus}
+            options={[{value:'ALL',label:'Tất cả trạng thái'},{value:'ACTIVE',label:'Đang áp dụng'},
+              {value:'DRAFT',label:'Bản nháp'},{value:'SUPERSEDED',label:'Đã thay phiên bản'}]}
+            onValueChange={next=>{setPolicyStatus(next);setPolicyPage(1);}}/>}/>
         <div className="overflow-x-auto">
           <table className={adminTableClass}>
             <thead className={adminTableHeadClass}><tr>

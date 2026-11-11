@@ -43,13 +43,13 @@ export function AdminListToolbar({
       <div className="relative min-w-[220px] flex-[1_1_320px]">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input aria-label={searchLabel} value={search} onChange={event => onSearchChange(event.target.value)}
-          placeholder={placeholder} className="h-11 w-full rounded-xl bg-card pl-10" />
+          placeholder={placeholder} className="h-10 w-full rounded-lg bg-card pl-10" />
       </div>
       {filters}
       <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
       <AppButton type="button" tone="outline" size="icon-lg"
         aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc"
-        className="h-11 w-11 min-w-11 rounded-lg p-0"
+        className="h-10 w-10 min-w-10 rounded-lg p-0"
         onClick={onReset}>
         <RotateCcw aria-hidden="true" className="size-4" />
       </AppButton>

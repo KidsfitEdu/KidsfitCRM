@@ -5,7 +5,7 @@ import { Eye, RotateCcw, Search } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,11 +149,10 @@ export function ContractRenewalAccountingPanel({apiBase,token,abilities}:{apiBas
            className="h-11 w-full rounded-xl pl-10" value={search} onChange={event => setSearch(event.target.value)}
            placeholder="Tên trường, mã hợp đồng, Sales phụ trách..."/>
        </div>
-       <AppNativeSelect aria-label="Lọc theo trạng thái hồ sơ" value={status} containerClassName="w-full sm:w-60"
-         onChange={event => { setStatus(event.target.value); setPage(1); }}>
-         <option value="ALL">Tất cả trạng thái</option>
-         {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-       </AppNativeSelect>
+       <AppSelect ariaLabel="Lọc theo trạng thái hồ sơ" value={status} className="w-full sm:w-60"
+         options={[{value:'ALL',label:'Tất cả trạng thái'},
+           ...Object.entries(labels).map(([value,label])=>({value,label}))]}
+         onValueChange={next=>{setStatus(next);setPage(1);}}/>
        <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
        <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
          aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>

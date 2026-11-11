@@ -7,7 +7,7 @@ import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -340,19 +340,18 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-11 w-full rounded-xl pl-10"
             placeholder="Tên trường, mã hợp đồng, người phụ trách..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <AppNativeSelect aria-label="Lọc nhóm hợp đồng Kế toán" value={workspaceStatus}
-          containerClassName="w-full sm:w-52"
-          onChange={e=>{setWorkspaceStatus(e.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả hợp đồng</option>
-          <option value="PENDING">Chờ xác nhận tái ký</option>
-          <option value="INTERRUPTED">Gián đoạn dịch vụ</option>
-          <option value="HISTORY">Lịch sử tài chính</option>
-        </AppNativeSelect>
-        <AppNativeSelect aria-label="Lọc theo người phụ trách" value={ownerUserId} containerClassName="w-full sm:w-60"
-          onChange={e=>{setOwnerUserId(e.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả người phụ trách</option>
-          {owners.map(owner => <option key={owner.id} value={String(owner.id)}>{owner.name}</option>)}
-        </AppNativeSelect>
+        <AppSelect ariaLabel="Lọc nhóm hợp đồng Kế toán" value={workspaceStatus}
+          className="w-full sm:w-52" options={[
+            {value:'ALL',label:'Tất cả hợp đồng'},
+            {value:'PENDING',label:'Chờ xác nhận tái ký'},
+            {value:'INTERRUPTED',label:'Gián đoạn dịch vụ'},
+            {value:'HISTORY',label:'Lịch sử tài chính'},
+          ]} onValueChange={next=>{setWorkspaceStatus(next);setPage(1);}}/>
+        <AppSelect ariaLabel="Lọc theo người phụ trách" value={ownerUserId}
+          className="w-full sm:w-60" options={[
+            {value:'ALL',label:'Tất cả người phụ trách'},
+            ...owners.map(owner=>({value:String(owner.id),label:owner.name})),
+          ]} onValueChange={next=>{setOwnerUserId(next);setPage(1);}}/>
         <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
         <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
           aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>

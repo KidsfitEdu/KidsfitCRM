@@ -6,7 +6,7 @@ import { Check, Eye, History, Plus, X, Ban, ListChecks } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
@@ -337,29 +337,28 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
         onSearch={() => { setSearch(draft.trim()); setPage(1); }}
         onReset={reset} searchLabel={'Tìm kiếm ' + config.title.toLocaleLowerCase('vi')} placeholder={config.placeholder}
         filters={<div className="flex flex-wrap gap-2">
-          {section === 'progress' && <AppNativeSelect aria-label="Lọc nhân viên Sales/CTV"
-            containerClassName="w-[210px]" value={staffFilter}
-            onChange={e => {setStaffFilter(e.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả Sales/CTV</option>
-            {(customers.data?.staff ?? []).map(member =>
-              <option key={member.id+'-'+member.name} value={preview ? member.name : String(member.id)}>{member.name}</option>)}
-          </AppNativeSelect>}
-          <AppNativeSelect aria-label="Lọc trạng thái" containerClassName="w-[192px]" value={filter}
-            onChange={e => {setFilter(e.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả trạng thái</option>
-            {section === 'proposals' ? <>
-              <option value="PENDING_MANAGER">Chờ Quản lý</option><option value="PENDING_ADMIN">Chờ Admin</option>
-              <option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option>
-            </> : section === 'allocations' ? <>
-              <option value="PENDING">Chờ nhận</option><option value="ACCEPTED">Đã nhận</option><option value="DECLINED">Từ chối</option>
-              <option value="CANCELLED">Đã hủy</option><option value="EXPIRED">Quá hạn</option>
-            </> : section === 'extensions' ? <>
-              <option value="PENDING">Chờ duyệt</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option>
-              <option value="EXPIRED">Hết hạn</option>
-            </> : <>
-              <option value="APPROACHING">Đang tiếp cận</option><option value="CONTRACTED">Đã ký hợp đồng</option>
-            </>}
-          </AppNativeSelect>
+          {section === 'progress' && <AppSelect ariaLabel="Lọc nhân viên Sales/CTV" className="w-[210px]" value={staffFilter}
+            options={[{value:'ALL',label:'Tất cả Sales/CTV'},
+              ...(customers.data?.staff??[]).map(member=>({
+                value:preview?member.name:String(member.id),label:member.name}))]}
+            onValueChange={next=>{setStaffFilter(next);setPage(1);}}/>}
+          <AppSelect ariaLabel="Lọc trạng thái" className="w-[192px]" value={filter}
+            options={[{value:'ALL',label:'Tất cả trạng thái'},
+              ...(section==='proposals'?[
+                {value:'PENDING_MANAGER',label:'Chờ Quản lý'}, {value:'PENDING_ADMIN',label:'Chờ Admin'},
+                {value:'APPROVED',label:'Đã duyệt'}, {value:'REJECTED',label:'Từ chối'}
+              ]:section==='allocations'?[
+                {value:'PENDING',label:'Chờ nhận'},{value:'ACCEPTED',label:'Đã nhận'},
+                {value:'DECLINED',label:'Từ chối'},{value:'CANCELLED',label:'Đã hủy'},
+                {value:'EXPIRED',label:'Quá hạn'}
+              ]:section==='extensions'?[
+                {value:'PENDING',label:'Chờ duyệt'},{value:'APPROVED',label:'Đã duyệt'},
+                {value:'REJECTED',label:'Từ chối'},{value:'EXPIRED',label:'Hết hạn'}
+              ]:[
+                {value:'APPROACHING',label:'Đang tiếp cận'},
+                {value:'CONTRACTED',label:'Đã ký hợp đồng'}
+              ])]}
+            onValueChange={next=>{setFilter(next);setPage(1);}}/>
         </div>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass}>

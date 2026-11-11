@@ -14,7 +14,7 @@ test('Accounting filters verified contracts with owner id and uses scoped owner 
   assert.match(ui, /Array\.isArray\(result\.owners\) \? result\.owners : \[\]/);
   assert.match(ui, /owners\?: \{ id: number; name: string \}\[\] \| null/);
   assert.match(ui, /owner\.id/);
-  assert.match(ui, /value=\{String\(owner\.id\)\}/);
+  assert.match(ui, /value:String\(owner\.id\),label:owner\.name/);
   assert.match(ui, /Tất cả người phụ trách/);
   const page = read('src/screens/Accounting/Revenue/RevenuePage.tsx');
   assert.doesNotMatch(page, /AccountingTab|ServiceInterruptionPanel|ContractRenewalAccountingPanel/);
@@ -35,5 +35,5 @@ test('Missing or null owners in legacy API responses never reach the dropdown ma
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(ui, /const \[owners, setOwners\] = useState<\{ id: number; name: string \}\[]>\(\[\]\)/);
   assert.match(ui, /setOwners\(Array\.isArray\(result\.owners\) \? result\.owners : \[\]\)/);
-  assert.match(ui, /\{owners\.map\(owner =>/);
+  assert.match(ui, /\.\.\.owners\.map\(owner=>/);
 });

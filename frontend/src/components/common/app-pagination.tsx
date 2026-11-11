@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 
 type Props = {
   page: number;
@@ -42,13 +42,13 @@ export function AppPagination({ page, pageSize, total, itemLabel = 'bản ghi', 
           Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} {itemLabel}
         </span>}
         {fixedPageSize && <span className="text-sm text-muted-foreground">Số dòng/trang <span className="ml-1 inline-flex h-10 min-w-[70px] items-center justify-center rounded-lg border border-border bg-background px-3 font-medium tabular-nums text-foreground" aria-label={`Cố định ${pageSize} dòng mỗi trang`}>{pageSize}</span></span>}
-        {pageSizeOptions && onPageSizeChange && <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-          Số dòng/trang
-          <AppNativeSelect aria-label="Số dòng mỗi trang" containerClassName="h-10 min-w-[84px] rounded-lg" value={pageSize} disabled={disabled}
-            onChange={event => onPageSizeChange(Number(event.target.value))}>
-            {pageSizeOptions.map(size => <option key={size} value={size}>{size}</option>)}
-          </AppNativeSelect>
-        </label>}
+        {pageSizeOptions && onPageSizeChange && <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <span id="app-pagination-page-size-label">Số dòng/trang</span>
+          <AppSelect ariaLabel="Số dòng mỗi trang" className="min-w-[88px] w-[88px]"
+            size="compact" value={String(pageSize)} disabled={disabled}
+            options={pageSizeOptions.map(size => ({value:String(size),label:String(size)}))}
+            onValueChange={next => onPageSizeChange(Number(next))}/>
+        </div>}
       </div>
       <div className="flex items-center justify-end">
         <div className="flex flex-wrap items-center justify-end gap-1" aria-label="Chọn trang">

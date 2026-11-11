@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Eye, Plus, Pencil, LockKeyhole, LockKeyholeOpen, Building2, UsersRound } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
+import { AppSelect } from '@/components/common/app-select';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { Input } from '@/components/ui/input';
@@ -191,10 +192,10 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           onSearch={()=>{setSearch(draft.trim());setPage(1);}} onReset={reset}
           placeholder={tab==='people'?'Tên nhân sự, email, tổ chức...':'Tên hoặc mã tổ chức...'}
           searchLabel={tab==='people'?'Tìm nhân sự':'Tìm đối tác'}
-          filters={<AppNativeSelect aria-label="Lọc trạng thái" value={filter} containerClassName="w-full sm:w-48"
-            onChange={e=>{setFilter(e.target.value);setPage(1);}}>
-            <option value="ALL">Tất cả trạng thái</option><option value="ACTIVE">Hoạt động</option><option value="SUSPENDED">Tạm khóa</option>
-          </AppNativeSelect>}/>
+          filters={<AppSelect ariaLabel="Lọc trạng thái" value={filter} className="w-full sm:w-48"
+            options={[{value:'ALL',label:'Tất cả trạng thái'},{value:'ACTIVE',label:'Hoạt động'},
+              {value:'SUSPENDED',label:'Tạm khóa'}]}
+            onValueChange={next=>{setFilter(next);setPage(1);}}/>}/>
         <div className="overflow-x-auto">
           <table className={adminTableClass}>
             <thead className={adminTableHeadClass}>

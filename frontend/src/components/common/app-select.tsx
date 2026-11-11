@@ -62,6 +62,7 @@ export function AppSelect({
         sideOffset={6}
         align="start"
         alignItemWithTrigger={false}
+        listClassName="flex flex-col gap-1"
         className={cn(
           'z-[80] max-h-[min(20rem,var(--available-height))] min-w-[var(--anchor-width)] rounded-xl border border-border bg-popover p-1 shadow-xl',
           contentClassName,
@@ -73,7 +74,7 @@ export function AppSelect({
             value={option.value}
             disabled={option.disabled}
             className={cn(
-              'my-0.5 min-h-10 rounded-lg px-3 py-2 text-sm text-popover-foreground',
+              'min-h-10 rounded-lg px-3 py-2 text-sm text-popover-foreground',
               'focus:bg-primary/10 focus:text-primary data-[selected]:bg-primary/10 data-[selected]:font-semibold data-[selected]:text-primary',
               'dark:focus:bg-primary/20 dark:data-[selected]:bg-primary/20',
             )}

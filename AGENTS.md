@@ -5,6 +5,13 @@
 - Synthetic backend accounts must share the **environment-provided** `Seed__DemoPassword` when opt-in demo seed runs on disposable DB. Never hardcode the user-selected password; never use it for MySQL or JWT. Frontend static preview is not backend authentication.
 - Execute the 10 internal stages in one agent run with actual tests and incremental commits; stop only unsafe/policy-blocked slices; final reviewable PR, no auto-merge.
 
+## ChatGPT / repository skill discovery
+
+- **Primary cross-functional KIDSFIT CRM skill:** `.agents/skills/kidsfit-crm-dev/SKILL.md`. Read this for CRM implementation, code review, UI/UX, contracts, renewals KC-02, GI-01, finance, security, Git and CI; load only the task-relevant files under `.agents/skills/kidsfit-crm-dev/references/`.
+- This is a **repository-hosted instruction file**, not an automatically installed ChatGPT plugin. When working from ChatGPT, access it through the connected GitHub repository (read `AGENTS.md` and the skill by path), or install the skill separately if that workflow is supported. Do not claim GitHub upload alone installed a ChatGPT skill.
+- Keep the existing specialist skills (`kidsfit-crm-development`, `kidsfit-crm-frontend-design` and one-shot implementation) for their appropriate domain workflows. Follow the latest approved `docs/requirements/DECISION_LOG.md` and source code when any skill snapshot is stale.
+- Work on the latest branch/HEAD. For user requests requiring confirmation, stop before code. For approved Git changes, use multiple meaningful incremental Conventional Commits when appropriate; never force-push/rewrite published commits without explicit authorization.
+
 # KidsfitCRM repository instructions
 
 ## Scope and sources of truth

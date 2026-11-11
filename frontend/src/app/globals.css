@@ -311,3 +311,9 @@ body { font-family: var(--font-brand); }
   .crm-workspace-content table { font-size: 0.8125rem; }
   .crm-workspace-content table:not(.crm-school-table) :where(th, td) { white-space: nowrap; }
 }
+
+/* Subtle, reduced-motion-friendly mascot startup animation. */
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}

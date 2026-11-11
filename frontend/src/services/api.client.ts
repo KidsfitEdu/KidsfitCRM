@@ -7,7 +7,7 @@ export class ApiRequestError extends Error {
 }
 
 const BOOTSTRAP_TIMEOUT_MS = 12000;
-const bootstrapPaths = new Set(['/login', '/me', '/health']);
+const bootstrapPaths = new Set(['/login', '/me', '/health', '/channel-sales/workspace']);
 
 export function isBackendUnavailable(error: unknown): boolean {
   return error instanceof ApiRequestError && (error.kind !== 'http' || error.status >= 500);

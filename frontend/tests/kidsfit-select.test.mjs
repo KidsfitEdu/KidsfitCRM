@@ -52,3 +52,22 @@ test('CRM list filters keep the native control for form, time and validation use
       assert.match(code,/<AppSelect\b/,'Missing branded filter in '+path);
   }
 });
+
+
+test('Selected status is rendered as its Vietnamese option label instead of a workflow code',()=>{
+  const shared=source('src/components/common/app-select.tsx');
+  const proposals=source('src/screens/Admin/Proposals/ProposalsPage.tsx');
+  assert.match(shared,/options\.find\(option => option\.value === value\)\?\.label/);
+  assert.match(shared,/<SelectValue[^>]*>\{selectedLabel/);
+  assert.match(proposals,/\{value:'PENDING_ADMIN',label:'Chờ Admin'\}/);
+  assert.match(proposals,/\{value:'PENDING_MANAGER',label:'Chờ Quản lý'\}/);
+});
+
+test('Admin search toolbar controls and branded select use a shared 40px height',()=>{
+  const shared=source('src/components/common/app-select.tsx');
+  const toolbar=source('src/components/common/admin-list-ui.tsx');
+  assert.match(shared,/!h-10 min-w-0/);
+  assert.match(toolbar,/placeholder=\{placeholder\} className="h-10 w-full/);
+  assert.match(toolbar,/className="h-10 rounded-lg px-4">Tìm kiếm/);
+  assert.match(toolbar,/className="h-10 w-10 min-w-10 rounded-lg p-0"/);
+});

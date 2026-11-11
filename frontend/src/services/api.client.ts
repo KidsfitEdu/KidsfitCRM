@@ -33,8 +33,10 @@ export function createApiClient(apiBase: string) {
     if (controller) timeout = setTimeout(() => controller.abort(), BOOTSTRAP_TIMEOUT_MS);
 
     let response: Response;
+    let payload: { message?: string; errors?: Record<string, string[]> };
     try {
       response = await fetch(`${apiBase}${path}`, { ...options, headers, signal });
+      payload = (await response.json().catch(() => ({}))) as typeof payload;
     } catch (error) {
       if (controller?.signal.aborted)
         throw new ApiRequestError('Máy chủ phản hồi quá lâu. Vui lòng thử lại.', 0, 'timeout');
@@ -43,11 +45,6 @@ export function createApiClient(apiBase: string) {
     } finally {
       if (timeout) clearTimeout(timeout);
     }
-
-    const payload = (await response.json().catch(() => ({}))) as {
-      message?: string;
-      errors?: Record<string, string[]>;
-    };
     const firstError = payload.errors
       ? Object.values(payload.errors).flat()[0]
       : undefined;

@@ -1,12 +1,14 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   AlertCircle, AlertTriangle, CheckCircle2, CircleHelp, Clock3,
-  FileClock, Hourglass, LockKeyhole, Scale, ShieldCheck,
-  ShieldOff, UnlockKeyhole, UserCheck, XCircle,
+  ClipboardCheck, ClipboardList, FileCheck2, FileClock, Hourglass,
+  LockKeyhole, Scale, ShieldCheck, ShieldOff, UnlockKeyhole,
+  UserCheck, XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type AppStatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+export type AppStatusVariant = 'default' | 'kidsfit-service' | 'kidsfit-action';
 type StatusVisual = { tone:AppStatusTone; icon:LucideIcon };
 const visuals:Record<string,StatusVisual> = {
   // Rights and protection
@@ -57,19 +59,55 @@ const toneClasses:Record<AppStatusTone,string> = {
   neutral:'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200',
 };
 
+/** Opt-in Kidsfit colors for the Accounting workspace. Other roles keep default badges. */
+const kidsfitServiceVisuals: Record<string, StatusVisual & { className:string }> = {
+  CONTINUOUS: {tone:'success',icon:CheckCircle2,
+    className:'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-200'},
+  EXPIRING_SOON: {tone:'warning',icon:Clock3,
+    className:'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-950/80 dark:text-amber-200'},
+  INTERRUPTED: {tone:'warning',icon:Clock3,
+    className:'border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-700 dark:bg-orange-950/80 dark:text-orange-200'},
+  THRESHOLD_REACHED: {tone:'danger',icon:AlertTriangle,
+    className:'border-pink-300 bg-pink-100 text-pink-900 dark:border-pink-700 dark:bg-pink-950/80 dark:text-pink-200'},
+  THRESHOLD_OVERDUE: {tone:'danger',icon:AlertCircle,
+    className:'border-red-300 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-950/80 dark:text-red-200'},
+  RELEASED: {tone:'neutral',icon:UnlockKeyhole,
+    className:'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'},
+  NEEDS_REVIEW: {tone:'warning',icon:ClipboardList,
+    className:'border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-700 dark:bg-violet-950/80 dark:text-violet-200'},
+  HISTORICAL_GAP: {tone:'warning',icon:ClipboardList,
+    className:'border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-700 dark:bg-violet-950/80 dark:text-violet-200'},
+  MISSING_TERM: {tone:'warning',icon:ClipboardList,
+    className:'border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-700 dark:bg-violet-950/80 dark:text-violet-200'},
+  INACTIVE: {tone:'neutral',icon:ShieldOff,
+    className:'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'},
+};
+const kidsfitActionVisuals: Record<string, StatusVisual & { className:string }> = {
+  CONFIRM_RENEWAL: {tone:'info',icon:FileCheck2,
+    className:'border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-700 dark:bg-sky-950/80 dark:text-sky-200'},
+  REVIEW_PERIOD: {tone:'info',icon:ClipboardCheck,
+    className:'border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-700 dark:bg-violet-950/80 dark:text-violet-200'},
+  REQUEST_EVIDENCE: {tone:'warning',icon:FileClock,
+    className:'border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-700 dark:bg-orange-950/80 dark:text-orange-200'},
+  WAIT_ACCOUNTING: {tone:'warning',icon:Hourglass,
+    className:'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-950/80 dark:text-amber-200'},
+};
+
 /** Reusable presentation-only badge: server status and permission semantics are unchanged. */
-export function AppStatusBadge({status,label,tone,icon:IconOverride,size='md',className}:{
+export function AppStatusBadge({status,label,tone,icon:IconOverride,size='md',className,variant='default'}:{
   status?:string|null; label?:string|null; tone?:AppStatusTone; icon?:LucideIcon;
-  size?:'sm'|'md'; className?:string;
+  size?:'sm'|'md'; className?:string; variant?:AppStatusVariant;
 }) {
   const normalizedStatus=typeof status==='string' ? status.trim().toUpperCase() : '';
-  const visual=visuals[normalizedStatus] ?? {tone:'neutral',icon:CircleHelp};
+  const brandVisual=variant==='kidsfit-service' ? kidsfitServiceVisuals[normalizedStatus]
+    : variant==='kidsfit-action' ? kidsfitActionVisuals[normalizedStatus] : undefined;
+  const visual=brandVisual??visuals[normalizedStatus]??{tone:'neutral',icon:CircleHelp};
   const displayLabel=typeof label==='string' && label.trim() ? label : 'Chưa cập nhật';
   const Icon=IconOverride??visual.icon;
   return <span className={cn(
     'inline-flex max-w-full items-center gap-1.5 rounded-full border font-semibold leading-tight',
     size==='sm'?'px-2 py-0.5 text-[11px]':'px-2.5 py-1 text-xs',
-    toneClasses[tone??visual.tone],className
+    brandVisual?.className??toneClasses[tone??visual.tone],className
   )}>
     <Icon aria-hidden="true" className="size-3.5 shrink-0"/>
     <span className="min-w-0 break-words">{displayLabel}</span>

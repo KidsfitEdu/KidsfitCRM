@@ -383,10 +383,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 NEEDS_REVIEW:'Cần rà soát',INACTIVE:'Đã kết thúc',
                 HISTORICAL_GAP:'Cần rà soát',MISSING_TERM:'Cần rà soát'
               };
-              const tone=state==='CONTINUOUS'?'success' as const
-                :state==='THRESHOLD_REACHED'||state==='THRESHOLD_OVERDUE'?'danger' as const
-                :state==='INTERRUPTED'||state==='EXPIRING_SOON'||state==='NEEDS_REVIEW'?'warning' as const
-                :'neutral' as const;
               const amount=Math.max(0,row.received-row.refunded);
               return <tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
                 <td className="px-4 py-4 align-middle">
@@ -402,7 +398,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     Kỳ tiếp theo: {channelDate(row.next_service_start_on)}</p>}
                 </td>
                 <td className="px-3 py-4 align-middle">
-                  <AppStatusBadge status={state} label={label[state]??'Cần kiểm tra'} tone={tone}/>
+                  <AppStatusBadge variant="kidsfit-service" status={state} label={label[state]??'Cần kiểm tra'} size="md"/>
                   {row.threshold_on&&(['INTERRUPTED','THRESHOLD_REACHED','THRESHOLD_OVERDUE','RELEASED'].includes(state))&&
                     <p className="mt-1 text-xs text-muted-foreground">
                       {state==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(row.threshold_on)}
@@ -410,9 +406,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </td>
                 <td className="px-3 py-4 align-middle">
                   {row.action==='CONFIRM_RENEWAL'
-                    ? <span className="font-semibold text-amber-800 dark:text-amber-200">Xác nhận tái ký</span>
+                    ? <AppStatusBadge variant="kidsfit-action" status="CONFIRM_RENEWAL" label="Xác nhận tái ký"/>
                     :row.action==='REVIEW_PERIOD'
-                      ? <span className="text-amber-800 dark:text-amber-200">Kiểm tra kỳ dịch vụ</span>
+                      ? <AppStatusBadge variant="kidsfit-action" status="REVIEW_PERIOD" label="Kiểm tra kỳ dịch vụ"/>
                       :<span className="text-muted-foreground">—</span>}
                 </td>
                 <td className="px-3 py-4 text-left align-middle tabular-nums">
@@ -475,7 +471,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           const overview=rows.find(r=>r.id===selected)!;
           return <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <h3 className="text-base font-bold">Tình trạng dịch vụ & quyền bảo vệ</h3>
-            <AppStatusBadge status={overview.service_status} label={{
+            <AppStatusBadge variant="kidsfit-service" status={overview.service_status} label={{
               CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
               INTERRUPTED:'Gián đoạn',THRESHOLD_REACHED:'Đủ 12 tháng',
               THRESHOLD_OVERDUE:'Quá 12 tháng',RELEASED:'Đã hết bảo vệ',

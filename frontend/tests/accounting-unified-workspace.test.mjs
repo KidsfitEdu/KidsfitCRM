@@ -60,3 +60,24 @@ test('GI-01 milestones differ from actual release and labels remain concise',()=
  assert.doesNotMatch(ui,/Đã thu sau hoàn tiền/);
  assert.doesNotMatch(ui,/Hoa hồng ghi nhận: \{channelMoney\(row\.commission\)\}/);
 });
+
+test('Kidsfit branding differentiates service states from accounting actions without affecting other roles',()=>{
+ const badges=read('src/components/common/app-status-badge.tsx');
+ const table=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+ assert.match(badges,/variant='default'/);
+ assert.match(badges,/kidsfitServiceVisuals/);
+ assert.match(badges,/kidsfitActionVisuals/);
+ for(const status of ['CONTINUOUS','EXPIRING_SOON','INTERRUPTED','THRESHOLD_REACHED',
+  'THRESHOLD_OVERDUE','RELEASED','NEEDS_REVIEW','INACTIVE']) {
+  assert.ok(badges.includes(status+': {'),status);
+ }
+ for(const cls of ['bg-emerald-100','bg-amber-100','bg-orange-100','bg-pink-100',
+  'bg-red-100','bg-violet-100','bg-sky-100','dark:bg-sky-950']) {
+  assert.ok(badges.includes(cls),cls);
+ }
+ assert.match(table,/variant="kidsfit-service" status=\{state\}/);
+ assert.match(table,/variant="kidsfit-action" status="CONFIRM_RENEWAL"/);
+ assert.match(table,/variant="kidsfit-action" status="REVIEW_PERIOD"/);
+ assert.match(table,/<span className="text-muted-foreground">—<\/span>/);
+ assert.doesNotMatch(table,/font-semibold text-amber-800 dark:text-amber-200/);
+});

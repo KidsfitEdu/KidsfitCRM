@@ -65,12 +65,37 @@ public static class ContractRenewalEndpoints
             await db.ContractCancellations.AnyAsync(x => x.ContractId == contractId, ct))
             throw new ApiConflictException("Chỉ được tái ký hợp đồng gốc đã xác minh và đang hợp lệ.");
         var now = DateTime.UtcNow;
-        if (sales && (contract.OwnerUserId != access.UserId ||
-            !await db.CustomerProtections.AnyAsync(p => p.ContractId == contractId
-                && p.OwnerUserId == access.UserId && p.OwnerOrganizationId == contract.OwnerOrganizationId
-                && p.SourceType == "CONTRACT" && p.Status == "ACTIVE"
-                && p.EffectiveFrom <= now && p.EffectiveUntil > now, ct)))
-            throw new KeyNotFoundException();
+        if (sales)
+        {
+            if (contract.OwnerUserId != access.UserId) throw new KeyNotFoundException();
+            var protections = await db.CustomerProtections.AsNoTracking()
+                .Where(p => p.ContractId == contractId && p.OwnerUserId == access.UserId
+                    && p.OwnerOrganizationId == contract.OwnerOrganizationId
+                    && p.SourceType == "CONTRACT" && p.Status == "ACTIVE"
+                    && p.EffectiveFrom <= now)
+                .OrderByDescending(p => p.EffectiveUntil).ToArrayAsync(ct);
+            var current = protections.Any(p => p.EffectiveUntil > now);
+            var oldEnd = protections.FirstOrDefault()?.EffectiveUntil;
+            var latestServiceEnd = await PriorConfirmedEnd(db, contractId, contract.ServiceEndOn, ct);
+            var supplement = oldEnd.HasValue && latestServiceEnd.HasValue
+                && ProtectionRenewalPolicy.ReservationApplies(now, oldEnd.Value, latestServiceEnd.Value);
+            if (!current && !supplement) throw new KeyNotFoundException();
+            if (!current)
+            {
+                var gap = await ServiceInterruptionService.AssessAsync(db, contract.CustomerId,
+                    ContractExpiryAlertService.BusinessDate(now), now, ct);
+                if (gap is null || gap.Assessment.Status is
+                        (ServiceInterruptionPolicy.AssessmentStatus.ThresholdReached
+                        or ServiceInterruptionPolicy.AssessmentStatus.HistoricalThresholdRequiresReview
+                        or ServiceInterruptionPolicy.AssessmentStatus.MissingServiceTerm)
+                    || await db.ServiceInterruptionEvents.AnyAsync(e =>
+                        e.ContractId == contractId && e.Status == "RELEASED", ct)
+                    || await db.CustomerProtections.AnyAsync(p => p.CustomerId == contract.CustomerId
+                        && p.Status == "ACTIVE" && p.OwnerUserId != access.UserId
+                        && p.EffectiveFrom <= now && p.EffectiveUntil > now, ct))
+                    throw new KeyNotFoundException();
+            }
+        }
         if (!sales && !access.CanManageOrganization(contract.OwnerOrganizationId))
             throw new KeyNotFoundException();
         return contract;
@@ -223,7 +248,8 @@ public static class ContractRenewalEndpoints
                 && !db.ContractCancellations.Any(cancel => cancel.ContractId == c.Id)
                 && db.CustomerProtections.Any(p => p.ContractId == c.Id
                     && p.OwnerUserId == access.UserId && p.OwnerOrganizationId == c.OwnerOrganizationId
-                    && p.SourceType == "CONTRACT" && p.Status == "ACTIVE" && p.EffectiveFrom <= now && p.EffectiveUntil > now)
+                    && p.SourceType == "CONTRACT" && p.Status == "ACTIVE" && p.EffectiveFrom <= now
+                    && p.EffectiveUntil.AddDays(ProtectionRenewalPolicy.PriorityDays) > now)
             orderby c.ServiceEndOn, c.Id
             select new { id = c.Id, contract_code = c.ContractCode, school_name = school.DisplayName,
                 source_end_on = c.ServiceEndOn,
@@ -231,8 +257,27 @@ public static class ContractRenewalEndpoints
                     .OrderByDescending(r => r.ServiceEndOn).Select(r => (DateOnly?)r.ServiceEndOn).FirstOrDefault(),
                 pending = db.ContractRenewals.Any(r => r.ContractId == c.Id &&
                     (r.Status == "PENDING_ACCOUNTING" || r.Status == "NEEDS_INFO")) })
-            .Take(100).ToArrayAsync(ct);
-        return Results.Ok(new { data = contracts });
+            .Take(200).ToArrayAsync(ct);
+        var visible = new List<object>();
+        foreach (var item in contracts)
+        {
+            // A recent protection expiry is eligible only when the old service period
+            // also expired at that boundary. It never gives another Sales access.
+            var dates = await db.CustomerProtections.AsNoTracking()
+                .Where(p => p.ContractId == item.id && p.OwnerUserId == access.UserId
+                    && p.SourceType == "CONTRACT" && p.Status == "ACTIVE")
+                .OrderByDescending(p => p.EffectiveUntil).Select(p => p.EffectiveUntil)
+                .Take(1).ToArrayAsync(ct);
+            if (dates.Length == 0) continue;
+            var end = item.latest_end_on ?? item.source_end_on;
+            if (dates[0] <= now && (!end.HasValue ||
+                !ProtectionRenewalPolicy.ReservationApplies(now, dates[0], end.Value)))
+                continue;
+            if (dates[0] <= now && await db.ServiceInterruptionEvents.AnyAsync(e =>
+                e.ContractId == item.id && e.Status == "RELEASED", ct)) continue;
+            visible.Add(item);
+        }
+        return Results.Ok(new { data = visible });
     }
 
     public static async Task<IResult> Mine(long contractId, HttpContext http,
@@ -321,8 +366,20 @@ public static class ContractRenewalEndpoints
         var precedingPeriod = timeline.period_history
             .Where(x => x.end_on < renewal.data.ServiceStartOn)
             .OrderByDescending(x => x.end_on).FirstOrDefault();
+        var protection = await db.CustomerProtections.AsNoTracking()
+            .Where(p => p.ContractId == renewal.data.ContractId
+                && p.SourceType == "CONTRACT" && p.Status == "ACTIVE")
+            .OrderByDescending(p => p.EffectiveUntil)
+            .Select(p => new { p.EffectiveFrom, p.EffectiveUntil })
+            .FirstOrDefaultAsync(ct);
+        var protectionCase = await db.ProtectionRenewalCases.AsNoTracking()
+            .Where(p => p.ContractId == renewal.data.ContractId)
+            .OrderByDescending(p => p.UpdatedAt).ThenByDescending(p => p.Id)
+            .Select(p => new { p.Status, p.NewProtectionFrom, p.NewProtectionUntil })
+            .FirstOrDefaultAsync(ct);
         return Results.Ok(new { renewal.data, evidence, events,
-            preceding_period = precedingPeriod, timeline.current_period, timeline.next_confirmed_period });
+            preceding_period = precedingPeriod, timeline.current_period, timeline.next_confirmed_period,
+            protection, protection_case = protectionCase });
     }
 
     private static async Task<IResult> Decide(long id, string action, string? reason,
@@ -334,6 +391,14 @@ public static class ContractRenewalEndpoints
         if (action is "NEEDS_INFO" or "REJECTED")
             reason = Validation.Required(reason, "reason", "Cần nhập lý do xử lý.", 1000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        // Customer lock must precede renewal and contract locks, matching GI-01.
+        var targetCustomerId = await (from candidate in db.ContractRenewals.AsNoTracking()
+            join contract in db.SalesContracts.AsNoTracking() on candidate.ContractId equals contract.Id
+            where candidate.Id == id
+            select (long?)contract.CustomerId).SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException();
+        await db.ChannelCustomers.FromSqlInterpolated(
+            $"SELECT * FROM channel_customers WHERE id = {targetCustomerId} FOR UPDATE").SingleAsync(ct);
         var renewal = await db.ContractRenewals.FromSqlInterpolated(
             $"SELECT * FROM contract_renewals WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException();
@@ -362,8 +427,11 @@ public static class ContractRenewalEndpoints
         Event(db, renewal, access.UserId, action, reason);
         Audit.Add(db, access.UserId, "REVIEW_CONTRACT_RENEWAL", nameof(ContractRenewal),
             id, new { status = previous }, new { status = action, reason }, http);
-        // No source contract mutation, no new CHECKEE case, no revenue/commission/protection entries.
+        // Accounting alone confirms the service year. Protection may be granted
+        // only when the preceding five-year cycle has expired and all guards pass.
         await db.SaveChangesAsync(ct);
+        if (action == "CONFIRMED")
+            await AutomaticProtectionRenewal.TryGrantAsync(db, renewal.ContractId, now, access.UserId, ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { data = new { id, status = action } });
     }

@@ -76,18 +76,13 @@ public static class SalesProtectionOverviewEndpoints
             var released = previousProtection?.Status == "RELEASED" ||
                 giStatus == "RELEASED";
             var applicableProtection = currentProtection is not null && !released;
-            var canRequest = applicableProtection && protectionCase is null
-                && ProtectionRenewalPolicy.EligibleWindow(now, currentProtection!.EffectiveUntil)
-                && interruption?.Assessment.Status is not
-                    (ServiceInterruptionPolicy.AssessmentStatus.ThresholdReached or
-                     ServiceInterruptionPolicy.AssessmentStatus.HistoricalThresholdRequiresReview);
-            var renewalStatus = protectionCase?.Status ?? (canRequest ? "NOT_CREATED" : "NOT_DUE");
+            var renewalStatus = protectionCase?.Status ?? "NOT_DUE";
             var protectionState = released ? "RELEASED" :
                 applicableProtection ? "PROTECTED" : "EXPIRED";
             var displayStatus = giStatus.StartsWith("EXCEPTION_", StringComparison.Ordinal)
                 ? giStatus : giStatus == "THRESHOLD_REACHED" ? giStatus
                 : released ? "RELEASED"
-                : renewalStatus is "PENDING_MANAGER" or "WAITING_RENEWAL" ? renewalStatus
+                : renewalStatus is "PENDING_MANAGER" or "WAITING_RENEWAL" or "WAITING_PROTECTION_EXPIRY" ? renewalStatus
                 : giStatus == "INTERRUPTED" ? giStatus
                 : protectionState;
             if (!string.IsNullOrWhiteSpace(status) &&
@@ -116,7 +111,7 @@ public static class SalesProtectionOverviewEndpoints
                 renewal_confirmed = confirmation,
                 new_protection_from = protectionCase?.NewProtectionFrom,
                 new_protection_until = protectionCase?.NewProtectionUntil,
-                can_request = canRequest,
+                can_request = false,
                 interruption_status = giStatus,
                 gap_start_on = interruption?.Assessment.GapStartOn,
                 threshold_on = interruption?.Assessment.ThresholdOn,

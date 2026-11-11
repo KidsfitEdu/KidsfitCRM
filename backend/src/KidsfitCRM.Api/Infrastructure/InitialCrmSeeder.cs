@@ -177,6 +177,82 @@ public static class InitialCrmSeeder
                 IsPrimary = true, Status = "ACTIVE", CreatedAt = now, UpdatedAt = now,
             });
 
+        // Bootstrap only the two privileged operational identities approved for the CRM.
+        // Passwords are supplied privately and never overwritten when re-running bootstrap.
+        async Task<User> EnsureSystemAccount(string code, string email, string name, string roleCode, string secretName)
+        {
+            var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email);
+            if (user is null)
+            {
+                var secret = config[secretName];
+                if (string.IsNullOrWhiteSpace(secret) || secret.Length < 12)
+                    throw new InvalidOperationException($"{secretName} must be set privately with at least 12 characters before creating {roleCode}.");
+                if (await db.Users.AnyAsync(x => x.Code == code))
+                    throw new InvalidOperationException($"Bootstrap account code {code} already belongs to another user.");
+                user = new User
+                {
+                    Code = code, Name = name, Email = email,
+                    Status = "ACTIVE", EmailVerifiedAt = now, CreatedAt = now, UpdatedAt = now,
+                };
+                user.Password = hasher.HashPassword(user, secret);
+                db.Users.Add(user);
+                await db.SaveChangesAsync();
+            }
+            else if (user.Code != code)
+                throw new InvalidOperationException($"Bootstrap email {email} already belongs to a different account.");
+
+            var linkedRoles = await (from link in db.UserRoles
+                                     join role in db.Roles on link.RoleId equals role.Id
+                                     where link.UserId == user.Id
+                                     select role.Code).ToArrayAsync();
+            if (linkedRoles.Any(existing => existing != roleCode))
+                throw new InvalidOperationException($"Bootstrap account {email} has an unexpected existing role.");
+            var roleId = roleByCode[roleCode].Id;
+            if (!linkedRoles.Contains(roleCode))
+                db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = roleId });
+            return user;
+        }
+
+        void EnsureSystemMembership(User user, Organization organization, string roleCode)
+        {
+            var membership = await db.OrganizationMemberships.SingleOrDefaultAsync(x =>
+                x.UserId == user.Id && x.OrganizationId == organization.Id);
+            if (membership is null)
+                db.OrganizationMemberships.Add(new OrganizationMembership
+                {
+                    UserId = user.Id, OrganizationId = organization.Id,
+                    MembershipType = roleCode, IsPrimary = true, Status = "ACTIVE",
+                    CreatedAt = now, UpdatedAt = now,
+                });
+            else if (membership.MembershipType != roleCode)
+                throw new InvalidOperationException($"Bootstrap account {user.Email} has an unexpected membership type.");
+        }
+
+        var director = await EnsureSystemAccount("BOARD001", "board@kidsfit.vn",
+            "Ban Giám Đốc KIDSFIT", "DIRECTOR", "Seed:BoardPassword");
+        var checkee = await EnsureSystemAccount("CHECKEE001", "checkee@kidsfit.vn",
+            "Bộ phận xác minh hợp đồng", "CHECKEE", "Seed:CheckeePassword");
+        var checkeeOrganization = await db.Organizations.SingleAsync(x => x.Code == "CHECKEE");
+        EnsureSystemMembership(director, kidsfit, "DIRECTOR");
+        EnsureSystemMembership(checkee, checkeeOrganization, "CHECKEE");
+
+        // Seed a proposal only. BGĐ decides whether and when to activate it.
+        // Do not supersede or override existing policies maintained by users.
+        if (!await db.SchoolWorkflowPolicies.AnyAsync(x => x.OrganizationId == kidsfit.Id))
+        {
+            const string draftReference = "KIDSFIT-INITIAL-V1-DRAFT";
+            var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(draftReference + ":24:48:24:7:3:21"))).ToLowerInvariant();
+            db.SchoolWorkflowPolicies.Add(new SchoolWorkflowPolicyVersion
+            {
+                OrganizationId = kidsfit.Id, Version = 1, Status = "DRAFT",
+                ManagerReviewHours = 24, AdminReviewHours = 48, InvitationHours = 24,
+                MaxExtensionDays = 7, MaxExtensionCount = 3, MaxTotalExtensionDays = 21,
+                DecisionReference = draftReference, RequestFingerprint = fingerprint,
+                CreatedByUserId = director.Id, CreatedAt = now, UpdatedAt = now,
+            });
+        }
+
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
     }

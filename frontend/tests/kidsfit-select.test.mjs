@@ -71,3 +71,11 @@ test('Admin search toolbar controls and branded select use a shared 40px height'
   assert.match(toolbar,/className="h-10 rounded-lg px-4">Tìm kiếm/);
   assert.match(toolbar,/className="h-10 w-10 min-w-10 rounded-lg p-0"/);
 });
+
+
+test('Dropdown items maintain visible separation between adjacent active and selected highlights',()=>{
+  const shared=source('src/components/common/app-select.tsx');
+  assert.match(shared,/my-0\.5 min-h-10 rounded-lg/);
+  assert.match(shared,/focus:bg-primary\/10/);
+  assert.match(shared,/data-\[selected\]:bg-primary\/10/);
+});

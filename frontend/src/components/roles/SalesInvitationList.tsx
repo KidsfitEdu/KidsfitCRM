@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CheckCircle2, History, XCircle } from 'lucide-react';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
 import { Badge } from '@/components/ui/badge';
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace } from '@/lib/school-operations';
@@ -32,12 +32,10 @@ export function SalesInvitationList({
     const normalize = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('vi');
     return normalize([x.school_name,x.assignee_name,x.assigned_by,x.reason].join(' ')).includes(normalize(applied));
   });
-  const filter = <AppNativeSelect aria-label="Lọc trạng thái phân bổ"
-    value={pendingOnly ? 'PENDING' : 'ALL'} containerClassName="w-full sm:w-48"
-    onChange={e => onPendingChange(e.target.value === 'PENDING')}>
-    <option value="PENDING">Chờ phản hồi</option>
-    <option value="ALL">Tất cả trạng thái</option>
-  </AppNativeSelect>;
+  const filter = <AppSelect ariaLabel="Lọc trạng thái phân bổ" value={pendingOnly ? 'PENDING' : 'ALL'}
+    className="w-full sm:w-48" options={[{value:'PENDING',label:'Chờ phản hồi'},
+      {value:'ALL',label:'Tất cả trạng thái'}]}
+    onValueChange={next=>onPendingChange(next==='PENDING')}/>;
   return <SalesListLayout columns={['Trường học','Sales/CTV nhận','Hạn phản hồi','Trạng thái','Thao tác']}
     template={columns} page={page} pageSize={pageSize}
     total={preview ? shown.length : total} loading={loading}

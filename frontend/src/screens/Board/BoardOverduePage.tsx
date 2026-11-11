@@ -7,7 +7,7 @@ import { AppPageHeader } from '@/components/common/app-page-header';
 import { ServiceInterruptionPanel } from '@/components/crm/ServiceInterruptionPanel';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminListPanel, AdminListToolbar, AdminStatusBadge, AdminIconAction, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 import type { SchoolAction } from '@/components/crm/schools/school-action-form';
@@ -74,12 +74,10 @@ export function BoardOverduePage({apiBase,token,abilities,onChanged}:RolePagePro
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}
         onReset={()=>{setDraft('');setSearch('');setKind('all');setPage(1);}}
         placeholder="Tên trường, mã trường, người phụ trách..." searchLabel="Tìm hồ sơ quá hạn"
-        filters={<AppNativeSelect aria-label="Lọc loại hồ sơ" containerClassName="w-full sm:w-48" value={kind}
-          onChange={e=>{setKind(e.target.value as typeof kind);setPage(1);}}>
-          <option value="all">Tất cả hồ sơ</option>
-          <option value="proposal">Đề xuất trường</option>
-          <option value="extension">Gia hạn tiếp cận</option>
-        </AppNativeSelect>}/>
+        filters={<AppSelect ariaLabel="Lọc loại hồ sơ" className="w-full sm:w-48" value={kind}
+          options={[{value:'all',label:'Tất cả hồ sơ'},{value:'proposal',label:'Đề xuất trường'},
+            {value:'extension',label:'Gia hạn tiếp cận'}]}
+          onValueChange={next=>{setKind(next as typeof kind);setPage(1);}}/>}/>
       {query.error&&<p role="alert" className="p-4 text-sm text-red-600">{query.error instanceof Error?query.error.message:'Không tải được hồ sơ.'}</p>}
       {!connected&&<p className="p-5 text-sm text-muted-foreground">Chưa kết nối API hoặc chưa có quyền giám sát quá hạn.</p>}
       <div className="overflow-x-auto">

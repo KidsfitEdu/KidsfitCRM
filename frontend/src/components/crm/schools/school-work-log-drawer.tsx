@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppWorkNoteContent } from '@/components/common/forms/app-work-note';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { channelQueryKeys, channelRequest } from '@/lib/channel-operations';
 
 type WorkLog = {
@@ -61,12 +61,10 @@ export function SchoolWorkLogDrawer({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{logs.data ? `${logs.data.total} lần làm việc được ghi nhận` : 'Hoạt động liên hệ với nhà trường'}</p>
-        <AppNativeSelect aria-label="Lọc kênh liên hệ" value={type}
-          containerClassName="h-9 w-40" className="pr-10"
-          onChange={event=>{setType(event.target.value);setPage(1);}}>
-          <option value="">Tất cả kênh</option>
-          {Object.entries(typeNames).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-        </AppNativeSelect>
+        <AppSelect ariaLabel="Lọc kênh liên hệ" value={type} size="compact" className="w-40"
+          options={[{value:'',label:'Tất cả kênh'},
+            ...Object.entries(typeNames).map(([value,label])=>({value,label}))]}
+          onValueChange={next=>{setType(next);setPage(1);}}/>
       </div>
       {logs.isPending && <output className="text-sm text-muted-foreground">Đang tải ghi chú…</output>}
       {logs.error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{logs.error instanceof Error ? logs.error.message : 'Không tải được lịch sử.'}</p>}

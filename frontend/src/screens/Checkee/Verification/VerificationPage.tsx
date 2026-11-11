@@ -9,7 +9,7 @@ import {
   adminTableClass, adminTableHeadClass, adminTableCellClass,
 } from '@/components/common/admin-list-ui';
 import { AppPagination } from '@/components/common/app-pagination';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
@@ -155,15 +155,10 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
       <AdminListToolbar search={searchDraft} onSearchChange={setSearchDraft}
         onSearch={() => {setSearch(searchDraft.trim());setPage(1);}} onReset={reset}
         searchLabel="Tìm hợp đồng CHECKEE" placeholder="Tên trường, mã hợp đồng, Sales..."
-        filters={<AppNativeSelect value={status} aria-label="Lọc trạng thái xác minh"
-          containerClassName="w-full sm:w-52" onChange={event => {
-            setStatus(event.target.value as VerificationStatus);setPage(1);
-          }}>
-          <option value="ALL">Tất cả trạng thái</option>
-          <option value="PENDING">Chờ xác minh</option>
-          <option value="DISPUTED">Đã phản hồi / Cần bổ sung</option>
-          <option value="CONFIRMED">Đã xác minh</option>
-        </AppNativeSelect>}/>
+        filters={<AppSelect ariaLabel="Lọc trạng thái xác minh" value={status} className="w-full sm:w-52"
+          options={[{value:'ALL',label:'Tất cả trạng thái'},{value:'PENDING',label:'Chờ xác minh'},
+            {value:'DISPUTED',label:'Đã phản hồi / Cần bổ sung'},{value:'CONFIRMED',label:'Đã xác minh'}]}
+          onValueChange={next=>{setStatus(next as VerificationStatus);setPage(1);}}/>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass}>
           <thead className={adminTableHeadClass}><tr>

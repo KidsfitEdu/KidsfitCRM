@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { Eye, Plus, RotateCcw, Search } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppPagination } from '@/components/common/app-pagination';
+import { AppSelect } from '@/components/common/app-select';
 import { AppNativeSelect } from '@/components/common/app-native-select';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -156,16 +157,14 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           <Input aria-label="Tìm hồ sơ tái ký" className="h-11 w-full rounded-xl pl-10"
             placeholder="Tên trường, mã hợp đồng, kỳ tái ký..." value={search} onChange={event=>setSearch(event.target.value)}/>
         </div>
-        <AppNativeSelect aria-label="Lọc theo hợp đồng" containerClassName="w-full md:w-56" value={contractId}
-          onChange={event=>changeContract(event.target.value)}>
-          <option value="">Chọn trường / hợp đồng</option>
-          {eligible.map(x=><option value={x.id} key={x.id}>{x.school_name} · {x.contract_code}</option>)}
-        </AppNativeSelect>
-        <AppNativeSelect aria-label="Lọc theo trạng thái" containerClassName="w-full md:w-44" value={status}
-          onChange={event=>{setStatus(event.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả trạng thái</option>
-          {Object.entries(statuses).map(([key,value])=><option key={key} value={key}>{value}</option>)}
-        </AppNativeSelect>
+        <AppSelect ariaLabel="Lọc theo hợp đồng" className="w-full md:w-56" value={contractId}
+          options={[{value:'',label:'Chọn trường / hợp đồng'},
+            ...eligible.map(x=>({value:String(x.id),label:x.school_name+' · '+x.contract_code}))]}
+          onValueChange={changeContract}/>
+        <AppSelect ariaLabel="Lọc theo trạng thái" className="w-full md:w-44" value={status}
+          options={[{value:'ALL',label:'Tất cả trạng thái'},
+            ...Object.entries(statuses).map(([value,label])=>({value,label}))]}
+          onValueChange={next=>{setStatus(next);setPage(1);}}/>
         <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
         <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
           aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setSearch('');setQuery('');setStatus('ALL');setPage(1);}}>

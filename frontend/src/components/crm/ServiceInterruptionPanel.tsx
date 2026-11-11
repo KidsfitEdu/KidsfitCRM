@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CalendarClock, Eye, RefreshCw } from 'lucide-react';
 import { channelRequest } from '@/lib/channel-operations';
 import { AdminListPanel, AdminListToolbar, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
-import { AppNativeSelect } from '@/components/common/app-native-select';
+import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -86,11 +86,10 @@ export function ServiceInterruptionPanel({apiBase,token,mode}:{
       <AdminListToolbar search={draft} onSearchChange={setDraft}
         onSearch={()=>{setSearch(draft.trim());setPage(1);}} onReset={reset}
         searchLabel="Tìm trường gián đoạn" placeholder="Tên trường hoặc mã hợp đồng..."
-        filters={<AppNativeSelect aria-label="Trạng thái gián đoạn" value={status}
-          onChange={e=>{setStatus(e.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả trạng thái</option>
-          {Object.entries(statusLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}
-        </AppNativeSelect>}/>
+        filters={<AppSelect ariaLabel="Trạng thái gián đoạn" value={status}
+          options={[{value:'ALL',label:'Tất cả trạng thái'},
+            ...Object.entries(statusLabels).map(([value,label])=>({value,label}))]}
+          onValueChange={next=>{setStatus(next);setPage(1);}}/>}/>
       <div className="overflow-x-auto">
         <table className={adminTableClass+' min-w-[830px]'}>
           <thead className={adminTableHeadClass}><tr>

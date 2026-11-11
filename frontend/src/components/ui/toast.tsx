@@ -71,7 +71,7 @@ function ToastTitle({ className, ...props }: ToastPrimitive.Title.Props) {
   return (
     <ToastPrimitive.Title
       data-slot="toast-title"
-      className={cn('text-sm font-medium', className)}
+      className={cn('text-sm font-semibold leading-5', className)}
       {...props}
     />
   );
@@ -84,7 +84,7 @@ function ToastDescription({
   return (
     <ToastPrimitive.Description
       data-slot="toast-description"
-      className={cn('text-sm text-muted-foreground', className)}
+      className={cn('text-xs leading-5 text-muted-foreground', className)}
       {...props}
     />
   );
@@ -143,7 +143,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
   }
 
   if (type === 'error') {
-    icon = <OctagonXIcon className="text-destructive" aria-hidden="true" />;
+    icon = <OctagonXIcon aria-hidden="true" />;
   }
 
   if (type === 'loading') {
@@ -157,7 +157,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
   return (
     <span
       data-slot="toast-icon"
-      className="shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4"
+      className="flex size-9 shrink-0 items-center justify-center self-center rounded-full bg-[color-mix(in_srgb,var(--crm-toast-color)_12%,transparent)] text-[var(--crm-toast-color)] [&_svg]:pointer-events-none [&_svg]:size-5"
     >
       {icon}
     </span>

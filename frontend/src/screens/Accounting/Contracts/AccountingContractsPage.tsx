@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { channelDate, channelMoney, channelRequest, ChannelRequestError, formatMoneyInput, parseMoneyInput } from '@/lib/channel-operations';
 import { EvidencePreviewDialog } from '@/components/common/evidence-preview-dialog';
+import { AppStatusBadge } from '@/components/common/app-status-badge';
+import { AccountingRenewalInline } from './AccountingRenewalInline';
 
 const paymentScheduleLabel = (status: string) => ({
   PAID: 'Đã thanh toán',
@@ -58,6 +60,15 @@ type ContractRow = {
   service_start_on: string | null;
   service_end_on: string | null;
   payment_cycle: string | null;
+  customer_id:number;
+  service_until:string|null;
+  next_service_start_on:string|null;
+  service_status:string;
+  gap_start_on:string|null;
+  threshold_on:string|null;
+  action:string|null;
+  pending_renewal_id:number|null;
+  has_financial_history:boolean;
 };
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
 type Detail = {
@@ -80,20 +91,22 @@ type Detail = {
   school_units: {id:number;name:string}[];
 };
 
-export function AccountingContractsPage({ apiBase, token, abilities, financialView }: {
+export function AccountingContractsPage({ apiBase, token, abilities, onChanged }: {
   apiBase: string; token: string; abilities: string[]; onChanged: () => Promise<void>;
-  financialView: 'CURRENT' | 'HISTORY';
+  financialView?: 'CURRENT' | 'HISTORY';
 }) {
   const [rows, setRows] = useState<ContractRow[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [ownerUserId, setOwnerUserId] = useState('ALL');
+  const [workspaceStatus, setWorkspaceStatus] = useState('ALL');
   const [owners, setOwners] = useState<{ id: number; name: string }[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
   const [payoutPeriod, setPayoutPeriod] = useState('');
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
@@ -108,10 +121,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     if (!connected) return;
     setBusy(true);
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), financial_view: financialView });
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), status:workspaceStatus });
       if (ownerUserId !== 'ALL') params.set('owner_user_id', ownerUserId);
       if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
-      const result = await channelRequest<ContractList>(apiBase, token, `/accounting/contracts?${params.toString()}`);
+      const result = await channelRequest<ContractList>(apiBase, token, `/accounting/workspace?${params.toString()}`);
       setRows(result.data);
       // During staged deployments the previous API may not include owner options yet.
       setOwners(Array.isArray(result.owners) ? result.owners : []);
@@ -124,7 +137,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     } finally {
       setBusy(false);
     }
-  }, [apiBase, token, page, pageSize, appliedSearch, ownerUserId, financialView, connected]);
+  }, [apiBase, token, page, pageSize, appliedSearch, ownerUserId, workspaceStatus, connected]);
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
@@ -137,14 +150,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
-  const periodLabel = (period: ServicePeriod, current: ServicePeriod|null, next: ServicePeriod|null, today: string) => {
-    if (current?.start_on === period.start_on && current?.end_on === period.end_on)
-      return 'Đang sử dụng';
-    if (period.end_on < today) return 'Đã kết thúc';
-    if (next?.start_on === period.start_on && next?.end_on === period.end_on)
-      return period.renewal_id === null ? 'Hợp đồng gốc · Chưa bắt đầu' : 'Kỳ tiếp theo đã xác nhận · Chưa bắt đầu';
-    return period.start_on > today ? 'Chưa bắt đầu' : 'Đã xác nhận';
-  };
+  useEffect(()=>{
+    if(!connected||selected===null){setGiHistory([]);return;}
+    let active=true;setGiHistory([]);
+    void channelRequest<{data:typeof giHistory}>(apiBase,token,
+      '/accounting/contracts/'+selected+'/service-history')
+      .then(res=>{if(active)setGiHistory(res.data);})
+      .catch(()=>{if(active)setGiHistory([]);});
+    return ()=>{active=false;};
+  },[apiBase,token,selected,connected]);
 
   const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
     if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
@@ -314,6 +328,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
     setSearch('');
     setAppliedSearch('');
     setOwnerUserId('ALL');
+    setWorkspaceStatus('ALL');
     setPage(1);
   };
   return <div className="space-y-5">
@@ -325,6 +340,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-11 w-full rounded-xl pl-10"
             placeholder="Tên trường, mã hợp đồng, người phụ trách..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
+        <AppNativeSelect aria-label="Lọc nhóm hợp đồng Kế toán" value={workspaceStatus}
+          containerClassName="w-full sm:w-52"
+          onChange={e=>{setWorkspaceStatus(e.target.value);setPage(1);}}>
+          <option value="ALL">Tất cả hợp đồng</option>
+          <option value="PENDING">Chờ xác nhận tái ký</option>
+          <option value="INTERRUPTED">Gián đoạn dịch vụ</option>
+          <option value="HISTORY">Lịch sử tài chính</option>
+        </AppNativeSelect>
         <AppNativeSelect aria-label="Lọc theo người phụ trách" value={ownerUserId} containerClassName="w-full sm:w-60"
           onChange={e=>{setOwnerUserId(e.target.value);setPage(1);}}>
           <option value="ALL">Tất cả người phụ trách</option>
@@ -337,63 +360,81 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
         </AppButton>
       </form>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
+        <table className="w-full min-w-[1280px] text-left text-sm">
           <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white">
             <tr>
-              <th scope="col" className="px-5 py-3">Nhà trường</th>
-              <th scope="col" className="px-4 py-3">Phụ trách</th>
-              <th scope="col" className="px-4 py-3">Dịch vụ</th>
-              <th scope="col" className="px-4 py-3 text-right">Giá trị HĐ</th>
-              <th scope="col" className="px-4 py-3 text-right">Tài chính</th>
-              <th scope="col" className="px-5 py-3 text-center">Thao tác</th>
+              <th scope="col" className="px-4 py-3">Nhà trường</th>
+              <th scope="col" className="px-3 py-3">Sales phụ trách</th>
+              <th scope="col" className="px-3 py-3">Kỳ sử dụng</th>
+              <th scope="col" className="px-3 py-3">Dịch vụ</th>
+              <th scope="col" className="px-3 py-3">Cần xử lý</th>
+              <th scope="col" className="px-3 py-3 text-right">Thanh toán</th>
+              <th scope="col" className="px-3 py-3 text-right">Hoa hồng</th>
+              <th scope="col" className="px-3 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
-            {rows.map(row => {
-              const current=row.current_period;
-              const next=row.next_confirmed_period;
-              const today = accountingBusinessDay(new Date());
-              const status = row.contract_status==='CANCELLED' ? 'Đã hủy hợp đồng'
-                : current ? serviceStatus(current.start_on, current.end_on, row.contract_status)
-                : next ? 'Chưa bắt đầu sử dụng' : row.service_end_on && row.service_end_on < today
-                  ? 'Đã hết hạn' : 'Chưa có thông tin kỳ dịch vụ';
-              const statusTone = status === 'Còn hiệu lực'
-                ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
-                : status === 'Sắp hết hạn'
-                  ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300'
-                  : 'border-border bg-muted/50 text-muted-foreground';
+            {rows.map(row=>{
+              const state=row.service_status;
+              const label:Record<string,string>={
+                CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
+                INTERRUPTED:'Gián đoạn',THRESHOLD_REACHED:'Đủ 12 tháng',
+                THRESHOLD_OVERDUE:'Quá 12 tháng',RELEASED:'Đã hết bảo vệ',
+                NEEDS_REVIEW:'Cần rà soát',INACTIVE:'Đã kết thúc',
+                HISTORICAL_GAP:'Cần rà soát',MISSING_TERM:'Cần rà soát'
+              };
+              const tone=state==='CONTINUOUS'?'success' as const
+                :state==='THRESHOLD_REACHED'||state==='THRESHOLD_OVERDUE'?'danger' as const
+                :state==='INTERRUPTED'||state==='EXPIRING_SOON'||state==='NEEDS_REVIEW'?'warning' as const
+                :'neutral' as const;
+              const amount=Math.max(0,row.received-row.refunded);
               return <tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
-                <td className="px-5 py-4 align-middle">
-                  <p className="font-semibold text-foreground">{row.school_name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{row.contract_status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : row.contract_status === 'CANCELLED' ? 'Đã hủy · Giữ lịch sử' : row.contract_status === 'REJECTED' ? 'Từ chối sau xác minh' : 'Đã xác minh'}</p>
-                </td>
                 <td className="px-4 py-4 align-middle">
+                  <p className="max-w-[260px] font-semibold text-foreground">{row.school_name}</p>
+                </td>
+                <td className="px-3 py-4 align-middle">
                   <p className="font-medium">{row.owner_name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
                 </td>
-                <td className="px-4 py-4 align-middle">
-                  <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${statusTone}`}>{status}</span>
-                  <p className="mt-1 text-xs text-muted-foreground">{current
-                    ? `Đến ${channelDate(current.end_on)}`
-                    : next ? `Bắt đầu ${channelDate(next.start_on)}`
-                    : row.service_end_on && row.service_end_on < today
-                      ? `Đã kết thúc ${channelDate(row.service_end_on)}`
-                      : 'Chưa có kỳ dịch vụ hợp lệ'}</p>
-                  {next&&current&&<p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">Kỳ tiếp theo đã xác nhận: {channelDate(next.start_on)}</p>}
+                <td className="px-3 py-4 align-middle tabular-nums">
+                  {row.service_until?channelDate(row.service_until):'—'}
+                  {row.next_service_start_on&&<p className="mt-1 text-xs text-muted-foreground">
+                    Kỳ tiếp theo: {channelDate(row.next_service_start_on)}</p>}
                 </td>
-                <td className="px-4 py-4 text-right align-middle tabular-nums font-medium">{channelMoney(row.total_value)}</td>
-                <td className="px-4 py-4 text-right align-middle tabular-nums">
-                  <p className="font-medium">{channelMoney(row.received - row.refunded)}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Thực thu</p>
-                  <p className="mt-2 font-semibold">{channelMoney(row.commission)}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Hoa hồng ghi nhận</p>
+                <td className="px-3 py-4 align-middle">
+                  <AppStatusBadge status={state} label={label[state]??'Cần kiểm tra'} tone={tone}/>
+                  {row.threshold_on&&(['INTERRUPTED','THRESHOLD_REACHED','THRESHOLD_OVERDUE','RELEASED'].includes(state))&&
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {state==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(row.threshold_on)}
+                    </p>}
                 </td>
-                <td className="px-5 py-4 text-center align-middle">
-                  <Button type="button" variant="outline" size="icon" onClick={() => setSelected(row.id)}
-                    aria-label={`Xem chi tiết ${row.contract_code}`} title={`Xem hợp đồng ${row.contract_code}`}>
-                    <Eye className="size-4"/>
-                  </Button>
+                <td className="px-3 py-4 align-middle">
+                  {row.action==='CONFIRM_RENEWAL'
+                    ? <span className="font-semibold text-amber-800 dark:text-amber-200">Xác nhận tái ký</span>
+                    :row.action==='REVIEW_PERIOD'
+                      ? <span className="text-amber-800 dark:text-amber-200">Kiểm tra kỳ dịch vụ</span>
+                      :<span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="px-3 py-4 text-left align-middle tabular-nums">
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Giá trị hợp đồng</p>
+                      <p className="mt-1 font-semibold">{channelMoney(row.total_value)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Thực thu</p>
+                      <p className="mt-1 font-semibold">{channelMoney(amount)}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-3 py-4 text-left align-middle tabular-nums">
+                  <p className="text-xs text-muted-foreground">Hoa hồng ghi nhận</p>
+                  <p className="mt-1 font-semibold">{channelMoney(row.commission)}</p>
+                </td>
+                <td className="px-3 py-4 text-center align-middle">
+                  <Button type="button" size="icon" variant="outline" onClick={()=>setSelected(row.id)}
+                    aria-label={`Xem chi tiết hợp đồng trường ${row.school_name}`}
+                    title="Xem chi tiết hợp đồng"><Eye className="size-4"/></Button>
                 </td>
               </tr>;
             })}
@@ -407,11 +448,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </section>
     <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
-      title="KIDSFIT CRM - CHI TIẾT HỢP ĐỒNG" description="Chi tiết hợp đồng kế toán">
+      title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
+      description="Kế toán / Chi tiết hợp đồng">
       {!detail ? <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p> : <div className="space-y-5 text-sm">
         <div className="space-y-2 rounded-xl bg-muted/25 p-4 sm:p-5">
           <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
-          <h2 className="text-xl font-bold">{detail.data.school_name}</h2>
+          <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>
           <p className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
             <span>{[detail.data.school_address, detail.data.school_district, detail.data.school_province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</span>
           </p>
@@ -421,11 +463,45 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
           <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Giá trị hợp đồng" value={channelMoney(detail.data.total_value)}/>
-          <Metric label="Nhà trường đã trả" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0))}/>
-          <Metric label="Hoa hồng" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
-          <Metric label="Hoa hồng đã chuyển" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
+          <Metric label="Giá trị hợp đồng gốc" value={channelMoney(detail.data.total_value)}/>
+          <Metric label="Thực thu" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0))}/>
+          <Metric label="Hoa hồng ghi nhận" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
+          <Metric label="Hoa hồng đã chi" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
         </div>
+        {selected!==null&&<AccountingRenewalInline key={selected} apiBase={apiBase} token={token}
+          contractId={selected} abilities={abilities}
+          onChanged={async()=>{setDetailRevision(v=>v+1);await load();await onChanged();}}/>}
+        {rows.find(r=>r.id===selected)&&(()=>{
+          const overview=rows.find(r=>r.id===selected)!;
+          return <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+            <h3 className="text-base font-bold">Tình trạng dịch vụ & quyền bảo vệ</h3>
+            <AppStatusBadge status={overview.service_status} label={{
+              CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
+              INTERRUPTED:'Gián đoạn',THRESHOLD_REACHED:'Đủ 12 tháng',
+              THRESHOLD_OVERDUE:'Quá 12 tháng',RELEASED:'Đã hết bảo vệ',
+              NEEDS_REVIEW:'Cần rà soát',
+              HISTORICAL_GAP:'Cần rà soát',
+              MISSING_TERM:'Cần rà soát',INACTIVE:'Đã kết thúc'
+            }[overview.service_status]??'Cần kiểm tra'}/>
+            {overview.gap_start_on&&<p>Bắt đầu gián đoạn: {channelDate(overview.gap_start_on)}</p>}
+            {overview.threshold_on&&<p>
+              {overview.service_status==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(overview.threshold_on)}
+            </p>}
+            {overview.next_service_start_on&&<p>Kỳ sử dụng tiếp theo: {channelDate(overview.next_service_start_on)}</p>}
+            <p>Quyền bảo vệ Sales: {detail.data.protection_until
+              ? 'Đến '+channelDate(detail.data.protection_until)
+              : 'Không có quyền bảo vệ đang hiệu lực'}</p>
+            <p className="text-xs text-muted-foreground">Đủ hoặc quá 12 tháng không đồng nghĩa đã hết bảo vệ. Chỉ hiển thị “Đã hết bảo vệ” khi có quyết định GI-01 hợp lệ. Kế toán không tự kết thúc hoặc cấp quyền bảo vệ.</p>
+            {giHistory.length>0&&<div className="space-y-2 border-t border-border pt-3">
+              <h4 className="font-semibold">Lịch sử xử lý gián đoạn (GI-01)</h4>
+              {giHistory.map((item,i)=><div key={i} className="rounded-lg border border-border p-3 text-xs">
+                <p className="font-semibold">{item.status==='RELEASED'?'Đã giải phóng quyền':item.status==='REVIEW_REQUIRED'?'Chờ rà soát':item.status.startsWith('EXCEPTION_')?'Ngoại lệ cần xử lý':item.status} · {channelDate(item.processed_at)}</p>
+                {item.reason&&<p className="mt-1 text-muted-foreground">Lý do: {item.reason}</p>}
+                <p className="mt-1 text-muted-foreground">Bắt đầu: {channelDate(item.gap_start_on)} · Mốc 12 tháng: {channelDate(item.threshold_on)}</p>
+              </div>)}
+            </div>}
+          </section>;
+        })()}
         <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold text-foreground">Thông tin hợp đồng</h3>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&_dd]:break-words [&_dd]:leading-6 [&_dt]:text-xs">
@@ -440,20 +516,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, financialVi
             <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
-          <section className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
-            <h4 className="font-semibold">Kỳ sử dụng và tái ký đã xác nhận</h4>
-            {detail.next_confirmed_period&&<p className="text-sm">
-              <strong>{detail.next_confirmed_period.renewal_id===null?'Hợp đồng gốc · Chưa bắt đầu':'Kỳ tiếp theo đã xác nhận · Chưa bắt đầu'}:</strong> {channelDate(detail.next_confirmed_period.start_on)} – {channelDate(detail.next_confirmed_period.end_on)}
-            </p>}
-            {!detail.current_period&&detail.previous_period&&detail.next_confirmed_period&&<p className="text-sm text-amber-700">Tạm gián đoạn giữa các kỳ dịch vụ.</p>}
-            {!detail.current_period&&!(detail.previous_period&&detail.next_confirmed_period)&&<p className="text-sm text-amber-700">{detail.next_confirmed_period?'Kỳ dịch vụ đã xác nhận, chưa đến ngày bắt đầu.':detail.previous_period?'Kỳ dịch vụ đã kết thúc.':'Chưa có thông tin kỳ dịch vụ.'}</p>}
-            {detail.period_history.length===0&&<p className="text-muted-foreground">Chưa có kỳ dịch vụ đáng tin cậy.</p>}
-            {detail.period_history.map(period=><div key={period.renewal_id??'source'} className="flex flex-wrap justify-between gap-2 border-t border-border/70 pt-2 text-sm">
-              <span>{period.renewal_no===null?'Hợp đồng gốc':`Tái ký lần ${period.renewal_no}`} · {channelDate(period.start_on)} – {channelDate(period.end_on)}</span>
-              <span className="text-muted-foreground">{periodLabel(period,detail.current_period,detail.next_confirmed_period,accountingBusinessDay(new Date()))}</span>
-              {period.gap_reason&&<p className="w-full text-xs text-muted-foreground">Lý do gián đoạn: {period.gap_reason}</p>}
-            </div>)}
-          </section>
           <div className="space-y-2">
             <p className="text-muted-foreground">Trường điểm / Phân hiệu triển khai</p>
             {detail.school_units.length > 0

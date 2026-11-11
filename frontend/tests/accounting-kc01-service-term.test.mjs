@@ -77,12 +77,13 @@ test('KC-01 Accounting separates signed original term from the currently active 
     assert.ok(ui.includes('detail.data.' + key), key);
     assert.ok(backend.includes(key + ' = c.'), key);
   }
-  for (const label of [
-    'Hợp đồng gốc · Chưa bắt đầu',
-    'Kỳ tiếp theo đã xác nhận · Chưa bắt đầu',
-    'Tạm gián đoạn giữa các kỳ dịch vụ',
-  ]) assert.ok(ui.includes(label), label);
-  assert.ok(ui.includes('periodLabel(period,detail.current_period,detail.next_confirmed_period'));
-  assert.ok(ui.includes('Bắt đầu ${channelDate(next.start_on)}'));
+  // KC-02 history now appears once in the unified inline renewal section,
+  // not duplicated below the original contract fields.
+  const renewal = read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
+  assert.ok(renewal.includes('Tái ký lần'));
+  assert.ok(renewal.includes('service_start_on'));
+  assert.ok(renewal.includes('service_end_on'));
+  assert.doesNotMatch(ui, /Kỳ sử dụng và tái ký đã xác nhận/);
+  assert.ok(ui.includes('Kỳ tiếp theo: {channelDate(row.next_service_start_on)}'));
   assert.ok(!ui.includes("detail.current_period?channelDate(detail.current_period.start_on):'Không có kỳ đang sử dụng'"));
 });

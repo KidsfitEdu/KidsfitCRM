@@ -8,7 +8,8 @@ const read = path => readFileSync(resolve(root, path), 'utf8');
 
 test('Accounting filters verified contracts with owner id and uses scoped owner options', () => {
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(ui, /financial_view: financialView/);
+  assert.match(ui, /status:workspaceStatus/);
+  assert.match(ui, /\/accounting\/workspace/);
   assert.match(ui, /params\.set\('owner_user_id', ownerUserId\)/);
   assert.match(ui, /Array\.isArray\(result\.owners\) \? result\.owners : \[\]/);
   assert.match(ui, /owners\?: \{ id: number; name: string \}\[\] \| null/);
@@ -16,9 +17,8 @@ test('Accounting filters verified contracts with owner id and uses scoped owner 
   assert.match(ui, /value=\{String\(owner\.id\)\}/);
   assert.match(ui, /Tất cả người phụ trách/);
   const page = read('src/screens/Accounting/Revenue/RevenuePage.tsx');
-  assert.match(page, /id: 'contracts', label: 'Hợp đồng'/);
-  assert.match(page, /id: 'renewals', label: 'Hồ sơ tái ký'/);
-  assert.match(page, /id: 'history', label: 'Lịch sử tài chính'/);
+  assert.doesNotMatch(page, /AccountingTab|ServiceInterruptionPanel|ContractRenewalAccountingPanel/);
+  assert.match(page, /<AccountingContractsPage/);
   assert.doesNotMatch(ui, /<option value="SALES">Nhân viên<\/option>/);
   assert.doesNotMatch(ui, /<option value="COLLABORATOR">CTV<\/option>/);
 });

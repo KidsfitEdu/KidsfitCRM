@@ -42,7 +42,6 @@ test('Vietnamese grouping is only presented outside the input focus state', () =
     ['690', '690'],
     ['', ''],
   ]) {
-    assert.equal(raw, raw);
     assert.equal(format(raw), afterBlur);
     assert.equal(Number(raw.replace(/\./g, '')), raw ? Number(raw) : 0);
   }

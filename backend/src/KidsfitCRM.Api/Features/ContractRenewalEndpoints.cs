@@ -47,6 +47,7 @@ public static class ContractRenewalEndpoints
     {
         channel.MapGet("/renewals/eligible", Eligible).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapGet("/renewals/mine", MineList).RequireAuthorization(Permissions.ContractRenewalSubmit);
+        channel.MapGet("/renewals/mine/schools", MineSchools).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapGet("/contracts/{contractId:long}/renewals", Mine).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/contracts/{contractId:long}/renewals", Submit).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/renewals/{id:long}/resubmit", Resubmit).RequireAuthorization(Permissions.ContractRenewalSubmit);
@@ -283,7 +284,7 @@ public static class ContractRenewalEndpoints
 
     /// <summary>All historical renewal submissions of the logged-in Sales, independently of current eligibility.</summary>
     public static async Task<IResult> MineList(HttpContext http, KidsfitDbContext db,
-        long? contractId, string? search, string? status, int? page, int? pageSize, CancellationToken ct)
+        long? customerId, string? search, string? status, int? page, int? pageSize, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
@@ -292,10 +293,10 @@ public static class ContractRenewalEndpoints
             join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
             where renewal.SubmittedByUserId == access.UserId && contract.OwnerUserId == access.UserId
             select new { renewal, contract, school };
-        if (contractId.HasValue)
+        if (customerId.HasValue)
         {
-            if (contractId.Value <= 0) throw ApiValidationException.For("contractId", "Hợp đồng không hợp lệ.");
-            query = query.Where(x => x.contract.Id == contractId.Value);
+            if (customerId.Value <= 0) throw ApiValidationException.For("customerId", "Trường không hợp lệ.");
+            query = query.Where(x => x.contract.CustomerId == customerId.Value);
         }
         var normalizedStatus = status?.Trim().ToUpperInvariant();
         if (!string.IsNullOrEmpty(normalizedStatus) && normalizedStatus != "ALL")
@@ -316,13 +317,28 @@ public static class ContractRenewalEndpoints
         var data = await query.OrderByDescending(x => x.renewal.CreatedAt).ThenByDescending(x => x.renewal.Id)
             .Skip((p - 1) * size).Take(size)
             .Select(x => new {
-                x.renewal.Id, x.renewal.ContractId, contract_code = x.contract.ContractCode,
+                x.renewal.Id, x.renewal.ContractId, customer_id = x.contract.CustomerId,
+                contract_code = x.contract.ContractCode,
                 school_name = x.school.DisplayName, x.renewal.RenewalNo, x.renewal.SignedOn,
                 x.renewal.ServiceStartOn, x.renewal.ServiceEndOn, x.renewal.PaymentCycle,
                 x.renewal.TotalValue, x.renewal.Status, x.renewal.DecisionReason,
                 x.renewal.GapReason, x.renewal.SubmittedAt
             }).ToArrayAsync(ct);
         return Results.Ok(new { data, total, page = p, page_size = size });
+    }
+
+    /// <summary>Distinct schools with historical Sales renewal submissions, for the list filter.</summary>
+    public static async Task<IResult> MineSchools(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
+        var schools = await (from renewal in db.ContractRenewals.AsNoTracking()
+            join contract in access.Contracts(db).AsNoTracking() on renewal.ContractId equals contract.Id
+            join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+            where renewal.SubmittedByUserId == access.UserId && contract.OwnerUserId == access.UserId
+            select new { id = school.Id, name = school.DisplayName })
+            .Distinct().OrderBy(x => x.name).ThenBy(x => x.id).ToArrayAsync(ct);
+        return Results.Ok(new { data = schools });
     }
 
     public static async Task<IResult> Mine(long contractId, HttpContext http,

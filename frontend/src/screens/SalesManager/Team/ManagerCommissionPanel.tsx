@@ -21,6 +21,8 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');
  const [search,setSearch]=useState('');
+ const [page,setPage]=useState(1);
+ const pageSize=20;
  const [selected,setSelected]=useState<MemberSplit|null>(null);
  const [sales,setSales]=useState('');
  const [manager,setManager]=useState('');
@@ -60,17 +62,18 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
   finally{setBusy(false);}
  };
  const visible=(data?.data??[]).filter(x=>x.name.toLowerCase().includes(search.toLowerCase()));
+ const rows=visible.slice((page-1)*pageSize,page*pageSize);
  if(!allowed)return <p role="alert" className="rounded-xl border p-4 text-sm text-destructive">Không có quyền phân bổ hoa hồng.</p>;
  return <div className="space-y-4">
   <div><h2 className="text-lg font-semibold">Phân bổ hoa hồng Sales</h2>
    <p className="text-sm text-muted-foreground">Tỷ lệ do Quản lý phân bổ độc lập với hạn mức BGĐ. Chỉ cấu hình cho Sales trực thuộc.</p></div>
   {error&&<p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
-  <input aria-label="Tìm Sales" className="w-full max-w-sm rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Tìm Sales trực thuộc..." value={search} onChange={e=>setSearch(e.target.value)}/>
+  <input aria-label="Tìm Sales" className="w-full max-w-sm rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Tìm Sales trực thuộc..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
   <AdminListPanel><div className="overflow-x-auto"><table className={adminTableClass}>
    <thead className={adminTableHeadClass}><tr><th className="px-4 py-3">Sales</th>
     <th className="px-4 py-3 text-right">BGĐ cấp</th><th className="px-4 py-3 text-right">Sales (%)</th>
     <th className="px-4 py-3 text-right">Quản lý (%)</th><th className="px-4 py-3">Nguồn</th><th className="px-4 py-3 text-right">Thao tác</th>
-   </tr></thead><tbody className="divide-y divide-border">{visible.map(x=><tr key={x.organizationId+'-'+x.userId}>
+   </tr></thead><tbody className="divide-y divide-border">{rows.map(x=><tr key={x.organizationId+'-'+x.userId}>
     <td className={adminTableCellClass+' font-medium'}>{x.name}</td>
     <td className={adminTableCellClass+' text-right tabular-nums'}>{x.ceilingPercent===null?'Chưa cấp':x.ceilingPercent+'%'}</td>
     <td className={adminTableCellClass+' text-right tabular-nums'}>{x.salesPercent===null?'—':x.salesPercent+'%'}</td>
@@ -82,6 +85,11 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
    {loading&&<p className="p-6 text-center text-sm">Đang tải...</p>}
    {!loading&&!visible.length&&<p className="p-6 text-center text-sm text-muted-foreground">Không có Sales phù hợp.</p>}
   </AdminListPanel>
+  <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+   <span className="text-muted-foreground">{visible.length} Sales · Trang {page}/{Math.max(1,Math.ceil(visible.length/pageSize))}</span>
+   <AppButton tone="neutral" disabled={page<=1} onClick={()=>setPage(x=>Math.max(1,x-1))}>Trước</AppButton>
+   <AppButton tone="neutral" disabled={page>=Math.ceil(visible.length/pageSize)} onClick={()=>setPage(x=>x+1)}>Sau</AppButton>
+  </div>
   <AppDrawer open={!!selected} onOpenChange={open=>{if(!open&&!busy)setSelected(null)}} busy={busy}
    title={'Phân bổ hoa hồng — '+(selected?.name??'')} description="Tạo phiên bản mới theo hạn mức BGĐ"
    footer={<><AppButton tone="neutral" disabled={busy} onClick={()=>setSelected(null)}>Đóng</AppButton>

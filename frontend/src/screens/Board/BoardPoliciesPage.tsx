@@ -8,6 +8,7 @@ import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { PolicyEditorDialog, type PolicyForm } from './PolicyEditorDialog';
+import { BoardCommissionPoliciesPanel } from './BoardCommissionPoliciesPanel';
 import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
@@ -19,6 +20,7 @@ const EMPTY_ORGANIZATIONS: SchoolOperationsWorkspace['organizations'] = [];
 type PolicyListResult = {items:WorkflowPolicy[];pagination:{page:number;page_size:number;total:number}};
 
 export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
+  const [policyTab,setPolicyTab]=useState<'commission'|'operations'>('commission');
   const [organization,setOrganization]=useState('ALL');
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(20);
@@ -84,7 +86,22 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
       : {decision_reference:reference};
     void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',body);
   };
+  const policyTabs = <div className="flex flex-wrap gap-2" role="tablist" aria-label="Loại chính sách">
+    <button type="button" role="tab" aria-selected={policyTab==='commission'} onClick={()=>setPolicyTab('commission')}
+      className={`rounded-lg border px-4 py-2 text-sm font-semibold ${policyTab==='commission'?'bg-[#1b5e20] text-white':'bg-card text-foreground'}`}>
+      Hoa hồng Sales
+    </button>
+    <button type="button" role="tab" aria-selected={policyTab==='operations'} onClick={()=>setPolicyTab('operations')}
+      className={`rounded-lg border px-4 py-2 text-sm font-semibold ${policyTab==='operations'?'bg-[#1b5e20] text-white':'bg-card text-foreground'}`}>
+      Chính sách vận hành
+    </button>
+  </div>;
+  if (policyTab === 'commission') return <div className="space-y-5">
+    {policyTabs}
+    <BoardCommissionPoliciesPanel apiBase={apiBase} token={token} abilities={abilities}/>
+  </div>;
   return <div className="space-y-5">
+    {policyTabs}
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"
       description="Quản lý phiên bản chính sách và thời hạn áp dụng."
       actions={canManage&&<AppButton leadingIcon={<Plus className="size-4"/>}

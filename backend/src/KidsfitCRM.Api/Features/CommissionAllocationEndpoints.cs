@@ -40,7 +40,7 @@ public static class CommissionAllocationEndpoints
         if (!access.Has(Permissions.ChannelSalesPolicyManage)) return Results.Forbid();
         var items = await db.CommissionAllocationVersions.AsNoTracking()
             .Where(x => x.ConfiguredBy == "DIRECTOR" && (access.All || access.OrganizationIds.Contains(x.OrganizationId)))
-            .OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.CreatedAt)
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.EffectiveFrom)
             .ThenByDescending(x => x.Id).Take(500).ToArrayAsync(ct);
         var organizations = await db.Organizations.AsNoTracking()
             .Where(x => access.All || access.OrganizationIds.Contains(x.Id))
@@ -215,8 +215,8 @@ public static class CommissionAllocationEndpoints
             x.ConfiguredBy == owner && x.OrganizationId == item.OrganizationId
             && x.Scope == item.Scope && x.ManagerUserId == item.ManagerUserId
             && x.SalesUserId == item.SalesUserId && x.EffectiveFrom <= today).ToArrayAsync(ct);
-        var latest = versions.OrderByDescending(x => x.EffectiveFrom)
-            .ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefault();
+        var latest = versions.OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.Id).FirstOrDefault();
         if (item.Status != "ACTIVE" || latest?.Id != item.Id)
             throw new ApiConflictException("Chỉ được khôi phục phiên bản đang áp dụng mới nhất.");
         var reset = new CommissionAllocationVersion
@@ -287,7 +287,7 @@ public static class CommissionAllocationEndpoints
         var version = versions.Where(x => x.ConfiguredBy == "MANAGER"
             && x.OrganizationId == organizationId && x.ManagerUserId == managerId
             && x.SalesUserId == salesId && x.EffectiveFrom <= today)
-            .OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.CreatedAt)
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.EffectiveFrom)
             .ThenByDescending(x => x.Id).FirstOrDefault();
         return version?.Status == "ACTIVE" ? version : null;
     }

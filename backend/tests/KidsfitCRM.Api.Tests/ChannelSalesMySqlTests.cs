@@ -489,6 +489,24 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Care_handover_rejects_admin_even_with_support_permissions()
+    {
+        var admin = await UserId("admin@kidsfit.vn");
+        var caretaker = await UserId("care@kidsfit.vn");
+        await using var db = fixture.Open();
+        var kidsfitId = await db.Organizations.Where(x => x.Code == "KIDSFIT")
+            .Select(x => x.Id).SingleAsync(Ct);
+        // Use a non-existent contract to isolate assignee eligibility: the invalid
+        // Admin must be rejected before contract lookup; a valid caretaker reaches it.
+        var actions = new ChannelSalesActions(db);
+        var error = await Assert.ThrowsAsync<ApiValidationException>(() => actions.AssignContractCare(
+            0, new AssignContractCareRequest(Key(), admin, kidsfitId, null), admin, Http(), Ct));
+        Assert.Contains("Chăm sóc khách hàng", error.Message);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.AssignContractCare(
+            0, new AssignContractCareRequest(Key(), caretaker, kidsfitId, null), admin, Http(), Ct));
+    }
+
+    [MySqlFact]
     public async Task Newly_created_checkee_seller_does_not_inherit_education_PII_permissions()
     {
         var admin = await UserId("admin@kidsfit.vn");

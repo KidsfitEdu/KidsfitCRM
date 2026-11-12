@@ -36,10 +36,9 @@ public sealed partial class ChannelSalesActions
             var entries = await db.CommissionLedgerEntries.Where(x => x.BeneficiaryOrganizationId == request.OrganizationId
                 && x.BeneficiaryUserId == request.BeneficiaryUserId && x.Period == period
                 && (!request.ContractId.HasValue || x.ContractId == request.ContractId.Value)
-                && !db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id)
-                && db.ReconciliationCases.Any(r => r.ContractId == x.ContractId && r.Status == "CONFIRMED"))
+                && !db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id))
                 .OrderBy(x => x.Id).ToListAsync(ct);
-            if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đủ điều kiện trong kỳ đã chọn. Kiểm tra kỳ phát sinh, trạng thái đối soát và phiếu chi trước đó.");
+            if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đủ điều kiện trong kỳ đã chọn. Kiểm tra bút toán hoa hồng, kỳ phát sinh và phiếu chi trước đó.");
             var gross = entries.Sum(x => x.Amount);
             if (gross <= 0) throw new ApiConflictException("Tổng hoa hồng còn lại trong kỳ phải dương để lập phiếu chi.");
             if (request.WithholdingAmount > gross) throw ApiValidationException.For("withholding_amount", "Khấu trừ không được vượt tổng hoa hồng.");
@@ -88,7 +87,6 @@ public sealed partial class ChannelSalesActions
         if (!access.CanManageOrganization(payout.OrganizationId)) throw new KeyNotFoundException();
         if (payout.Status is "APPROVED" or "PAID") return;
         if (payout.Status != "DRAFT") throw new ApiConflictException("Phiếu chi không ở trạng thái chờ duyệt.");
-        await EnsurePayoutReconciled(payout.Id, ct);
         payout.Status = "APPROVED";
         payout.ApprovedAt = DateTime.UtcNow;
         payout.ApprovedByUserId = actorId;
@@ -113,7 +111,6 @@ public sealed partial class ChannelSalesActions
         }
         if (payout.Status != "APPROVED") throw new ApiConflictException("Phải duyệt phiếu chi trước khi ghi nhận đã chi.");
         if (request.Amount.HasValue && request.Amount.Value != payout.NetAmount) throw ApiValidationException.For("amount", "Số tiền chuyển phải khớp phiếu chi đã duyệt.");
-        await EnsurePayoutReconciled(payout.Id, ct);
         if (request.EvidenceId.HasValue)
         {
             var proof = await db.FinancialEvidences
@@ -343,16 +340,6 @@ public sealed partial class ChannelSalesActions
     }
 
     private async Task<Payout> LockPayout(long id, CancellationToken ct) => await db.Payouts.FromSqlInterpolated($"SELECT * FROM payouts WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-
-    private async Task EnsurePayoutReconciled(long id, CancellationToken ct)
-    {
-        var contractIds = await (from item in db.PayoutItems join entry in db.CommissionLedgerEntries on item.CommissionLedgerEntryId equals entry.Id where item.PayoutId == id select entry.ContractId).Distinct().ToArrayAsync(ct);
-        foreach (var contractId in contractIds.Order())
-        {
-            var reconciliation = await db.ReconciliationCases.FromSqlInterpolated($"SELECT * FROM reconciliation_cases WHERE contract_id = {contractId} FOR UPDATE").SingleOrDefaultAsync(ct);
-            if (reconciliation?.Status != "CONFIRMED") throw new ApiConflictException("Cần CHECKEE xác nhận đối soát trước khi duyệt hoặc ghi nhận chi hoa hồng.");
-        }
-    }
 
     private void AddPayoutEvent(Payout payout, long actorId, string eventType, string? reason, DateTime now) => db.PayoutEvents.Add(new PayoutEvent
     {

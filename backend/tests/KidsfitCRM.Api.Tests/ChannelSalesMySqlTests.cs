@@ -504,6 +504,23 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.Contains("Chăm sóc khách hàng", error.Message);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.AssignContractCare(
             0, new AssignContractCareRequest(Key(), caretaker, kidsfitId, null), admin, Http(), Ct));
+
+        // A dual-role account must still be rejected even if a CSKH membership was granted.
+        var roleId = await db.Roles.Where(x => x.Code == "ADMIN").Select(x => x.Id).SingleAsync(Ct);
+        var unique = Key();
+        var dualRole = new User { Code = unique[..20], Name = "Quản trị viên kiêm CSKH",
+            Email = unique + "@example.test", Status = "ACTIVE", Password = "unused-test-hash",
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        db.Users.Add(dualRole);
+        await db.SaveChangesAsync(Ct);
+        db.UserRoles.Add(new UserRole { UserId = dualRole.Id, RoleId = roleId });
+        db.OrganizationMemberships.Add(new OrganizationMembership { UserId = dualRole.Id,
+            OrganizationId = kidsfitId, MembershipType = "CUSTOMER_SERVICE",
+            IsPrimary = true, Status = "ACTIVE", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync(Ct);
+        var dualError = await Assert.ThrowsAsync<ApiValidationException>(() => actions.AssignContractCare(
+            0, new AssignContractCareRequest(Key(), dualRole.Id, kidsfitId, null), admin, Http(), Ct));
+        Assert.Contains("quản trị viên", dualError.Message);
     }
 
     [MySqlFact]

@@ -20,6 +20,8 @@ import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
 
 const apiBase = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? '' : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
 const request = createApiClient(apiBase);
+// /health is mounted at the Backend origin, not under the /api prefix.
+const healthRequest = createApiClient(apiBase ? new URL(apiBase).origin : '');
 const AdminWorkspace = lazy(() => import('@/screens/Admin/AdminWorkspace').then(m => ({ default: m.AdminWorkspace })));
 const SalesManagerWorkspace = lazy(() => import('@/screens/SalesManager/SalesManagerWorkspace').then(m => ({ default: m.SalesManagerWorkspace })));
 const BoardWorkspace = lazy(() => import('@/screens/Board/BoardWorkspace').then(m => ({ default: m.BoardWorkspace })));
@@ -85,7 +87,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     if (!apiBase || !ready || token || sessionStatus === 'checking') return;
     let active = true;
     setHealthStatus('checking');
-    void request('/health').then(() => {
+    void healthRequest('/health').then(() => {
       if (active) { setHealthError(''); setHealthStatus('online'); }
     }).catch(cause => {
       if (!active) return;

@@ -228,7 +228,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     if (!signedOn) {
       validation.transaction_date = 'Không xác định được ngày ký hợp đồng. Vui lòng tải lại chi tiết.';
     } else {
-      validation.transaction_date = validateTransactionDay(date, today, signedOn, entryMode);
+      const dateError = validateTransactionDay(date, today, signedOn, entryMode);
+      if (dateError) validation.transaction_date = dateError;
     }
     if (!Number.isSafeInteger(amount) || amount <= 0) validation.amount = 'Số tiền phải là số nguyên dương.';
     if (!reference) validation.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng.';

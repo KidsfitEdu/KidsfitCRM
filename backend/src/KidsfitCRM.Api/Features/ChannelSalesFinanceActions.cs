@@ -188,6 +188,23 @@ public sealed partial class ChannelSalesActions
         return policy.Id;
     }
 
+    public async Task CancelCommissionPolicyDraft(long id, long actorId, HttpContext http, CancellationToken ct)
+    {
+        var access = await RequirePermission(actorId, Permissions.ChannelSalesPolicyManage, ct);
+        var policy = await db.CommissionPolicyVersions
+            .FromSqlInterpolated($"SELECT * FROM commission_policy_versions WHERE id = {id} FOR UPDATE")
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        if (!policy.OrganizationId.HasValue || !access.CanManageOrganization(policy.OrganizationId.Value))
+            throw new KeyNotFoundException();
+        if (policy.Status != "DRAFT")
+            throw new ApiConflictException("Chỉ có thể hủy bản nháp chưa kích hoạt.");
+        policy.Status = "CANCELLED";
+        policy.UpdatedAt = DateTime.UtcNow;
+        Audit.Add(db, actorId, "CANCEL_COMMISSION_POLICY_DRAFT", nameof(CommissionPolicyVersion), policy.Id,
+            new { status = "DRAFT" }, new { status = policy.Status }, http);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<long> AdjustCommission(long entryId, AdjustCommissionRequest request, long actorId, HttpContext http, CancellationToken ct)
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesCommissionAdjust, ct);

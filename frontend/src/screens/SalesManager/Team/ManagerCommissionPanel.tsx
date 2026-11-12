@@ -96,7 +96,7 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
   return <div className="space-y-5">
     <AppPageHeader eyebrow="QUẢN LÝ BÁN HÀNG / KIDSFIT CRM" title="Phân bổ hoa hồng"
       description="Điều chỉnh tỷ lệ cho Sales trực thuộc trong hạn mức do BGĐ cấp. Lưu thành công áp dụng ngay."/>
-    {notice&&<output className="block "rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">{notice}</output>}
+    {notice&&<output className="block rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">{notice}</output>}
     {error&&<p role="alert" className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}

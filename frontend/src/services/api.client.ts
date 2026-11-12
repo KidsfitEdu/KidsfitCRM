@@ -1,3 +1,4 @@
+import { trackAppRequest } from '@/lib/loading-tracker';
 /** Shared HTTP transport for CRM endpoints, preserving backend JSON/error contracts. */
 export class ApiRequestError extends Error {
   constructor(message: string, readonly status: number, readonly kind: 'network' | 'timeout' | 'http') {
@@ -19,6 +20,8 @@ export function createApiClient(apiBase: string) {
     token?: string,
     options: RequestInit = {},
   ): Promise<T> {
+    const finishLoading = trackAppRequest();
+    try {
     const headers = new Headers(options.headers);
     headers.set('Content-Type', 'application/json');
     headers.set('Accept', 'application/json');
@@ -55,7 +58,8 @@ export function createApiClient(apiBase: string) {
           : 'Không thể hoàn tất yêu cầu.');
       throw new ApiRequestError(message, response.status, 'http');
     }
-    return payload as T;
+    return payload as T;    } finally { finishLoading(); }
+
   }
   return request;
 }

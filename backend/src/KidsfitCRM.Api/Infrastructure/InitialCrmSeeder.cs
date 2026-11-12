@@ -114,7 +114,7 @@ public static class InitialCrmSeeder
                 Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage, Permissions.ProtectionRenewalApprove];
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
-        rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
+        rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage, Permissions.ChannelSalesPolicyManage];
         rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund, Permissions.ContractRenewalReview, Permissions.ContractRenewalConfirm];
         rolePermissions["SALES"] = [.. rolePermissions["SALES"], Permissions.ContractRenewalSubmit];
         rolePermissions["CUSTOMER_SERVICE"] = [.. rolePermissions["CUSTOMER_SERVICE"], Permissions.SchoolSupportManage];
@@ -168,6 +168,14 @@ public static class InitialCrmSeeder
             return organization;
         }
         var kidsfit = await EnsureOrganization("KIDSFIT", "KIDSFIT", "INTERNAL");
+        // The approved Sales rate is 30%. Set the organization ceiling only
+        // during explicit initial bootstrap, without creating an active policy.
+        if (kidsfit.CommissionRateCeiling == 0)
+        {
+            kidsfit.CommissionRateCeiling = 30m;
+            kidsfit.UpdatedAt = now;
+            await db.SaveChangesAsync();
+        }
         await EnsureOrganization("CHECKEE", "CHECKEE", "VENDOR");
 
         if (!await db.OrganizationMemberships.AnyAsync(x => x.UserId == admin.Id && x.OrganizationId == kidsfit.Id))

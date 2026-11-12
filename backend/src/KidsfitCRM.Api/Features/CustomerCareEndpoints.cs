@@ -249,7 +249,8 @@ public static class CustomerCareEndpoints
             }).ToArrayAsync(ct);
         var users = await (from m in db.OrganizationMemberships join o in db.Organizations on m.OrganizationId equals o.Id
             join u in db.Users on m.UserId equals u.Id
-            where m.Status == "ACTIVE" && u.Status == "ACTIVE" && o.Code == "KIDSFIT" && o.Status == "ACTIVE"
+            where m.Status == "ACTIVE" && m.MembershipType == "CUSTOMER_SERVICE"
+                && u.Status == "ACTIVE" && o.Code == "KIDSFIT" && o.Status == "ACTIVE"
                 && db.UserRoles.Any(ur => ur.UserId == u.Id
                     && db.PermissionRoles.Any(pr => pr.RoleId == ur.RoleId && db.Permissions.Any(pe =>
                         pe.Id == pr.PermissionId && pe.Code == Permissions.SchoolSupportManage)))

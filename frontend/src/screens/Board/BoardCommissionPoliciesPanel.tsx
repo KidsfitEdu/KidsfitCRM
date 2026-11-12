@@ -16,8 +16,8 @@ type Version = {
 type Member={userId:number;organizationId:number;managerUserId:number|null;name:string};
 type Workspace={data:Version[];organizations:{id:number;name:string;code:string}[];members:Member[]};
 type Props=Pick<RolePageProps,'apiBase'|'token'|'abilities'>;
-type Editor={organizationId:number;managerUserId:string;salesUserId:string;salesPercent:string;managerPercent:string;ceilingPercent:string;effectiveFrom:string;reason:string};
-const initial:Editor={organizationId:0,managerUserId:'',salesUserId:'',salesPercent:'25',managerPercent:'5',ceilingPercent:'30',effectiveFrom:'',reason:''};
+type Editor={applyScope:string;organizationId:number;managerUserId:string;salesUserId:string;salesPercent:string;managerPercent:string;ceilingPercent:string;effectiveFrom:string;reason:string};
+const initial:Editor={applyScope:'SYSTEM',organizationId:0,managerUserId:'',salesUserId:'',salesPercent:'25',managerPercent:'5',ceilingPercent:'30',effectiveFrom:'',reason:''};
 const dateOnly=(iso:string)=>iso?.slice(0,10)??'';
 const today=()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toLocaleDateString('en-CA');};
 
@@ -51,10 +51,10 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
     &&[orgName(v.organizationId),person(v.managerUserId),person(v.salesUserId),v.reason].some(x=>x.toLowerCase().includes(search.toLowerCase())));
   const start=(v?:Version)=>{
     setSelected(null);setError('');
-    setEditor(v?{organizationId:v.organizationId,managerUserId:v.managerUserId?.toString()??'',
+    setEditor(v?{applyScope:v.scope==='SYSTEM'?'SYSTEM':'ORGANIZATION',organizationId:v.organizationId,managerUserId:v.managerUserId?.toString()??'',
       salesUserId:v.salesUserId?.toString()??'',salesPercent:String(v.salesPercent),managerPercent:String(v.managerPercent),
       ceilingPercent:String(v.ceilingPercent),effectiveFrom:today(),reason:''}
-      :{...initial,organizationId:workspace?.organizations[0]?.id??0,effectiveFrom:today()});
+      :{...initial,organizationId:workspace?.organizations.find(o=>o.code==='KIDSFIT')?.id??workspace?.organizations[0]?.id??0,effectiveFrom:today()});
   };
   const save=async()=>{
     if(!editor)return;
@@ -64,7 +64,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
         organizationId:editor.organizationId,managerUserId:editor.managerUserId?Number(editor.managerUserId):null,
         salesUserId:editor.salesUserId?Number(editor.salesUserId):null,
         salesPercent:Number(editor.salesPercent),managerPercent:Number(editor.managerPercent),
-        ceilingPercent:Number(editor.ceilingPercent),effectiveFrom:editor.effectiveFrom,reason:editor.reason,
+        ceilingPercent:Number(editor.ceilingPercent),effectiveFrom:editor.effectiveFrom,reason:editor.reason,applyScope:editor.applyScope,
       })});
       setEditor(null);await load();
     }catch(e){setError(e instanceof Error?e.message:'Không lưu được cấu hình.');}
@@ -94,7 +94,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
         <option value="ALL">Tất cả tổ chức</option>{workspace?.organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
       </select>
       <select aria-label="Lọc phạm vi" value={scope} onChange={e=>setScope(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
-        <option value="ALL">Tất cả phạm vi</option><option value="ORGANIZATION">Tổ chức</option><option value="MANAGER">Quản lý</option><option value="SALES">Sales</option>
+        <option value="ALL">Tất cả phạm vi</option><option value="SYSTEM">Mặc định toàn hệ thống</option><option value="ORGANIZATION">Tổ chức</option><option value="MANAGER">Quản lý</option><option value="SALES">Sales</option>
       </select>
     </div>
     <AdminListPanel><div className="overflow-x-auto"><table className={adminTableClass}>
@@ -105,7 +105,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
         <th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">CRUD</th>
       </tr></thead><tbody className="divide-y divide-border">
       {visible.map(v=><tr key={v.id} className="hover:bg-muted/30">
-        <td className={adminTableCellClass}><p className="font-medium">{v.scope==='ORGANIZATION'?'Mặc định tổ chức':v.scope==='MANAGER'?person(v.managerUserId):person(v.salesUserId)}</p>
+        <td className={adminTableCellClass}><p className="font-medium">{v.scope==='SYSTEM'?'Mặc định hệ thống':v.scope==='ORGANIZATION'?'Mặc định tổ chức':v.scope==='MANAGER'?person(v.managerUserId):person(v.salesUserId)}</p>
           {v.scope==='SALES'&&<p className="text-xs text-muted-foreground">QL: {person(v.managerUserId)}</p>}</td>
         <td className={adminTableCellClass}>{orgName(v.organizationId)}</td>
         <td className={adminTableCellClass+' text-right tabular-nums'}>{v.salesPercent}%</td>
@@ -134,15 +134,24 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
     <AppDrawer open={!!editor} onOpenChange={open=>{if(!open&&!busy)setEditor(null)}} title="Cấu hình hạn mức hoa hồng" description="Tạo phiên bản mới, không thay đổi các phiên bản đã có" busy={busy}
       footer={<><AppButton tone="neutral" onClick={()=>setEditor(null)} disabled={busy}>Đóng</AppButton><AppButton busy={busy} onClick={()=>void save()}>Lưu phiên bản</AppButton></>}>
       {editor&&<form onSubmit={e=>{e.preventDefault();void save()}} className="space-y-4 text-sm">
+        <label className="block space-y-1"><span>Phạm vi áp dụng *</span>
+          <select aria-label="Phạm vi cấu hình" className="w-full rounded-lg border bg-background px-3 py-2"
+            value={editor.applyScope} onChange={e=>{
+              const global=e.target.value==='SYSTEM';setEditor({...editor,applyScope:e.target.value,
+                organizationId:global?(workspace?.organizations.find(o=>o.code==='KIDSFIT')?.id??0):editor.organizationId,
+                managerUserId:'',salesUserId:''});
+            }}>
+            <option value="SYSTEM">Mặc định toàn hệ thống</option><option value="ORGANIZATION">Theo đối tác / nhân sự</option>
+          </select></label>
         <label className="block space-y-1"><span>Đối tác / tổ chức *</span>
-          <select className="w-full rounded-lg border bg-background px-3 py-2" value={editor.organizationId} onChange={e=>setEditor({...editor,organizationId:Number(e.target.value),managerUserId:'',salesUserId:''})}>
+          <select disabled={editor.applyScope==='SYSTEM'} className="w-full rounded-lg border bg-background px-3 py-2" value={editor.organizationId} onChange={e=>setEditor({...editor,organizationId:Number(e.target.value),managerUserId:'',salesUserId:''})}>
             {workspace?.organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
           </select></label>
-        <label className="block space-y-1"><span>Quản lý (để trống nếu mặc định tổ chức)</span>
+        {editor.applyScope!=='SYSTEM'&&<label className="block space-y-1"><span>Quản lý (để trống nếu mặc định tổ chức)</span>
           <select className="w-full rounded-lg border bg-background px-3 py-2" value={editor.managerUserId} onChange={e=>setEditor({...editor,managerUserId:e.target.value,salesUserId:''})}>
             <option value="">Toàn tổ chức</option>{managers.map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}
-          </select></label>
-        {editor.managerUserId&&<label className="block space-y-1"><span>Sales (để trống nếu cấu hình cả nhóm)</span>
+          </select></label>}
+        {editor.applyScope!=='SYSTEM'&&editor.managerUserId&&<label className="block space-y-1"><span>Sales (để trống nếu cấu hình cả nhóm)</span>
           <select className="w-full rounded-lg border bg-background px-3 py-2" value={editor.salesUserId} onChange={e=>setEditor({...editor,salesUserId:e.target.value})}>
             <option value="">Tất cả Sales trực thuộc</option>{workspace?.members.filter(m=>m.organizationId===editor.organizationId&&String(m.managerUserId)===editor.managerUserId).map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}
           </select></label>}

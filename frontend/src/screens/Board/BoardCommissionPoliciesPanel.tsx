@@ -39,7 +39,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
     catch(e){setError(e instanceof Error?e.message:'Không tải được chính sách hoa hồng.');}
     finally{setLoading(false);}
   },[apiBase,token,authorized]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{queueMicrotask(()=>void load());},[load]);
   const orgName=(id:number)=>workspace?.organizations.find(o=>o.id===id)?.name??String(id);
   const person=(id:number|null)=>id?workspace?.members.find(m=>m.userId===id)?.name??String(id):'—';
   const managers=useMemo(()=>{

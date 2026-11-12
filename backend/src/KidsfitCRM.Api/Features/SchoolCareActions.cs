@@ -26,6 +26,10 @@ public sealed partial class ChannelSalesActions
             && m.OrganizationId == request.CareOrganizationId && m.Status == "ACTIVE"
             && m.MembershipType == "CUSTOMER_SERVICE", ct))
             throw ApiValidationException.For("user_id", "Chỉ được phân công cho nhân viên Chăm sóc khách hàng.");
+        // Reject users with an Admin role even if a second CSKH membership exists.
+        if (await db.UserRoles.AnyAsync(ur => ur.UserId == request.UserId
+            && db.Roles.Any(role => role.Id == ur.RoleId && role.Code == "ADMIN"), ct))
+            throw ApiValidationException.For("user_id", "Không được phân công tài khoản quản trị viên làm CSKH.");
         var nextCare = await ChannelSalesAccess.Load(db, request.UserId, ct);
         if (!nextCare.Has(Permissions.SchoolSupportManage)) throw ApiValidationException.For("user_id", "Nhân sự cần có quyền chăm sóc khách hàng.");
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {contractId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();

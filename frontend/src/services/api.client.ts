@@ -1,8 +1,12 @@
-import { trackAppRequest } from '@/lib/loading-tracker';
+import { trackAppRequest } from '../lib/loading-tracker.ts';
 /** Shared HTTP transport for CRM endpoints, preserving backend JSON/error contracts. */
 export class ApiRequestError extends Error {
-  constructor(message: string, readonly status: number, readonly kind: 'network' | 'timeout' | 'http') {
+  readonly status: number;
+  readonly kind: 'network' | 'timeout' | 'http';
+  constructor(message: string, status: number, kind: 'network' | 'timeout' | 'http') {
     super(message);
+    this.status = status;
+    this.kind = kind;
     this.name = 'ApiRequestError';
   }
 }

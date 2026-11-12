@@ -111,8 +111,9 @@ public static class CommissionAllocationEndpoints
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesTeamManage) || !access.InOrganization(request.OrganizationId))
             return Results.Forbid();
-        if (!request.SalesUserId.HasValue || request.ManagerUserId != access.UserId)
+        if (!request.SalesUserId.HasValue || (request.ManagerUserId.HasValue && request.ManagerUserId != access.UserId))
             throw ApiValidationException.For("sales_user_id", "Quản lý chỉ phân bổ cho Sales trực thuộc.");
+        request = request with { ManagerUserId = access.UserId };
         ValidateRates(request, requireCeiling: false);
         await CheckMembership(db, request.OrganizationId, access.UserId, request.SalesUserId, ct);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);

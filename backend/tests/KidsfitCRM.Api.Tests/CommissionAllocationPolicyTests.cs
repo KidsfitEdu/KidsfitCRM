@@ -35,6 +35,27 @@ public sealed class CommissionAllocationPolicyTests
     }
 
     [Fact]
+    public void System_default_is_inherited_when_partner_has_no_own_rule()
+    {
+        var global = Rule("SYSTEM", ceiling: 30m);
+        global.OrganizationId = 1; // KIDSFIT owner of shared default
+        var selected = CommissionAllocationEndpoints.ResolveBoard([global], 10, 20, 30);
+        Assert.Same(global, selected);
+        Assert.Equal(25m, selected!.SalesPercent);
+        Assert.Equal(5m, selected.ManagerPercent);
+    }
+
+    [Fact]
+    public void Partner_override_takes_precedence_over_system_default()
+    {
+        var global = Rule("SYSTEM", ceiling: 30m);
+        global.OrganizationId = 1;
+        var partner = Rule("ORGANIZATION", ceiling: 36m);
+        var selected = CommissionAllocationEndpoints.ResolveBoard([global, partner], 10, 20, 30);
+        Assert.Same(partner, selected);
+    }
+
+    [Fact]
     public void Configuration_versions_do_not_require_existing_financial_entries()
     {
         var configuration = Rule("ORGANIZATION");

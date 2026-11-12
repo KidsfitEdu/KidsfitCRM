@@ -191,6 +191,7 @@ public sealed partial class ChannelSalesActions
     public async Task CancelCommissionPolicyDraft(long id, long actorId, HttpContext http, CancellationToken ct)
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesPolicyManage, ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var policy = await db.CommissionPolicyVersions
             .FromSqlInterpolated($"SELECT * FROM commission_policy_versions WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
@@ -203,6 +204,7 @@ public sealed partial class ChannelSalesActions
         Audit.Add(db, actorId, "CANCEL_COMMISSION_POLICY_DRAFT", nameof(CommissionPolicyVersion), policy.Id,
             new { status = "DRAFT" }, new { status = policy.Status }, http);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
     }
 
     public async Task<long> AdjustCommission(long entryId, AdjustCommissionRequest request, long actorId, HttpContext http, CancellationToken ct)

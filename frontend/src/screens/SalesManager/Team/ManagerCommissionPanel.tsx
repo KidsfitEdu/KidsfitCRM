@@ -42,11 +42,8 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
   if(!selected)return;
   setBusy(true);setError('');
   try{
-   // Manager identity is enforced server-side; client-supplied manager is only a routing hint.
-   const current=await channelRequest<{userId:number}>(apiBase,token,'/auth/me').catch(()=>null);
-   if(!current?.userId)throw new Error('Không thể xác định tài khoản Quản lý.');
    await channelRequest(apiBase,token,'/commission-config/manager',{method:'POST',body:JSON.stringify({
-    organizationId:selected.organizationId,managerUserId:current.userId,salesUserId:selected.userId,
+    organizationId:selected.organizationId,managerUserId:null,salesUserId:selected.userId,
     salesPercent:Number(sales),managerPercent:Number(manager),ceilingPercent:selected.ceilingPercent,
     effectiveFrom:date,reason
    })});

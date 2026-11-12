@@ -243,6 +243,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<CommissionAllocationVersion>().Property(x => x.SalesPercent).HasPrecision(9, 4);
         b.Entity<CommissionAllocationVersion>().Property(x => x.ManagerPercent).HasPrecision(9, 4);
         b.Entity<CommissionAllocationVersion>().Property(x => x.CeilingPercent).HasPrecision(9, 4);
+        b.Entity<CommissionAllocationVersion>().Property(x => x.ManagerCeilingPercent).HasPrecision(9, 4);
         b.Entity<CommissionAllocationVersion>().HasIndex(x => new { x.OrganizationId, x.Scope, x.ManagerUserId, x.SalesUserId, x.ConfiguredBy, x.EffectiveFrom });
         DateOnlyProperty(b.Entity<CommissionAllocationVersion>().Property(x => x.EffectiveFrom));
 

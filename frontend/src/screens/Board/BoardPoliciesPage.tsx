@@ -18,7 +18,7 @@ import type { RolePageProps } from '@/types/role-pages';
 const EMPTY_ORGANIZATIONS: SchoolOperationsWorkspace['organizations'] = [];
 type PolicyListResult = {items:WorkflowPolicy[];pagination:{page:number;page_size:number;total:number}};
 
-export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
+export function BoardPoliciesPage({apiBase,token,abilities,embedded=false}:RolePageProps & {embedded?:boolean}) {
   const [organization,setOrganization]=useState('ALL');
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(20);
@@ -85,10 +85,15 @@ export function BoardPoliciesPage({apiBase,token,abilities}:RolePageProps) {
     void write('/school-workflow-policies/'+confirm.id+'/'+confirm.action,'POST',body);
   };
   return <div className="space-y-5">
-    <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"
+    {embedded?<section className="flex flex-wrap items-center justify-between gap-3">
+      <div><h3 className="text-lg font-bold">Chính sách vận hành</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Quản lý phiên bản chính sách và thời hạn áp dụng.</p></div>
+      {canManage&&<AppButton leadingIcon={<Plus className="size-4"/>}
+        onClick={()=>{setEditingId(null);setActionError('');setEditorOpen(true);}}>Thêm mới</AppButton>}
+    </section>:<AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách vận hành"
       description="Quản lý phiên bản chính sách và thời hạn áp dụng."
       actions={canManage&&<AppButton leadingIcon={<Plus className="size-4"/>}
-        onClick={()=>{setEditingId(null);setActionError('');setEditorOpen(true);}}>Thêm mới</AppButton>}/>
+        onClick={()=>{setEditingId(null);setActionError('');setEditorOpen(true);}}>Thêm mới</AppButton>}/>} 
     {!connected&&<p className="rounded-xl border p-4 text-sm text-muted-foreground">Chưa kết nối API hoặc chưa đủ quyền xem chính sách.</p>}
     {actionError&&<p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
     {(query.error||policyQuery.error)&&<p className="rounded-xl border border-red-300 p-4 text-sm text-red-600" role="alert">{(policyQuery.error??query.error) instanceof Error?(policyQuery.error??query.error as Error).message:'Không tải được chính sách.'}</p>}

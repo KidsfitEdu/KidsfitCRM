@@ -106,7 +106,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
       description="Thiết lập giới hạn áp dụng ngay cho hệ thống, đối tác, Quản lý và Sales."
       actions={<AppButton leadingIcon={<Plus className="size-4"/>} disabled={loading||!workspace}
         onClick={()=>start()}>Thêm mới</AppButton>}/>
-    {notice&&<p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">{notice}</p>}
+    {notice&&<output className="block "rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">{notice}</output>}
     {error&&<p role="alert" className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
     <AdminListPanel>
       <AdminListToolbar search={draft} onSearchChange={setDraft}

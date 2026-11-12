@@ -120,8 +120,7 @@ public static class CommissionAllocationEndpoints
             await CheckMembership(db, request.OrganizationId, request.ManagerUserId, request.SalesUserId, ct);
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        await db.Organizations.FromSqlInterpolated(
-            $"SELECT * FROM organizations WHERE id = {request.OrganizationId} FOR UPDATE").SingleAsync(ct);
+        await LockPolicyWrites(db, request.OrganizationId, ct);
         var now = DateTime.UtcNow;
         var existing = await db.CommissionAllocationVersions.AsNoTracking()
             .Where(x => x.ConfiguredBy == "DIRECTOR").ToArrayAsync(ct);
@@ -204,8 +203,7 @@ public static class CommissionAllocationEndpoints
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var lookup = await db.CommissionAllocationVersions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException();
-        await db.Organizations.FromSqlInterpolated(
-            $"SELECT * FROM organizations WHERE id = {lookup.OrganizationId} FOR UPDATE").SingleAsync(ct);
+        await LockPolicyWrites(db, lookup.OrganizationId, ct);
         var item = await db.CommissionAllocationVersions.FromSqlInterpolated(
             $"SELECT * FROM commission_allocation_versions WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
@@ -301,6 +299,20 @@ public static class CommissionAllocationEndpoints
     internal static bool FitsWithin(CommissionAllocationVersion limit, decimal sales, decimal manager)
         => sales >= 0 && manager >= 0 && sales + manager <= limit.CeilingPercent
             && manager <= ManagerCap(limit);
+
+    // Serialize partner writes with a global BGĐ policy change using the same lock order.
+    // ReadCommitted and organization-level locks prevent a manager saving against a stale ceiling.
+    private static async Task LockPolicyWrites(KidsfitDbContext db, long organizationId, CancellationToken ct)
+    {
+        var systemId = await db.Organizations.AsNoTracking().Where(x => x.Code == "KIDSFIT")
+            .Select(x => x.Id).SingleOrDefaultAsync(ct);
+        if (systemId > 0)
+            await db.Organizations.FromSqlInterpolated(
+                $"SELECT * FROM organizations WHERE id = {systemId} FOR UPDATE").SingleAsync(ct);
+        if (organizationId != systemId)
+            await db.Organizations.FromSqlInterpolated(
+                $"SELECT * FROM organizations WHERE id = {organizationId} FOR UPDATE").SingleAsync(ct);
+    }
 
     private static async Task CheckMembership(KidsfitDbContext db, long org, long? manager, long? sales, CancellationToken ct)
     {

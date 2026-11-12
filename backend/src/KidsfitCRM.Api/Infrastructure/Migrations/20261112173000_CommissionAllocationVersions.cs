@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using MySql.EntityFrameworkCore.Metadata;
 
 #nullable disable
 
@@ -16,7 +17,7 @@ public sealed class CommissionAllocationVersions : Migration
             columns: table => new
             {
                 id = table.Column<long>(type: "bigint", nullable: false)
-                    .Annotation("MySQL:ValueGenerationStrategy", MySQL.EntityFrameworkCore.Metadata.MySQLValueGenerationStrategy.IdentityColumn),
+                    .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                 organization_id = table.Column<long>(type: "bigint", nullable: false),
                 manager_user_id = table.Column<long>(type: "bigint", nullable: true),
                 sales_user_id = table.Column<long>(type: "bigint", nullable: true),

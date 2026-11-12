@@ -1147,7 +1147,7 @@ function ContractDialog({
     const formElement = event.currentTarget;
     try {
       if (!apiBase || !token) throw new Error('Cần kết nối hệ thống để upload hợp đồng.');
-      if (!packages.length) throw new Error('Chưa có gói dịch vụ hoạt động. Vui lòng liên hệ Admin.');
+
       const issues = validateContract({
         signedOn, serviceStartOn, serviceEndOn, paymentCycle, plan, students: studentCount, branches: branchCount,
         selectedUnitCount: selectedUnitIds.length, maintenance: maintenanceFee,
@@ -1177,7 +1177,6 @@ function ContractDialog({
         service_start_on: serviceStartOn,
         service_end_on: serviceEndOn,
         payment_cycle: paymentCycle,
-        product_package_id: packages[0].id,
         service_plan: plan,
         student_count: Number(studentCount),
         school_unit_ids: selectedUnitIds,

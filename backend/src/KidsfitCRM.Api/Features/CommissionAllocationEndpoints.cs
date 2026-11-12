@@ -360,10 +360,21 @@ public static class CommissionAllocationEndpoints
     private static async Task Save(KidsfitDbContext db, CommissionAllocationVersion record,
         HttpContext http, CancellationToken ct)
     {
+        var previous = await db.CommissionAllocationVersions.AsNoTracking()
+            .Where(x => x.ConfiguredBy == record.ConfiguredBy && x.OrganizationId == record.OrganizationId
+                && x.Scope == record.Scope && x.ManagerUserId == record.ManagerUserId
+                && x.SalesUserId == record.SalesUserId)
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync(ct);
         db.CommissionAllocationVersions.Add(record);
         await db.SaveChangesAsync(ct);
+        object? oldSnapshot = previous is null ? null : new
+        {
+            previous.Id, previous.SalesPercent, previous.ManagerPercent,
+            previous.CeilingPercent, previous.ManagerCeilingPercent,
+            previous.Status, previous.CreatedAt
+        };
         Audit.Add(db, http.UserId(), "SAVE_COMMISSION_ALLOCATION_VERSION",
-            nameof(CommissionAllocationVersion), record.Id, null, new
+            nameof(CommissionAllocationVersion), record.Id, oldSnapshot, new
             {
                 record.OrganizationId, record.ManagerUserId, record.SalesUserId,
                 record.Scope, record.ConfiguredBy, record.CeilingPercent, record.ManagerCeilingPercent,

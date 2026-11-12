@@ -78,3 +78,12 @@ test('Admin personnel form still excludes privileged roles from regular account 
   assert.match(src,/const editableRoles = \['SALES','SALES_MANAGER','ACCOUNTANT','CUSTOMER_SERVICE','CHECKEE'\]/);
   assert.doesNotMatch(src,/editableRoles = \[[^\]]*'DIRECTOR'/);
 });
+
+test('membership bootstrap awaits both EF Core queries before saving', () => {
+  const src = source('../backend/src/KidsfitCRM.Api/Infrastructure/InitialCrmSeeder.cs');
+  assert.match(src, /async Task EnsureSystemMembership\(User user, Organization organization, string roleCode\)/);
+  assert.match(src, /var membership = await db\.OrganizationMemberships\.SingleOrDefaultAsync\(/);
+  assert.match(src, /await EnsureSystemMembership\(director, kidsfit, "DIRECTOR"\);/);
+  assert.match(src, /await EnsureSystemMembership\(checkee, checkeeOrganization, "CHECKEE"\);/);
+  assert.doesNotMatch(src, /\bvoid EnsureSystemMembership\(/);
+});

@@ -11,7 +11,8 @@ import { AppSelect } from '@/components/common/app-select';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { channelDate, channelMoney, channelRequest, ChannelRequestError, formatMoneyInput, parseMoneyInput } from '@/lib/channel-operations';
+import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
+import { channelDate, channelMoney, channelRequest, ChannelRequestError, parseMoneyInput } from '@/lib/channel-operations';
 import { EvidencePreviewDialog } from '@/components/common/evidence-preview-dialog';
 import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { AccountingRenewalInline } from './AccountingRenewalInline';
@@ -487,7 +488,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <p>Quyền bảo vệ Sales: {detail.data.protection_until
               ? 'Đến '+channelDate(detail.data.protection_until)
               : 'Không có quyền bảo vệ đang hiệu lực'}</p>
-            <p className="text-xs text-muted-foreground">Đủ hoặc quá 12 tháng không đồng nghĩa đã hết bảo vệ. Chỉ hiển thị “Đã hết bảo vệ” khi có quyết định GI-01 hợp lệ. Kế toán không tự kết thúc hoặc cấp quyền bảo vệ.</p>
             {giHistory.length>0&&<div className="space-y-2 border-t border-border pt-3">
               <h4 className="font-semibold">Lịch sử xử lý gián đoạn (GI-01)</h4>
               {giHistory.map((item,i)=><div key={i} className="rounded-lg border border-border p-3 text-xs">
@@ -601,7 +601,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Hoa hồng Sales</h3>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
-              onClick={()=>{setFieldErrors({});setAmountInput(formatMoneyInput(String(detail.payouts.find(x=>x.status==='APPROVED')?.net_amount??'')));setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
+              onClick={()=>{setFieldErrors({});setAmountInput(String(detail.payouts.find(x=>x.status==='APPROVED')?.net_amount??''));setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
             {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <div className="flex flex-wrap items-center gap-2">
               {eligiblePeriods.length>0 && <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
                 onChange={event=>setPayoutPeriod(event.target.value)}
@@ -694,9 +694,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input id="accounting-transaction-date" type="date" name="transaction_date" required aria-invalid={Boolean(fieldErrors.transaction_date)} defaultValue={accountingBusinessDay(new Date())}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
         <div className="space-y-1"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
           <div className="relative">
-            <Input id="accounting-amount" name="amount" type="text" inputMode="numeric" autoComplete="off"
+            <AppCurrencyInput id="accounting-amount" name="amount"
               placeholder="0" required aria-invalid={Boolean(fieldErrors.amount)} value={amountInput}
-              onChange={e=>setAmountInput(formatMoneyInput(e.target.value))}
+              onValueChange={setAmountInput}
               className="pr-12 tabular-nums text-right"/>
             <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">đ</span>
           </div>

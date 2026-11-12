@@ -230,9 +230,6 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
             </li>)}
           </ol>}
         </section>
-        <p className="rounded-xl border border-border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
-          Các trạng thái, mốc thời gian và quyết định được lấy từ CRM. Đạt mốc gián đoạn 12 tháng không đồng nghĩa tự động giải phóng quyền bảo vệ.
-        </p>
       </div>}
     </AppDrawer>
   </section>;

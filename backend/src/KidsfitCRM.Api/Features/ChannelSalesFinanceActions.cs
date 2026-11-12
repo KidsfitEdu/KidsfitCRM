@@ -171,7 +171,9 @@ public sealed partial class ChannelSalesActions
             PersonnelType = personnelType,
             EffectiveFrom = request.EffectiveFrom,
             EffectiveUntil = request.EffectiveUntil,
-            Status = "ACTIVE",
+            // Drafts do not affect receipt-based commission calculation.
+            // Activation requires an explicitly approved finance policy (D-11).
+            Status = "DRAFT",
             CreatedByUserId = actorId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -180,7 +182,7 @@ public sealed partial class ChannelSalesActions
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { throw new ApiConflictException("Mã phiên bản chính sách đã tồn tại."); }
         Audit.Add(db, actorId, "CREATE_COMMISSION_POLICY", nameof(CommissionPolicyVersion), policy.Id, null,
-            new { policy.Code, policy.OrganizationId, policy.PersonnelType, policy.RatePercent, policy.EffectiveFrom, policy.EffectiveUntil }, http);
+            new { policy.Code, policy.OrganizationId, policy.PersonnelType, policy.RatePercent, policy.EffectiveFrom, policy.EffectiveUntil, policy.Status }, http);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return policy.Id;

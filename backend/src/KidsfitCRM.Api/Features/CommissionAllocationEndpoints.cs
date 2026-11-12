@@ -129,9 +129,10 @@ public static class CommissionAllocationEndpoints
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await db.Organizations.FromSqlInterpolated($"SELECT * FROM organizations WHERE id = {request.OrganizationId} FOR UPDATE").SingleAsync(ct);
         var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        var systemOrgId = await db.Organizations.Where(x => x.Code == "KIDSFIT").Select(x => x.Id).SingleOrDefaultAsync(ct);
         var director = await db.CommissionAllocationVersions.AsNoTracking()
-            .Where(x => x.OrganizationId == request.OrganizationId && x.ConfiguredBy == "DIRECTOR"
-                && x.Status == "ACTIVE" && x.EffectiveFrom <= request.EffectiveFrom)
+            .Where(x => (x.OrganizationId == request.OrganizationId || (x.Scope == "SYSTEM" && x.OrganizationId == systemOrgId))
+                && x.ConfiguredBy == "DIRECTOR" && x.Status == "ACTIVE" && x.EffectiveFrom <= request.EffectiveFrom)
             .OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.Id).ToArrayAsync(ct);
         var limit = ResolveBoard(director, request.OrganizationId, access.UserId, request.SalesUserId.Value)
             ?? throw ApiValidationException.For("organization_id", "BGĐ chưa cấp chính sách hoa hồng cho nhân sự này.");

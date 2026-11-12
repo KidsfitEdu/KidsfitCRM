@@ -6,7 +6,7 @@ import { AllocationsPage } from './Allocations/AllocationsPage';
 import { ProgressPage } from './Progress/ProgressPage';
 import { ExtensionsPage } from './Extensions/ExtensionsPage';
 import { ContractsPage } from './Contracts/ContractsPage';
-import { TeamPage } from './Team/TeamPage';
+import { CommissionTeamPage } from './Team/CommissionTeamPage';
 export type ManagerSection='manager-dashboard'|'manager-proposals'|'manager-allocations'|'manager-progress'|'manager-contracts'|'manager-extensions'|'manager-team';
 const pages={
  'manager-dashboard':DashboardPage,
@@ -15,7 +15,7 @@ const pages={
  'manager-progress':ProgressPage,
  'manager-contracts':ContractsPage,
  'manager-extensions':ExtensionsPage,
- 'manager-team':TeamPage,
+ 'manager-team':CommissionTeamPage,
 };
 export function SalesManagerWorkspace({section,...props}:ManagerPageProps&{section:ManagerSection}){
  const Page=pages[section];

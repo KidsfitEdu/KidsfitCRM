@@ -15,6 +15,7 @@ public sealed class CommissionAllocationVersion : EntityBase
     public decimal SalesPercent { get; set; }
     public decimal ManagerPercent { get; set; }
     public decimal CeilingPercent { get; set; }
+    public decimal? ManagerCeilingPercent { get; set; }
     public DateOnly EffectiveFrom { get; set; }
     public string Status { get; set; } = "ACTIVE";
     public string Reason { get; set; } = "";

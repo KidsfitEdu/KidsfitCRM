@@ -58,8 +58,10 @@ export function createApiClient(apiBase: string) {
           : 'Không thể hoàn tất yêu cầu.');
       throw new ApiRequestError(message, response.status, 'http');
     }
-    return payload as T;    } finally { finishLoading(); }
-
+    return payload as T;
+    } finally {
+      finishLoading();
+    }
   }
   return request;
 }

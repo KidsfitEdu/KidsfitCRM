@@ -134,6 +134,81 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Sales_renewal_history_is_scoped_searchable_and_paginated()
+    {
+        var sellerA = await Seller();
+        var sellerB = await Seller();
+        var (_, contractA) = await Contract(sellerA);
+        var (_, contractB) = await Contract(sellerB);
+        await using var db = fixture.Open();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        db.ContractRenewals.AddRange(
+            new ContractRenewal {
+                ContractId = contractA, RenewalNo = 1, SubmittedByUserId = sellerA,
+                IdempotencyKey = Key(), RequestFingerprint = Key(), SignedOn = today,
+                ServiceStartOn = new DateOnly(2027, 1, 1), ServiceEndOn = new DateOnly(2027, 12, 31),
+                Status = "PENDING_ACCOUNTING", PaymentCycle = "YEARLY", TotalValue = 1000000,
+                SubmittedAt = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            },
+            new ContractRenewal {
+                ContractId = contractA, RenewalNo = 2, SubmittedByUserId = sellerA,
+                IdempotencyKey = Key(), RequestFingerprint = Key(), SignedOn = today,
+                ServiceStartOn = new DateOnly(2028, 1, 1), ServiceEndOn = new DateOnly(2028, 12, 31),
+                Status = "CONFIRMED", PaymentCycle = "YEARLY", TotalValue = 1000000,
+                SubmittedAt = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            },
+            new ContractRenewal {
+                ContractId = contractB, RenewalNo = 1, SubmittedByUserId = sellerB,
+                IdempotencyKey = Key(), RequestFingerprint = Key(), SignedOn = today,
+                ServiceStartOn = new DateOnly(2027, 1, 1), ServiceEndOn = new DateOnly(2027, 12, 31),
+                Status = "CONFIRMED", PaymentCycle = "YEARLY", TotalValue = 2000000,
+                SubmittedAt = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            });
+        await db.SaveChangesAsync(Ct);
+
+        static HttpContext AsSales(long userId) {
+            var http = new DefaultHttpContext();
+            http.User = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId.ToString())],
+                    "IntegrationTest"));
+            return http;
+        }
+        static System.Text.Json.JsonElement Json(IResult result) =>
+            System.Text.Json.JsonSerializer.SerializeToElement(
+                ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value);
+
+        var httpA = AsSales(sellerA);
+        var all = Json(await ContractRenewalEndpoints.MineList(httpA, db,
+            null, null, null, 1, 20, Ct));
+        Assert.Equal(2, all.GetProperty("total").GetInt32());
+        Assert.Equal(2, all.GetProperty("data").GetArrayLength());
+
+        var page = Json(await ContractRenewalEndpoints.MineList(httpA, db,
+            null, null, null, 1, 1, Ct));
+        Assert.Equal(2, page.GetProperty("total").GetInt32());
+        Assert.Single(page.GetProperty("data").EnumerateArray());
+
+        var filtered = Json(await ContractRenewalEndpoints.MineList(httpA, db,
+            null, "2", "CONFIRMED", 1, 20, Ct));
+        Assert.Equal(1, filtered.GetProperty("total").GetInt32());
+        Assert.Equal(contractA, filtered.GetProperty("data")[0].GetProperty("contract_id").GetInt64());
+
+        var schoolId = await db.SalesContracts.Where(x => x.Id == contractA)
+            .Select(x => x.CustomerId).SingleAsync(Ct);
+        var bySchool = Json(await ContractRenewalEndpoints.MineList(httpA, db,
+            schoolId, null, null, 1, 20, Ct));
+        Assert.Equal(2, bySchool.GetProperty("total").GetInt32());
+        var schools = Json(await ContractRenewalEndpoints.MineSchools(httpA, db, Ct));
+        Assert.Single(schools.GetProperty("data").EnumerateArray());
+
+        var other = Json(await ContractRenewalEndpoints.MineList(AsSales(sellerB), db,
+            null, null, null, 1, 20, Ct));
+        Assert.Equal(1, other.GetProperty("total").GetInt32());
+        Assert.Equal(contractB, other.GetProperty("data")[0].GetProperty("contract_id").GetInt64());
+    }
+
+    [MySqlFact]
     public async Task Sales_contract_yearly_and_monthly_fees_create_correct_item_breakdown()
     {
         var seller = await Seller();

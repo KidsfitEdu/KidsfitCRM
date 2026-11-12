@@ -46,6 +46,8 @@ public static class ContractRenewalEndpoints
     public static void Map(RouteGroupBuilder channel)
     {
         channel.MapGet("/renewals/eligible", Eligible).RequireAuthorization(Permissions.ContractRenewalSubmit);
+        channel.MapGet("/renewals/mine", MineList).RequireAuthorization(Permissions.ContractRenewalSubmit);
+        channel.MapGet("/renewals/mine/schools", MineSchools).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapGet("/contracts/{contractId:long}/renewals", Mine).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/contracts/{contractId:long}/renewals", Submit).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/renewals/{id:long}/resubmit", Resubmit).RequireAuthorization(Permissions.ContractRenewalSubmit);
@@ -278,6 +280,68 @@ public static class ContractRenewalEndpoints
             visible.Add(item);
         }
         return Results.Ok(new { data = visible });
+    }
+
+    /// <summary>All historical renewal submissions of the logged-in Sales, independently of current eligibility.</summary>
+    public static async Task<IResult> MineList(HttpContext http, KidsfitDbContext db,
+        long? customerId, string? search, string? status, int? page, int? pageSize, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
+        var query = from renewal in db.ContractRenewals.AsNoTracking()
+            join contract in access.Contracts(db).AsNoTracking() on renewal.ContractId equals contract.Id
+            join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+            where renewal.SubmittedByUserId == access.UserId && contract.OwnerUserId == access.UserId
+            select new { renewal, contract, school };
+        if (customerId.HasValue)
+        {
+            if (customerId.Value <= 0) throw ApiValidationException.For("customerId", "Trường không hợp lệ.");
+            query = query.Where(x => x.contract.CustomerId == customerId.Value);
+        }
+        var normalizedStatus = status?.Trim().ToUpperInvariant();
+        if (!string.IsNullOrEmpty(normalizedStatus) && normalizedStatus != "ALL")
+        {
+            if (normalizedStatus is not ("PENDING_ACCOUNTING" or "NEEDS_INFO" or "CONFIRMED" or "REJECTED"))
+                throw ApiValidationException.For("status", "Trạng thái tái ký không hợp lệ.");
+            query = query.Where(x => x.renewal.Status == normalizedStatus);
+        }
+        var keyword = search?.Trim() ?? "";
+        if (keyword.Length > 190) throw ApiValidationException.For("search", "Từ khóa tối đa 190 ký tự.");
+        if (keyword.Length > 0)
+        {
+            var matchingNumber = int.TryParse(keyword, out var renewalNo) ? renewalNo : -1;
+            query = query.Where(x => x.school.DisplayName.Contains(keyword)
+                || x.contract.ContractCode.Contains(keyword)
+                || x.renewal.RenewalNo == matchingNumber);
+        }
+        var p = Math.Max(1, page ?? 1);
+        var size = Math.Clamp(pageSize ?? 20, 1, 50);
+        var total = await query.CountAsync(ct);
+        var data = await query.OrderByDescending(x => x.renewal.CreatedAt).ThenByDescending(x => x.renewal.Id)
+            .Skip((p - 1) * size).Take(size)
+            .Select(x => new {
+                x.renewal.Id, x.renewal.ContractId, customer_id = x.contract.CustomerId,
+                contract_code = x.contract.ContractCode,
+                school_name = x.school.DisplayName, x.renewal.RenewalNo, x.renewal.SignedOn,
+                x.renewal.ServiceStartOn, x.renewal.ServiceEndOn, x.renewal.PaymentCycle,
+                x.renewal.TotalValue, x.renewal.Status, x.renewal.DecisionReason,
+                x.renewal.GapReason, x.renewal.SubmittedAt
+            }).ToArrayAsync(ct);
+        return Results.Ok(new { data, total, page = p, page_size = size });
+    }
+
+    /// <summary>Distinct schools with historical Sales renewal submissions, for the list filter.</summary>
+    public static async Task<IResult> MineSchools(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
+        var schools = await (from renewal in db.ContractRenewals.AsNoTracking()
+            join contract in access.Contracts(db).AsNoTracking() on renewal.ContractId equals contract.Id
+            join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+            where renewal.SubmittedByUserId == access.UserId && contract.OwnerUserId == access.UserId
+            select new { id = school.Id, name = school.DisplayName })
+            .Distinct().OrderBy(x => x.name).ThenBy(x => x.id).ToArrayAsync(ct);
+        return Results.Ok(new { data = schools });
     }
 
     public static async Task<IResult> Mine(long contractId, HttpContext http,

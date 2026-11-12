@@ -14,9 +14,11 @@ import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operati
 
 type Eligible = {id:number;contract_code:string;school_name:string;
   source_end_on:string|null;latest_end_on:string|null;pending:boolean};
-type Renewal = {id:number;renewal_no:number;signed_on:string;service_start_on:string;
+type Renewal = {id:number;contract_id:number;customer_id:number;school_name:string;contract_code:string;renewal_no:number;signed_on:string;service_start_on:string;
   service_end_on:string;payment_cycle:string;total_value:number;status:string;
   decision_reason:string|null;gap_reason:string|null;submitted_at:string|null};
+type SchoolOption = {id:number;name:string};
+type RenewalList = {data:Renewal[];total:number;page:number;page_size:number};
 type DrawerMode = 'create' | 'resubmit' | 'detail' | null;
 const statuses: Record<string,string> = {
   PENDING_ACCOUNTING:'Đang chờ Kế toán', NEEDS_INFO:'Cần bổ sung', CONFIRMED:'Đã xác nhận', REJECTED:'Đã từ chối'
@@ -41,6 +43,9 @@ const localDay = () => new Intl.DateTimeFormat('sv-SE',{
 export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:string;token:string;abilities:string[]}) {
   const [eligible,setEligible]=useState<Eligible[]>([]);
   const [contractId,setContractId]=useState('');
+  const [filterSchoolId,setFilterSchoolId]=useState('');
+  const [filterSchools,setFilterSchools]=useState<SchoolOption[]>([]);
+  const [total,setTotal]=useState(0);
   const [rows,setRows]=useState<Renewal[]>([]);
   const [loading,setLoading]=useState(false);
   const [listError,setListError]=useState(false);
@@ -71,39 +76,46 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     }catch(e){appNotice.error('Không tải được danh sách hợp đồng được phép tái ký.',e instanceof Error?e.message:'Vui lòng thử lại.');}
   },[apiBase,token,connected,canSubmit]);
   useEffect(()=>{void load();},[load]);
+  const loadSchools=useCallback(async()=>{
+    if(!connected||!canSubmit)return;
+    try{
+      const result=await channelRequest<{data:SchoolOption[]}>(apiBase,token,'/renewals/mine/schools');
+      setFilterSchools(result.data);
+    }catch(e){
+      appNotice.error('Không tải được danh sách trường có hồ sơ tái ký.',e instanceof Error?e.message:'Vui lòng thử lại.');
+    }
+  },[apiBase,token,connected,canSubmit]);
+  useEffect(()=>{void loadSchools();},[loadSchools,revision]);
   useEffect(()=>{
-    if(!contractId){setRows([]);setListError(false);return;}
+    if(!connected||!canSubmit)return;
     let live=true;
-    setLoading(true);
-    setListError(false);
-    void channelRequest<{data:Renewal[]}>(apiBase,token,`/contracts/${contractId}/renewals`)
-      .then(result=>{if(live)setRows(result.data);})
-      .catch(()=>{if(live){setRows([]);setListError(true);}})
+    setLoading(true);setListError(false);
+    const args=new URLSearchParams({page:String(page),pageSize:String(pageSize)});
+    if(filterSchoolId)args.set('customerId',filterSchoolId);
+    if(query)args.set('search',query);
+    if(status!=='ALL')args.set('status',status);
+    void channelRequest<RenewalList>(apiBase,token,'/renewals/mine?'+args)
+      .then(result=>{if(live){setRows(result.data);setTotal(result.total);}})
+      .catch(()=>{if(live){setRows([]);setTotal(0);setListError(true);}})
       .finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
-  },[apiBase,token,contractId,revision]);
+  },[apiBase,token,connected,canSubmit,filterSchoolId,page,pageSize,query,status,revision]);
 
   const selected=eligible.find(x=>String(x.id)===contractId);
   const selectedRenewal=rows.find(r=>r.id===activeId);
   const previousEnd=selected?.latest_end_on??selected?.source_end_on??null;
   const expectedNext=previousEnd?new Date(Date.parse(previousEnd.slice(0,10)+'T00:00:00Z')+86400000).toISOString().slice(0,10):null;
   const gapDetected=Boolean(expectedNext&&start>expectedNext);
-  const allFiltered=rows.filter(r=>{
-    if(status!=='ALL'&&r.status!==status)return false;
-    if(!query)return true;
-    const keyword=query.toLocaleLowerCase('vi-VN');
-    return [selected?.school_name,selected?.contract_code,String(r.renewal_no),statuses[r.status]]
-      .some(value=>(value??'').toLocaleLowerCase('vi-VN').includes(keyword));
-  });
-  const lastPage=Math.max(1,Math.ceil(allFiltered.length/pageSize));
-  const visible=allFiltered.slice((Math.min(page,lastPage)-1)*pageSize,Math.min(page,lastPage)*pageSize);
+  const lastPage=Math.max(1,Math.ceil(total/pageSize));
+  const visible=rows;
+
 
   const resetForm=()=>{
     setSignedOn(localDay());setStart('');setEnd('');setCycle('YEARLY');
     setAmount('');setGapReason('');setFile(null);setFileRevision(x=>x+1);
   };
   const openCreate=()=>{
-    resetForm();setActiveId(null);setDrawer('create');
+    resetForm();setContractId('');setActiveId(null);setDrawer('create');
   };
   const openResubmit=(r:Renewal)=>{
     resetForm();
@@ -112,10 +124,10 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     setCycle(r.payment_cycle);setAmount(String(r.total_value));
     setGapReason(r.gap_reason??'');setDrawer('resubmit');
   };
-  const changeContract=(value:string)=>{
+  const changeSchoolFilter=(value:string)=>{
     if(saving)return;
-    setContractId(value);setDrawer(null);setActiveId(null);
-    setRows([]);setSearch('');setQuery('');setStatus('ALL');setPage(1);
+    setFilterSchoolId(value);setDrawer(null);setActiveId(null);
+    setPage(1);
   };
   const send=async(e:SyntheticEvent<HTMLFormElement>)=>{
     e.preventDefault();
@@ -157,17 +169,17 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           <Input aria-label="Tìm hồ sơ tái ký" className="h-11 w-full rounded-xl pl-10"
             placeholder="Tên trường, mã hợp đồng, kỳ tái ký..." value={search} onChange={event=>setSearch(event.target.value)}/>
         </div>
-        <AppSelect ariaLabel="Lọc theo hợp đồng" className="w-full md:w-56" value={contractId}
-          options={[{value:'',label:'Chọn trường / hợp đồng'},
-            ...eligible.map(x=>({value:String(x.id),label:x.school_name+' · '+x.contract_code}))]}
-          onValueChange={changeContract}/>
+        <AppSelect ariaLabel="Lọc theo trường" className="w-full md:w-56" value={filterSchoolId}
+          options={[{value:'',label:'Tất cả trường'},
+            ...filterSchools.map(x=>({value:String(x.id),label:x.name}))]}
+          onValueChange={changeSchoolFilter}/>
         <AppSelect ariaLabel="Lọc theo trạng thái" className="w-full md:w-44" value={status}
           options={[{value:'ALL',label:'Tất cả trạng thái'},
             ...Object.entries(statuses).map(([value,label])=>({value,label}))]}
           onValueChange={next=>{setStatus(next);setPage(1);}}/>
         <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
         <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
-          aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setSearch('');setQuery('');setStatus('ALL');setPage(1);}}>
+          aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={()=>{setSearch('');setQuery('');setFilterSchoolId('');setStatus('ALL');setPage(1);}}>
           <RotateCcw className="size-4"/>
         </AppButton>
       </form>
@@ -185,8 +197,8 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           <tbody className="divide-y divide-border/70">
             {!loading&&!listError&&visible.map(r=><tr key={r.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
               <td className="px-5 py-4">
-                <p className="font-semibold">{selected?.school_name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{selected?.contract_code} · Lần {r.renewal_no}</p>
+                <p className="font-semibold">{r.school_name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{r.contract_code} · Lần {r.renewal_no}</p>
               </td>
               <td className="px-4 py-4">{channelDate(r.service_start_on)} – {channelDate(r.service_end_on)}
                 <p className="mt-1 text-xs text-muted-foreground">{r.payment_cycle==='MONTHLY'?'Thanh toán theo tháng':'Thanh toán theo năm'}</p>
@@ -209,11 +221,9 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           <p>Không tải được hồ sơ tái ký.</p>
           <Button variant="outline" type="button" onClick={()=>setRevision(v=>v+1)}>Thử lại</Button>
         </div>}
-        {!loading&&!listError&&(!contractId||allFiltered.length===0)&&<p className="p-10 text-center text-sm text-muted-foreground">
-          {!contractId?'Chọn trường / hợp đồng để xem lịch sử tái ký.':'Không có hồ sơ phù hợp bộ lọc.'}
-        </p>}
+        {!loading&&!listError&&total===0&&<p className="p-10 text-center text-sm text-muted-foreground">Chưa có hồ sơ tái ký phù hợp bộ lọc.</p>}
       </div>
-      <AppPagination page={Math.min(page,lastPage)} pageSize={pageSize} total={allFiltered.length}
+      <AppPagination page={Math.min(page,lastPage)} pageSize={pageSize} total={total}
         disabled={loading} showSummary={false} itemLabel="hồ sơ" pageSizeOptions={[10,20,50]}
         onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </section>
@@ -221,8 +231,8 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
       title="CHI TIẾT HỒ SƠ TÁI KÝ" description="Thông tin và kết quả xử lý hợp đồng tái ký">
       {!selectedRenewal?<p className="text-sm text-muted-foreground">Không tìm thấy hồ sơ.</p>:<div className="space-y-5 text-sm">
         <div>
-          <h2 className="text-lg font-bold">{selected?.school_name}</h2>
-          <p className="text-muted-foreground">{selected?.contract_code} · Lần {selectedRenewal.renewal_no}</p>
+          <h2 className="text-lg font-bold">{selectedRenewal.school_name}</h2>
+          <p className="text-muted-foreground">{selectedRenewal.contract_code} · Lần {selectedRenewal.renewal_no}</p>
         </div>
         <section className="space-y-2 rounded-lg border border-border p-4">
           <h3 className="font-semibold">Kỳ dịch vụ đề xuất</h3>
@@ -235,7 +245,8 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           {selectedRenewal.gap_reason&&<p>Lý do gián đoạn: {selectedRenewal.gap_reason}</p>}
         </section>
         {selectedRenewal.status==='NEEDS_INFO'&&<Button type="button"
-          onClick={()=>openResubmit(selectedRenewal)}>Bổ sung hồ sơ này</Button>}
+          disabled={!eligible.some(x=>x.id===selectedRenewal.contract_id)}
+          onClick={()=>{setContractId(String(selectedRenewal.contract_id));openResubmit(selectedRenewal);}}>Bổ sung hồ sơ này</Button>}
       </div>}
     </AppDrawer>
     <AppDrawer wide open={drawer==='create'||drawer==='resubmit'} busy={saving}
@@ -291,8 +302,6 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
   function changeContractForForm(value:string){
     if(saving)return;
     setContractId(value);
-    setRows([]);setActiveId(null);
     setStart('');setEnd('');setGapReason('');
-    setSearch('');setQuery('');setStatus('ALL');setPage(1);
   }
 }

@@ -308,9 +308,12 @@ public static class ContractRenewalEndpoints
         var keyword = search?.Trim() ?? "";
         if (keyword.Length > 190) throw ApiValidationException.For("search", "Từ khóa tối đa 190 ký tự.");
         if (keyword.Length > 0)
+        {
+            var matchingNumber = int.TryParse(keyword, out var renewalNo) ? renewalNo : -1;
             query = query.Where(x => x.school.DisplayName.Contains(keyword)
                 || x.contract.ContractCode.Contains(keyword)
-                || x.renewal.RenewalNo.ToString().Contains(keyword));
+                || x.renewal.RenewalNo == matchingNumber);
+        }
         var p = Math.Max(1, page ?? 1);
         var size = Math.Clamp(pageSize ?? 20, 1, 50);
         var total = await query.CountAsync(ct);

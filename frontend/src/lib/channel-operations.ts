@@ -212,8 +212,10 @@ export async function channelRequest<T>(
       errors,
     );
   }
-  return payload as T;    } finally { finishLoading(); }
-
+  return payload as T;
+    } finally {
+      finishLoading();
+    }
 }
 
 export const channelMoney = (value: number) =>

@@ -27,6 +27,10 @@ public static class CommissionAllocationEndpoints
             .RequireAuthorization(Permissions.ChannelSalesTeamManage);
         group.MapPost("/commission-config/manager", CreateManager)
             .RequireAuthorization(Permissions.ChannelSalesTeamManage);
+        group.MapPost("/commission-config/board/{id:long}/cancel", CancelBoard)
+            .RequireAuthorization(Permissions.ChannelSalesPolicyManage);
+        group.MapPost("/commission-config/manager/{id:long}/cancel", CancelManager)
+            .RequireAuthorization(Permissions.ChannelSalesTeamManage);
     }
 
     private static async Task<IResult> BoardList(HttpContext http, KidsfitDbContext db, CancellationToken ct)
@@ -38,7 +42,12 @@ public static class CommissionAllocationEndpoints
             .OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.Id).Take(500).ToArrayAsync(ct);
         var organizations = await db.Organizations.AsNoTracking().Where(x => access.All || access.OrganizationIds.Contains(x.Id))
             .Select(x => new { x.Id, x.Name, x.Code }).ToArrayAsync(ct);
-        return Results.Ok(new { data = items, organizations });
+        var members = await (from m in db.OrganizationMemberships.AsNoTracking()
+                             join u in db.Users.AsNoTracking() on m.UserId equals u.Id
+                             where m.Status == "ACTIVE" && u.Status == "ACTIVE"
+                                 && (access.All || access.OrganizationIds.Contains(m.OrganizationId))
+                             select new { m.OrganizationId, m.UserId, m.ManagerUserId, u.Name }).ToArrayAsync(ct);
+        return Results.Ok(new { data = items, organizations, members });
     }
 
     private static async Task<IResult> ManagerList(HttpContext http, KidsfitDbContext db, CancellationToken ct)
@@ -90,7 +99,10 @@ public static class CommissionAllocationEndpoints
         var scope = request.SalesUserId.HasValue ? "SALES" : request.ManagerUserId.HasValue ? "MANAGER" : "ORGANIZATION";
         if (scope != "ORGANIZATION")
             await CheckMembership(db, request.OrganizationId, request.ManagerUserId, request.SalesUserId, ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        await db.Organizations.FromSqlInterpolated($"SELECT * FROM organizations WHERE id = {request.OrganizationId} FOR UPDATE").SingleAsync(ct);
         var newVersion = await Save(db, request, scope, "DIRECTOR", http, ct);
+        await transaction.CommitAsync(ct);
         return Results.Created("/api/channel-sales/commission-config/board", new { data = new { id = newVersion.Id } });
     }
 
@@ -118,6 +130,34 @@ public static class CommissionAllocationEndpoints
         var newVersion = await Save(db, request with { CeilingPercent = limit.CeilingPercent }, "SALES", "MANAGER", http, ct);
         await transaction.CommitAsync(ct);
         return Results.Created("/api/channel-sales/commission-config/manager", new { data = new { id = newVersion.Id } });
+    }
+
+    private static Task<IResult> CancelBoard(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+        => Cancel(id, http, db, "DIRECTOR", Permissions.ChannelSalesPolicyManage, ct);
+    private static Task<IResult> CancelManager(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+        => Cancel(id, http, db, "MANAGER", Permissions.ChannelSalesTeamManage, ct);
+
+    private static async Task<IResult> Cancel(long id, HttpContext http, KidsfitDbContext db,
+        string owner, string permission, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(permission)) return Results.Forbid();
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var item = await db.CommissionAllocationVersions
+            .FromSqlInterpolated($"SELECT * FROM commission_allocation_versions WHERE id = {id} FOR UPDATE")
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        if (item.ConfiguredBy != owner || (!access.All && !access.InOrganization(item.OrganizationId)))
+            return Results.Forbid();
+        if (owner == "MANAGER" && item.ManagerUserId != access.UserId) return Results.Forbid();
+        if (item.EffectiveFrom <= ChannelSalesValidation.BusinessDate(DateTime.UtcNow) || item.Status != "ACTIVE")
+            throw new ApiConflictException("Chỉ được hủy phiên bản chưa tới ngày hiệu lực.");
+        item.Status = "CANCELLED";
+        item.UpdatedAt = DateTime.UtcNow;
+        Audit.Add(db, http.UserId(), "CANCEL_COMMISSION_ALLOCATION_VERSION", nameof(CommissionAllocationVersion),
+            item.Id, new { status = "ACTIVE" }, new { status = "CANCELLED" }, http);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Results.Ok(new { message = "Đã hủy cấu hình chưa có hiệu lực." });
     }
 
     private static CommissionAllocationVersion? ResolveBoard(IEnumerable<CommissionAllocationVersion> rules,
@@ -164,6 +204,11 @@ public static class CommissionAllocationEndpoints
     private static async Task<CommissionAllocationVersion> Save(KidsfitDbContext db,
         SaveCommissionAllocationRequest request, string scope, string configuredBy, HttpContext http, CancellationToken ct)
     {
+        if (await db.CommissionAllocationVersions.AnyAsync(x =>
+            x.OrganizationId == request.OrganizationId && x.Scope == scope && x.ConfiguredBy == configuredBy
+            && x.ManagerUserId == request.ManagerUserId && x.SalesUserId == request.SalesUserId
+            && x.EffectiveFrom == request.EffectiveFrom && x.Status == "ACTIVE", ct))
+            throw new ApiConflictException("Đã có cấu hình hiệu lực cùng ngày cho nhân sự/phạm vi này.");
         var now = DateTime.UtcNow;
         var reason = request.Reason?.Trim() ?? "";
         if (reason.Length is < 5 or > 1000)

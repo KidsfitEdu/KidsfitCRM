@@ -87,7 +87,7 @@ type Detail = {
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
-    period: string; beneficiary_user_id: number; beneficiary_organization_id: number; assigned_to_payout: boolean; reconciled: boolean }[];
+    period: string; beneficiary_user_id: number; beneficiary_organization_id: number; assigned_to_payout: boolean }[];
   payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null }[];
   evidence: {id:number;kind:string;file_name:string;revenue_receipt_id:number|null;payout_id:number|null}[];
   school_units: {id:number;name:string}[];
@@ -293,7 +293,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   };
   const eligibleByPeriod = new Map<string, number>();
   for (const entry of detail?.ledger ?? []) {
-    if (entry.reconciled && !entry.assigned_to_payout && entry.beneficiary_user_id === detail?.data.owner_user_id
+    if (!entry.assigned_to_payout && entry.beneficiary_user_id === detail?.data.owner_user_id
       && entry.beneficiary_organization_id === detail?.data.owner_organization_id) {
       eligibleByPeriod.set(entry.period, (eligibleByPeriod.get(entry.period) ?? 0) + entry.amount);
     }
@@ -614,10 +614,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </div>}
           </div>
           {canCreatePayout && eligiblePeriods.length===0 && !detail.payouts.some(x=>x.status==='APPROVED') && <p className="text-xs text-muted-foreground">
-            {detail.ledger.length===0 ? 'Chưa có hoa hồng phát sinh cho hợp đồng này.'
-              : detail.ledger.some(x=>!x.reconciled) ? 'Hoa hồng chưa có hồ sơ đối soát CHECKEE đã xác nhận.'
+            {detail.ledger.length===0 ? 'Khoản thu đã ghi nhận nhưng chưa có bút toán hoa hồng. Vui lòng kiểm tra chính sách hoa hồng áp dụng tại ngày thu.'
               : detail.ledger.every(x=>x.assigned_to_payout) ? 'Hoa hồng đã được đưa vào phiếu chi. Xem trạng thái phiếu chi bên dưới.'
-              : 'Chưa có khoản hoa hồng dương đủ điều kiện lập phiếu chi.'}
+              : 'Chưa có khoản hoa hồng dương đủ điều kiện lập phiếu chi cho Sales và kỳ đã chọn.'}
           </p>}
           {detail.ledger.some(x=>x.entry_type!=='ACCRUAL') && <div className="rounded-lg border border-border/80 px-3 py-2 text-xs text-muted-foreground">
             Có điều chỉnh hoa hồng. Chi tiết: {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').map(x=>`${x.reason || 'Điều chỉnh'} (${channelMoney(x.amount)})`).join('; ')}

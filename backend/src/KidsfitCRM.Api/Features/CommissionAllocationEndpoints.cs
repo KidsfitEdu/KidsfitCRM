@@ -273,7 +273,7 @@ public static class CommissionAllocationEndpoints
                 "ORGANIZATION" => x.OrganizationId == organizationId,
                 "SYSTEM" => true,
                 _ => false
-            })).OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.CreatedAt)
+            })).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.EffectiveFrom)
               .ThenByDescending(x => x.Id).FirstOrDefault();
             if (version?.Status == "ACTIVE") return version;
             // RESET tombstones disable only this scope; fall back to the next scope.

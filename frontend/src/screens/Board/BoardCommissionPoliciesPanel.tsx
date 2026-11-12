@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, XCircle } from 'lucide-react';
+import { Plus, XCircle } from 'lucide-react';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminListPanel, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
@@ -114,8 +114,8 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
         <td className={adminTableCellClass}>{dateOnly(v.effectiveFrom)}</td>
         <td className={adminTableCellClass}>{v.status==='ACTIVE'?'Đã cấu hình':'Đã hủy'}</td>
         <td className={adminTableCellClass+' text-right'}><div className="flex justify-end gap-2">
-          <button type="button" onClick={()=>setSelected(v)} className="text-sm underline underline-offset-4">Xem</button>
-          <button type="button" onClick={()=>start(v)} className="text-sm text-green-700 underline underline-offset-4">Sửa</button>
+          <button aria-label={"Xem cấu hình "+v.id} type="button" onClick={()=>setSelected(v)} className="text-sm underline underline-offset-4">Xem</button>
+          <button aria-label={"Tạo phiên bản thay thế cấu hình "+v.id} type="button" onClick={()=>start(v)} className="text-sm text-green-700 underline underline-offset-4">Sửa</button>
         </div></td>
       </tr>)}</tbody></table></div>
       {loading&&<p className="p-6 text-center text-sm">Đang tải...</p>}

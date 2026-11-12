@@ -21,7 +21,7 @@ test('Sales and CTV do not submit separate five-year protection requests',()=>{
  assert.match(ctv,/SalesProtectionOverview/);
  assert.match(ctv,/subview==='protection'/);
  assert.match(ctv,/Quản lý quyền bảo vệ/);
- assert.match(sales,/Kế toán đã xác nhận kỳ tiếp tục/);
+ assert.match(sales,/Kế toán xác nhận kỳ tiếp tục/);
 });
 
 test('Backend removes Sales request and Manager approval routes',()=>{

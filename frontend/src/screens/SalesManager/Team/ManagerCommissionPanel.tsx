@@ -35,7 +35,7 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
   catch(e){setError(e instanceof Error?e.message:'Không thể tải phân bổ hoa hồng.');}
   finally{setLoading(false);}
  },[allowed,apiBase,token]);
- useEffect(()=>{void load();},[load]);
+ useEffect(()=>{queueMicrotask(()=>void load());},[load]);
  const open=(person:MemberSplit)=>{
   setSelected(person);setSales(String(person.salesPercent??25));setManager(String(person.managerPercent??5));
   setReason('');setDate(nextDate());setError('');

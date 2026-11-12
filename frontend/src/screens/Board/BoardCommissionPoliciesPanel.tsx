@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, Pencil, Plus, RotateCcw } from 'lucide-react';
-import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
@@ -99,10 +98,12 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
   };
   if(!authorized)return <p role="alert" className="rounded-xl border p-4 text-sm text-destructive">Không có quyền cấu hình chính sách hoa hồng.</p>;
   return <div className="space-y-5">
-    <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Chính sách & hạn mức hoa hồng"
-      description="Thiết lập giới hạn áp dụng ngay cho hệ thống, đối tác, Quản lý và Sales."
-      actions={<AppButton leadingIcon={<Plus className="size-4"/>} disabled={loading||!workspace}
-        onClick={()=>start()}>Thêm mới</AppButton>}/>
+    <section className="flex flex-wrap items-center justify-between gap-3">
+      <div><h3 className="text-lg font-bold">Chính sách &amp; hạn mức hoa hồng</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Thiết lập giới hạn áp dụng ngay cho hệ thống, đối tác, Quản lý và Sales.</p></div>
+      <AppButton leadingIcon={<Plus className="size-4"/>} disabled={loading||!workspace}
+        onClick={()=>start()}>Thêm mới</AppButton>
+    </section>
     {notice&&<output className="block "rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">{notice}</output>}
     {error&&<p role="alert" className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
     <AdminListPanel>

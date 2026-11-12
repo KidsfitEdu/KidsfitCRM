@@ -15,6 +15,9 @@ public sealed class OptionalContractPackageReference : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropForeignKey(
+            name: "FK_sales_contract_items_checkee_product_packages_product_packag~",
+            table: "sales_contract_items");
         migrationBuilder.AlterColumn<long>(
             name: "product_package_id",
             table: "sales_contract_items",
@@ -22,12 +25,22 @@ public sealed class OptionalContractPackageReference : Migration
             nullable: true,
             oldClrType: typeof(long),
             oldType: "bigint");
+        migrationBuilder.AddForeignKey(
+            name: "FK_sales_contract_items_checkee_product_packages_product_packag~",
+            table: "sales_contract_items",
+            column: "product_package_id",
+            principalTable: "checkee_product_packages",
+            principalColumn: "id",
+            onDelete: ReferentialAction.Restrict);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        // MySQL rejects this rollback when manual-fee items have NULL package IDs.
-        // It intentionally does not delete or misassign historical contract items.
+        // MySQL rejects this rollback if manual-fee items have NULL package IDs.
+        // Never delete or assign artificial package IDs to make the downgrade pass.
+        migrationBuilder.DropForeignKey(
+            name: "FK_sales_contract_items_checkee_product_packages_product_packag~",
+            table: "sales_contract_items");
         migrationBuilder.AlterColumn<long>(
             name: "product_package_id",
             table: "sales_contract_items",
@@ -36,5 +49,12 @@ public sealed class OptionalContractPackageReference : Migration
             oldClrType: typeof(long),
             oldType: "bigint",
             oldNullable: true);
+        migrationBuilder.AddForeignKey(
+            name: "FK_sales_contract_items_checkee_product_packages_product_packag~",
+            table: "sales_contract_items",
+            column: "product_package_id",
+            principalTable: "checkee_product_packages",
+            principalColumn: "id",
+            onDelete: ReferentialAction.Restrict);
     }
 }

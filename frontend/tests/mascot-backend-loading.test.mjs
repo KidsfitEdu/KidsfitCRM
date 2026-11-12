@@ -28,6 +28,31 @@ test('Transport retains HTTP status and preserves backend contract', async () =>
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('Health check targets backend origin, not its /api prefix', async () => {
+  const app = source('components/crm/crm-app.tsx');
+  assert.match(app, /const healthRequest = createApiClient\(apiBase \? new URL\(apiBase\)\.origin : ''\)/);
+  assert.match(app, /healthRequest\('\/health'\)/);
+  assert.doesNotMatch(app, /request\('\/health'\)/);
+
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = '';
+  try {
+    globalThis.fetch = async input => {
+      requestedUrl = String(input);
+      return new Response(JSON.stringify({ status: 'healthy' }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    };
+    const base = 'http://localhost:8000/api';
+    await createApiClient(new URL(base).origin)('/health');
+    assert.equal(requestedUrl, 'http://localhost:8000/health');
+    await createApiClient(base)('/me', 'test-token');
+    assert.equal(requestedUrl, 'http://localhost:8000/api/me');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('Startup keeps existing session on network failure and only clears it on 401', () => {
   const app = source('components/crm/crm-app.tsx');
   assert.match(app, /cause instanceof ApiRequestError && cause.status === 401/);

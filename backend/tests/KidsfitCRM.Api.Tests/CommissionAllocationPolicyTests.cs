@@ -56,6 +56,18 @@ public sealed class CommissionAllocationPolicyTests
     }
 
     [Fact]
+    public void Later_immediate_save_outlives_older_previously_scheduled_version()
+    {
+        var scheduled = Rule("ORGANIZATION", ceiling: 36m);
+        scheduled.EffectiveFrom = new DateOnly(2026, 11, 20);
+        scheduled.CreatedAt = new DateTime(2026, 11, 12, 1, 0, 0, DateTimeKind.Utc);
+        var immediate = Rule("ORGANIZATION", ceiling: 30m);
+        immediate.EffectiveFrom = new DateOnly(2026, 11, 12);
+        immediate.CreatedAt = scheduled.CreatedAt.AddMinutes(3);
+        Assert.Same(immediate, CommissionAllocationEndpoints.ResolveBoard([scheduled, immediate], 10, 20, 30));
+    }
+
+    [Fact]
     public void Manager_share_has_its_own_ceiling_and_may_use_less_than_total()
     {
         var limit = Rule("MANAGER", manager: 20, ceiling: 36m);

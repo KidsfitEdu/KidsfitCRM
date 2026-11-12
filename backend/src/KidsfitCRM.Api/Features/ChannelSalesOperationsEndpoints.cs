@@ -11,6 +11,7 @@ public static class ChannelSalesOperationsEndpoints
     public static void MapChannelSalesOperations(this RouteGroupBuilder group)
     {
         AccountingWorkspaceEndpoints.Map(group);
+        group.MapCommissionAllocation();
         group.MapGet("/accounting/contracts", AccountingContractEndpoints.List).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/accounting/contracts/{id:long}", AccountingContractEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapPut("/accounting/contracts/{id:long}/service-term", AccountingContractEndpoints.SetServiceTerm).RequireAuthorization(Permissions.ChannelSalesRecordRevenue);

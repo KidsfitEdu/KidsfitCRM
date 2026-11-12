@@ -202,14 +202,16 @@ public static class CommissionAllocationEndpoints
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(permission)) return Results.Forbid();
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var lookup = await db.CommissionAllocationVersions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException();
+        await db.Organizations.FromSqlInterpolated(
+            $"SELECT * FROM organizations WHERE id = {lookup.OrganizationId} FOR UPDATE").SingleAsync(ct);
         var item = await db.CommissionAllocationVersions.FromSqlInterpolated(
             $"SELECT * FROM commission_allocation_versions WHERE id = {id} FOR UPDATE")
             .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (item.ConfiguredBy != owner || (!access.All && !access.InOrganization(item.OrganizationId)))
             return Results.Forbid();
         if (owner == "MANAGER" && item.ManagerUserId != access.UserId) return Results.Forbid();
-        await db.Organizations.FromSqlInterpolated(
-            $"SELECT * FROM organizations WHERE id = {item.OrganizationId} FOR UPDATE").SingleAsync(ct);
         var now = DateTime.UtcNow;
         var today = ChannelSalesValidation.BusinessDate(now);
         var versions = await db.CommissionAllocationVersions.AsNoTracking().Where(x =>
@@ -242,14 +244,14 @@ public static class CommissionAllocationEndpoints
             && (x.OrganizationId == organizationId || x.Scope == "SYSTEM")).ToArray();
         foreach (var scope in new[] { "SALES", "MANAGER", "ORGANIZATION", "SYSTEM" })
         {
-            var version = all.Where(x => x.Scope == scope && scope switch
+            var version = all.Where(x => x.Scope == scope && (scope switch
             {
                 "SALES" => x.OrganizationId == organizationId && x.ManagerUserId == managerId && x.SalesUserId == salesId,
                 "MANAGER" => x.OrganizationId == organizationId && x.ManagerUserId == managerId,
                 "ORGANIZATION" => x.OrganizationId == organizationId,
                 "SYSTEM" => true,
                 _ => false
-            }).OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.CreatedAt)
+            })).OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.CreatedAt)
               .ThenByDescending(x => x.Id).FirstOrDefault();
             if (version?.Status == "ACTIVE") return version;
             // RESET tombstones disable only this scope; fall back to the next scope.

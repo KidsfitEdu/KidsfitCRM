@@ -1,7 +1,7 @@
 'use client';
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
-import { contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
+import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
@@ -251,7 +251,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       if (entryMode === 'receipt') attachment.set('contract_id', String(selected));
       else attachment.set('payout_id', String(payoutId));
       const uploaded = await channelRequest<{data:{id:number}}>(apiBase, token, '/evidence', { method: 'POST', body: attachment });
-      const timestamp = new Date(date + 'T12:00:00+07:00').toISOString();
+      const timestamp = accountingTransactionTimestamp(date);
       if (entryMode === 'receipt') {
         await channelRequest(apiBase, token, `/contracts/${selected}/revenue-receipts`, {
           method: 'POST', body: JSON.stringify({

@@ -535,7 +535,6 @@ export function ChannelSalesView({
         <ContractDialog
           apiBase={apiBase} token={token}
           customer={contractCustomer}
-          packages={workspace.packages}
           onClose={() => setContractCustomer(null)}
           onSubmit={async (input) => {
             try {
@@ -1087,10 +1086,9 @@ function ActivityDialog({
 }
 
 function ContractDialog({
-  customer, packages, apiBase, token, onClose, onSubmit,
+  customer, apiBase, token, onClose, onSubmit,
 }: {
   customer: ChannelCustomer;
-  packages: ChannelSalesWorkspace['packages'];
   apiBase?: string;
   token?: string;
   onClose: () => void;

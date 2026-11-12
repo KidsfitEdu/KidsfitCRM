@@ -20,6 +20,7 @@ test('Contract renewal creation still requires exact source contract',()=>{
   assert.match(ui,/Hợp đồng được phép tái ký \*/);
   assert.match(ui,/value=\{contractId\}/);
   assert.match(ui,/onChange=\{e=>changeContractForForm\(e.target.value\)\}/);
+  assert.match(ui,/resetForm\(\);setContractId\(''\);setActiveId\(null\);setDrawer\('create'\)/);
   assert.match(ui,/\/contracts\/\$\{contractId\}\/renewals/);
   assert.match(ui,/total=\{total\}/);
 });

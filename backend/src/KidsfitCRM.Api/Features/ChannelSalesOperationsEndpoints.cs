@@ -43,6 +43,11 @@ public static class ChannelSalesOperationsEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesPayoutComplete);
         group.MapPost("/commission-policies", async (CreateCommissionPolicyRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
             Results.Created("/api/channel-sales/commission-policies", new { data = new { id = await actions.CreateCommissionPolicy(request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesPolicyManage);
+        group.MapPost("/commission-policies/{id:long}/cancel-draft", async (long id, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+        {
+            await actions.CancelCommissionPolicyDraft(id, http.UserId(), http, ct);
+            return Results.Ok(new { message = "Đã hủy bản nháp chính sách hoa hồng." });
+        }).RequireAuthorization(Permissions.ChannelSalesPolicyManage);
         group.MapPost("/team", async (CreateSalesAccountRequest request, HttpContext http, ChannelSalesActions actions, IPasswordHasher<User> hasher, CancellationToken ct) =>
             Results.Created("/api/channel-sales/team", new { data = new { id = await actions.CreateSalesAccount(request, http.UserId(), hasher, http, ct) } })).RequireAuthorization(Permissions.ChannelSalesTeamManage);
         group.MapPatch("/team/{id:long}/status", async (long id, ChangeMembershipStatusRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>

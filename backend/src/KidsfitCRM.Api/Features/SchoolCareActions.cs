@@ -21,6 +21,11 @@ public sealed partial class ChannelSalesActions
         if (!await db.Organizations.AnyAsync(o => o.Id == request.CareOrganizationId && o.Code == "KIDSFIT" && o.Status == "ACTIVE", ct))
             throw ApiValidationException.For("care_organization_id", "Chỉ phân công CSKH thuộc KIDSFIT.");
         await ActiveSchoolMembership(request.UserId, request.CareOrganizationId, ct);
+        // Permissions alone are insufficient: an Admin may also inherit support permissions.
+        if (!await db.OrganizationMemberships.AnyAsync(m => m.UserId == request.UserId
+            && m.OrganizationId == request.CareOrganizationId && m.Status == "ACTIVE"
+            && m.MembershipType == "CUSTOMER_SERVICE", ct))
+            throw ApiValidationException.For("user_id", "Chỉ được phân công cho nhân viên Chăm sóc khách hàng.");
         var nextCare = await ChannelSalesAccess.Load(db, request.UserId, ct);
         if (!nextCare.Has(Permissions.SchoolSupportManage)) throw ApiValidationException.For("user_id", "Nhân sự cần có quyền chăm sóc khách hàng.");
         var contract = await db.SalesContracts.FromSqlInterpolated($"SELECT * FROM sales_contracts WHERE id = {contractId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();

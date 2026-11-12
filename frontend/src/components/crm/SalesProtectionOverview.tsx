@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarClock, Eye, RefreshCw, ShieldCheck } from 'lucide-react';
+import { CalendarClock, Clock3, Eye, FileText, History, Info, RefreshCw, ShieldCheck } from 'lucide-react';
 import { channelRequest } from '@/lib/channel-operations';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass, adminTableCellClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppSelect } from '@/components/common/app-select';
@@ -40,6 +40,13 @@ const day=(s:string|null)=>s
   ? new Date(s.length===10?s+'T00:00:00+07:00':s).toLocaleDateString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})
   :'—';
 
+function DetailField({label,value}:{label:string;value:string}) {
+  return <div className="min-w-0 space-y-1">
+    <dt className="text-xs text-muted-foreground">{label}</dt>
+    <dd className="break-words font-semibold tabular-nums text-foreground">{value}</dd>
+  </div>;
+}
+
 export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:string}) {
   const [rows,setRows]=useState<Result>({data:[],total:0,page:1,page_size:10});
   const [loading,setLoading]=useState(false);
@@ -51,6 +58,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
   const [pageSize,setPageSize]=useState(10);
   const [selected,setSelected]=useState<SchoolProtection|null>(null);
   const [history,setHistory]=useState<Event[]>([]);
+  const [historyLoading,setHistoryLoading]=useState(false);
   const [detailError,setDetailError]=useState('');
   const load=useCallback(async()=>{
     if(!apiBase||!token)return;
@@ -65,12 +73,13 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
   },[apiBase,token,page,pageSize,search,status]);
   useEffect(()=>{void load();},[load]);
   useEffect(()=>{
-    if(!selected){setHistory([]);return;}
-    let active=true;setHistory([]);setDetailError('');
+    if(!selected){setHistory([]);setHistoryLoading(false);return;}
+    let active=true;setHistory([]);setDetailError('');setHistoryLoading(true);
     void channelRequest<InterruptionDetail>(apiBase,token,
       '/service-interruptions/'+selected.customer_id)
       .then(r=>{if(active)setHistory(r.data.history);})
-      .catch(e=>{if(active)setDetailError(e instanceof Error?e.message:'Không tải được lịch sử gián đoạn.');});
+      .catch(e=>{if(active)setDetailError(e instanceof Error?e.message:'Không tải được lịch sử gián đoạn.');})
+      .finally(()=>{if(active)setHistoryLoading(false);});
     return()=>{active=false;};
   },[apiBase,token,selected]);
   const reset=()=>{setDraft('');setSearch('');setStatus('ALL');setPage(1);};
@@ -134,45 +143,93 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
         onPageChange={setPage} onPageSizeChange={v=>{setPageSize(v);setPage(1);}}/>
     </AdminListPanel>
     <AppDrawer wide open={!!selected} onOpenChange={open=>{if(!open)setSelected(null);}}
-      title="Chi tiết quyền bảo vệ" description={selected?.customer_name??''}>
-      {selected&&<div className="space-y-5 text-sm">
-        <section className="rounded-xl border p-4">
-          <h3 className="font-semibold">Trường và hợp đồng</h3>
-          <p className="mt-2">{selected.customer_name} · {selected.contract_code}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2"><span>Trạng thái bảo vệ:</span><AppStatusBadge status={selected.protection_status} label={labels[selected.protection_status]??selected.protection_status}/></div>
-          <p>Bảo vệ đến: {day(selected.protection_until)}</p>
-          <p>Ưu tiên Sales cũ đến: {day(selected.priority_until)}</p>
-          {selected.new_protection_from&&selected.new_protection_until&&<p>Chu kỳ bảo vệ mới: {day(selected.new_protection_from)} – {day(selected.new_protection_until)}</p>}
+      title="Chi tiết quyền bảo vệ" description={selected?.customer_name??''}
+      bodyClassName="bg-muted/15">
+      {selected&&<div className="space-y-4 pb-2 text-sm">
+        <section aria-label="Tổng quan quyền bảo vệ" className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quyền bảo vệ trường học</p>
+              <h3 className="mt-1 text-lg font-bold leading-snug text-foreground">{selected.customer_name}</h3>
+              <p className="mt-1 break-all text-xs text-muted-foreground">Hợp đồng: {selected.contract_code}</p>
+            </div>
+            <AppStatusBadge status={selected.protection_status} label={labels[selected.protection_status]??selected.protection_status}/>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border bg-muted/30 p-3">
+              <p className="text-xs text-muted-foreground">Bảo vệ hiện tại đến</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{day(selected.protection_until)}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/30 p-3">
+              <p className="text-xs text-muted-foreground">Ưu tiên Sales cũ đến</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{day(selected.priority_until)}</p>
+            </div>
+          </div>
+          <p className="flex gap-2 text-xs leading-relaxed text-muted-foreground">
+            <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0"/>
+            Ưu tiên 15 ngày là khoảng xem xét của Sales cũ sau mốc bảo vệ, không gia hạn quyền bảo vệ.
+          </p>
         </section>
-        <section className="space-y-2 rounded-xl border p-4">
-          <h3 className="flex items-center gap-2 font-semibold"><CalendarClock className="size-4"/>Gián đoạn dịch vụ 12 tháng</h3>
-          <div className="flex flex-wrap items-center gap-2"><span>Trạng thái:</span><AppStatusBadge status={selected.interruption_status} label={labels[selected.interruption_status]??selected.interruption_status}/></div>
-          <p>Bắt đầu gián đoạn: {day(selected.gap_start_on)}</p>
-          <p>Mốc 12 tháng: {day(selected.threshold_on)}</p>
-          <p>Kỳ sử dụng tiếp theo: {day(selected.next_service_start_on)}</p>
-          <p>Đang chờ Kế toán: {selected.has_pending_renewal?'Có':'Không'}</p>
-          <p>Tranh chấp: {selected.has_open_dispute?'Có':'Không'}</p>
-        </section>
-        <section className="space-y-2 rounded-xl border p-4">
-          <h3 className="font-semibold">Kết quả bảo vệ tự động</h3>
-          <div className="flex flex-wrap items-center gap-2"><span>Trạng thái:</span><AppStatusBadge status={selected.renewal_status} label={labels[selected.renewal_status]??selected.renewal_status}/></div>
-          <p>Nguồn xử lý: {selected.renewal_source==='AUTO'?'CRM tự tính':selected.renewal_source==='MANUAL'?'Hồ sơ trước chuyển đổi':'Chưa phát sinh'}</p>
-          <p>Kế toán đã xác nhận kỳ tiếp tục: {selected.renewal_confirmed?'Có':'Chưa'}</p>
-          {selected.renewal_note&&<p>Ghi chú: {selected.renewal_note}</p>}
-          {selected.renewal_reason&&<p>Lý do xử lý: {selected.renewal_reason}</p>}
 
+        {protectionAction(selected)&&<section aria-label="Việc cần theo dõi" className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950/30">
+          <Clock3 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-sky-700 dark:text-sky-300"/>
+          <div className="min-w-0 space-y-1">
+            <p className="font-semibold text-sky-950 dark:text-sky-100">Cần theo dõi</p>
+            <AppStatusBadge status={protectionAction(selected)!.status} label={protectionAction(selected)!.label}/>
+            <p className="text-xs leading-relaxed text-sky-900/80 dark:text-sky-200">Đây là trạng thái xử lý từ CRM, không đồng nghĩa quyền bảo vệ đã bị giải phóng.</p>
+          </div>
+        </section>}
+
+        <section aria-labelledby="sales-protection-service-heading" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 id="sales-protection-service-heading" className="flex items-center gap-2 font-bold text-foreground"><CalendarClock aria-hidden="true" className="size-4 text-primary"/>Tình trạng sử dụng dịch vụ</h3>
+            <AppStatusBadge status={protectionServiceStatus(selected)} label={labels[protectionServiceStatus(selected)]??protectionServiceStatus(selected)}/>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Mốc gián đoạn 12 tháng được theo dõi độc lập với thời hạn bảo vệ 5 năm.</p>
+          <dl className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+            <DetailField label="Bắt đầu gián đoạn" value={day(selected.gap_start_on)}/>
+            <DetailField label="Mốc đủ 12 tháng" value={day(selected.threshold_on)}/>
+            <DetailField label="Kỳ sử dụng tiếp theo" value={day(selected.next_service_start_on)}/>
+            <DetailField label="Hồ sơ tái ký tại Kế toán" value={selected.has_pending_renewal?'Đang chờ xác nhận':'Không có hồ sơ chờ'}/>
+            <DetailField label="Tranh chấp quyền" value={selected.has_open_dispute?'Có tranh chấp cần xử lý':'Không có tranh chấp'}/>
+          </dl>
         </section>
-        <section className="space-y-2">
-          <h3 className="font-semibold">Lịch sử gián đoạn và quyết định</h3>
-          {detailError&&<p role="alert" className="text-destructive">{detailError}</p>}
-          {!detailError&&history.length===0&&<p className="text-muted-foreground">Chưa có sự kiện GI-01 được ghi nhận.</p>}
-          {history.map(h=><div key={h.id} className="rounded-lg border p-3">
-            <AppStatusBadge status={h.status} label={labels[h.status]??h.status}/>
-            <p>{h.reason}</p>
-            <p className="text-xs text-muted-foreground">{day(h.processed_at)}</p>
-          </div>)}
+
+        <section aria-labelledby="sales-protection-renewal-heading" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 id="sales-protection-renewal-heading" className="flex items-center gap-2 font-bold text-foreground"><ShieldCheck aria-hidden="true" className="size-4 text-primary"/>Chu kỳ bảo vệ tiếp theo</h3>
+            <AppStatusBadge status={selected.renewal_status} label={labels[selected.renewal_status]??selected.renewal_status}/>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Tái ký phần mềm hằng năm không tự cộng thêm 5 năm bảo vệ Sales.</p>
+          <dl className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+            <DetailField label="Kế toán xác nhận kỳ tiếp tục" value={selected.renewal_confirmed?'Đã xác nhận':'Chưa xác nhận'}/>
+            <DetailField label="Nguồn hồ sơ" value={selected.renewal_source==='AUTO'?'CRM tự tính':selected.renewal_source==='MANUAL'?'Hồ sơ trước chuyển đổi':'Chưa phát sinh'}/>
+            {selected.new_protection_from&&selected.new_protection_until&&<>
+              <DetailField label="Bảo vệ mới từ" value={day(selected.new_protection_from)}/>
+              <DetailField label="Bảo vệ mới đến" value={day(selected.new_protection_until)}/>
+            </>}
+          </dl>
+          {selected.renewal_note&&<div className="mt-4 rounded-lg bg-muted/40 p-3"><p className="text-xs font-semibold text-muted-foreground">Ghi chú hồ sơ</p><p className="mt-1 whitespace-pre-wrap break-words">{selected.renewal_note}</p></div>}
+          {selected.renewal_reason&&<div className="mt-3 rounded-lg bg-muted/40 p-3"><p className="text-xs font-semibold text-muted-foreground">Lý do xử lý</p><p className="mt-1 whitespace-pre-wrap break-words">{selected.renewal_reason}</p></div>}
         </section>
-        <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">Thời hạn ưu tiên 15 ngày không kéo dài bảo vệ. CRM chỉ tạo chu kỳ mới khi hợp đồng tái ký đã được Kế toán xác nhận và đáp ứng đầy đủ điều kiện.</p>
+
+        <section aria-labelledby="sales-protection-history-heading" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <h3 id="sales-protection-history-heading" className="flex items-center gap-2 font-bold text-foreground"><History aria-hidden="true" className="size-4 text-primary"/>Lịch sử gián đoạn và quyết định</h3>
+          {historyLoading&&<p role="status" className="mt-3 text-sm text-muted-foreground">Đang tải lịch sử xử lý...</p>}
+          {detailError&&<p role="alert" className="mt-3 text-sm text-destructive">{detailError}</p>}
+          {!historyLoading&&!detailError&&history.length===0&&<div className="mt-3 flex items-start gap-2 rounded-xl bg-muted/40 p-3">
+            <FileText aria-hidden="true" className="size-4 shrink-0 text-muted-foreground"/>
+            <p className="text-sm text-muted-foreground">Chưa có sự kiện gián đoạn GI-01 được ghi nhận.</p>
+          </div>}
+          {!historyLoading&&history.length>0&&<ol className="mt-4 space-y-4 border-l-2 border-border pl-4">
+            {history.map(h=><li key={h.id} className="space-y-1.5">
+              <p className="text-xs tabular-nums text-muted-foreground">{day(h.processed_at)}</p>
+              <AppStatusBadge status={h.status} label={labels[h.status]??h.status}/>
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{h.reason}</p>
+              {h.gap_start_on&&<p className="text-xs text-muted-foreground">Gián đoạn từ {day(h.gap_start_on)} · Mốc 12 tháng: {day(h.threshold_on)}</p>}
+            </li>)}
+          </ol>}
+        </section>
       </div>}
     </AppDrawer>
   </section>;

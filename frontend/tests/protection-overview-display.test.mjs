@@ -54,3 +54,17 @@ test('sales protection table retains five columns and no duplicated status badge
   assert.equal((ui.match(/<th className=/g)||[]).length,5);
   assert.match(ui,/aria-label="Không có việc cần xử lý"/);
 });
+
+test('Sales protection detail distinguishes rights, service, renewal, and GI-01 history',()=>{
+  const ui=readFileSync(resolve(import.meta.dirname,'../src/components/crm/SalesProtectionOverview.tsx'),'utf8');
+  for(const label of ['Tổng quan quyền bảo vệ','Bảo vệ hiện tại đến','Ưu tiên Sales cũ đến',
+    'Tình trạng sử dụng dịch vụ','Chu kỳ bảo vệ tiếp theo','Lịch sử gián đoạn và quyết định'])
+    assert.ok(ui.includes(label),label);
+  assert.match(ui,/protectionAction\(selected\)/);
+  assert.match(ui,/protectionServiceStatus\(selected\)/);
+  assert.match(ui,/historyLoading&&/);
+  assert.match(ui,/role="alert"/);
+  assert.match(ui,/Tái ký phần mềm hằng năm không tự cộng thêm 5 năm/);
+  assert.match(ui,/Đạt mốc gián đoạn 12 tháng không đồng nghĩa tự động giải phóng quyền bảo vệ/);
+  assert.doesNotMatch(ui,/Đang chờ Kế toán: \{selected\.has_pending_renewal/);
+});

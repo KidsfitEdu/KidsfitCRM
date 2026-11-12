@@ -22,8 +22,8 @@ test('Accounting money inputs show VND separators and submit an integer, not the
   assert.match(shared, /export const formatMoneyInput/);
   assert.match(shared, /export const parseMoneyInput/);
   assert.match(shared, /replace\(\/\\D\/g, ''\)/);
-  assert.match(page, /formatMoneyInput\(e\.target\.value\)/);
-  assert.match(page, /inputMode="numeric"/);
+  assert.match(page, /<AppCurrencyInput/);
+  assert.match(page, /onValueChange=\{setAmountInput\}/);
   assert.match(page, /parseMoneyInput\(amountInput\)/);
   assert.match(page, /Number\.isSafeInteger\(amount\)/);
   assert.doesNotMatch(page, /amount: Number\(form\.get\('amount'\)\)/);

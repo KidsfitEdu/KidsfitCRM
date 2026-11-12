@@ -60,8 +60,9 @@ test('Startup keeps existing session on network failure and only clears it on 40
   assert.match(app, /setRetryIndex\(index => index \+ 1\)/);
   assert.match(app, /healthRequest\('\/health'\)/);
   assert.match(app, /setHealthRetryIndex\(index => index \+ 1\)/);
-  assert.match(app, /MascotLoadingState state="loading"/);
-  assert.match(app, /<Suspense fallback=\{<MascotLoadingState/);
+  assert.match(app, /<PageLoading label=\{ready \? 'Đang xác thực tài khoản và tải dữ liệu\.\.\.'/);
+  assert.match(app, /MascotLoadingState state="offline"/);
+  assert.match(app, /<Suspense fallback=\{<PageLoading/);
 });
 
 test('Login has retry and safe fallback to edit credentials', () => {

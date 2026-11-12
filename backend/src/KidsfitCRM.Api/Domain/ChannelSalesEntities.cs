@@ -139,7 +139,7 @@ public sealed class SalesContract : EntityBase
 public sealed class SalesContractItem : EntityBase
 {
     public long ContractId { get; set; }
-    public long ProductPackageId { get; set; }
+    public long? ProductPackageId { get; set; }
     public string Description { get; set; } = "";
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }

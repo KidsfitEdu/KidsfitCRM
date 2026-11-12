@@ -278,8 +278,15 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
 
             if (signedOn < ChannelSalesValidation.BusinessDate(registration.RegisteredAt))
                 throw ApiValidationException.For("signed_on", "Ngày ký không được trước ngày đăng ký tiếp cận.");
-            var package = await db.CheckeeProductPackages.SingleOrDefaultAsync(x => x.Id == request.ProductPackageId && x.Status == "ACTIVE", cancellationToken)
-                ?? throw ApiValidationException.For("product_package_id", "Gói CHECKEE không tồn tại hoặc đã ngừng áp dụng.");
+            // Contract fees are reported from the signed document. A catalog package is
+            // only required for legacy callers that do not submit fee components.
+            CheckeeProductPackage? package = null;
+            if (request.ProductPackageId is > 0)
+                package = await db.CheckeeProductPackages.SingleOrDefaultAsync(
+                    x => x.Id == request.ProductPackageId.Value && x.Status == "ACTIVE", cancellationToken)
+                    ?? throw ApiValidationException.For("product_package_id", "Gói CHECKEE không tồn tại hoặc đã ngừng áp dụng.");
+            if (!hasContractFees && package is null)
+                throw ApiValidationException.For("product_package_id", "Cần chọn gói CHECKEE cho hợp đồng không khai báo chi phí chi tiết.");
 
             var schoolContract = await db.DirectorySchools.AnyAsync(x => x.CustomerId == customer.Id, cancellationToken);
             if (request.StudentCount is <= 0 or > 100000) throw ApiValidationException.For("student_count", "Quy mô học sinh không hợp lệ.");
@@ -369,13 +376,13 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 var setup = request.SetupFee!.Value;
                 var quantity = servicePlan == "MONTHLY_9" ? 9 : 1;
                 db.SalesContractItems.Add(new SalesContractItem {
-                    ContractId = contract.Id, ProductPackageId = package.Id,
+                    ContractId = contract.Id, ProductPackageId = package?.Id,
                     Description = servicePlan == "MONTHLY_9" ? "Phí duy trì mỗi tháng (9 tháng)" : "Phí duy trì năm học (9 tháng)",
                     Quantity = quantity, UnitPrice = maintenance, Amount = maintenance * quantity,
                     CreatedAt = now, UpdatedAt = now
                 });
                 if (setup > 0) db.SalesContractItems.Add(new SalesContractItem {
-                    ContractId = contract.Id, ProductPackageId = package.Id,
+                    ContractId = contract.Id, ProductPackageId = package?.Id,
                     Description = "Phí khởi tạo (một lần)", Quantity = 1, UnitPrice = setup, Amount = setup,
                     CreatedAt = now, UpdatedAt = now
                 });
@@ -383,8 +390,8 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             else
             {
                 db.SalesContractItems.Add(new SalesContractItem {
-                    ContractId = contract.Id, ProductPackageId = package.Id,
-                    Description = package.Name, Quantity = 1, UnitPrice = contract.TotalValue,
+                    ContractId = contract.Id, ProductPackageId = package?.Id,
+                    Description = package!.Name, Quantity = 1, UnitPrice = contract.TotalValue,
                     Amount = contract.TotalValue, CreatedAt = now, UpdatedAt = now
                 });
             }

@@ -2241,7 +2241,7 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("varchar(255)")
                         .HasColumnName("description");
 
-                    b.Property<long>("ProductPackageId")
+                    b.Property<long?>("ProductPackageId")
                         .HasColumnType("bigint")
                         .HasColumnName("product_package_id");
 
@@ -4084,8 +4084,7 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasOne("KidsfitCRM.Api.Domain.CheckeeProductPackage", null)
                         .WithMany()
                         .HasForeignKey("ProductPackageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolCapacityChange", b =>

@@ -1,3 +1,4 @@
+import { trackAppRequest } from '@/lib/loading-tracker';
 export type FinanceWorkspace = {
   personnel_types?: string[];
   period: string;
@@ -180,36 +181,41 @@ export async function channelRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const headers = new Headers(options.headers);
-  if (!(options.body instanceof FormData))
-    headers.set('Content-Type', 'application/json');
-  headers.set('Authorization', `Bearer ${token}`);
-  let response: Response;
-  try {
-    response = await fetch(`${base}/channel-sales${path}`, {
-      ...options,
-      headers,
-    });
-  } catch {
-    throw new ChannelRequestError('Không thể kết nối đến Backend. Vui lòng kiểm tra máy chủ hoặc kết nối mạng.', 0);
-  }
-  const payload = (await response.json().catch(() => ({}))) as {
-    message?: string;
-    errors?: Record<string, string[]>;
-  };
-  if (!response.ok) {
-    const errors = payload.errors && typeof payload.errors === 'object'
-      ? payload.errors : {};
-    const firstError = Object.values(errors)
-      .flat()
-      .find(value => typeof value === 'string' && value.trim());
-    throw new ChannelRequestError(
-      requestErrorMessage(response.status, firstError ?? payload.message),
-      response.status,
-      errors,
-    );
-  }
-  return payload as T;
+    const finishLoading = trackAppRequest();
+    try {
+    const headers = new Headers(options.headers);
+    if (!(options.body instanceof FormData))
+      headers.set('Content-Type', 'application/json');
+    headers.set('Authorization', `Bearer ${token}`);
+    let response: Response;
+    try {
+      response = await fetch(`${base}/channel-sales${path}`, {
+        ...options,
+        headers,
+      });
+    } catch {
+      throw new ChannelRequestError('Không thể kết nối đến Backend. Vui lòng kiểm tra máy chủ hoặc kết nối mạng.', 0);
+    }
+    const payload = (await response.json().catch(() => ({}))) as {
+      message?: string;
+      errors?: Record<string, string[]>;
+    };
+    if (!response.ok) {
+      const errors = payload.errors && typeof payload.errors === 'object'
+        ? payload.errors : {};
+      const firstError = Object.values(errors)
+        .flat()
+        .find(value => typeof value === 'string' && value.trim());
+      throw new ChannelRequestError(
+        requestErrorMessage(response.status, firstError ?? payload.message),
+        response.status,
+        errors,
+      );
+    }
+    return payload as T;
+    } finally {
+      finishLoading();
+    }
 }
 
 export const channelMoney = (value: number) =>

@@ -381,3 +381,32 @@ body { font-family: var(--font-brand); }
     transform: none !important;
   }
 }
+
+/* Shared motion language: subtle, compositor-friendly, and accessible. */
+@keyframes crm-skeleton-shimmer {
+  0% { background-position: 150% 0; }
+  100% { background-position: -150% 0; }
+}
+.crm-skeleton {
+  background-image: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--card) 80%, transparent) 50%, transparent 80%);
+  background-size: 220% 100%;
+  animation: crm-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes crm-page-reveal {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.crm-page-enter {
+  animation: crm-page-reveal 180ms ease-out both;
+  min-width: 0;
+}
+.crm-global-progress { transition: opacity 160ms ease-out; }
+@keyframes crm-progress-slide {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(310%); }
+}
+.crm-global-progress-bar { animation: crm-progress-slide 1.25s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .crm-skeleton, .crm-page-enter, .crm-global-progress-bar { animation: none !important; }
+  .crm-page-enter { transform: none !important; }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Eye, Pencil, Plus, RotateCcw } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -59,14 +59,11 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
   useEffect(()=>{queueMicrotask(()=>void load());},[load]);
   const orgName=(id:number)=>workspace?.organizations.find(o=>o.id===id)?.name??String(id);
   const person=(id:number|null)=>id?workspace?.members.find(m=>m.userId===id)?.name??String(id):'—';
-  const visible=useMemo(()=>(workspace?.data??[])
+  const visible=(workspace?.data??[])
     .filter(x=>(organization==='ALL'||String(x.organizationId)===organization)
       &&(scope==='ALL'||x.scope===scope)
       &&[orgName(x.organizationId),person(x.managerUserId),person(x.salesUserId),x.scope]
-        .some(y=>y.toLowerCase().includes(search.toLowerCase()))),
-    // Lookup arrays are changed only through workspace refresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [workspace,organization,scope,search]);
+        .some(y=>y.toLowerCase().includes(search.toLowerCase())));
   const pageRows=visible.slice((page-1)*pageSize,page*pageSize);
   const start=(v?:Version)=>{
     setSelected(null);setError('');setNotice('');setReplacing(Boolean(v));

@@ -1,6 +1,7 @@
 'use client';
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
+import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
@@ -222,13 +223,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     const referenceValue = form.get('reference_code');
     const reference = typeof referenceValue === 'string' ? referenceValue.trim() : '';
     const today = accountingBusinessDay(new Date());
-    const signedOn = accountingBusinessDay(new Date(detail.data.signed_on));
+    const signedOn = contractSignedDay(detail.data.signed_on);
     const validation: FieldErrors = {};
-    if (!date) validation.transaction_date = 'Vui lòng chọn ngày giao dịch.';
-    else if (date > today || (entryMode === 'receipt' && date < signedOn))
-      validation.transaction_date = entryMode === 'receipt'
-        ? 'Ngày thu phải từ ngày ký hợp đồng đến hiện tại.'
-        : 'Ngày chi không được ở tương lai.';
+    if (!signedOn) {
+      validation.transaction_date = 'Không xác định được ngày ký hợp đồng. Vui lòng tải lại chi tiết.';
+    } else {
+      const dateError = validateTransactionDay(date, today, signedOn, entryMode);
+      if (dateError) validation.transaction_date = dateError;
+    }
     if (!Number.isSafeInteger(amount) || amount <= 0) validation.amount = 'Số tiền phải là số nguyên dương.';
     if (!reference) validation.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng.';
     if (!(proof instanceof File) || proof.size === 0) validation.proof = 'Vui lòng chọn ảnh chứng từ chuyển khoản.';
@@ -249,7 +251,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       if (entryMode === 'receipt') attachment.set('contract_id', String(selected));
       else attachment.set('payout_id', String(payoutId));
       const uploaded = await channelRequest<{data:{id:number}}>(apiBase, token, '/evidence', { method: 'POST', body: attachment });
-      const timestamp = new Date(date + 'T12:00:00+07:00').toISOString();
+      const timestamp = accountingTransactionTimestamp(date);
       if (entryMode === 'receipt') {
         await channelRequest(apiBase, token, `/contracts/${selected}/revenue-receipts`, {
           method: 'POST', body: JSON.stringify({

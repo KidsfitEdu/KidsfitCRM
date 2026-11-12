@@ -1,3 +1,4 @@
+import { trackAppRequest } from '@/lib/loading-tracker';
 export type FinanceWorkspace = {
   personnel_types?: string[];
   period: string;
@@ -180,6 +181,8 @@ export async function channelRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+    const finishLoading = trackAppRequest();
+    try {
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData))
     headers.set('Content-Type', 'application/json');
@@ -209,7 +212,8 @@ export async function channelRequest<T>(
       errors,
     );
   }
-  return payload as T;
+  return payload as T;    } finally { finishLoading(); }
+
 }
 
 export const channelMoney = (value: number) =>

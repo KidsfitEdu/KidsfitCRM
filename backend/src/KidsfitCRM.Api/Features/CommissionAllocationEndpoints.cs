@@ -167,8 +167,7 @@ public static class CommissionAllocationEndpoints
         request = request with { ManagerUserId = access.UserId };
         ValidateRates(request, false);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        await db.Organizations.FromSqlInterpolated(
-            $"SELECT * FROM organizations WHERE id = {request.OrganizationId} FOR UPDATE").SingleAsync(ct);
+        await LockPolicyWrites(db, request.OrganizationId, ct);
         await CheckMembership(db, request.OrganizationId, access.UserId, request.SalesUserId, ct);
         var now = DateTime.UtcNow;
         var today = ChannelSalesValidation.BusinessDate(now);

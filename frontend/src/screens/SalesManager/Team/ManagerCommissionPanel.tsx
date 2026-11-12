@@ -51,6 +51,14 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
   }catch(e){setError(e instanceof Error?e.message:'Không lưu được phân bổ.');}
   finally{setBusy(false);}
  };
+ const cancel=async(v:Version)=>{
+  if(!window.confirm('Hủy phiên bản phân bổ chưa đến ngày hiệu lực?'))return;
+  setBusy(true);setError('');
+  try{await channelRequest(apiBase,token,'/commission-config/manager/'+v.id+'/cancel',{method:'POST'});
+   await load();setSelected(null);
+  }catch(e){setError(e instanceof Error?e.message:'Không thể hủy phân bổ.');}
+  finally{setBusy(false);}
+ };
  const visible=(data?.data??[]).filter(x=>x.name.toLowerCase().includes(search.toLowerCase()));
  if(!allowed)return <p role="alert" className="rounded-xl border p-4 text-sm text-destructive">Không có quyền phân bổ hoa hồng.</p>;
  return <div className="space-y-4">
@@ -92,6 +100,9 @@ export function ManagerCommissionPanel({apiBase,token,abilities}:ManagerPageProp
     <div className="border-t pt-3"><h3 className="font-semibold">Lịch sử phân bổ</h3>
      {(data?.history??[]).filter(h=>h.salesUserId===selected.userId&&h.organizationId===selected.organizationId).map(h=><p key={h.id} className="mt-2 text-xs text-muted-foreground">
       {h.effectiveFrom.slice(0,10)} · Sales {h.salesPercent}% / QL {h.managerPercent}% · {h.status} · {h.reason}
+      {h.status==='ACTIVE'&&new Date(h.effectiveFrom)>new Date()&&
+       <button type="button" disabled={busy} className="ml-2 text-destructive underline"
+        aria-label={'Hủy phiên bản '+h.id} onClick={()=>void cancel(h)}>Hủy lịch hiệu lực</button>}
      </p>)}
      {!data?.history.some(h=>h.salesUserId===selected.userId&&h.organizationId===selected.organizationId)&&<p className="mt-2 text-xs text-muted-foreground">Chưa có điều chỉnh riêng.</p>}
     </div>

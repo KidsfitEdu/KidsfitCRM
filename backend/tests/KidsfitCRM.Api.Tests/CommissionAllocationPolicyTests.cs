@@ -56,6 +56,53 @@ public sealed class CommissionAllocationPolicyTests
     }
 
     [Fact]
+    public void Manager_share_has_its_own_ceiling_and_may_use_less_than_total()
+    {
+        var limit = Rule("MANAGER", manager: 20, ceiling: 36m);
+        limit.ManagerCeilingPercent = 11m;
+        Assert.True(CommissionAllocationEndpoints.FitsWithin(limit, 25m, 11m));
+        Assert.True(CommissionAllocationEndpoints.FitsWithin(limit, 20m, 8m));
+        Assert.False(CommissionAllocationEndpoints.FitsWithin(limit, 24m, 12m));
+        Assert.False(CommissionAllocationEndpoints.FitsWithin(limit, 30m, 11m));
+    }
+
+    [Fact]
+    public void Same_day_replacement_is_ordered_by_server_timestamp_not_day_only()
+    {
+        var old = Rule("ORGANIZATION", ceiling: 30m);
+        old.CreatedAt = new DateTime(2026, 11, 13, 2, 0, 0, DateTimeKind.Utc);
+        var changed = Rule("ORGANIZATION", ceiling: 36m);
+        changed.CreatedAt = old.CreatedAt.AddMinutes(1);
+        Assert.Same(changed, CommissionAllocationEndpoints.ResolveBoard([old, changed], 10, 20, 30));
+        Assert.Equal(30m, CommissionAllocationEndpoints.ResolveBoard([old], 10, 20, 30)!.CeilingPercent);
+    }
+
+    [Fact]
+    public void Board_reset_restores_inherited_policy_without_erasing_old_record()
+    {
+        var global = Rule("SYSTEM", ceiling: 30m); global.OrganizationId = 1;
+        var specific = Rule("MANAGER", manager: 20, ceiling: 36m);
+        specific.CreatedAt = new DateTime(2026, 11, 13, 2, 0, 0, DateTimeKind.Utc);
+        var reset = Rule("MANAGER", manager: 20); reset.Status = "RESET";
+        reset.CreatedAt = specific.CreatedAt.AddMinutes(1);
+        Assert.Same(global, CommissionAllocationEndpoints.ResolveBoard([global, specific, reset], 10, 20, 30));
+    }
+
+    [Fact]
+    public void Manager_reset_disables_only_the_manager_specific_override()
+    {
+        var day = new DateOnly(2026, 11, 13);
+        var old = Rule("SALES", manager: 20, sales: 30);
+        old.ConfiguredBy = "MANAGER";
+        old.CreatedAt = new DateTime(2026, 11, 13, 2, 0, 0, DateTimeKind.Utc);
+        var reset = Rule("SALES", manager: 20, sales: 30);
+        reset.ConfiguredBy = "MANAGER"; reset.Status = "RESET";
+        reset.CreatedAt = old.CreatedAt.AddMinutes(1);
+        Assert.Null(CommissionAllocationEndpoints.ResolveManager([old, reset], 10, 20, 30, day));
+        Assert.Same(old, CommissionAllocationEndpoints.ResolveManager([old], 10, 20, 30, day));
+    }
+
+    [Fact]
     public void Configuration_versions_do_not_require_existing_financial_entries()
     {
         var configuration = Rule("ORGANIZATION");

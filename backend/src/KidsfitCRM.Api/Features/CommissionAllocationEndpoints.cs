@@ -9,7 +9,7 @@ namespace KidsfitCRM.Api.Features;
 public sealed record SaveCommissionAllocationRequest(
     long OrganizationId, long? ManagerUserId, long? SalesUserId,
     decimal SalesPercent, decimal ManagerPercent, decimal CeilingPercent,
-    DateOnly EffectiveFrom, string? Reason);
+    DateOnly EffectiveFrom, string? Reason, string? ApplyScope = null);
 
 /// <summary>
 /// Configuration-only commission splits. This does not create ledger entries or change payout rules.
@@ -61,10 +61,11 @@ public static class CommissionAllocationEndpoints
                               && access.OrganizationIds.Contains(m.OrganizationId) && u.Status == "ACTIVE"
                           select new { m.UserId, m.OrganizationId, u.Name }).ToArrayAsync(ct);
         var orgIds = team.Select(x => x.OrganizationId).Distinct().ToArray();
+        var systemOrgId = await db.Organizations.Where(x => x.Code == "KIDSFIT").Select(x => x.Id).SingleOrDefaultAsync(ct);
         var salesIds = team.Select(x => x.UserId).ToArray();
         var director = await db.CommissionAllocationVersions.AsNoTracking()
             .Where(x => x.ConfiguredBy == "DIRECTOR" && x.Status == "ACTIVE" && x.EffectiveFrom <= today
-                && orgIds.Contains(x.OrganizationId))
+                && (orgIds.Contains(x.OrganizationId) || (x.Scope == "SYSTEM" && x.OrganizationId == systemOrgId)))
             .OrderByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.Id).ToArrayAsync(ct);
         var manager = await db.CommissionAllocationVersions.AsNoTracking()
             .Where(x => x.ConfiguredBy == "MANAGER" && x.ManagerUserId == access.UserId
@@ -96,7 +97,16 @@ public static class CommissionAllocationEndpoints
         if (!access.Has(Permissions.ChannelSalesPolicyManage) || !access.CanManageOrganization(request.OrganizationId))
             return Results.Forbid();
         ValidateRates(request, requireCeiling: true);
-        var scope = request.SalesUserId.HasValue ? "SALES" : request.ManagerUserId.HasValue ? "MANAGER" : "ORGANIZATION";
+        var scope = request.ApplyScope == "SYSTEM" ? "SYSTEM"
+            : request.SalesUserId.HasValue ? "SALES" : request.ManagerUserId.HasValue ? "MANAGER" : "ORGANIZATION";
+        if (scope == "SYSTEM")
+        {
+            if (request.ManagerUserId.HasValue || request.SalesUserId.HasValue
+                || !await db.Organizations.AnyAsync(x => x.Id == request.OrganizationId && x.Code == "KIDSFIT", ct))
+                throw ApiValidationException.For("apply_scope", "Mặc định toàn hệ thống phải thuộc tổ chức KIDSFIT và không chọn nhân sự.");
+        }
+        else if (request.ApplyScope is not null && request.ApplyScope != "ORGANIZATION")
+            throw ApiValidationException.For("apply_scope", "Phạm vi áp dụng không hợp lệ.");
         if (scope != "ORGANIZATION")
             await CheckMembership(db, request.OrganizationId, request.ManagerUserId, request.SalesUserId, ct);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
@@ -164,15 +174,16 @@ public static class CommissionAllocationEndpoints
     internal static CommissionAllocationVersion? ResolveBoard(IEnumerable<CommissionAllocationVersion> rules,
         long organizationId, long managerId, long salesId)
     {
-        return rules.Where(x => x.OrganizationId == organizationId && x.ConfiguredBy == "DIRECTOR")
+        return rules.Where(x => (x.OrganizationId == organizationId || x.Scope == "SYSTEM") && x.ConfiguredBy == "DIRECTOR")
             .Where(x => x.Scope switch
             {
                 "SALES" => x.ManagerUserId == managerId && x.SalesUserId == salesId,
                 "MANAGER" => x.ManagerUserId == managerId,
                 "ORGANIZATION" => true,
+                "SYSTEM" => true,
                 _ => false
             })
-            .OrderByDescending(x => x.Scope == "SALES" ? 3 : x.Scope == "MANAGER" ? 2 : 1)
+            .OrderByDescending(x => x.Scope == "SALES" ? 4 : x.Scope == "MANAGER" ? 3 : x.Scope == "ORGANIZATION" ? 2 : 1)
             .ThenByDescending(x => x.EffectiveFrom).ThenByDescending(x => x.Id).FirstOrDefault();
     }
 

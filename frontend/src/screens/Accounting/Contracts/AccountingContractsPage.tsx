@@ -15,6 +15,7 @@ import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input'
 import { channelDate, channelMoney, channelRequest, ChannelRequestError, parseMoneyInput } from '@/lib/channel-operations';
 import { EvidencePreviewDialog } from '@/components/common/evidence-preview-dialog';
 import { AppStatusBadge } from '@/components/common/app-status-badge';
+import { AppSkeleton, InlineLoading } from '@/components/common/app-loading';
 import { AccountingRenewalInline } from './AccountingRenewalInline';
 
 const paymentScheduleLabel = (status: string) => ({
@@ -131,9 +132,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       setOwners(Array.isArray(result.owners) ? result.owners : []);
       setTotal(result.total);
     } catch (cause) {
-      setRows([]);
-      setOwners([]);
-      setTotal(0);
+      // Preserve the current rows on transient failures so the list does not flash empty.
       appNotice.error('Không tải được danh sách hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
     } finally {
       setBusy(false);
@@ -359,7 +358,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <RotateCcw className="size-4" aria-hidden="true"/>
         </AppButton>
       </form>
-      <div className="overflow-x-auto">
+      {busy && rows.length > 0 && <div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..." /></div>}
+      {busy && rows.length === 0 ? <div className="space-y-3 p-5" role="status" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</div> : <div className="overflow-x-auto">
         <table className="w-full min-w-[1280px] text-left text-sm">
           <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white">
             <tr>
@@ -438,6 +438,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </tbody>
         </table>
       </div>
+      }
       {!busy && rows.length===0 && <p className="p-10 text-center text-sm text-muted-foreground">Không có hợp đồng phù hợp. Hãy thử bộ lọc khác.</p>}
       <AppPagination page={page} pageSize={pageSize} total={total} itemLabel="hợp đồng"
         disabled={busy} showSummary={false} pageSizeOptions={[20,50,100]}
@@ -447,7 +448,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description="Kế toán / Chi tiết hợp đồng">
-      {!detail ? <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p> : <div className="space-y-5 text-sm">
+      {!detail ? <div className="space-y-3 p-3" role="status" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></div> : <div className="space-y-5 text-sm">
         <div className="space-y-2 rounded-xl bg-muted/25 p-4 sm:p-5">
           <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
           <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>

@@ -25,6 +25,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<RevenueSchedule> RevenueSchedules => Set<RevenueSchedule>();
     public DbSet<RevenueReceipt> RevenueReceipts => Set<RevenueReceipt>();
     public DbSet<CommissionPolicyVersion> CommissionPolicyVersions => Set<CommissionPolicyVersion>();
+    public DbSet<CommissionAllocationVersion> CommissionAllocationVersions => Set<CommissionAllocationVersion>();
     public DbSet<CommissionLedgerEntry> CommissionLedgerEntries => Set<CommissionLedgerEntry>();
     public DbSet<Payout> Payouts => Set<Payout>();
     public DbSet<PayoutItem> PayoutItems => Set<PayoutItem>();
@@ -234,6 +235,16 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         DateOnlyProperty(b.Entity<CommissionPolicyVersion>().Property(x => x.EffectiveFrom));
         DateOnlyProperty(b.Entity<CommissionPolicyVersion>().Property(x => x.EffectiveUntil));
         b.Entity<CommissionPolicyVersion>().HasIndex(x => new { x.OrganizationId, x.Status, x.EffectiveFrom });
+
+        b.Entity<CommissionAllocationVersion>().Property(x => x.Scope).HasMaxLength(24).UseCollation("utf8mb4_bin");
+        b.Entity<CommissionAllocationVersion>().Property(x => x.ConfiguredBy).HasMaxLength(24).UseCollation("utf8mb4_bin");
+        b.Entity<CommissionAllocationVersion>().Property(x => x.Status).HasMaxLength(24);
+        b.Entity<CommissionAllocationVersion>().Property(x => x.Reason).HasMaxLength(1000);
+        b.Entity<CommissionAllocationVersion>().Property(x => x.SalesPercent).HasPrecision(9, 4);
+        b.Entity<CommissionAllocationVersion>().Property(x => x.ManagerPercent).HasPrecision(9, 4);
+        b.Entity<CommissionAllocationVersion>().Property(x => x.CeilingPercent).HasPrecision(9, 4);
+        b.Entity<CommissionAllocationVersion>().HasIndex(x => new { x.OrganizationId, x.Scope, x.ManagerUserId, x.SalesUserId, x.ConfiguredBy, x.EffectiveFrom });
+        DateOnlyProperty(b.Entity<CommissionAllocationVersion>().Property(x => x.EffectiveFrom));
 
         b.Entity<CommissionLedgerEntry>().Property(x => x.EntryType).HasMaxLength(24);
         b.Entity<CommissionLedgerEntry>().Property(x => x.Status).HasMaxLength(24);

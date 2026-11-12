@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { LoginPage } from '@/screens/Auth/Login/LoginPage';
 import { MascotLoadingState } from '@/components/common/mascot-loading-state';
+import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
 import { DemoAccess } from '@/components/crm/demo-access';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { nav, type View } from '@/config/navigation';
@@ -211,12 +212,15 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue, salesWorkflow, onSalesNavigate: navigate };
   const todayLabel = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
   if (!ready || (apiBase && token && sessionStatus === 'checking'))
-    return <MascotLoadingState state="loading" detail={ready ? 'Đang xác thực tài khoản và tải dữ liệu...' : 'Đang khởi tạo CRM...'}/>;
-  if (apiBase && token && (sessionStatus === 'offline' || sessionStatus === 'error'))
-    return <MascotLoadingState state={sessionStatus} detail={connectionMessage}
+    return <div className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label={ready ? 'Đang xác thực tài khoản và tải dữ liệu...' : 'Đang khởi tạo CRM...'}/></div>;
+  if (apiBase && token && sessionStatus === 'offline')
+    return <MascotLoadingState state="offline" detail={connectionMessage}
+      onRetry={() => { setConnectionMessage(''); setRetryIndex(index => index + 1); }}/>;
+  if (apiBase && token && sessionStatus === 'error')
+    return <AppRequestErrorState detail={connectionMessage}
       onRetry={() => { setConnectionMessage(''); setRetryIndex(index => index + 1); }}/>;
   if (apiBase && !token && healthStatus === 'checking')
-    return <MascotLoadingState state="loading" detail="Cú đang kiểm tra kết nối đến máy chủ KIDSFIT CRM..."/>;
+    return <div className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label="Đang kiểm tra kết nối đến máy chủ KIDSFIT CRM..."/></div>;
   if (apiBase && !token && healthStatus === 'offline')
     return <MascotLoadingState state="offline" detail={healthError}
       onRetry={() => { setHealthError(''); setHealthRetryIndex(index => index + 1); }}/>;
@@ -230,7 +234,8 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {demoAccount && <p className="rounded-xl border border-amber-300 p-3 text-sm">Bản xem trước tĩnh, chỉ đọc. Hãy kết nối Backend để thay đổi dữ liệu thực.</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <Suspense fallback={<MascotLoadingState state="loading" fullScreen={false} detail="Đang chuẩn bị màn hình..." />}>
+          <div key={currentView} className="crm-page-enter">
+          <Suspense fallback={<PageLoading label="Đang chuẩn bị màn hình..." />}>
             {isAdmin && <AdminWorkspace section={currentView as import('@/screens/Admin/AdminWorkspace').AdminSection} {...roleProps}/>}
             {isManager && <SalesManagerWorkspace section={currentView as import('@/screens/SalesManager/SalesManagerWorkspace').ManagerSection} {...roleProps}/>}
             {currentView.startsWith('role-board-') && <BoardWorkspace section={currentView.slice('role-board-'.length) as import('@/screens/Board/BoardWorkspace').RoleSection} {...roleProps}/>}
@@ -245,6 +250,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
                 canReportContract={has('channel_sales.contract.report')} canRecordRevenue={has('channel_sales.revenue.record')}
                 onRegister={onRegister} onAddActivity={onAddActivity} onReportContract={onReportContract} onRecordRevenue={onRecordRevenue}/>}/>}
           </Suspense>
+          </div>
         </main>
       </div>
     </AppShell>

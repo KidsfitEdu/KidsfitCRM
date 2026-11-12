@@ -16,3 +16,16 @@ export function validateTransactionDay(
     return 'Ngày thu không được trước ngày ký hợp đồng.';
   return undefined;
 }
+
+/**
+ * The transaction form selects a calendar date, not a time of day.
+ * Today's transaction must not be submitted as noon when it is still morning:
+ * the backend rejects received_at/paid_at values in the future.
+ * For previous days, use local noon in Vietnam to avoid date rollover.
+ */
+export function accountingTransactionTimestamp(date: string, now: Date = new Date()): string {
+  const today = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+  return date === today ? now.toISOString() : new Date(`${date}T12:00:00+07:00`).toISOString();
+}

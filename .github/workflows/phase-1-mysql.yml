@@ -48,6 +48,8 @@ jobs:
           ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_initial_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
           Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
           Seed__AdminPassword: "ephemeral-ci-admin-only-not-a-real-secret"
+          Seed__BoardPassword: "ephemeral-ci-board-only-not-a-real-secret"
+          Seed__CheckeePassword: "ephemeral-ci-checkee-only-not-a-real-secret"
           Seed__DisposableDatabase: "true"
           ASPNETCORE_ENVIRONMENT: "Development"
         run: |

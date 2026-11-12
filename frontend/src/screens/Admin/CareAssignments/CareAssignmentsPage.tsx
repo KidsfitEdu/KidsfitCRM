@@ -14,7 +14,7 @@ import type { AdminPageProps } from '@/screens/Admin/types';
 
 type Assignment = {id:number;contract_code:string;school_name:string;partner:string;
   care_user_id:number|null;care_name:string|null;open_tickets:number};
-type Staff = {id:number;name:string;email:string;organization_id:number;schools:number;open_tickets:number};
+type Staff = {id:number;name:string;email:string;organization_id:number;membership_type?:string;schools:number;open_tickets:number};
 type Result = {data:Assignment[];users:Staff[];total:number;page:number;page_size:number};
 
 export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPageProps) {
@@ -36,7 +36,9 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
       +'&search='+encodeURIComponent(search)),
     enabled:!!apiBase&&!!token&&allowed,
   });
-  const staff=query.data?.users??[];
+  // Fail closed while an older backend still returns users without membership_type.
+  // Admin can manage assignments but must never be listed as a care recipient.
+  const staff=(query.data?.users??[]).filter(user=>user.membership_type==='CUSTOMER_SERVICE');
   // A legacy handover may reference an Admin; never allow it to remain a selectable assignee.
   const selectedStaffId = staff.some(s=>String(s.id)===staffId) ? staffId : '';
   const close=()=>{setSelected(null);setStaffId('');setError('');};

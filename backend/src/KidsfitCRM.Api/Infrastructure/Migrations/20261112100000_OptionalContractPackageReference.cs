@@ -26,11 +26,15 @@ public sealed class OptionalContractPackageReference : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        // Rows written without catalog packages cannot be represented by the old required FK.
-        // Explicitly prevent destructive rollback rather than assign incorrect package IDs.
-        migrationBuilder.Sql(
-            "DELETE FROM `sales_contract_items` WHERE `product_package_id` IS NULL AND 1 = 0;");
-        migrationBuilder.Sql(
-            "ALTER TABLE `sales_contract_items` MODIFY `product_package_id` bigint NOT NULL;");
+        // MySQL rejects this rollback when manual-fee items have NULL package IDs.
+        // It intentionally does not delete or misassign historical contract items.
+        migrationBuilder.AlterColumn<long>(
+            name: "product_package_id",
+            table: "sales_contract_items",
+            type: "bigint",
+            nullable: false,
+            oldClrType: typeof(long),
+            oldType: "bigint",
+            oldNullable: true);
     }
 }

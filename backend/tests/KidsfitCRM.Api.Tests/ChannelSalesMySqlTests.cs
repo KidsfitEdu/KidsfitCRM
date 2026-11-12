@@ -192,7 +192,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var filtered = Json(await ContractRenewalEndpoints.MineList(httpA, db,
             null, "2", "CONFIRMED", 1, 20, Ct));
         Assert.Equal(1, filtered.GetProperty("total").GetInt32());
-        Assert.Equal(contractA, filtered.GetProperty("data")[0].GetProperty("contract_id").GetInt64());
+        Assert.Equal(contractA, filtered.GetProperty("data")[0].GetProperty("ContractId").GetInt64());
 
         var schoolId = await db.SalesContracts.Where(x => x.Id == contractA)
             .Select(x => x.CustomerId).SingleAsync(Ct);
@@ -205,7 +205,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var other = Json(await ContractRenewalEndpoints.MineList(AsSales(sellerB), db,
             null, null, null, 1, 20, Ct));
         Assert.Equal(1, other.GetProperty("total").GetInt32());
-        Assert.Equal(contractB, other.GetProperty("data")[0].GetProperty("contract_id").GetInt64());
+        Assert.Equal(contractB, other.GetProperty("data")[0].GetProperty("ContractId").GetInt64());
     }
 
     [MySqlFact]
@@ -447,11 +447,12 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         await actions.RecordRevenueReceipt(contractId, request, accountant, Http(), Ct);
         var entry = await db.CommissionLedgerEntries.SingleAsync(x => x.ContractId == contractId);
         var payoutRequest = new CreatePayoutRequest(Key(), entry.BeneficiaryOrganizationId, seller, entry.Period, 5_000m, "Khấu trừ theo chứng từ kiểm thử");
-        await Assert.ThrowsAsync<ApiConflictException>(() => actions.CreatePayout(payoutRequest, accountant, Http(), Ct));
+        // CHECKEE contract reconciliation is no longer a payout prerequisite.
+        // The payout still requires eligible commission ledger entries and remains idempotent.
+        var payoutId = await actions.CreatePayout(payoutRequest, accountant, Http(), Ct);
         var reconciliationId = await db.ReconciliationCases.Where(x => x.ContractId == contractId).Select(x => x.Id).SingleAsync();
         await actions.Reconcile(reconciliationId, true, new("Đã xác nhận"), checkee, Http(), Ct);
         await actions.Reconcile(reconciliationId, true, new("Đã xác nhận"), checkee, Http(), Ct);
-        var payoutId = await actions.CreatePayout(payoutRequest, accountant, Http(), Ct);
         Assert.Equal(payoutId, await actions.CreatePayout(payoutRequest, accountant, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.CreatePayout(payoutRequest with { IdempotencyKey = Key() }, accountant, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.CompletePayout(payoutId, new("TX-" + Key(), null), accountant, Http(), Ct));
@@ -576,7 +577,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var actions = new ChannelSalesActions(db);
         var error = await Assert.ThrowsAsync<ApiValidationException>(() => actions.AssignContractCare(
             0, new AssignContractCareRequest(Key(), admin, kidsfitId, null), admin, Http(), Ct));
-        Assert.Contains("Chăm sóc khách hàng", error.Message);
+        Assert.Contains("Chăm sóc khách hàng", string.Join(" ", error.Errors.Values.SelectMany(x => x)));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.AssignContractCare(
             0, new AssignContractCareRequest(Key(), caretaker, kidsfitId, null), admin, Http(), Ct));
 
@@ -595,7 +596,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         await db.SaveChangesAsync(Ct);
         var dualError = await Assert.ThrowsAsync<ApiValidationException>(() => actions.AssignContractCare(
             0, new AssignContractCareRequest(Key(), dualRole.Id, kidsfitId, null), admin, Http(), Ct));
-        Assert.Contains("quản trị viên", dualError.Message);
+        Assert.Contains("quản trị viên", string.Join(" ", dualError.Errors.Values.SelectMany(x => x)));
     }
 
     [MySqlFact]

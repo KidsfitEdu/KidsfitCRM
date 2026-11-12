@@ -115,7 +115,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     setAmount('');setGapReason('');setFile(null);setFileRevision(x=>x+1);
   };
   const openCreate=()=>{
-    resetForm();setActiveId(null);setDrawer('create');
+    resetForm();setContractId('');setActiveId(null);setDrawer('create');
   };
   const openResubmit=(r:Renewal)=>{
     resetForm();

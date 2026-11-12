@@ -58,7 +58,7 @@ test('Startup keeps existing session on network failure and only clears it on 40
   assert.match(app, /cause instanceof ApiRequestError && cause.status === 401/);
   assert.match(app, /setSessionStatus\(isBackendUnavailable\(cause\) \? 'offline' : 'error'\)/);
   assert.match(app, /setRetryIndex\(index => index \+ 1\)/);
-  assert.match(app, /request\('\/health'\)/);
+  assert.match(app, /healthRequest\('\/health'\)/);
   assert.match(app, /setHealthRetryIndex\(index => index \+ 1\)/);
   assert.match(app, /MascotLoadingState state="loading"/);
   assert.match(app, /<Suspense fallback=\{<MascotLoadingState/);

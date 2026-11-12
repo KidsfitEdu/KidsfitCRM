@@ -493,6 +493,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("date")
                         .HasColumnName("effective_from");
 
+                    b.Property<decimal?>("ManagerCeilingPercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("manager_ceiling_percent");
+
                     b.Property<long?>("ManagerUserId")
                         .HasColumnType("bigint")
                         .HasColumnName("manager_user_id");

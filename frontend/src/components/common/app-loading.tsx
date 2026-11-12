@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { getPendingAppRequests, subscribeAppRequests } from '@/lib/loading-tracker';
 import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,12 +49,13 @@ export function AppRequestErrorState({ detail, onRetry }: { detail?: string; onR
 export function GlobalLoadingProvider({ children }: { children: ReactNode }) {
   const fetching = useIsFetching();
   const mutating = useIsMutating();
+  const transport = useSyncExternalStore(subscribeAppRequests, getPendingAppRequests, () => 0);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    if (fetching + mutating === 0) { setVisible(false); return; }
+    if (fetching + mutating + transport === 0) { setVisible(false); return; }
     const timer = setTimeout(() => setVisible(true), 180);
     return () => clearTimeout(timer);
-  }, [fetching, mutating]);
+  }, [fetching, mutating, transport]);
   return <>
     <div role={visible ? 'progressbar' : undefined} aria-label={visible ? 'Đang đồng bộ dữ liệu' : undefined}
       className={`crm-global-progress fixed inset-x-0 top-0 z-[100] h-[3px] overflow-hidden pointer-events-none ${visible ? 'opacity-100' : 'opacity-0'}`}>

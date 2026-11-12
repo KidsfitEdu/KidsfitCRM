@@ -41,122 +41,25 @@ jobs:
           mysql --protocol=TCP -h127.0.0.1 -uroot -p'ephemeral-ci-only' --skip-column-names -e "SELECT VERSION();" | tee /tmp/kidsfit-mysql-version.txt
           grep -E '^8\.4\.' /tmp/kidsfit-mysql-version.txt
           test "$GITHUB_EVENT_NAME" = "pull_request" -o "$GITHUB_EVENT_NAME" = "workflow_dispatch"
-      - name: Run ten-school review fixture twice in isolated MySQL 8.4
+      # The runtime deliberately rejects --seed-demo. InitialCrmSeeder is the
+      # supported, explicitly disposable bootstrap path, not a demo fixture loader.
+      - name: Verify production-safe initial bootstrap is repeatable in isolated MySQL 8.4
         env:
-          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_review_fixture_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
+          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_initial_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
           Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
-          Seed__DemoPassword: "ephemeral-ci-demo-only-not-a-real-secret"
+          Seed__AdminPassword: "ephemeral-ci-admin-only-not-a-real-secret"
           Seed__DisposableDatabase: "true"
-          Seed__ReviewFixtures: "true"
-          Seed__AccountingScenarios: "false"
           ASPNETCORE_ENVIRONMENT: "Development"
         run: |
           set -euo pipefail
           export MYSQL_PWD='ephemeral-ci-only'
-          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_review_fixture_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM directory_schools;" | grep -x 10
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_units;" | grep -x 19
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM channel_customers;" | grep -x 10
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM sales_contracts;" | grep -x 6
-          # KC-02: five renewal cases across the two active review schools.
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals;" | grep -x 5
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='CONFIRMED';" | grep -x 2
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='PENDING_ACCOUNTING';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='NEEDS_INFO';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE status='REJECTED';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewal_events;" | grep -x 9
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM financial_evidences WHERE contract_renewal_id IS NOT NULL;" | grep -x 5
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM contract_renewals WHERE gap_reason IS NOT NULL;" | grep -x 0
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM revenue_receipts;" | grep -x 2
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM commission_ledger_entries;" | grep -x 3
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM commission_policy_versions WHERE status='ACTIVE' AND rate_percent=30;" | grep -x 2
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT SUM(amount) FROM commission_ledger_entries;" | grep -x 5100000
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM revenue_refunds;" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM payouts WHERE status='DRAFT';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_handovers WHERE account_suspended=1;" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_proposals;" | grep -x 3
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_invitations WHERE status='PENDING';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM school_extension_requests WHERE status='PENDING';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(DISTINCT care_user_id) FROM sales_contracts WHERE status='ACTIVE';" | grep -x 2
-          mysql -h127.0.0.1 -uroot -N crm_review_fixture_ci -e "SELECT COUNT(*) FROM customer_support_cases WHERE ticket_type='SYSTEM_ERROR';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_review_fixture_ci;"
-      - name: NT-01 isolated UI demo scenarios and idempotent replay
-        env:
-          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_nt01_ui_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
-          Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
-          Seed__DemoPassword: "ephemeral-ci-demo-only-not-a-real-secret"
-          Seed__DisposableDatabase: "true"
-          Seed__ReviewFixtures: "true"
-          Seed__Nt01Scenarios: "true"
-          Seed__AccountingScenarios: "false"
-          ASPNETCORE_ENVIRONMENT: "Development"
-        run: |
-          set -euo pipefail
-          export MYSQL_PWD='ephemeral-ci-only'
-          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_nt01_ui_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'NT01-DEMO-%';" | grep -x 10
-          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_BEFORE_30';")" -gt 0
-          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'SERVICE_GAP_BEFORE_30';")" -gt 0
-          test "$(mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) FROM contract_expiry_alerts WHERE kind = 'PROTECTION_BEFORE_7';")" -gt 0
-          mysql -h127.0.0.1 -uroot -N crm_nt01_ui_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM contract_expiry_alerts;" | grep -x 0
-          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_nt01_ui_ci;"
-      - name: SL-02 isolated five-school UI fixtures and idempotent replay
-        env:
-          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_sl02_demo_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
-          Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
-          Seed__DemoPassword: "ephemeral-ci-demo-only-not-a-real-secret"
-          Seed__DisposableDatabase: "true"
-          Seed__ReviewFixtures: "true"
-          Seed__ProtectionRenewalScenarios: "true"
-          Seed__AccountingScenarios: "false"
-          ASPNETCORE_ENVIRONMENT: "Development"
-        run: |
-          set -euo pipefail
-          export MYSQL_PWD='ephemeral-ci-only'
-          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_sl02_demo_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'SL02-DEMO-%';" | grep -x 5
-          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='WAITING_PROTECTION_EXPIRY';" | grep -x 2
-          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) FROM protection_renewal_cases WHERE status='WAITING_RENEWAL';" | grep -x 2
-          mysql -h127.0.0.1 -uroot -N crm_sl02_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM protection_renewal_cases;" | grep -x 0
-          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_sl02_demo_ci;"
-      - name: GI-01 isolated 12-month interruption seed and audit safety
-        env:
-          ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_gi01_demo_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
-          Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
-          Seed__DemoPassword: "ephemeral-ci-demo-only-not-a-real-secret"
-          Seed__DisposableDatabase: "true"
-          Seed__ReviewFixtures: "true"
-          Seed__Gi01Scenarios: "true"
-          Seed__Gi01SweepAfterSeed: "true"
-          Seed__AccountingScenarios: "false"
-          GI01__EnableAutomaticRelease: "false"
-          ASPNETCORE_ENVIRONMENT: "Development"
-        run: |
-          set -euo pipefail
-          export MYSQL_PWD='ephemeral-ci-only'
-          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_gi01_demo_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-demo
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM sales_contracts WHERE contract_code LIKE 'GI01-DEMO-%';" | grep -x 4
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='CONFIRMED';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM contract_renewals r JOIN sales_contracts c ON c.id=r.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%' AND r.status='PENDING_ACCOUNTING';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM school_disputes WHERE idempotency_key='review-dispute-SCH0007' AND status='OPEN';" | grep -x 0
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='EXCEPTION_DISPUTE';" | grep -x 0
-          # SCH0007 has no synthetic dispute and a future service start does not erase its completed gap.
-          echo "GI-01 decision status counts:"
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT status, COUNT(*) FROM service_interruption_events GROUP BY status;"
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT c.contract_code,p.status,p.effective_until FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code LIKE 'GI01-DEMO-%';"
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM service_interruption_events WHERE status='RELEASED';" | grep -x 2
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0010' AND p.status='RELEASED';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) FROM customer_protections p JOIN sales_contracts c ON c.id=p.contract_id WHERE c.contract_code='GI01-DEMO-SCH0008' AND p.status='ACTIVE';" | grep -x 1
-          mysql -h127.0.0.1 -uroot -N crm_gi01_demo_ci -e "SELECT COUNT(*) - COUNT(DISTINCT deduplication_key) FROM service_interruption_events;" | grep -x 0
-          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_gi01_demo_ci;"
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_initial_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-initial
+          dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-initial
+          test "$(mysql -h127.0.0.1 -uroot -N crm_initial_ci -e "SELECT COUNT(*) FROM roles WHERE code='DIRECTOR';")" = "1"
+          test "$(mysql -h127.0.0.1 -uroot -N crm_initial_ci -e "SELECT COUNT(*) FROM roles WHERE code='SALES_MANAGER';")" = "1"
+          test "$(mysql -h127.0.0.1 -uroot -N crm_initial_ci -e "SELECT COUNT(*) FROM commission_allocation_versions;")" = "0"
+          mysql -h127.0.0.1 -uroot -e "DROP DATABASE crm_initial_ci;"
       - name: Full EF migrations, seed replay, transaction and concurrency tests
         run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
       - name: Separate synthetic backup and restore smoke test

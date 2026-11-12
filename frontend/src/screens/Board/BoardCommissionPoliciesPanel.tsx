@@ -64,6 +64,14 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
       &&[orgName(x.organizationId),person(x.managerUserId),person(x.salesUserId),x.scope]
         .some(y=>y.toLowerCase().includes(search.toLowerCase())));
   const pageRows=visible.slice((page-1)*pageSize,page*pageSize);
+  const isLatest=(v:Version)=>!(workspace?.data??[]).some(x=>
+    x.id!==v.id&&x.organizationId===v.organizationId&&x.scope===v.scope
+    &&x.managerUserId===v.managerUserId&&x.salesUserId===v.salesUserId
+    &&(x.effectiveFrom>v.effectiveFrom
+      ||(x.effectiveFrom===v.effectiveFrom
+        &&(x.createdAt>v.createdAt||(x.createdAt===v.createdAt&&x.id>v.id)))));
+  const statusLabel=(v:Version)=>v.status==='RESET'?'Đã khôi phục'
+    :v.status!=='ACTIVE'?'Đã hủy':isLatest(v)?'Đang áp dụng':'Đã thay phiên bản';
   const start=(v?:Version)=>{
     setSelected(null);setError('');setNotice('');setReplacing(Boolean(v));
     setEditor(v?{
@@ -143,12 +151,12 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:Props){
               <td className={adminTableCellClass+' text-right font-semibold tabular-nums'}>{v.ceilingPercent}%</td>
               <td className={adminTableCellClass+' text-right tabular-nums'}>{v.managerCeilingPercent??v.ceilingPercent}%</td>
               <td className={adminTableCellClass}><AdminStatusBadge status={v.status}
-                label={v.status==='RESET'?'Đã khôi phục':v.status==='ACTIVE'?'Đã áp dụng':'Đã hủy'}/></td>
+                label={statusLabel(v)}/></td>
               <td className={adminTableCellClass}><div className="flex justify-end gap-2">
                 <AdminIconAction icon={Eye} label="Xem chi tiết chính sách" onClick={()=>setSelected(v)}/>
-                {v.status==='ACTIVE'&&<AdminIconAction icon={Pencil} label="Điều chỉnh chính sách"
+                {v.status==='ACTIVE'&&isLatest(v)&&<AdminIconAction icon={Pencil} label="Điều chỉnh chính sách"
                   tone="blue" onClick={()=>start(v)}/>}
-                {v.status==='ACTIVE'&&v.scope!=='SYSTEM'&&
+                {v.status==='ACTIVE'&&isLatest(v)&&v.scope!=='SYSTEM'&&
                   <AdminIconAction icon={RotateCcw} label="Khôi phục cấu hình kế thừa"
                     tone="red" onClick={()=>setCancelId(v.id)}/>}
               </div></td>

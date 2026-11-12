@@ -14,7 +14,7 @@ import type { AdminPageProps } from '@/screens/Admin/types';
 
 type Assignment = {id:number;contract_code:string;school_name:string;partner:string;
   care_user_id:number|null;care_name:string|null;open_tickets:number};
-type Staff = {id:number;name:string;email:string;organization_id:number;schools:number;open_tickets:number};
+type Staff = {id:number;name:string;email:string;organization_id:number;membership_type?:string;schools:number;open_tickets:number};
 type Result = {data:Assignment[];users:Staff[];total:number;page:number;page_size:number};
 
 export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPageProps) {
@@ -36,13 +36,17 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
       +'&search='+encodeURIComponent(search)),
     enabled:!!apiBase&&!!token&&allowed,
   });
-  const staff=query.data?.users??[];
+  // Fail closed while an older backend still returns users without membership_type.
+  // Admin can manage assignments but must never be listed as a care recipient.
+  const staff=(query.data?.users??[]).filter(user=>user.membership_type==='CUSTOMER_SERVICE');
+  // A legacy handover may reference an Admin; never allow it to remain a selectable assignee.
+  const selectedStaffId = staff.some(s=>String(s.id)===staffId) ? staffId : '';
   const close=()=>{setSelected(null);setStaffId('');setError('');};
   const assign=async()=>{
-    if(!selected||!staffId)return;
+    if(!selected||!selectedStaffId)return;
     setBusy(true);setError('');
     try{
-      const assignee=staff.find(s=>s.id===Number(staffId));
+      const assignee=staff.find(s=>s.id===Number(selectedStaffId));
       if(!assignee)throw Error('Nhân sự CSKH không hợp lệ.');
       await channelRequest(apiBase,token,'/contracts/'+selected.id+'/care-handover',{
         method:'POST',body:JSON.stringify({
@@ -95,10 +99,10 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
       title={selected?.care_user_id?'Điều chuyển CSKH':'Phân công CSKH'}
       description={selected?.school_name} busy={busy}
       footer={<><AppButton tone="neutral" onClick={close} disabled={busy}>Hủy</AppButton>
-        <AppButton disabled={!staffId||busy} onClick={()=>setConfirm(true)}>Tiếp tục</AppButton></>}>
+        <AppButton disabled={!selectedStaffId||busy} onClick={()=>setConfirm(true)}>Tiếp tục</AppButton></>}>
       <div className="space-y-4">
         <label className="block text-sm font-semibold" htmlFor="assigned-care-user">Nhân viên CSKH</label>
-        <select id="assigned-care-user" className="w-full rounded-xl border bg-background p-3" value={staffId}
+        <select id="assigned-care-user" className="w-full rounded-xl border bg-background p-3" value={selectedStaffId}
           onChange={e=>setStaffId(e.target.value)}>
           <option value="">Chọn người phụ trách</option>
           {staff.map(s=><option key={s.id} value={s.id}>{s.name} – {s.email}</option>)}
@@ -108,7 +112,7 @@ export function CareAssignmentsPage({apiBase,token,abilities,onChanged}:AdminPag
     </AppDialog>
     <ConfirmDialog open={confirm} onOpenChange={setConfirm} busy={busy}
       title="Xác nhận phân công CSKH"
-      description={'Bạn sắp phân công '+(selected?.school_name??'trường')+' cho '+(staff.find(s=>String(s.id)===staffId)?.name??'nhân viên')+'. Các ticket chưa đóng sẽ chuyển theo người phụ trách.'}
+      description={'Bạn sắp phân công '+(selected?.school_name??'trường')+' cho '+(staff.find(s=>String(s.id)===selectedStaffId)?.name??'nhân viên')+'. Các ticket chưa đóng sẽ chuyển theo người phụ trách.'}
       onConfirm={()=>void assign()} confirmLabel="Xác nhận"/>
   </div>;
 }

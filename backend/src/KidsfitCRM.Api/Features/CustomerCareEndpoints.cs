@@ -249,11 +249,15 @@ public static class CustomerCareEndpoints
             }).ToArrayAsync(ct);
         var users = await (from m in db.OrganizationMemberships join o in db.Organizations on m.OrganizationId equals o.Id
             join u in db.Users on m.UserId equals u.Id
-            where m.Status == "ACTIVE" && u.Status == "ACTIVE" && o.Code == "KIDSFIT" && o.Status == "ACTIVE"
+            where m.Status == "ACTIVE" && m.MembershipType == "CUSTOMER_SERVICE"
+                && u.Status == "ACTIVE" && o.Code == "KIDSFIT" && o.Status == "ACTIVE"
+                // Never offer an Admin as caretaker, even if they also have a CSKH membership.
+                && !db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(role => role.Id == ur.RoleId && role.Code == "ADMIN"))
                 && db.UserRoles.Any(ur => ur.UserId == u.Id
                     && db.PermissionRoles.Any(pr => pr.RoleId == ur.RoleId && db.Permissions.Any(pe =>
                         pe.Id == pr.PermissionId && pe.Code == Permissions.SchoolSupportManage)))
             orderby u.Name select new { id = u.Id, name = u.Name, email = u.Email, organization_id = o.Id,
+                membership_type = m.MembershipType,
                 schools = db.SalesContracts.Where(c => c.CareUserId == u.Id && c.Status == "ACTIVE")
                     .Select(c => c.CustomerId).Distinct().Count(),
                 open_tickets = db.CustomerSupportCases.Count(t => t.AssignedUserId == u.Id && t.Status != "RESOLVED")

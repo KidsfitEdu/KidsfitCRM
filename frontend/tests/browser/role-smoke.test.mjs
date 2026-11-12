@@ -151,6 +151,8 @@ test('Board navigation merges reports and keeps styled exception queues', async 
   await navigation.getByRole('button',{name:'Tranh chấp',exact:true}).click();
   await page.getByRole('textbox',{name:'Tìm tranh chấp'}).waitFor();
   await navigation.getByRole('button',{name:'Chính sách',exact:true}).click();
+  await page.getByRole('tab',{name:'Chính sách hoa hồng'}).waitFor();
+  await page.getByRole('tab',{name:'Chính sách vận hành'}).click();
   await page.getByRole('textbox',{name:'Tìm chính sách'}).waitFor();
   assert.deepEqual(errors,[]);
   await context.close();

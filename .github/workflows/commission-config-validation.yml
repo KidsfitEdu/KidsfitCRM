@@ -1,0 +1,46 @@
+name: Commission configuration validation
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'backend/**'
+      - 'frontend/src/screens/Board/BoardCommissionPoliciesPanel.tsx'
+      - 'frontend/src/screens/Board/Policies/PoliciesPage.tsx'
+      - 'frontend/src/screens/SalesManager/**'
+      - '.github/workflows/commission-config-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-commission-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build and run isolated .NET tests without disposable MySQL fixture
+        run: dotnet test backend/KidsfitCRM.slnx --configuration Release --logger 'console;verbosity=normal'
+
+  frontend-commission-typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Lint touched UI panels
+        run: npx oxlint --format stylish src/screens/Board/BoardCommissionPoliciesPanel.tsx src/screens/Board/Policies/PoliciesPage.tsx src/screens/SalesManager/Team/ManagerCommissionPanel.tsx src/screens/SalesManager/Team/CommissionTeamPage.tsx src/screens/SalesManager/SalesManagerWorkspace.tsx
+      - name: Frontend TypeScript typecheck
+        run: npx tsc --noEmit

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { channelRequest, type FinanceWorkspace } from '@/lib/channel-operations';
@@ -29,6 +30,7 @@ export function BoardCommissionPoliciesPanel({ apiBase, token, abilities }: Role
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [filter, setFilter] = useState('ALL');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [cancelId, setCancelId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -71,6 +73,16 @@ export function BoardCommissionPoliciesPanel({ apiBase, token, abilities }: Role
       setOpen(false); setDraft(initialDraft()); setMessage('Đã lưu bản nháp chính sách hoa hồng.');
       await query.refetch();
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể lưu bản nháp.'); }
+    finally { setBusy(false); }
+  };
+  const cancelDraft = async () => {
+    if (cancelId === null) return;
+    setBusy(true); setError('');
+    try {
+      await channelRequest(apiBase, token, `/commission-policies/${cancelId}/cancel-draft`, { method: 'POST' });
+      setCancelId(null); setMessage('Đã hủy bản nháp. Lịch sử chính sách được giữ nguyên.');
+      await query.refetch();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể hủy bản nháp.'); }
     finally { setBusy(false); }
   };
   return <div className="space-y-4">
@@ -116,7 +128,11 @@ export function BoardCommissionPoliciesPanel({ apiBase, token, abilities }: Role
               <td className="px-4 py-3 text-right tabular-nums">{p.rate_percent}%</td>
               <td className="px-4 py-3">{p.effective_from}{p.effective_until ? ` – ${p.effective_until}` : ''}</td>
               <td className="px-4 py-3">{p.status === 'DRAFT' ? 'Bản nháp' : p.status === 'ACTIVE' ? 'Đang áp dụng' : 'Ngừng áp dụng'}</td>
-              <td className="px-4 py-3"><AppButton tone="neutral" size="sm" onClick={() => setSelectedId(p.id)}>Chi tiết</AppButton></td>
+              <td className="px-4 py-3"><div className="flex flex-wrap gap-2">
+                <AppButton tone="neutral" size="sm" onClick={() => setSelectedId(p.id)}>Chi tiết</AppButton>
+                {canManage && p.status === 'DRAFT' && <AppButton tone="danger" size="sm"
+                  onClick={() => {setError('');setCancelId(p.id);}}>Hủy bản nháp</AppButton>}
+              </div></td>
             </tr>)}
           </tbody>
         </table>
@@ -136,6 +152,9 @@ export function BoardCommissionPoliciesPanel({ apiBase, token, abilities }: Role
         ] as [string,string][]).map(([label,value])=><div key={label}><dt className="text-muted-foreground">{label}</dt><dd className="mt-1 font-semibold">{value}</dd></div>)}
       </dl>}
     </AppDrawer>
+    <ConfirmDialog open={cancelId !== null} onOpenChange={next => {if (!next && !busy) setCancelId(null);}}
+      title="Hủy bản nháp hoa hồng" description="Bản nháp sẽ ngừng được sử dụng, lịch sử vẫn được lưu để kiểm tra."
+      destructive confirmLabel="Hủy bản nháp" busy={busy} onConfirm={() => void cancelDraft()}/>
     <AppDialog open={open} onOpenChange={next => {if (!next) setOpen(false);}} busy={busy}
       title="Thêm chính sách hoa hồng" description="Lưu bản nháp trước khi có quyết định kích hoạt."
       footer={<><AppButton tone="neutral" disabled={busy} onClick={() => setOpen(false)}>Hủy</AppButton>

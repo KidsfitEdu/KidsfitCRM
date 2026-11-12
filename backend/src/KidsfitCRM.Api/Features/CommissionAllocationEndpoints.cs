@@ -161,7 +161,7 @@ public static class CommissionAllocationEndpoints
         return Results.Ok(new { message = "Đã hủy cấu hình chưa có hiệu lực." });
     }
 
-    private static CommissionAllocationVersion? ResolveBoard(IEnumerable<CommissionAllocationVersion> rules,
+    internal static CommissionAllocationVersion? ResolveBoard(IEnumerable<CommissionAllocationVersion> rules,
         long organizationId, long managerId, long salesId)
     {
         return rules.Where(x => x.OrganizationId == organizationId && x.ConfiguredBy == "DIRECTOR")

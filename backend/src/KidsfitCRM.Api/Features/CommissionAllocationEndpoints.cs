@@ -231,6 +231,31 @@ public static class CommissionAllocationEndpoints
             EffectiveFrom = today, Status = "RESET", Reason = "AUTO_RESET",
             CreatedByUserId = access.UserId, CreatedAt = now, UpdatedAt = now
         };
+        if (owner == "DIRECTOR")
+        {
+            // Restoring a parent policy can also lower a manager's effective ceiling.
+            // Reject such a reset rather than leaving an in-force allocation invalid.
+            var directorRules = await db.CommissionAllocationVersions.AsNoTracking()
+                .Where(x => x.ConfiguredBy == "DIRECTOR" && x.EffectiveFrom <= today).ToArrayAsync(ct);
+            var managerSplits = await db.CommissionAllocationVersions.AsNoTracking()
+                .Where(x => x.ConfiguredBy == "MANAGER" && x.EffectiveFrom <= today).ToArrayAsync(ct);
+            var staff = await (from m in db.OrganizationMemberships.AsNoTracking()
+                join u in db.Users.AsNoTracking() on m.UserId equals u.Id
+                where m.Status == "ACTIVE" && u.Status == "ACTIVE" && m.ManagerUserId != null
+                select new { m.OrganizationId, m.ManagerUserId, m.UserId }).ToArrayAsync(ct);
+            var blocked = staff.Count(m =>
+            {
+                var split = ResolveManager(managerSplits, m.OrganizationId, m.ManagerUserId!.Value, m.UserId, today);
+                if (split is null) return false;
+                var before = ResolveBoard(directorRules, m.OrganizationId, m.ManagerUserId.Value, m.UserId);
+                var after = ResolveBoard(directorRules.Append(reset), m.OrganizationId, m.ManagerUserId.Value, m.UserId);
+                return before is not null && FitsWithin(before, split.SalesPercent, split.ManagerPercent)
+                    && (after is null || !FitsWithin(after, split.SalesPercent, split.ManagerPercent));
+            });
+            if (blocked > 0)
+                throw new ApiConflictException(
+                    $"Không thể khôi phục: {blocked} Sales đang phân bổ vượt hạn mức kế thừa. Cần điều chỉnh trước.");
+        }
         await Save(db, reset, http, ct);
         await transaction.CommitAsync(ct);
         return Results.Ok(new { message = "Đã khôi phục chính sách kế thừa.", applied_at = now });

@@ -37,7 +37,7 @@ public sealed class BoardCommissionLedger : Migration
         migrationBuilder.CreateIndex("IX_commission_ledger_entries_revenue_receipt_id_beneficiary_role",
             "commission_ledger_entries", new[] { "revenue_receipt_id", "beneficiary_role" }, unique:true);
         migrationBuilder.AddForeignKey(
-            "FK_commission_ledger_entries_board_commission_policy_versions_board_policy_version_id",
+            "FK_commission_ledger_entries_board_commission_policy_versions_~",
             "commission_ledger_entries", "board_policy_version_id", "board_commission_policy_versions", "id",
             onDelete:ReferentialAction.Restrict);
         migrationBuilder.DropTable("commission_policy_versions");

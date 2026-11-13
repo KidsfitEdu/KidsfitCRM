@@ -27,6 +27,19 @@ test('Board and managers share one progress table and one journal drawer',()=>{
   assert.match(manager,/<SchoolWorkLogDrawer/);
   assert.match(shared,/Xem nhật ký/);
 });
+test('Board and manager tables omit only the unused follow-up column',()=>{
+  assert.doesNotMatch(shared,/Lịch hẹn tiếp/);
+  assert.doesNotMatch(shared,/nice\(row\.next_follow_up_at\)/);
+  for(const heading of ['Trường học','Tổ chức','Sales phụ trách','Trạng thái','Hạn bảo vệ','Hợp đồng','Chi tiết']){
+    assert.ok(shared.includes(heading), 'Missing preserved column: '+heading);
+  }
+  assert.match(shared,/board&&<th/);
+  assert.match(shared,/board&&<td/);
+  assert.match(shared,/row\.protected_until/);
+  assert.match(shared,/row\.contract_code/);
+  assert.match(shared,/row\.visible_status/);
+  assert.match(shared,/next_follow_up_at:string\|null/);
+});
 test('Board offers server-side organization, staff and status filters with pagination',()=>{
   assert.match(board,/\/board\/progress-schools\?/);
   assert.match(board,/params\.set\('organization_id',orgFilter\)/);

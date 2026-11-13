@@ -25,6 +25,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<RevenueSchedule> RevenueSchedules => Set<RevenueSchedule>();
     public DbSet<RevenueReceipt> RevenueReceipts => Set<RevenueReceipt>();
     public DbSet<CommissionPolicyVersion> CommissionPolicyVersions => Set<CommissionPolicyVersion>();
+    public DbSet<BoardCommissionPolicyVersion> BoardCommissionPolicyVersions => Set<BoardCommissionPolicyVersion>();
     public DbSet<CommissionLedgerEntry> CommissionLedgerEntries => Set<CommissionLedgerEntry>();
     public DbSet<Payout> Payouts => Set<Payout>();
     public DbSet<PayoutItem> PayoutItems => Set<PayoutItem>();
@@ -60,6 +61,12 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<AuditLog>().Property(x => x.OldValues).HasColumnType("json");
         modelBuilder.Entity<AuditLog>().Property(x => x.NewValues).HasColumnType("json");
 
+        var boardCommission = modelBuilder.Entity<BoardCommissionPolicyVersion>();
+        boardCommission.Property(x => x.Scope).HasMaxLength(24).UseCollation("utf8mb4_bin");
+        boardCommission.Property(x => x.Status).HasMaxLength(24).UseCollation("utf8mb4_bin");
+        boardCommission.Property(x => x.SalesPercent).HasPrecision(9, 4);
+        boardCommission.Property(x => x.ManagerPercent).HasPrecision(9, 4);
+        boardCommission.HasIndex(x => new { x.Scope, x.OrganizationId, x.ManagerUserId, x.SalesUserId, x.CreatedAt });
         ConfigureChannelSales(modelBuilder);
         modelBuilder.Entity<SalesContract>().Property(x => x.ServicePlan).HasMaxLength(32);
         modelBuilder.Entity<SalesContract>().Property(x => x.ContractNote).HasMaxLength(4000);

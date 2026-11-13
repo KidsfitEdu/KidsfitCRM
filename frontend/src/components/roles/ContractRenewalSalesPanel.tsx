@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
 import { Eye, Plus, RotateCcw, Search, UploadCloud } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { SalesRenewalDetail } from './SalesRenewalDetail';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppSearchCombobox } from '@/components/common/app-search-combobox';
 import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
@@ -232,25 +233,11 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     </section>
     <AppDrawer open={drawer==='detail'} onOpenChange={open=>{if(!open){setDrawer(null);setActiveId(null);}}}
       title="CHI TIẾT HỒ SƠ TÁI KÝ" description="Thông tin và kết quả xử lý hợp đồng tái ký">
-      {!selectedRenewal?<p className="text-sm text-muted-foreground">Không tìm thấy hồ sơ.</p>:<div className="space-y-5 text-sm">
-        <div>
-          <h2 className="text-lg font-bold">{selectedRenewal.school_name}</h2>
-          <p className="text-muted-foreground">{selectedRenewal.contract_code} · Lần {selectedRenewal.renewal_no}</p>
-        </div>
-        <section className="space-y-2 rounded-lg border border-border p-4">
-          <h3 className="font-semibold">Kỳ dịch vụ đề xuất</h3>
-          <p>Ngày ký: {channelDate(selectedRenewal.signed_on)}</p>
-          <p>Thời hạn: {channelDate(selectedRenewal.service_start_on)} – {channelDate(selectedRenewal.service_end_on)}</p>
-          <p>Giá trị: {channelMoney(selectedRenewal.total_value)}</p>
-          <p>Chu kỳ: {selectedRenewal.payment_cycle==='MONTHLY'?'Theo tháng':'Theo năm'}</p>
-          <p>Trạng thái: <strong>{statuses[selectedRenewal.status]??selectedRenewal.status}</strong></p>
-          {selectedRenewal.decision_reason&&<p className="rounded-lg bg-amber-50 p-3 text-amber-900 dark:bg-amber-950 dark:text-amber-200">Phản hồi Kế toán: {selectedRenewal.decision_reason}</p>}
-          {selectedRenewal.gap_reason&&<p>Lý do gián đoạn: {selectedRenewal.gap_reason}</p>}
-        </section>
-        {selectedRenewal.status==='NEEDS_INFO'&&<Button type="button"
-          disabled={!eligible.some(x=>x.id===selectedRenewal.contract_id)}
-          onClick={()=>{setContractId(String(selectedRenewal.contract_id));openResubmit(selectedRenewal);}}>Bổ sung hồ sơ này</Button>}
-      </div>}
+      {selectedRenewal&&activeId!==null
+        ?<SalesRenewalDetail key={activeId} id={activeId} apiBase={apiBase} token={token}
+          canResubmit={eligible.some(x=>x.id===selectedRenewal.contract_id)}
+          onResubmit={()=>{setContractId(String(selectedRenewal.contract_id));openResubmit(selectedRenewal);}}/>
+        :<p className="text-sm text-muted-foreground">Không tìm thấy hồ sơ.</p>}
     </AppDrawer>
     <AppDialog open={drawer==='create'||drawer==='resubmit'} busy={saving}
       onOpenChange={open=>{if(!open){setDrawer(null);setActiveId(null);resetForm();}}}

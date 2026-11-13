@@ -215,7 +215,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     </AdminListPanel>
 
     <BoardCommissionDialog initial={dialog} organizations={orgs} managers={managers} sales={people}
-      error={formError} busy={busy} onClose={()=>{if(!busy){setDialog(null);setFormError('');}}}
+      error={formError} busy={busy} lockTarget={dialog?.scope==='SYSTEM'||(dialog?.scope==='SALES'&&dialog.salesUserId!==null)} onClose={()=>{if(!busy){setDialog(null);setFormError('');}}}
       onSave={form=>void save(form)}/>
     <AppDrawer open={detail!==null} onOpenChange={v=>{if(!v)setDetail(null)}}
       title="Chi tiết hoa hồng Sales" description="Tỷ lệ áp dụng và lịch sử thay đổi">

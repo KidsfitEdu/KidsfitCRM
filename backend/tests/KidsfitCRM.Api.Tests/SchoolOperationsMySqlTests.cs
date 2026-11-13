@@ -495,6 +495,13 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     {
         var scenario = await Arrange();
         var contractId = await ActiveContract(scenario);
+        // Simulate a historical contract predating mandatory service-term fields.
+        await using (var legacyDb = fixture.Open())
+            await legacyDb.SalesContracts.Where(x => x.Id == contractId)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(x => x.ServiceStartOn, (DateOnly?)null)
+                    .SetProperty(x => x.ServiceEndOn, (DateOnly?)null)
+                    .SetProperty(x => x.PaymentCycle, (string?)null), Ct);
         var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
         var admin = await User("admin@kidsfit.vn");
         await using var db = fixture.Open();
@@ -2208,7 +2215,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             new(proof.Id, SignedOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow),
                 ServicePlan: "MONTHLY_9", StudentCount: 450, BranchCount: 2,
                 SchoolUnitIds: [], MaintenanceFee: 100_000m, SetupFee: 200_000m,
-                ContractNote: "Đã cập nhật theo yêu cầu Quản lý.", ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"),
+                ContractNote: "Đã cập nhật theo yêu cầu Quản lý.", ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddMonths(9).AddDays(-1), PaymentCycle: "MONTHLY"),
             Http(scenario.Seller.UserId), db, Ct);
         db.ChangeTracker.Clear();
         var submitted = await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct);

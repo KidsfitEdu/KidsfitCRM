@@ -20,7 +20,6 @@ import { channelRequest, channelQueryKeys, ChannelRequestError } from '@/lib/cha
 import { loadAllocationSchools } from '@/lib/manager-allocation';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { workflowLabels, workflowDate, type SchoolOperationsWorkspace } from '@/lib/school-operations';
-import { schoolOperationsPreview } from '@/lib/school-operations-preview';
 import type { ChannelCustomer } from '@/lib/channel-sales';
 import type { ManagerPageProps } from '@/types/manager-pages';
 
@@ -105,7 +104,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const operations = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-lists', section, serverPage, search, serverStatus],
     queryFn: () => preview
-      ? Promise.resolve(schoolOperationsPreview(abilities))
+      ? import('../../../demo/school-operations-fixture').then(({ schoolOperationsPreview }) => schoolOperationsPreview(abilities))
       : api<SchoolOperationsWorkspace>('/school-operations?page=' + serverPage + '&search=' + encodeURIComponent(search) + serverStatus),
     enabled: section !== 'progress' && (preview || !!token),
     placeholderData: previous => previous,

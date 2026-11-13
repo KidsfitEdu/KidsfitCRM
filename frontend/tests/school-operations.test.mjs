@@ -4,7 +4,7 @@ import {
   workflowFormValue,
   vietnamDateTimeInput,
 } from '../src/lib/school-operations.ts';
-import { schoolOperationsPreview } from '../src/lib/school-operations-preview.ts';
+import { schoolOperationsPreview } from '../demo/school-operations-fixture.ts';
 import { demoAccounts } from '../src/lib/demo-auth.ts';
 
 test('workflow deadlines use Vietnam time independently of browser time zone', () => {

@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { readSchoolDemo } from '@/lib/school-demo';
 import {
   Building2,
   Eye,
@@ -197,7 +196,7 @@ export function SchoolDirectory({
   const salesDirectory = !adminMode && salesDirectoryMode;
   const api = <T,>(path: string, options?: RequestInit) =>
     demo
-      ? readSchoolDemo<T>(path)
+      ? import('../../../demo/school-demo-fixture').then(({ readSchoolDemo }) => readSchoolDemo<T>(path))
       : channelRequest<T>(apiBase, token, path, options);
   const areas = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-areas', apiBase],

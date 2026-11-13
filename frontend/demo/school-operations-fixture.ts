@@ -1,7 +1,7 @@
 import type {
   SchoolOperationsWorkspace,
   SchoolOperationsReport,
-} from './school-operations';
+} from '@/lib/school-operations';
 
 // Fictional, read-only fixtures. No source documents, API sessions, or customer records.
 export function schoolOperationsPreview(

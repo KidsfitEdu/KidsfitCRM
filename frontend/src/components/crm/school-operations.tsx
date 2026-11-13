@@ -40,10 +40,6 @@ import {
   type SchoolOperationsWorkspace,
   type SchoolOperationsReport,
 } from '@/lib/school-operations';
-import {
-  schoolOperationsPreview,
-  schoolOperationsReportPreview,
-} from '@/lib/school-operations-preview';
 import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-editor';
@@ -137,7 +133,7 @@ export function SchoolOperations({
     queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus, embeddedSalesTable ? salesPageSize : 100, embeddedSalesTable && tab === 'invitations' && pendingOnly],
     queryFn: () =>
       preview
-        ? Promise.resolve(schoolOperationsPreview(abilities))
+        ? import('../../../demo/school-operations-fixture').then(({ schoolOperationsPreview }) => schoolOperationsPreview(abilities))
         : api<SchoolOperationsWorkspace>(
             '/school-operations?page=' +
               page +
@@ -206,7 +202,7 @@ export function SchoolOperations({
     queryKey: [...channelQueryKeys.all, 'school-operation-report', period],
     queryFn: () =>
       preview
-        ? Promise.resolve(schoolOperationsReportPreview())
+        ? import('../../../demo/school-operations-fixture').then(({ schoolOperationsReportPreview }) => schoolOperationsReportPreview())
         : api<SchoolOperationsReport>(
             '/school-operations/report?period=' + period,
           ),

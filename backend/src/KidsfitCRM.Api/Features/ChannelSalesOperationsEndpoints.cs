@@ -26,6 +26,15 @@ public static class ChannelSalesOperationsEndpoints
         group.MapGet("/customers/{id:long}/work-logs", CustomerWorkLogEndpoints.List).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/customers/{id:long}/support-activities", async (long id, AddCustomerActivityRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
             Results.Created($"/api/channel-sales/customers/{id}", new { data = new { id = await actions.RecordSupportActivity(id, request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesActivity);
+        group.MapGet("/revenue-receipts/{receiptId:long}/commission-backfill-preview",
+            async (long receiptId, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+                await actions.PreviewReceiptCommissionBackfill(receiptId, http.UserId(), ct))
+            .RequireAuthorization(Permissions.ChannelSalesCommissionAdjust);
+        group.MapPost("/revenue-receipts/{receiptId:long}/commission-backfill",
+            async (long receiptId, ConfirmReceiptCommissionBackfillRequest request,
+                HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+                await actions.BackfillReceiptCommission(receiptId, request, http.UserId(), http, ct))
+            .RequireAuthorization(Permissions.ChannelSalesCommissionAdjust);
         group.MapPost("/commissions/{id:long}/adjustments", async (long id, AdjustCommissionRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
             Results.Created("/api/channel-sales/commissions", new { data = new { id = await actions.AdjustCommission(id, request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesCommissionAdjust);
         group.MapPost("/payouts", async (CreatePayoutRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>

@@ -1,0 +1,87 @@
+name: BGĐ commission policy validation
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'backend/src/KidsfitCRM.Api/Features/BoardCommissionPolicyEndpoints.cs'
+      - 'backend/src/KidsfitCRM.Api/Domain/BoardCommissionPolicyVersion.cs'
+      - 'backend/src/KidsfitCRM.Api/Infrastructure/**'
+      - 'backend/tests/KidsfitCRM.Api.Tests/BoardCommissionPolicyTests.cs'
+      - 'frontend/src/screens/Board/**'
+      - 'frontend/tests/board-commission-ui.test.mjs'
+      - '.github/workflows/board-commission-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-commission-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test BGĐ commission inheritance and versioning
+        run: dotnet test backend/tests/KidsfitCRM.Api.Tests/KidsfitCRM.Api.Tests.csproj -c Release --filter FullyQualifiedName~BoardCommissionPolicyTests
+
+  frontend-commission-ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Lint changed BGĐ components
+        run: npx oxlint --format stylish src/screens/Board/BoardCommissionDialog.tsx src/screens/Board/BoardCommissionPoliciesPanel.tsx src/screens/Board/Policies/PoliciesPage.tsx src/screens/Board/BoardPoliciesPage.tsx
+      - name: Type check complete frontend
+        run: npx tsc --noEmit
+      - name: Validate shared UI contracts
+        run: node --test tests/board-commission-ui.test.mjs
+
+  mysql-84-commission:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ephemeral-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h127.0.0.1 -uroot -pephemeral-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    env:
+      ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_board_commission_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
+      Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
+      Seed__AdminPassword: "ephemeral-ci-only-admin-password"
+      Seed__DisposableDatabase: "true"
+      ASPNETCORE_ENVIRONMENT: "Development"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Create isolated database
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq default-mysql-client
+          export MYSQL_PWD='ephemeral-ci-only'
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE crm_board_commission_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+      - name: Migrate and bootstrap disposable database
+        run: dotnet run --project backend/src/KidsfitCRM.Api -c Release -- --migrate --seed-initial
+      - name: Check BGĐ permission and append-only policy table
+        run: |
+          set -euo pipefail
+          export MYSQL_PWD='ephemeral-ci-only'
+          mysql -h127.0.0.1 -uroot -N crm_board_commission_ci -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='crm_board_commission_ci' AND table_name='board_commission_policy_versions';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_board_commission_ci -e "SELECT COUNT(*) FROM permission_role pr JOIN roles r ON r.id=pr.role_id JOIN permissions p ON p.id=pr.permission_id WHERE r.code='DIRECTOR' AND p.code='channel_sales.policy.manage';" | grep -x 1
+          mysql -h127.0.0.1 -uroot -N crm_board_commission_ci -e "SELECT COUNT(*) FROM board_commission_policy_versions;" | grep -x 0

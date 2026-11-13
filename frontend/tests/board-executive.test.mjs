@@ -146,8 +146,9 @@ test('Board payout approvals have dedicated menu and route instead of hidden fin
   assert.match(endpoint, /\/payouts\/approval-queue/);
   assert.match(board, /PENDING_APPROVAL/);
   assert.match(board, /CHANGES_REQUESTED/);
-  assert.match(board, /\/payouts\/.*\/approve/);
-  assert.match(board, /\/payouts\/.*\/return/);
+  assert.match(board, /'\/payouts\/'\+id\+'\/'\+decision/);
+  assert.match(board, /perform\(confirmId,'approve'\)/);
+  assert.match(board, /perform\(returnId,'return'\)/);
   assert.match(board, /suggested_amount/);
   assert.match(board, /requested_amount/);
   assert.match(board, /adjustment_reason/);

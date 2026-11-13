@@ -160,9 +160,19 @@ public sealed partial class ChannelSalesActions
         await transaction.CommitAsync(ct);
     }
 
+    private async Task RequireIndependentPayoutApprover(long actorId, CancellationToken ct)
+    {
+        var allowed = await db.UserRoles.AsNoTracking().AnyAsync(ur =>
+            ur.UserId == actorId && db.Roles.Any(r => r.Id == ur.RoleId
+                && (r.Code == "DIRECTOR" || r.Code == "ADMIN")), ct);
+        if (!allowed)
+            throw new ApiConflictException("Chỉ BGĐ hoặc Admin được phê duyệt hoặc trả phiếu chi.");
+    }
+
     public async Task ReturnPayout(long id, ReturnPayoutRequest request, long actorId, HttpContext http, CancellationToken ct)
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutApprove, ct);
+        await RequireIndependentPayoutApprover(actorId, ct);
         var reason = Validation.Required(request.Reason, "reason", "BGĐ cần nêu lý do yêu cầu bổ sung.", 1000);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var payout = await LockPayout(id, ct);
@@ -183,6 +193,7 @@ public sealed partial class ChannelSalesActions
     public async Task ApprovePayout(long id, long actorId, HttpContext http, CancellationToken ct)
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutApprove, ct);
+        await RequireIndependentPayoutApprover(actorId, ct);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var payout = await LockPayout(id, ct);
         if (!access.CanManageOrganization(payout.OrganizationId)) throw new KeyNotFoundException();

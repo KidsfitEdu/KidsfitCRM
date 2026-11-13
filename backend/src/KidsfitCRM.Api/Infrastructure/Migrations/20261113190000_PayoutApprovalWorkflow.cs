@@ -25,6 +25,17 @@ public sealed class PayoutApprovalWorkflow : Migration
                 suggested_rate_percent = 0,
                 submitted_at = CASE WHEN status IN ('APPROVED', 'PAID') THEN approved_at ELSE NULL END
             """);
+        migrationBuilder.Sql("""
+            DELETE pr FROM permission_role AS pr
+            JOIN roles AS r ON r.id = pr.role_id
+            JOIN permissions AS p ON p.id = pr.permission_id
+            WHERE r.code = 'ACCOUNTANT' AND p.code = 'channel_sales.payout.approve'
+            """);
+        migrationBuilder.Sql("""
+            INSERT IGNORE INTO permission_role (permission_id, role_id)
+            SELECT p.id, r.id FROM permissions AS p CROSS JOIN roles AS r
+            WHERE p.code = 'channel_sales.payout.approve' AND r.code = 'DIRECTOR'
+            """);
         // Previously-approved payouts remain APPROVED/PAID. Existing DRAFT payouts
         // must be explicitly submitted before they can be approved under the new workflow.
     }

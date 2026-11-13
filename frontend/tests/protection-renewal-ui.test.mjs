@@ -15,7 +15,7 @@ test('Manager contract screen has just the original review table',()=>{
 
 test('Sales and CTV do not submit separate five-year protection requests',()=>{
  const sales=read('src/components/crm/SalesProtectionOverview.tsx');
- const ctv=read('src/screens/Collaborator/CollaboratorWorkspace.tsx');
+ const ctv=read('src/components/roles/SalesFocusPage.tsx');
  assert.doesNotMatch(sales,/request-review|requestReview|icon=\{Send\}/);
  assert.doesNotMatch(ctv,/ProtectionRenewalPanel/);
  assert.match(ctv,/SalesProtectionOverview/);

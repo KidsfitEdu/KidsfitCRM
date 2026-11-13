@@ -805,6 +805,16 @@ function FinancePanel({
                     {money(payout.withholding_amount)} ={' '}
                     <strong>{money(payout.net_amount)}</strong>
                   </p>
+                  <div className="mt-2 rounded-lg border border-border bg-muted/25 p-3 text-sm">
+                    <p className="text-xs font-medium text-muted-foreground">Đối chiếu hệ thống / Kế toán đề nghị</p>
+                    <p className="mt-1">Hệ thống: {payout.suggested_rate_percent}% · {money(payout.suggested_amount)}</p>
+                    <p>Đề nghị: <strong>{payout.requested_rate_percent}% · {money(payout.requested_amount)}</strong></p>
+                    {(payout.suggested_amount!==payout.requested_amount
+                      ||payout.suggested_rate_percent!==payout.requested_rate_percent)&&
+                      <p className="mt-1 text-amber-700 dark:text-amber-300">
+                        Lý do: {payout.adjustment_reason||'Chưa bổ sung lý do điều chỉnh'}
+                      </p>}
+                  </div>
                   {payout.withholding_reason && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Khấu trừ: {payout.withholding_reason}
@@ -819,20 +829,25 @@ function FinancePanel({
                 </div>
                 <div className="flex items-center gap-2">
                   <StateBadge value={payout.status} />
-                  {payout.status === 'DRAFT' &&
-                    can('channel_sales.payout.approve') && (
-                      <Button
-                        size="sm"
-                        disabled={pending}
-                        onClick={() =>
-                          run({ path: `/payouts/${payout.id}/approve` }).catch(
-                            () => undefined,
-                          )
-                        }
-                      >
-                        <FileCheck2 /> Duyệt
+                  {payout.status === 'PENDING_APPROVAL' &&
+                    can('channel_sales.payout.approve') && (<>
+                      <Button size="sm" disabled={pending}
+                        onClick={()=>run({path:`/payouts/${payout.id}/approve`}).catch(()=>undefined)}>
+                        <FileCheck2/> Phê duyệt
                       </Button>
-                    )}
+                      <Button size="sm" variant="outline" disabled={pending}
+                        onClick={()=>showModal(
+                          <ReasonForm title="Yêu cầu Kế toán bổ sung"
+                            description={`Trả về phiếu ${payout.code} để Kế toán chỉnh sửa. Lý do được lưu lịch sử.`}
+                            label="Lý do yêu cầu bổ sung"
+                            onSubmit={async reason=>{
+                              await run({path:`/payouts/${payout.id}/return`,body:{reason}});
+                              closeModal();
+                            }}/>
+                        )}>
+                        Yêu cầu bổ sung
+                      </Button>
+                    </>)}
                   {payout.status === 'APPROVED' &&
                     can('channel_sales.payout.complete') && (
                       <Button
@@ -1375,7 +1390,9 @@ const stateCopy: Record<string, string> = {
   DISPUTED: 'Đang tranh chấp',
   CONFIRMED: 'Đã xác nhận',
   RESOLVED: 'Đã giải quyết',
-  DRAFT: 'Chờ duyệt',
+  DRAFT: 'Nháp',
+  PENDING_APPROVAL: 'Chờ BGĐ duyệt',
+  CHANGES_REQUESTED: 'Cần bổ sung',
   APPROVED: 'Đã duyệt',
   PAID: 'Đã chi',
   ACCRUED: 'Phát sinh',
@@ -1385,7 +1402,10 @@ const eventCopy: Record<string, string> = {
   DISPUTED: 'Ghi nhận tranh chấp',
   CONFIRMED: 'Xác nhận quyền bảo vệ',
   CREATED: 'Lập phiếu chi',
-  APPROVED: 'Duyệt phiếu chi',
+  APPROVED: 'BGĐ duyệt phiếu chi',
+  SUBMITTED: 'Kế toán gửi BGĐ',
+  EDITED: 'Chỉnh sửa nháp',
+  CHANGES_REQUESTED: 'BGĐ yêu cầu bổ sung',
   PAID: 'Ghi nhận đã chi',
 };
 const roleCopy: Record<string, string> = {

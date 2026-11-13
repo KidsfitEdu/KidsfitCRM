@@ -173,3 +173,41 @@ test('Board payout approval list stays compact without losing detail or filterin
   assert.match(board, /canDecide\(selected\)/);
   assert.match(board, /ConfirmDialog/);
 });
+
+
+test('Board payout details show accounting figures and use one ordered fixed drawer footer', () => {
+  const board = read('screens/Board/BoardPayoutsPage.tsx');
+  const drawer = board.split('<AppDrawer')[1]?.split('</AppDrawer>')[0] ?? '';
+  assert.match(drawer, /footer=\{<div/);
+  const closeIndex = drawer.indexOf('>Đóng</AppButton>');
+  const returnIndex = drawer.indexOf('>Yêu cầu bổ sung</AppButton>');
+  const approveIndex = drawer.indexOf('>Phê duyệt phiếu chi</AppButton>');
+  assert.ok(closeIndex >= 0 && returnIndex > closeIndex && approveIndex > returnIndex);
+  assert.match(drawer, /canDecide\(selected\)/);
+  assert.match(drawer, /disabled=\{busy\|\|\(difference\(selected\)/);
+  assert.match(drawer, /Tổng giá trị hợp đồng/);
+  assert.match(drawer, /contract_total_value/);
+  assert.match(drawer, /contract_count>1/);
+  assert.match(drawer, /Tỷ lệ hoa hồng Kế toán đề nghị/);
+  assert.match(drawer, /Tổng tiền hoa hồng/);
+  assert.match(drawer, /Tổng số tiền được nhận/);
+  assert.match(drawer, /selected\.requested_amount/);
+  assert.match(drawer, /selected\.net_amount/);
+  assert.doesNotMatch(drawer, />Hệ thống đề xuất<\/p>/);
+  assert.match(drawer, /selected\.adjustment_reason/);
+  assert.match(board, /perform\(confirmId,'approve'\)/);
+  assert.match(board, /perform\(returnId,'return'\)/);
+});
+
+test('Board payout contract totals derive from distinct scoped contracts rather than repeated ledger entries', () => {
+  const endpoint = readFileSync(resolve(import.meta.dirname,
+    '../../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs'), 'utf8');
+  const queue = endpoint.split('private static async Task<IResult> BoardPayoutApprovalQueue')[1]
+    ?.split('public static async Task<IResult> Finance')[0] ?? '';
+  assert.match(queue, /var scope = access\.Payouts\(db\)\.AsNoTracking\(\)/);
+  assert.match(queue, /contract_count = db\.SalesContracts\.Count/);
+  assert.match(queue, /contract_total_value = db\.SalesContracts/);
+  assert.match(queue, /contract\.TotalValue/);
+  assert.match(queue, /item\.PayoutId == payout\.Id/);
+  assert.match(queue, /entry\.ContractId == contract\.Id/);
+});

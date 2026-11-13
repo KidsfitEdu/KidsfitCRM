@@ -10,6 +10,7 @@ import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { protectionServiceStatus, protectionAction } from './protection-overview-presentation';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppButton } from '@/components/common/buttons/app-button';
+import { SalesContractPeriodHistory } from './SalesContractPeriodHistory';
 
 type SchoolProtection = {
   customer_id:number; customer_name:string; contract_id:number; contract_code:string;
@@ -194,6 +195,8 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
             <DetailField label="Tranh chấp quyền" value={selected.has_open_dispute?'Có tranh chấp cần xử lý':'Không có tranh chấp'}/>
           </dl>
         </section>
+
+        <SalesContractPeriodHistory key={selected.customer_id} customerId={selected.customer_id} apiBase={apiBase} token={token}/>
 
         <section aria-labelledby="sales-protection-renewal-heading" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">

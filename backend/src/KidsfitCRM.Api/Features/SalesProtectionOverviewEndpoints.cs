@@ -11,9 +11,86 @@ namespace KidsfitCRM.Api.Features;
 /// </summary>
 public static class SalesProtectionOverviewEndpoints
 {
-    public static void Map(RouteGroupBuilder channel) =>
+    public static void Map(RouteGroupBuilder channel)
+    {
         channel.MapGet("/protection-overview", List)
             .RequireAuthorization(Permissions.ChannelSalesView);
+        channel.MapGet("/protection-overview/{customerId:long}/contracts", ContractPeriods)
+            .RequireAuthorization(Permissions.ChannelSalesView);
+    }
+
+    /// <summary>
+    /// Read-only service and evidence history for this Sales' verified original contracts.
+    /// Pending renewals are shown but are never counted as confirmed service terms.
+    /// </summary>
+    public static async Task<IResult> ContractPeriods(long customerId, HttpContext http,
+        KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesView)) return Results.Forbid();
+        var contracts = await access.Contracts(db).AsNoTracking()
+            .Where(c => c.CustomerId == customerId && c.OwnerUserId == access.UserId
+                && c.Status == "ACTIVE" && c.VerifiedAt != null && c.RequiresSchoolVerification
+                && !db.ContractCancellations.Any(x => x.ContractId == c.Id))
+            .OrderBy(c => c.SignedOn).ThenBy(c => c.Id)
+            .ToArrayAsync(ct);
+        if (contracts.Length == 0) throw new KeyNotFoundException();
+        // Match the overview list: never expose a historical owner's file history
+        // when another Sales currently holds the active protection.
+        var otherCurrentOwner = await db.CustomerProtections.AsNoTracking().AnyAsync(p =>
+            p.CustomerId == customerId && p.Status == "ACTIVE" && p.EffectiveUntil > DateTime.UtcNow
+            && p.OwnerUserId != access.UserId, ct);
+        if (otherCurrentOwner) throw new KeyNotFoundException();
+
+        var ids = contracts.Select(c => c.Id).ToArray();
+        var renewals = await db.ContractRenewals.AsNoTracking()
+            .Where(r => ids.Contains(r.ContractId) && r.SubmittedByUserId == access.UserId)
+            .OrderBy(r => r.ContractId).ThenBy(r => r.RenewalNo).ThenBy(r => r.Id)
+            .ToArrayAsync(ct);
+        var renewalIds = renewals.Select(r => r.Id).ToArray();
+        // Metadata only. File bytes remain behind the existing authorized evidence endpoint.
+        var proofs = await db.FinancialEvidences.AsNoTracking()
+            .Where(e => e.AttachedAt != null &&
+                ((e.Kind == "CONTRACT" && e.ContractId.HasValue && ids.Contains(e.ContractId.Value)) ||
+                 (e.Kind == "RENEWAL" && e.ContractRenewalId.HasValue && renewalIds.Contains(e.ContractRenewalId.Value)
+                  && e.UploadedByUserId == access.UserId)))
+            .OrderByDescending(e => e.AttachedAt).ThenByDescending(e => e.Id)
+            .Select(e => new { e.Id, e.Kind, e.ContractId, e.ContractRenewalId, e.FileName, e.MimeType })
+            .ToArrayAsync(ct);
+        var result = new List<object>();
+        foreach (var contract in contracts)
+        {
+            var sourceProof = proofs.FirstOrDefault(p => p.Kind == "CONTRACT" && p.ContractId == contract.Id);
+            result.Add(new {
+                type = "ORIGINAL", id = contract.Id, contract_id = contract.Id,
+                contract_code = contract.ContractCode, renewal_no = (int?)null,
+                signed_on = contract.SignedOn, service_start_on = contract.ServiceStartOn,
+                service_end_on = contract.ServiceEndOn, payment_cycle = contract.PaymentCycle,
+                service_plan = contract.ServicePlan, total_value = contract.TotalValue,
+                status = contract.Status, service_confirmed = true,
+                evidence = sourceProof is null ? null : (object)new {
+                    id = sourceProof.Id, file_name = sourceProof.FileName, mime_type = sourceProof.MimeType
+                }
+            });
+            foreach (var renewal in renewals.Where(x => x.ContractId == contract.Id))
+            {
+                var proof = proofs.FirstOrDefault(p => p.Kind == "RENEWAL" && p.ContractRenewalId == renewal.Id);
+                result.Add(new {
+                    type = "RENEWAL", id = renewal.Id, contract_id = contract.Id,
+                    contract_code = contract.ContractCode, renewal_no = (int?)renewal.RenewalNo,
+                    signed_on = renewal.SignedOn, service_start_on = (DateOnly?)renewal.ServiceStartOn,
+                    service_end_on = (DateOnly?)renewal.ServiceEndOn,
+                    payment_cycle = renewal.PaymentCycle, service_plan = (string?)null,
+                    total_value = renewal.TotalValue, status = renewal.Status,
+                    service_confirmed = renewal.Status == "CONFIRMED",
+                    evidence = proof is null ? null : (object)new {
+                        id = proof.Id, file_name = proof.FileName, mime_type = proof.MimeType
+                    }
+                });
+            }
+        }
+        return Results.Ok(new { data = result });
+    }
 
     private static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
         IConfiguration configuration, string? search, string? status,

@@ -134,6 +134,65 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Sales_protection_periods_show_confirmed_and_pending_with_owned_files_only()
+    {
+        var seller = await Seller();
+        var otherSeller = await Seller();
+        var (_, contractId) = await Contract(seller);
+        await using var db = fixture.Open();
+        var contract = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        contract.RequiresSchoolVerification = true;
+        contract.Status = "ACTIVE";
+        contract.VerifiedAt = DateTime.UtcNow;
+        contract.ServiceStartOn = new DateOnly(2026, 1, 1);
+        contract.ServiceEndOn = new DateOnly(2026, 12, 31);
+        contract.PaymentCycle = "YEARLY";
+        var renewal = new ContractRenewal {
+            ContractId = contractId, RenewalNo = 1, SubmittedByUserId = seller,
+            IdempotencyKey = Key(), RequestFingerprint = Key(), SignedOn = new DateOnly(2026, 12, 15),
+            ServiceStartOn = new DateOnly(2027, 1, 1), ServiceEndOn = new DateOnly(2027, 12, 31),
+            Status = "PENDING_ACCOUNTING", PaymentCycle = "YEARLY", TotalValue = 1000000,
+            SubmittedAt = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        db.ContractRenewals.Add(renewal);
+        await db.SaveChangesAsync(Ct);
+        db.FinancialEvidences.AddRange(
+            new FinancialEvidence { Kind = "CONTRACT", ContractId = contractId, UploadedByUserId = seller,
+                FileName = "source.pdf", MimeType = "application/pdf", Sha256 = Key(),
+                Bytes = "%PDF-test"u8.ToArray(), AttachedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+            new FinancialEvidence { Kind = "RENEWAL", ContractRenewalId = renewal.Id, UploadedByUserId = seller,
+                FileName = "renewal.pdf", MimeType = "application/pdf", Sha256 = Key(),
+                Bytes = "%PDF-test"u8.ToArray(), AttachedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync(Ct);
+
+        static HttpContext AsUser(long id)
+        {
+            var http = new DefaultHttpContext();
+            http.User = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, id.ToString())],
+                    "IntegrationTest"));
+            return http;
+        }
+        var result = await SalesProtectionOverviewEndpoints.ContractPeriods(contract.CustomerId,
+            AsUser(seller), db, Ct);
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(
+            ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value);
+        var periods = json.GetProperty("data");
+        Assert.Equal(2, periods.GetArrayLength());
+        Assert.Equal("ORIGINAL", periods[0].GetProperty("type").GetString());
+        Assert.True(periods[0].GetProperty("service_confirmed").GetBoolean());
+        Assert.Equal("source.pdf", periods[0].GetProperty("evidence").GetProperty("file_name").GetString());
+        Assert.Equal("RENEWAL", periods[1].GetProperty("type").GetString());
+        Assert.False(periods[1].GetProperty("service_confirmed").GetBoolean());
+        Assert.Equal("renewal.pdf", periods[1].GetProperty("evidence").GetProperty("file_name").GetString());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => SalesProtectionOverviewEndpoints.ContractPeriods(
+            contract.CustomerId, AsUser(otherSeller), db, Ct));
+    }
+
+    [MySqlFact]
     public async Task Sales_renewal_history_is_scoped_searchable_and_paginated()
     {
         var sellerA = await Seller();

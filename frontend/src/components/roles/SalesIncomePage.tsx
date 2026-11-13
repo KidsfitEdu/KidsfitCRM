@@ -227,6 +227,7 @@ export function SalesIncomePage({apiBase,token,abilities}:{
                     {statusLabel[payment.status]??'Đang xử lý'}
                   </span>
                 </div>
+                <p className="text-xs text-muted-foreground">{payment.status==='PAID'?'Đã nhận (phần phân bổ)':'Phần hoa hồng trên phiếu chi'}</p>
                 <p className="text-lg font-bold tabular-nums">{channelMoney(payment.allocated_amount)}</p>
                 <p className="text-xs text-muted-foreground">{payment.paid_at?channelDate(payment.paid_at):'Chưa chuyển'} · {payment.payment_reference||'Chưa có mã giao dịch'}</p>
                 {payment.evidence_id && payment.evidence_name&&<AppButton type="button" tone="outline" className="h-9"

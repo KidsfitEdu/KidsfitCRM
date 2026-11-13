@@ -13,33 +13,30 @@ test('Sales fee-based signed-contract report does not require a CHECKEE catalog 
   assert.doesNotMatch(ui, /if \(!packages\.length\) throw/);
   assert.doesNotMatch(ui, /product_package_id: packages\[0\]\.id/);
   assert.doesNotMatch(ui, /packages=\{workspace\.packages\}/);
-  assert.match(types, /product_package_id\?: number/);
-  assert.match(dto, /long\? ProductPackageId/);
+  assert.doesNotMatch(types, /product_package_id/);
+  assert.doesNotMatch(dto, /ProductPackageId/);
   assert.match(ui, /maintenance_fee: maintenance/);
   assert.match(ui, /setup_fee: setup/);
   assert.match(ui, /evidence_id: response\.data\.id/);
 });
 
-test('Backend validates manual fee totals and still rejects a missing package for old no-fee clients', () => {
+test('Backend requires manual fee components and validates totals', () => {
   const code = backend('Features/ChannelSalesActions.cs');
   assert.match(code, /if \(calculatedTotal <= 0 \|\| calculatedTotal != request\.TotalValue\)/);
-  assert.match(code, /if \(!hasContractFees && package is null\)/);
-  assert.match(code, /if \(request\.ProductPackageId is > 0\)/);
-  assert.match(code, /ProductPackageId = package\?\.Id/);
-  assert.match(code, /Description = package!\.Name/);
+  assert.match(code, /if \(!hasContractFees\)/);
+  assert.doesNotMatch(code, /CheckeeProductPackage|ProductPackageId|product_package_id/);
   assert.match(code, /if \(contractProof is null\)/);
   assert.match(code, /Status = schoolContract \? "PENDING_REVIEW" : "ACTIVE"/);
 });
 
-test('Optional FK schema preserves historic references and supports nullable manual fee lines', () => {
+test('Latest migration retires the unused catalog while retaining fee descriptions', () => {
   const entity = backend('Domain/ChannelSalesEntities.cs');
   const snapshot = backend('Infrastructure/Migrations/KidsfitDbContextModelSnapshot.cs');
-  const migration = backend('Infrastructure/Migrations/20261112100000_OptionalContractPackageReference.cs');
-  assert.match(entity, /public long\? ProductPackageId \{ get; set; \}/);
-  assert.match(snapshot, /b\.Property<long\?>\("ProductPackageId"\)/);
-  assert.match(migration, /migrationBuilder\.AlterColumn<long>/);
-  assert.match(migration, /nullable: true/);
+  const migration = backend('Infrastructure/Migrations/20261113230000_RemoveLegacyCheckeePackages.cs');
+  assert.doesNotMatch(entity, /ProductPackageId|CheckeeProductPackage/);
+  assert.doesNotMatch(snapshot, /ProductPackageId|CheckeeProductPackage/);
   assert.match(migration, /migrationBuilder\.DropForeignKey/);
-  assert.match(migration, /migrationBuilder\.AddForeignKey/);
-  assert.doesNotMatch(migration, /DropTable|DeleteData|TRUNCATE|UPDATE sales_contract_items/i);
+  assert.match(migration, /migrationBuilder\.DropColumn/);
+  assert.match(migration, /migrationBuilder\.DropTable/);
+  assert.doesNotMatch(migration, /DeleteData|TRUNCATE/i);
 });

@@ -88,9 +88,13 @@ public sealed class BoardCommissionPolicyTests
     [InlineData(0,0,true)]
     [InlineData(-1,5,false)]
     [InlineData(99,2,false)]
-    [InlineData(25.12345,5,false)]
-    public void Rejects_invalid_rate_bounds_and_precision(decimal sales, decimal manager, bool valid) =>
+    [InlineData(25,101,false)]
+    public void Rejects_invalid_rate_bounds_and_precision(int sales, int manager, bool valid) =>
         Assert.Equal(valid,BoardCommissionPolicyEndpoints.ValidRates(sales,manager));
+
+    [Fact]
+    public void Five_decimal_places_are_not_allowed() =>
+        Assert.False(BoardCommissionPolicyEndpoints.ValidRates(25.12345m,5m));
 
     [Fact]
     public void Reset_only_affects_matching_organization_sales()

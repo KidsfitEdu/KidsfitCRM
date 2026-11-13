@@ -42,12 +42,11 @@ public static class BoardCommissionPolicyEndpoints
                where ur.UserId == id && r.Code == "DIRECTOR"
                select ur.UserId).AnyAsync(ct);
 
-    private static async Task DemandDirector(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    private static async Task<bool> HasDirectorAccess(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        if (!access.Has(Permissions.ChannelSalesPolicyManage) ||
-            !access.All || !await IsDirector(db, access.UserId, ct))
-            throw new UnauthorizedAccessException("Chỉ Ban Giám Đốc được cấu hình chính sách hoa hồng.");
+        return access.Has(Permissions.ChannelSalesPolicyManage) && access.All
+            && await IsDirector(db, access.UserId, ct);
     }
 
     internal static BoardCommissionPolicyVersion? Latest(
@@ -80,7 +79,7 @@ public static class BoardCommissionPolicyEndpoints
 
     private static async Task<IResult> List(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
-        await DemandDirector(http, db, ct);
+        if (!await HasDirectorAccess(http, db, ct)) return Results.Forbid();
         var organizations = await db.Organizations.AsNoTracking().Where(x => x.Status == "ACTIVE")
             .OrderBy(x => x.Name).Select(x => new { x.Id, x.Name, x.Code }).ToArrayAsync(ct);
         var personnel = await (from m in db.OrganizationMemberships.AsNoTracking()
@@ -125,7 +124,7 @@ public static class BoardCommissionPolicyEndpoints
     private static async Task<IResult> Save(SaveBoardCommissionRequest request, HttpContext http,
         KidsfitDbContext db, CancellationToken ct)
     {
-        await DemandDirector(http, db, ct);
+        if (!await HasDirectorAccess(http, db, ct)) return Results.Forbid();
         var scope = request.Scope?.Trim().ToUpperInvariant();
         if (scope is not ("SYSTEM" or "MANAGER" or "SALES"))
             throw ApiValidationException.For("scope", "Phạm vi phải là SYSTEM, MANAGER hoặc SALES.");
@@ -182,7 +181,7 @@ public static class BoardCommissionPolicyEndpoints
     private static async Task<IResult> Reset(long id, ResetBoardCommissionRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
-        await DemandDirector(http, db, ct);
+        if (!await HasDirectorAccess(http, db, ct)) return Results.Forbid();
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await LockWrites(db, ct);
         var target = await db.BoardCommissionPolicyVersions.AsNoTracking()

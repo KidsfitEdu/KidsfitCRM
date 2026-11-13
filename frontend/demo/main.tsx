@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CrmApp } from '@/components/crm/crm-app';
+import { DemoCrmApp } from './demo-crm-app';
 import '../src/app/globals.css';
 import './theme.css';
 
@@ -9,6 +9,6 @@ if (!root) throw new Error('Missing demo root.');
 
 createRoot(root).render(
   <StrictMode>
-    <CrmApp />
+    <DemoCrmApp />
   </StrictMode>,
 );

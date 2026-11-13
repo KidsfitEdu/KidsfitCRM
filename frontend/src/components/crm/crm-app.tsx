@@ -9,15 +9,14 @@ import { Header } from '@/components/layout/Header';
 import { LoginPage } from '@/screens/Auth/Login/LoginPage';
 import { MascotLoadingState } from '@/components/common/mascot-loading-state';
 import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
-import { DemoAccess } from '@/components/crm/demo-access';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { nav, type View } from '@/config/navigation';
 import { canonicalSalesView, legacySalesWorkflowTab, salesMenuIds } from '@/config/sales-navigation';
 import { canonicalCheckeeView, viewToPath, pathToView } from '@/config/routes';
 import { canonicalBoardView, canonicalCareView } from '@/config/routes';
 import { createApiClient, ApiRequestError, isBackendUnavailable } from '@/services/api.client';
-import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
-import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
+import { type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
+import type { DemoAccount } from '@/lib/demo-auth';
 
 const staticPreview = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 const apiBase = staticPreview ? '' : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
@@ -35,14 +34,14 @@ const CheckeeWorkspace = lazy(() => import('@/screens/Checkee/CheckeeWorkspace')
 const ChannelOperations = lazy(() => import('@/components/crm/channel-operations').then(m => ({ default: m.ChannelOperations })));
 
 export function CrmApp({ initialView }: { initialView?: View } = {}) {
-  if (!staticPreview) {
-    if (!apiBase) return <p role="alert">Thiếu NEXT_PUBLIC_API_URL. Hãy cấu hình kết nối Backend để sử dụng dữ liệu CRM thật.</p>;
-    return <CrmWorkspace initialView={initialView} />;
-  }
-  return <DemoAccess>{(account, logout) => <CrmWorkspace key={account.id} initialView={initialView} demoAccount={account} onDemoLogout={logout} />}</DemoAccess>;
+  if (!apiBase) return <p role="alert">Thiếu NEXT_PUBLIC_API_URL. Hãy cấu hình kết nối Backend để sử dụng dữ liệu CRM thật.</p>;
+  return <CrmWorkspace initialView={initialView} />;
 }
 
-function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?: View; demoAccount?: DemoAccount; onDemoLogout?: () => void }) {
+// Shared workspace shell: the standalone Pages preview supplies fictional data explicitly.
+export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWorkspace }: {
+  initialView?: View; demoAccount?: DemoAccount; onDemoLogout?: () => void; initialWorkspace?: ChannelSalesWorkspace;
+}) {
   const [view, setView] = useState<View>(canonicalCareView(canonicalBoardView(canonicalCheckeeView(canonicalSalesView(initialView ?? 'dashboard')))));
   const [salesWorkflow, setSalesWorkflow] = useState<'invitations' | 'extensions' | undefined>(() => legacySalesWorkflowTab(initialView ?? 'dashboard'));
   const [token, setToken] = useState('');
@@ -58,7 +57,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [membershipType, setMembershipType] = useState<string | null>(null);
   const [abilities, setAbilities] = useState<string[]>(demoAccount?.abilities ?? []);
-  const [workspace, setWorkspace] = useState<ChannelSalesWorkspace>(demoAccount ? presentDemoWorkspace(demoChannelSalesWorkspace, demoAccount) : {
+  const [workspace, setWorkspace] = useState<ChannelSalesWorkspace>(initialWorkspace ?? {
     data: [], metrics: { available: 0, approaching: 0, contracted: 0, expiring_soon: 0, contract_value: 0, collected_revenue: 0, commission_accrued: 0 }, pending_reconciliations: [], server_time: new Date(0).toISOString()
   });
   const [search, setSearch] = useState('');

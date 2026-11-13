@@ -89,8 +89,11 @@ type Detail = {
   refunded_total: number;
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
-    period: string; beneficiary_user_id: number; beneficiary_organization_id: number; assigned_to_payout: boolean }[];
-  payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null }[];
+    period: string; beneficiary_user_id: number; beneficiary_name: string; beneficiary_organization_id: number;
+    beneficiary_role: 'SALES'|'MANAGER'; policy_source: string; board_policy_version_id: number|null;
+    assigned_to_payout: boolean }[];
+  payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null;
+    beneficiary_role:'SALES'|'MANAGER'; beneficiary_user_id:number }[];
   evidence: {id:number;kind:string;file_name:string;revenue_receipt_id:number|null;payout_id:number|null}[];
   school_units: {id:number;name:string}[];
 };
@@ -113,6 +116,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
   const [payoutPeriod, setPayoutPeriod] = useState('');
+  const [payoutBeneficiary, setPayoutBeneficiary] = useState('');
   const [payoutDialogOpen,setPayoutDialogOpen] = useState(false);
   const [payoutWithholding,setPayoutWithholding] = useState('0');
   const [payoutWithholdingReason,setPayoutWithholdingReason] = useState('');
@@ -355,17 +359,25 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       setSaving(false);
     }
   };
-  const eligibleByPeriod = new Map<string, number>();
-  for (const entry of detail?.ledger ?? []) {
-    if (!entry.assigned_to_payout && entry.beneficiary_user_id === detail?.data.owner_user_id
-      && entry.beneficiary_organization_id === detail?.data.owner_organization_id) {
-      eligibleByPeriod.set(entry.period, (eligibleByPeriod.get(entry.period) ?? 0) + entry.amount);
+  const eligibleEntries=(detail?.ledger??[]).filter(entry=>!entry.assigned_to_payout);
+  const beneficiaries=Array.from(new Map(eligibleEntries.map(entry=>[
+    `${entry.beneficiary_role}:${entry.beneficiary_user_id}`,
+    {key:`${entry.beneficiary_role}:${entry.beneficiary_user_id}`,
+      id:entry.beneficiary_user_id,role:entry.beneficiary_role,name:entry.beneficiary_name},
+  ])).values());
+  const currentBeneficiary=beneficiaries.find(x=>x.key===payoutBeneficiary)??beneficiaries[0];
+  const eligibleByPeriod=new Map<string,number>();
+  for(const entry of eligibleEntries){
+    if(entry.beneficiary_user_id===currentBeneficiary?.id
+      &&entry.beneficiary_role===currentBeneficiary?.role){
+      eligibleByPeriod.set(entry.period,(eligibleByPeriod.get(entry.period)??0)+entry.amount);
     }
   }
-  const eligiblePeriods = [...eligibleByPeriod.entries()].filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
-  const chosenPeriod = eligiblePeriods.includes(payoutPeriod) ? payoutPeriod : (eligiblePeriods[0] ?? '');
+  const eligiblePeriods=[...eligibleByPeriod.entries()]
+    .filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
+  const chosenPeriod=eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'');
   const createPayout = async () => {
-    if(!detail||!chosenPeriod)return;
+    if(!detail||!chosenPeriod||!currentBeneficiary)return;
     const gross=eligibleByPeriod.get(chosenPeriod)??0;
     const withholding=parseMoneyInput(payoutWithholding);
     if(!Number.isSafeInteger(withholding)||withholding<0||withholding>gross){
@@ -379,8 +391,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       payoutKey.current??=crypto.randomUUID();
       await channelRequest(apiBase,token,'/payouts',{method:'POST',body:JSON.stringify({
         idempotency_key:payoutKey.current,organization_id:detail.data.owner_organization_id,
-        beneficiary_user_id:detail.data.owner_user_id,period:chosenPeriod,
-        contract_id:detail.data.id,withholding_amount:withholding,
+        beneficiary_user_id:currentBeneficiary?.id,beneficiary_role:currentBeneficiary?.role,
+        period:chosenPeriod,contract_id:detail.data.id,withholding_amount:withholding,
         withholding_reason:withholding>0?payoutWithholdingReason.trim():null,
       })});
       payoutKey.current=null;setPayoutDialogOpen(false);setDetailRevision(v=>v+1);
@@ -676,10 +688,18 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </section>
         <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-base font-bold text-foreground">Hoa hồng Sales</h3>
+            <div><h3 className="text-base font-bold text-foreground">Hoa hồng & phiếu chi</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Chi trả độc lập cho Sales và Quản lý theo cấu hình Ban Giám đốc.</p></div>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
               onClick={()=>openPayoutPayment()}><Plus className="size-4"/> Thêm khoản chi</Button>}
             {canCreatePayout && <div className="flex flex-wrap items-center gap-2">
+              {beneficiaries.length>0&&<select aria-label="Người hưởng hoa hồng" value={currentBeneficiary?.key??''}
+                onChange={event=>{setPayoutBeneficiary(event.target.value);setPayoutPeriod('');payoutKey.current=null;}}
+                className="h-9 max-w-52 rounded-lg border border-input bg-background px-2 text-sm">
+                {beneficiaries.map(item=><option key={item.key} value={item.key}>
+                  {item.role==='MANAGER'?'Quản lý':'Sales'} · {item.name}
+                </option>)}
+              </select>}
               {eligiblePeriods.length>0 && <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
                 onChange={event=>setPayoutPeriod(event.target.value)}
                 className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
@@ -692,16 +712,30 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           {canCreatePayout && eligiblePeriods.length===0 && <p className="text-xs text-muted-foreground">
             {detail.ledger.length===0 ? (detail.receipts.length > 0 ? 'Khoản thu đã ghi nhận nhưng chưa có bút toán hoa hồng. Vui lòng kiểm tra chính sách hoa hồng áp dụng tại ngày thu.' : 'Chưa có khoản thu để phát sinh hoa hồng cho hợp đồng này.')
               : detail.ledger.every(x=>x.assigned_to_payout) ? 'Hoa hồng đã được đưa vào phiếu chi. Xem trạng thái phiếu chi bên dưới.'
-              : 'Chưa có khoản hoa hồng dương đủ điều kiện lập phiếu chi cho Sales và kỳ đã chọn.'}
+              : 'Chưa có khoản hoa hồng dương chưa phân bổ cho Sales hoặc Quản lý trong kỳ đã chọn.'}
           </p>}
           {detail.ledger.some(x=>x.entry_type!=='ACCRUAL') && <div className="rounded-lg border border-border/80 px-3 py-2 text-xs text-muted-foreground">
             Có điều chỉnh hoa hồng. Chi tiết: {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').map(x=>`${x.reason || 'Điều chỉnh'} (${channelMoney(x.amount)})`).join('; ')}
+          </div>}
+          {detail.ledger.length>0&&<div className="grid gap-3 sm:grid-cols-2">
+            {(['SALES','MANAGER'] as const).map(role=>{
+              const entries=detail.ledger.filter(x=>x.beneficiary_role===role);
+              return <div key={role} className="rounded-xl border border-border bg-muted/20 p-3">
+                <p className="text-xs text-muted-foreground">{role==='SALES'?'Hoa hồng Sales':'Hoa hồng Quản lý'}</p>
+                <p className="mt-1 font-semibold">{entries[0]?.beneficiary_name??'Chưa có người hưởng'}</p>
+                <p className="mt-1 text-sm tabular-nums">{channelMoney(entries.reduce((sum,x)=>sum+x.amount,0))} · {entries[0]?.rate_percent??0}%</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {entries.length?entries[0].policy_source:'Chưa có bút toán hoặc cần kiểm tra người hưởng'}
+                </p>
+              </div>;
+            })}
           </div>}
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[650px] text-left text-sm">
               <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
                 <tr>
                   <th scope="col" className="px-3 py-3">Phiếu chi / Giao dịch</th>
+                  <th scope="col" className="px-3 py-3">Người hưởng</th>
                   <th scope="col" className="px-3 py-3">Ngày chuyển</th>
                   <th scope="col" className="px-3 py-3 text-right">Số tiền</th>
                   <th scope="col" className="px-3 py-3">Trạng thái</th>
@@ -710,7 +744,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </thead>
               <tbody className="divide-y divide-border/70">
                 {detail.payouts.length===0 ?
-                  <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">Chưa có phiếu chi hoa hồng cho hợp đồng này.</td></tr>
+                  <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">Chưa có phiếu chi hoa hồng cho hợp đồng này.</td></tr>
                   : detail.payouts.map(x=>{
                     const proof = detail.evidence.find(e=>e.payout_id===x.id);
                     const tone = x.status==='PAID'
@@ -723,6 +757,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                         <p className="font-medium">{x.code}</p>
                         {x.payment_reference&&<p className="mt-1 text-xs text-muted-foreground">{x.payment_reference}</p>}
                       </td>
+                      <td className="px-3 py-3">{x.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {detail.ledger.find(e=>e.beneficiary_user_id===x.beneficiary_user_id)?.beneficiary_name??'—'}</td>
                       <td className="whitespace-nowrap px-3 py-3">{x.paid_at?channelDate(x.paid_at):'Chưa chuyển'}</td>
                       <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(x.net_amount)}</td>
                       <td className="px-3 py-3">
@@ -752,7 +787,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       {detail&&payoutDialogOpen&&<form className="space-y-4" onSubmit={event=>{event.preventDefault();void createPayout();}}>
         <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
           <p className="text-sm text-muted-foreground">Người nhận hoa hồng</p>
-          <p className="font-semibold">{detail.data.owner_name}</p>
+          <p className="font-semibold">{currentBeneficiary?.name??'Chưa chọn người hưởng'}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              {currentBeneficiary?.role==='MANAGER'?'Quản lý':'Sales'}
+            </span>
+          </p>
           <p className="text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ {chosenPeriod}</p>
         </div>
         <div className="flex items-center justify-between gap-2 text-sm">

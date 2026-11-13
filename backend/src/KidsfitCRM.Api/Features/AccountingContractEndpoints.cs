@@ -190,15 +190,18 @@ public static class AccountingContractEndpoints
                 id = x.Id, revenue_schedule_id = x.RevenueScheduleId, received_at = x.ReceivedAt,
                 amount = x.Amount, reference_code = x.ReferenceCode, payment_method = x.PaymentMethod
             }).ToArrayAsync(ct);
-        var ledger = await access.Commissions(db).AsNoTracking().Where(x => x.ContractId == id)
-            .OrderBy(x => x.OccurredAt).Select(x => new {
-                id = x.Id, entry_type = x.EntryType, amount = x.Amount,
-                rate_percent = x.RatePercent, reason = x.Reason, occurred_at = x.OccurredAt,
-                period = x.Period, beneficiary_user_id = x.BeneficiaryUserId,
-                beneficiary_role = x.BeneficiaryRole, policy_source = x.PolicySource,
-                board_policy_version_id = x.BoardPolicyVersionId,
-                beneficiary_organization_id = x.BeneficiaryOrganizationId,
-                assigned_to_payout = db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id)
+        var ledger = await (from entry in access.Commissions(db).AsNoTracking()
+            join recipient in db.Users.AsNoTracking() on entry.BeneficiaryUserId equals recipient.Id
+            where entry.ContractId == id
+            orderby entry.OccurredAt
+            select new {
+                id = entry.Id, entry_type = entry.EntryType, beneficiary_name = recipient.Name, amount = entry.Amount,
+                rate_percent = entry.RatePercent, reason = entry.Reason, occurred_at = entry.OccurredAt,
+                period = entry.Period, beneficiary_user_id = entry.BeneficiaryUserId,
+                beneficiary_role = entry.BeneficiaryRole, policy_source = entry.PolicySource,
+                board_policy_version_id = entry.BoardPolicyVersionId,
+                beneficiary_organization_id = entry.BeneficiaryOrganizationId,
+                assigned_to_payout = db.PayoutItems.Any(item => item.CommissionLedgerEntryId == entry.Id)
             }).ToArrayAsync(ct);
         var payoutIds = db.PayoutItems.Where(x => access.Commissions(db).Any(e => e.Id == x.CommissionLedgerEntryId && e.ContractId == id)).Select(x => x.PayoutId);
         var payouts = await access.Payouts(db).AsNoTracking().Where(x => payoutIds.Contains(x.Id))

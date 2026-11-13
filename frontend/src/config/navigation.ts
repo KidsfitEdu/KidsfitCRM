@@ -25,6 +25,7 @@ export type View =
   | 'role-board-overdue'
   | 'role-board-disputes'
   | 'role-board-policies'
+  | 'role-board-payouts'
   | 'role-accounting-dashboard'
   | 'role-accounting-revenue'
   | 'role-accounting-payments'
@@ -69,6 +70,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'role-board-overdue', label: 'Hồ sơ quá hạn', shortLabel: 'Quá hạn', icon: Clock3 },
   { id: 'role-board-disputes', label: 'Tranh chấp', shortLabel: 'Tranh chấp', icon: ShieldCheck },
   { id: 'role-board-policies', label: 'Chính sách', shortLabel: 'Chính sách', icon: BookOpenCheck },
+  { id: 'role-board-payouts', label: 'Duyệt phiếu chi', shortLabel: 'Duyệt phiếu', icon: FileCheck2 },
   { id: 'role-accounting-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-accounting-revenue', label: 'Hợp đồng & hoa hồng', shortLabel: 'Hợp đồng', icon: WalletCards },
   { id: 'role-customer-care-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
@@ -127,6 +129,7 @@ export const viewCopy: Record<
   'role-board-overdue': {eyebrow:'Ban giám đốc',title:'Quá hạn',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-disputes': {eyebrow:'Ban giám đốc',title:'Tranh chấp',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-policies': {eyebrow:'Ban giám đốc',title:'Chính sách',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-payouts': {eyebrow:'Ban giám đốc',title:'Duyệt phiếu chi',description:'Xem đề nghị thanh toán Kế toán gửi và phê duyệt hoặc yêu cầu bổ sung.'},
   'role-accounting-dashboard': {eyebrow:'Kế toán',title:'Tổng quan',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
   'role-accounting-revenue': {eyebrow:'Kế toán',title:'Hợp đồng & hoa hồng',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},
   'role-accounting-payments': {eyebrow:'Kế toán',title:'Đối soát & phiếu chi',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},

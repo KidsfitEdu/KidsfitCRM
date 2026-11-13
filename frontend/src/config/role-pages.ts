@@ -10,6 +10,7 @@ export const rolePageSections = {
     overdue: {label:"Hồ sơ quá hạn",panel:"operations",tab:"proposals"},
     disputes: {label:"Tranh chấp",panel:"operations",tab:"disputes"},
     policies: {label:"Chính sách",panel:"operations",tab:"policies"},
+    payouts: {label:"Duyệt phiếu chi",panel:"finance",tab:"payouts"},
   },
   Accounting: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},

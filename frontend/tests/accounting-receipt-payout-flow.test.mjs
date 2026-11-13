@@ -24,10 +24,10 @@ test('Temporary proofs may be removed only by their uploader while unattached',(
   assert.ok(evidence.includes('x.AttachedAt == null && x.RevenueReceiptId == null'));
 });
 test('Payout previews amount, withholding and approval process',()=>{
-  assert.ok(ui.includes('title="Lập phiếu chi hoa hồng"'));
+  assert.ok(ui.includes("'Lập phiếu chi hoa hồng'"));
   assert.ok(ui.includes('setPayoutDialogOpen(true)'));
   assert.ok(ui.includes('withholding_amount:withholding'));
-  assert.ok(ui.includes('Xác nhận lập phiếu'));
+  assert.ok(ui.includes('Lưu nháp'));
   assert.ok(finance.includes('Status = "DRAFT"'));
   assert.ok(finance.includes('if (payout.Status != "APPROVED")'));
   assert.ok(ui.includes('amount!==payout.net_amount'));

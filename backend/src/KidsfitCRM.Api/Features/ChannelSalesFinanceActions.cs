@@ -43,7 +43,15 @@ public sealed partial class ChannelSalesActions
             if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đủ điều kiện trong kỳ đã chọn. Kiểm tra bút toán hoa hồng, kỳ phát sinh và phiếu chi trước đó.");
             var gross = entries.Sum(x => x.Amount);
             if (gross <= 0) throw new ApiConflictException("Tổng hoa hồng còn lại trong kỳ phải dương để lập phiếu chi.");
-            if (request.WithholdingAmount > gross) throw ApiValidationException.For("withholding_amount", "Khấu trừ không được vượt tổng hoa hồng.");
+            var baseAmount = entries.Where(x => x.EntryType == "ACCRUAL").Sum(x => x.CalculationBase);
+            var suggestedRate = baseAmount > 0
+                ? decimal.Round(gross * 100m / baseAmount, 4, MidpointRounding.AwayFromZero) : 0m;
+            var requestedRate = request.RequestedRatePercent ?? suggestedRate;
+            var requestedAmount = request.RequestedAmount ?? gross;
+            ValidatePayoutAmounts(requestedRate, requestedAmount, request.WithholdingAmount);
+            if (request.WithholdingAmount > requestedAmount)
+                throw ApiValidationException.For("withholding_amount", "Khấu trừ không được vượt số tiền đề nghị.");
+            var adjustment = CleanOptional(request.AdjustmentReason, 1000);
             var now = DateTime.UtcNow;
             var payout = new Payout
             {
@@ -52,9 +60,14 @@ public sealed partial class ChannelSalesActions
                 BeneficiaryRole = beneficiaryRole,
                 Code = "PO-" + Guid.NewGuid().ToString("N").ToUpperInvariant(),
                 Period = period,
-                GrossAmount = gross,
+                SuggestedRatePercent = suggestedRate,
+                RequestedRatePercent = requestedRate,
+                SuggestedAmount = gross,
+                RequestedAmount = requestedAmount,
+                AdjustmentReason = adjustment,
+                GrossAmount = requestedAmount,
                 WithholdingAmount = request.WithholdingAmount,
-                NetAmount = gross - request.WithholdingAmount,
+                NetAmount = requestedAmount - request.WithholdingAmount,
                 WithholdingReason = reason,
                 Status = "DRAFT",
                 IdempotencyKey = key,
@@ -82,20 +95,122 @@ public sealed partial class ChannelSalesActions
         }
     }
 
+    private static void ValidatePayoutAmounts(decimal rate, decimal amount, decimal withholding)
+    {
+        if (rate < 0 || rate > 100 || decimal.Round(rate, 4) != rate)
+            throw ApiValidationException.For("requested_rate_percent", "% hoa hồng phải từ 0 đến 100 và tối đa 4 chữ số thập phân.");
+        ChannelSalesValidation.WholeDong(amount, "requested_amount");
+        ChannelSalesValidation.WholeDong(withholding, "withholding_amount", false);
+        if (withholding >= amount)
+            throw ApiValidationException.For("withholding_amount", "Khấu trừ phải nhỏ hơn tiền đề nghị chi.");
+    }
+
+    public async Task UpdatePayoutDraft(long id, UpdatePayoutDraftRequest request, long actorId, HttpContext http, CancellationToken ct)
+    {
+        var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutCreate, ct);
+        ValidatePayoutAmounts(request.RequestedRatePercent, request.RequestedAmount, request.WithholdingAmount);
+        var reason = CleanOptional(request.AdjustmentReason, 1000);
+        var withholdingReason = CleanOptional(request.WithholdingReason, 1000);
+        if (request.WithholdingAmount > 0 && withholdingReason is null)
+            throw ApiValidationException.For("withholding_reason", "Khấu trừ cần có lý do.");
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var payout = await LockPayout(id, ct);
+        if (!access.CanManageOrganization(payout.OrganizationId) || payout.CreatedByUserId != actorId)
+            throw new KeyNotFoundException();
+        if (payout.Status is not ("DRAFT" or "CHANGES_REQUESTED"))
+            throw new ApiConflictException("Chỉ được sửa phiếu Nháp hoặc phiếu BGĐ yêu cầu bổ sung.");
+        var before = new { payout.RequestedRatePercent, payout.RequestedAmount, payout.AdjustmentReason, payout.WithholdingAmount };
+        payout.RequestedRatePercent = request.RequestedRatePercent;
+        payout.RequestedAmount = request.RequestedAmount;
+        payout.AdjustmentReason = reason;
+        payout.GrossAmount = request.RequestedAmount;
+        payout.WithholdingAmount = request.WithholdingAmount;
+        payout.WithholdingReason = withholdingReason;
+        payout.NetAmount = request.RequestedAmount - request.WithholdingAmount;
+        payout.UpdatedAt = DateTime.UtcNow;
+        AddPayoutEvent(payout, actorId, "EDITED", reason, payout.UpdatedAt);
+        Audit.Add(db, actorId, "EDIT_PAYOUT_DRAFT", nameof(Payout), id, before,
+            new { payout.RequestedRatePercent, payout.RequestedAmount, payout.AdjustmentReason, payout.WithholdingAmount }, http);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+    }
+
+    public async Task SubmitPayout(long id, long actorId, HttpContext http, CancellationToken ct)
+    {
+        var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutCreate, ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var payout = await LockPayout(id, ct);
+        if (!access.CanManageOrganization(payout.OrganizationId) || payout.CreatedByUserId != actorId)
+            throw new KeyNotFoundException();
+        if (payout.Status is not ("DRAFT" or "CHANGES_REQUESTED"))
+            throw new ApiConflictException("Phiếu không ở trạng thái được phép gửi BGĐ duyệt.");
+        ValidatePayoutAmounts(payout.RequestedRatePercent, payout.RequestedAmount, payout.WithholdingAmount);
+        if ((payout.SuggestedAmount != payout.RequestedAmount
+                || payout.SuggestedRatePercent != payout.RequestedRatePercent)
+            && string.IsNullOrWhiteSpace(payout.AdjustmentReason))
+            throw ApiValidationException.For("adjustment_reason", "Bắt buộc nhập lý do khi điều chỉnh khác đề xuất của hệ thống.");
+        var oldStatus = payout.Status;
+        payout.Status = "PENDING_APPROVAL";
+        payout.SubmittedAt = DateTime.UtcNow;
+        payout.UpdatedAt = payout.SubmittedAt.Value;
+        AddPayoutEvent(payout, actorId, "SUBMITTED", payout.AdjustmentReason, payout.UpdatedAt);
+        Audit.Add(db, actorId, "SUBMIT_PAYOUT", nameof(Payout), id, new { status = oldStatus },
+            new { payout.Status, payout.SuggestedAmount, payout.RequestedAmount, payout.AdjustmentReason }, http);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+    }
+
+    private async Task RequireIndependentPayoutApprover(long actorId, CancellationToken ct)
+    {
+        var allowed = await db.UserRoles.AsNoTracking().AnyAsync(ur =>
+            ur.UserId == actorId && db.Roles.Any(r => r.Id == ur.RoleId
+                && (r.Code == "DIRECTOR" || r.Code == "ADMIN")), ct);
+        if (!allowed)
+            throw new ApiConflictException("Chỉ BGĐ hoặc Admin được phê duyệt hoặc trả phiếu chi.");
+    }
+
+    public async Task ReturnPayout(long id, ReturnPayoutRequest request, long actorId, HttpContext http, CancellationToken ct)
+    {
+        var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutApprove, ct);
+        await RequireIndependentPayoutApprover(actorId, ct);
+        var reason = Validation.Required(request.Reason, "reason", "BGĐ cần nêu lý do yêu cầu bổ sung.", 1000);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var payout = await LockPayout(id, ct);
+        if (!access.CanManageOrganization(payout.OrganizationId)) throw new KeyNotFoundException();
+        if (payout.CreatedByUserId == actorId)
+            throw new ApiConflictException("Người lập không được tự xử lý duyệt phiếu của mình.");
+        if (payout.Status != "PENDING_APPROVAL")
+            throw new ApiConflictException("Chỉ được trả về phiếu đang chờ BGĐ duyệt.");
+        payout.Status = "CHANGES_REQUESTED";
+        payout.UpdatedAt = DateTime.UtcNow;
+        AddPayoutEvent(payout, actorId, "CHANGES_REQUESTED", reason, payout.UpdatedAt);
+        Audit.Add(db, actorId, "RETURN_PAYOUT", nameof(Payout), id,
+            new { status = "PENDING_APPROVAL" }, new { payout.Status, reason }, http);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+    }
+
     public async Task ApprovePayout(long id, long actorId, HttpContext http, CancellationToken ct)
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesPayoutApprove, ct);
+        await RequireIndependentPayoutApprover(actorId, ct);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var payout = await LockPayout(id, ct);
         if (!access.CanManageOrganization(payout.OrganizationId)) throw new KeyNotFoundException();
         if (payout.Status is "APPROVED" or "PAID") return;
-        if (payout.Status != "DRAFT") throw new ApiConflictException("Phiếu chi không ở trạng thái chờ duyệt.");
+        if (payout.Status != "PENDING_APPROVAL") throw new ApiConflictException("Kế toán cần gửi phiếu BGĐ duyệt trước.");
+        if (payout.CreatedByUserId == actorId)
+            throw new ApiConflictException("Người lập không được tự duyệt phiếu của mình.");
+        if ((payout.SuggestedAmount != payout.RequestedAmount
+                || payout.SuggestedRatePercent != payout.RequestedRatePercent)
+            && string.IsNullOrWhiteSpace(payout.AdjustmentReason))
+            throw new ApiConflictException("Phiếu điều chỉnh thiếu lý do, yêu cầu Kế toán bổ sung.");
         payout.Status = "APPROVED";
         payout.ApprovedAt = DateTime.UtcNow;
         payout.ApprovedByUserId = actorId;
         payout.UpdatedAt = DateTime.UtcNow;
         AddPayoutEvent(payout, actorId, "APPROVED", null, payout.UpdatedAt);
-        Audit.Add(db, actorId, "APPROVE_PAYOUT", nameof(Payout), id, new { status = "DRAFT" }, new { payout.Status, payout.NetAmount }, http);
+        Audit.Add(db, actorId, "APPROVE_PAYOUT", nameof(Payout), id, new { status = "PENDING_APPROVAL" }, new { payout.Status, payout.NetAmount }, http);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }

@@ -133,3 +133,43 @@ test('Board overdue screen excludes the GI-01 panel while keeping escalation que
   assert.match(accounting, /\/accounting\/contracts\//);
   assert.match(accounting, /service-history/);
 });
+
+test('Board payout approvals have dedicated menu and route instead of hidden finance panel',()=>{
+  const nav=read('config/navigation.ts');
+  const pages=read('config/role-pages.ts');
+  const workspace=read('screens/Board/BoardWorkspace.tsx');
+  const board=read('screens/Board/BoardPayoutsPage.tsx');
+  const endpoint=readFileSync(resolve(import.meta.dirname,
+    '../../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs'),'utf8');
+  assert.match(nav, /role-board-payouts', label: 'Duyệt phiếu chi'/);
+  assert.match(pages, /payouts: \{label:"Duyệt phiếu chi"/);
+  assert.match(workspace, /payouts: BoardPayoutsPage/);
+  assert.match(board, /payouts\/approval-queue/);
+  assert.match(endpoint, /\/payouts\/approval-queue/);
+  assert.match(board, /PENDING_APPROVAL/);
+  assert.match(board, /CHANGES_REQUESTED/);
+  assert.match(board, /'\/payouts\/'\+id\+'\/'\+decision/);
+  assert.match(board, /perform\(confirmId,'approve'\)/);
+  assert.match(board, /perform\(returnId,'return'\)/);
+  assert.match(board, /suggested_amount/);
+  assert.match(board, /requested_amount/);
+  assert.match(board, /adjustment_reason/);
+  assert.match(board, /AppDrawer/);
+  assert.match(board, /AppPagination/);
+});
+
+test('Board payout approval list stays compact without losing detail or filtering', () => {
+  const board = read('screens/Board/BoardPayoutsPage.tsx');
+  const list = board.split('<AdminListPanel>')[1]?.split('<AppDrawer')[0] ?? '';
+  const detail = board.split('<AppDrawer')[1] ?? '';
+  assert.doesNotMatch(board, /RefreshCw|Phiếu đang chờ duyệt|Tổng số tiền chờ duyệt/);
+  assert.doesNotMatch(list, /p\.contract_code/);
+  assert.match(detail, /selected\.contract_code/);
+  assert.match(list, /showSummary=\{false\}/);
+  assert.match(list, /pageSizeOptions=\{\[10,20,50,100\]\}/);
+  assert.match(list, /AdminListToolbar/);
+  assert.match(list, /onReset=/);
+  assert.match(list, /onSearch=/);
+  assert.match(board, /canDecide\(selected\)/);
+  assert.match(board, /ConfirmDialog/);
+});

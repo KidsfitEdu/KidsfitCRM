@@ -1295,6 +1295,35 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("created_by_user_id");
 
+                    b.Property<decimal>("SuggestedRatePercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("suggested_rate_percent");
+
+                    b.Property<decimal>("RequestedRatePercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("requested_rate_percent");
+
+                    b.Property<decimal>("SuggestedAmount")
+                        .HasPrecision(19)
+                        .HasColumnType("decimal(19,0)")
+                        .HasColumnName("suggested_amount");
+
+                    b.Property<decimal>("RequestedAmount")
+                        .HasPrecision(19)
+                        .HasColumnType("decimal(19,0)")
+                        .HasColumnName("requested_amount");
+
+                    b.Property<string>("AdjustmentReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("adjustment_reason");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("submitted_at");
+
                     b.Property<decimal>("GrossAmount")
                         .HasPrecision(19)
                         .HasColumnType("decimal(19,0)")

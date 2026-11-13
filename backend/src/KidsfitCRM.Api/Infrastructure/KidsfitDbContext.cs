@@ -255,6 +255,11 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<Payout>().Property(x => x.RequestFingerprint).HasMaxLength(64).UseCollation("utf8mb4_bin");
         b.Entity<Payout>().Property(x => x.PaymentReference).HasMaxLength(120).UseCollation("utf8mb4_bin");
         b.Entity<Payout>().Property(x => x.WithholdingReason).HasMaxLength(1000);
+        b.Entity<Payout>().Property(x => x.AdjustmentReason).HasMaxLength(1000);
+        b.Entity<Payout>().Property(x => x.SuggestedRatePercent).HasPrecision(9, 4);
+        b.Entity<Payout>().Property(x => x.RequestedRatePercent).HasPrecision(9, 4);
+        Money<Payout>(b, x => x.SuggestedAmount);
+        Money<Payout>(b, x => x.RequestedAmount);
         b.Entity<Payout>().HasIndex(x => x.IdempotencyKey).IsUnique();
         b.Entity<Payout>().HasIndex(x => x.PaymentReference).IsUnique();
         b.Entity<PayoutEvent>().Property(x => x.EventType).HasMaxLength(24);

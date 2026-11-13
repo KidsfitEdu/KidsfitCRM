@@ -45,6 +45,12 @@ export type FinanceWorkspace = {
     code: string;
     period: string;
     gross_amount: number;
+    suggested_rate_percent: number;
+    requested_rate_percent: number;
+    suggested_amount: number;
+    requested_amount: number;
+    adjustment_reason: string|null;
+    submitted_at: string|null;
     withholding_amount: number;
     withholding_reason: string | null;
     net_amount: number;

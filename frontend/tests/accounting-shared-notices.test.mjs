@@ -12,7 +12,7 @@ test('Accounting shows server and operation failures using the shared notice, no
   assert.match(ui, /appNotice\.error\('Không tải được chi tiết hợp đồng\.'/);
   assert.match(ui, /appNotice\.error\('Không mở được chứng từ\.'/);
   assert.match(ui, /appNotice\.error\('Không thể lưu giao dịch\.'/);
-  assert.match(ui, /appNotice\.error\('Không tạo được phiếu chi\.'/);
+  assert.match(ui, /setPayoutError\(cause instanceof Error/);
   assert.match(ui, /appNotice\.error\('Không duyệt được phiếu chi\.'/);
   assert.match(ui, /appNotice\.success\(entryMode==='receipt'\?'Đã ghi nhận khoản thu\.'/);
   assert.doesNotMatch(ui, /actionError|setActionError|\{error && <p role="alert"/);

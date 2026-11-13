@@ -213,6 +213,13 @@ public sealed class Payout : EntityBase
     public long? BeneficiaryUserId { get; set; }
     public string Code { get; set; } = "";
     public string Period { get; set; } = "";
+    // Immutable system suggestion and the editable accounting request belong to the SAME payout.
+    public decimal SuggestedRatePercent { get; set; }
+    public decimal RequestedRatePercent { get; set; }
+    public decimal SuggestedAmount { get; set; }
+    public decimal RequestedAmount { get; set; }
+    public string? AdjustmentReason { get; set; }
+    public DateTime? SubmittedAt { get; set; }
     public decimal GrossAmount { get; set; }
     public decimal WithholdingAmount { get; set; }
     public decimal NetAmount { get; set; }

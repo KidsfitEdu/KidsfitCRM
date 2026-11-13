@@ -7,6 +7,7 @@ import { ProgressPage } from './Progress/ProgressPage';
 import { OverduePage } from './Overdue/OverduePage';
 import { DisputesPage } from './Disputes/DisputesPage';
 import { PoliciesPage } from './Policies/PoliciesPage';
+import { BoardPayoutsPage } from './BoardPayoutsPage';
 
 export type RoleSection = keyof typeof rolePageSections.Board;
 type Props = RolePageProps & {section: RoleSection};
@@ -17,6 +18,7 @@ const pages = {
   overdue: OverduePage,
   disputes: DisputesPage,
   policies: PoliciesPage,
+  payouts: BoardPayoutsPage,
 };
 
 /** Existing view IDs are preserved; each page owns its UI entrypoint. */

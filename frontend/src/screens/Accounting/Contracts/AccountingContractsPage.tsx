@@ -3,7 +3,7 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -393,6 +393,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       setSaving(false);
     }
   };
+  const pendingBackfillReceipts=detail
+    ? detail.receipts.filter(receipt=>!detail.ledger.some(entry=>entry.revenue_receipt_id===receipt.id))
+    : [];
   const eligibleEntries=(detail?.ledger??[]).filter(entry=>!entry.assigned_to_payout);
   const beneficiaries=Array.from(new Map(eligibleEntries.map(entry=>[
     `${entry.beneficiary_role}:${entry.beneficiary_user_id}`,
@@ -844,66 +847,166 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </table>
           </div>
         </section>
-        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div><h3 className="text-base font-bold text-foreground">Hoa hồng & phiếu chi</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Chi trả độc lập cho Sales và Quản lý theo cấu hình Ban Giám đốc.</p></div>
-            {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
-              onClick={()=>openPayoutPayment()}><Plus className="size-4"/> Thêm khoản chi</Button>}
-            {canCreatePayout && <div className="flex flex-wrap items-center gap-2">
-              {beneficiaries.length>0&&<select aria-label="Người hưởng hoa hồng" value={currentBeneficiary?.key??''}
-                onChange={event=>{setPayoutBeneficiary(event.target.value);setPayoutPeriod('');payoutKey.current=null;}}
-                className="h-9 max-w-52 rounded-lg border border-input bg-background px-2 text-sm">
-                {beneficiaries.map(item=><option key={item.key} value={item.key}>
-                  {item.role==='MANAGER'?'Quản lý':'Sales'} · {item.name}
-                </option>)}
-              </select>}
-              {eligiblePeriods.length>0 && <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
-                onChange={event=>setPayoutPeriod(event.target.value)}
-                className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
-                {eligiblePeriods.map(period=><option key={period} value={period}>Kỳ {period} · {channelMoney(eligibleByPeriod.get(period) ?? 0)}</option>)}
-              </select>}
-              <Button size="sm" variant="outline" disabled={saving || !chosenPeriod}
-                onClick={()=>{setPayoutWithholding('0');setPayoutWithholdingReason('');setPayoutError('');payoutKey.current=null;setPayoutDialogOpen(true);}}><Plus className="size-4"/> Lập phiếu chi</Button>
-            </div>}
-          </div>
-          {canAdjustCommission&&detail.receipts.some(receipt=>
-            !detail.ledger.some(entry=>entry.revenue_receipt_id===receipt.id))&&
-            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/20">
-              <p className="font-medium text-sm">Khoản thu cũ chưa có bút toán hoa hồng</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Kiểm tra số thực thu, tỷ lệ và người hưởng trước khi tạo bổ sung. Không tự động sửa hoa hồng đã ghi nhận.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {detail.receipts.filter(receipt=>
-                  !detail.ledger.some(entry=>entry.revenue_receipt_id===receipt.id))
-                  .map(receipt=><Button type="button" key={receipt.id} size="sm" variant="outline"
-                    disabled={backfillBusy} onClick={()=>void openBackfill(receipt.id)}>
-                    Đối soát {receipt.reference_code} · {channelMoney(receipt.amount)}
-                  </Button>)}
+        <section aria-labelledby="contract-commission-heading"
+          className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <WalletCards className="size-5" aria-hidden="true"/>
               </div>
-            </div>}
-          {canCreatePayout && eligiblePeriods.length===0 && <p className="text-xs text-muted-foreground">
-            {detail.ledger.length===0 ? (detail.receipts.length > 0 ? 'Khoản thu đã ghi nhận nhưng chưa có bút toán hoa hồng. Vui lòng kiểm tra chính sách hoa hồng áp dụng tại ngày thu.' : 'Chưa có khoản thu để phát sinh hoa hồng cho hợp đồng này.')
-              : detail.ledger.every(x=>x.assigned_to_payout) ? 'Hoa hồng đã được đưa vào phiếu chi. Xem trạng thái phiếu chi bên dưới.'
-              : 'Chưa có khoản hoa hồng dương chưa phân bổ cho Sales hoặc Quản lý trong kỳ đã chọn.'}
-          </p>}
-          {detail.ledger.some(x=>x.entry_type!=='ACCRUAL') && <div className="rounded-lg border border-border/80 px-3 py-2 text-xs text-muted-foreground">
-            Có điều chỉnh hoa hồng. Chi tiết: {detail.ledger.filter(x=>x.entry_type!=='ACCRUAL').map(x=>`${x.reason || 'Điều chỉnh'} (${channelMoney(x.amount)})`).join('; ')}
-          </div>}
-          {detail.ledger.length>0&&<div className="grid gap-3 sm:grid-cols-2">
-            {(['SALES','MANAGER'] as const).map(role=>{
-              const entries=detail.ledger.filter(x=>x.beneficiary_role===role);
-              return <div key={role} className="rounded-xl border border-border bg-muted/20 p-3">
-                <p className="text-xs text-muted-foreground">{role==='SALES'?'Hoa hồng Sales':'Hoa hồng Quản lý'}</p>
-                <p className="mt-1 font-semibold">{entries[0]?.beneficiary_name??'Chưa có người hưởng'}</p>
-                <p className="mt-1 text-sm tabular-nums">{channelMoney(entries.reduce((sum,x)=>sum+x.amount,0))} · {entries[0]?.rate_percent??0}%</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {entries.length?entries[0].policy_source:'Chưa có bút toán hoặc cần kiểm tra người hưởng'}
+              <div className="min-w-0 space-y-1">
+                <h3 id="contract-commission-heading" className="text-base font-bold text-foreground">Hoa hồng & phiếu chi</h3>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Ghi nhận theo chính sách BGĐ và chi trả riêng cho Sales, Quản lý.
                 </p>
-              </div>;
-            })}
-          </div>}
+              </div>
+            </div>
+            {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') &&
+              <Button size="sm" disabled={saving} onClick={()=>openPayoutPayment()}>
+                <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
+              </Button>}
+          </div>
+          <div className="space-y-5 p-4 sm:p-5">
+            {pendingBackfillReceipts.length>0&&
+              <div className="overflow-hidden rounded-xl border border-amber-300/60 bg-amber-50/60 dark:border-amber-800/70 dark:bg-amber-950/20">
+                <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                    <AlertCircle className="size-5" aria-hidden="true"/>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-semibold text-foreground">Cần đối soát khoản thu</h4>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {pendingBackfillReceipts.length} khoản thu đã lưu nhưng chưa có bút toán hoa hồng.
+                      Đối soát trước để có thể lập phiếu chi; dữ liệu cũ không tự động tính lại.
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-amber-300/60 px-2 py-1 text-[11px] font-semibold text-amber-900 dark:text-amber-200">
+                    Cần xử lý
+                  </span>
+                </div>
+                <div className="divide-y divide-amber-200/70 border-t border-amber-200/70 bg-card/65 dark:divide-amber-900/50 dark:border-amber-900/50">
+                  {pendingBackfillReceipts.map(receipt=>
+                    <div key={receipt.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ClipboardCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden="true"/>
+                        <div className="min-w-0">
+                          <p className="break-all text-sm font-semibold text-foreground">{receipt.reference_code||'Chưa có mã giao dịch'}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">Nhận {channelDate(receipt.received_at)} · {channelMoney(receipt.amount)}</p>
+                        </div>
+                      </div>
+                      {canAdjustCommission?
+                        <Button type="button" size="sm" className="w-full shrink-0 sm:w-auto"
+                          disabled={backfillBusy} onClick={()=>void openBackfill(receipt.id)}>
+                          {backfillBusy?'Đang kiểm tra...':'Kiểm tra & đối soát'}<ArrowRight className="size-4" aria-hidden="true"/>
+                        </Button>
+                        :<p className="text-xs text-muted-foreground">Cần Kế toán có quyền đối soát để xử lý.</p>}
+                    </div>)}
+                </div>
+              </div>}
+            {detail.ledger.length===0 && pendingBackfillReceipts.length===0 &&
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
+                <WalletCards className="size-7 text-muted-foreground/70" aria-hidden="true"/>
+                <p className="font-semibold">Chưa có hoa hồng được ghi nhận</p>
+                <p className="max-w-sm text-xs leading-5 text-muted-foreground">
+                  {detail.receipts.length===0
+                    ?'Ghi nhận khoản thu tại mục “Nhà trường thanh toán” để phát sinh hoa hồng theo chính sách.'
+                    :'Chưa có bút toán đủ điều kiện. Kiểm tra chính sách và quyền hưởng của hợp đồng.'}
+                </p>
+              </div>}
+            {detail.ledger.length>0&&
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(['SALES','MANAGER'] as const).map(role=>{
+                  const entries=detail.ledger.filter(entry=>entry.beneficiary_role===role);
+                  const assigned=entries.filter(entry=>entry.assigned_to_payout);
+                  const unassigned=entries.filter(entry=>!entry.assigned_to_payout);
+                  const rates=[...new Set(entries.filter(entry=>entry.entry_type==='ACCRUAL').map(entry=>entry.rate_percent))];
+                  const totalAmount=entries.reduce((sum,entry)=>sum+entry.amount,0);
+                  const availableAmount=unassigned.reduce((sum,entry)=>sum+entry.amount,0);
+                  const name=entries[0]?.beneficiary_name;
+                  return <div key={role} className="min-w-0 rounded-xl border border-border/80 bg-muted/15 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          {role==='MANAGER'?<UsersRound className="size-4" aria-hidden="true"/>:<UserRound className="size-4" aria-hidden="true"/>}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground">{role==='SALES'?'Hoa hồng Sales':'Hoa hồng Quản lý'}</p>
+                          <p className="truncate text-sm font-semibold" title={name||undefined}>{name||'Chưa xác định người hưởng'}</p>
+                        </div>
+                      </div>
+                      {entries.length>0&&<span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+                        {rates.length===1?`${rates[0]}%`:'Theo chính sách'}
+                      </span>}
+                    </div>
+                    <p className="mt-4 text-xs text-muted-foreground">Hoa hồng ghi nhận</p>
+                    <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{channelMoney(totalAmount)}</p>
+                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/70 pt-3 text-xs">
+                      <span className="text-muted-foreground">Chưa đưa vào phiếu</span>
+                      <span className="font-semibold tabular-nums text-foreground">{channelMoney(availableAmount)}</span>
+                    </div>
+                    {assigned.length>0&&<p className="mt-2 text-[11px] text-muted-foreground">
+                      {assigned.length} bút toán đã được phân bổ vào phiếu chi
+                    </p>}
+                  </div>;
+                })}
+              </div>}
+            {canCreatePayout && eligiblePeriods.length>0&&
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <CheckCircle2 className="size-4 text-primary" aria-hidden="true"/> Có hoa hồng có thể lập phiếu
+                    </p>
+                    <p className="text-xs text-muted-foreground">Chọn đúng người hưởng và kỳ trước khi tạo phiếu nháp.</p>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                  <label className="flex min-w-0 flex-col gap-1 text-xs font-medium">
+                    Người hưởng
+                    <select aria-label="Người hưởng hoa hồng" value={currentBeneficiary?.key??''}
+                      onChange={event=>{setPayoutBeneficiary(event.target.value);setPayoutPeriod('');payoutKey.current=null;}}
+                      className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">
+                      {beneficiaries.map(item=><option key={item.key} value={item.key}>
+                        {item.role==='MANAGER'?'Quản lý':'Sales'} · {item.name}
+                      </option>)}
+                    </select>
+                  </label>
+                  <label className="flex min-w-0 flex-col gap-1 text-xs font-medium">
+                    Kỳ hoa hồng
+                    <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
+                      onChange={event=>setPayoutPeriod(event.target.value)}
+                      className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">
+                      {eligiblePeriods.map(period=><option key={period} value={period}>
+                        {period} · {channelMoney(eligibleByPeriod.get(period)??0)}
+                      </option>)}
+                    </select>
+                  </label>
+                  <Button type="button" className="h-10 w-full sm:w-auto" disabled={saving || !chosenPeriod}
+                    onClick={()=>{setPayoutWithholding('0');setPayoutWithholdingReason('');setPayoutError('');payoutKey.current=null;setPayoutDialogOpen(true);}}>
+                    <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
+                  </Button>
+                </div>
+              </div>}
+            {canCreatePayout && eligiblePeriods.length===0 && detail.ledger.length>0 &&
+              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="size-4 shrink-0" aria-hidden="true"/>
+                {detail.ledger.every(entry=>entry.assigned_to_payout)
+                  ?'Hoa hồng đã được đưa vào phiếu chi. Kiểm tra trạng thái ở lịch sử bên dưới.'
+                  :'Chưa có hoa hồng dương chưa phân bổ. Kiểm tra bút toán điều chỉnh và kỳ hoa hồng.'}
+              </p>}
+            {detail.ledger.some(entry=>entry.entry_type!=='ACCRUAL') &&
+              <div className="rounded-lg border border-border/80 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                <strong className="text-foreground">Điều chỉnh hoa hồng:</strong>{' '}
+                {detail.ledger.filter(entry=>entry.entry_type!=='ACCRUAL')
+                  .map(entry=>`${entry.reason||'Điều chỉnh'} (${channelMoney(entry.amount)})`).join('; ')}
+              </div>}
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Lịch sử phiếu chi</h4>
+                <p className="mt-1 text-xs text-muted-foreground">Theo dõi từ khi lập nháp đến khi đã chuyển khoản.</p>
+              </div>
+              <span className="text-xs tabular-nums text-muted-foreground">{detail.payouts.length} phiếu</span>
+            </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[650px] text-left text-sm">
               <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
@@ -918,7 +1021,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </thead>
               <tbody className="divide-y divide-border/70">
                 {detail.payouts.length===0 ?
-                  <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">Chưa có phiếu chi hoa hồng cho hợp đồng này.</td></tr>
+                  <tr><td colSpan={6} className="px-3 py-8 text-center">
+                    <div className="flex flex-col items-center gap-1.5">
+                      <WalletCards className="size-6 text-muted-foreground/60" aria-hidden="true"/>
+                      <span className="font-medium text-foreground">Chưa có phiếu chi</span>
+                      <span className="text-xs text-muted-foreground">Phiếu sẽ xuất hiện sau khi lập từ hoa hồng đủ điều kiện.</span>
+                    </div>
+                  </td></tr>
                   : detail.payouts.map(x=>{
                     const proof = detail.evidence.find(e=>e.payout_id===x.id);
                     const tone = x.status==='PAID'
@@ -950,6 +1059,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   })}
               </tbody>
             </table>
+          </div>
           </div>
         </section>
       </div>}

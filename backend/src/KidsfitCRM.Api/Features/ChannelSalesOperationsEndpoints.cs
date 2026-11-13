@@ -39,6 +39,25 @@ public static class ChannelSalesOperationsEndpoints
             Results.Created("/api/channel-sales/commissions", new { data = new { id = await actions.AdjustCommission(id, request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesCommissionAdjust);
         group.MapPost("/payouts", async (CreatePayoutRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
             Results.Created("/api/channel-sales/payouts", new { data = new { id = await actions.CreatePayout(request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesPayoutCreate);
+
+        group.MapPatch("/payouts/{id:long}/draft", async (long id, UpdatePayoutDraftRequest request,
+            HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+        {
+            await actions.UpdatePayoutDraft(id, request, http.UserId(), http, ct);
+            return Results.Ok(new { message = "Đã cập nhật phiếu Nháp." });
+        }).RequireAuthorization(Permissions.ChannelSalesPayoutCreate);
+        group.MapPost("/payouts/{id:long}/submit", async (long id,
+            HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+        {
+            await actions.SubmitPayout(id, http.UserId(), http, ct);
+            return Results.Ok(new { message = "Đã gửi phiếu cho BGĐ duyệt." });
+        }).RequireAuthorization(Permissions.ChannelSalesPayoutCreate);
+        group.MapPost("/payouts/{id:long}/return", async (long id, ReturnPayoutRequest request,
+            HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+        {
+            await actions.ReturnPayout(id, request, http.UserId(), http, ct);
+            return Results.Ok(new { message = "Đã yêu cầu Kế toán bổ sung phiếu chi." });
+        }).RequireAuthorization(Permissions.ChannelSalesPayoutApprove);
         group.MapPost("/payouts/{id:long}/approve", async (long id, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
         {
             await actions.ApprovePayout(id, http.UserId(), http, ct);

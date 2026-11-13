@@ -193,6 +193,73 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Sales_renewal_detail_scopes_submitter_and_returns_attached_file_metadata()
+    {
+        var seller = await Seller();
+        var another = await Seller();
+        var (_, contractId) = await Contract(seller);
+        await using var db = fixture.Open();
+        var renewal = new ContractRenewal
+        {
+            ContractId = contractId, RenewalNo = 1, SubmittedByUserId = seller,
+            IdempotencyKey = Key(), RequestFingerprint = Key(), SignedOn = new DateOnly(2026, 12, 15),
+            ServiceStartOn = new DateOnly(2027, 1, 1), ServiceEndOn = new DateOnly(2027, 12, 31),
+            PaymentCycle = "YEARLY", TotalValue = 9500000, Status = "NEEDS_INFO",
+            DecisionReason = "Cần bổ sung con dấu", GapReason = "Trường tạm ngưng",
+            SubmittedAt = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        db.ContractRenewals.Add(renewal);
+        await db.SaveChangesAsync(Ct);
+        db.FinancialEvidences.AddRange(
+            new FinancialEvidence
+            {
+                Kind = "RENEWAL", ContractRenewalId = renewal.Id, UploadedByUserId = seller,
+                FileName = "renewal-2027.pdf", MimeType = "application/pdf", Sha256 = Key(),
+                Bytes = "%PDF-test"u8.ToArray(), AttachedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            },
+            new FinancialEvidence
+            {
+                Kind = "RENEWAL", ContractRenewalId = renewal.Id, UploadedByUserId = another,
+                FileName = "not-my-file.pdf", MimeType = "application/pdf", Sha256 = Key(),
+                Bytes = "%PDF-test"u8.ToArray(), AttachedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            },
+            new FinancialEvidence
+            {
+                Kind = "RENEWAL", ContractRenewalId = renewal.Id, UploadedByUserId = seller,
+                FileName = "not-attached.pdf", MimeType = "application/pdf", Sha256 = Key(),
+                Bytes = "%PDF-test"u8.ToArray(),
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            });
+        await db.SaveChangesAsync(Ct);
+
+        static HttpContext AsUser(long userId)
+        {
+            var http = new DefaultHttpContext();
+            http.User = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId.ToString())],
+                    "IntegrationTest"));
+            return http;
+        }
+        var result = await ContractRenewalEndpoints.MineDetail(renewal.Id, AsUser(seller), db, Ct);
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(
+            ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value,
+            new System.Text.Json.JsonSerializerOptions {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower
+            });
+        Assert.Equal("NEEDS_INFO", json.GetProperty("data").GetProperty("status").GetString());
+        Assert.Equal("Cần bổ sung con dấu", json.GetProperty("data").GetProperty("decision_reason").GetString());
+        Assert.Equal("Trường tạm ngưng", json.GetProperty("data").GetProperty("gap_reason").GetString());
+        Assert.Single(json.GetProperty("evidence").EnumerateArray());
+        Assert.Equal("renewal-2027.pdf", json.GetProperty("evidence")[0].GetProperty("file_name").GetString());
+        Assert.False(json.GetProperty("evidence")[0].TryGetProperty("bytes", out _));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ContractRenewalEndpoints.MineDetail(renewal.Id, AsUser(another), db, Ct));
+    }
+
+    [MySqlFact]
     public async Task Sales_renewal_history_is_scoped_searchable_and_paginated()
     {
         var sellerA = await Seller();

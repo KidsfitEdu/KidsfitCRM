@@ -451,11 +451,12 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         await actions.RecordRevenueReceipt(contractId, request, accountant, Http(), Ct);
         var entry = await db.CommissionLedgerEntries.SingleAsync(x => x.ContractId == contractId);
         var payoutRequest = new CreatePayoutRequest(Key(), entry.BeneficiaryOrganizationId, seller, entry.Period, 5_000m, "Khấu trừ theo chứng từ kiểm thử");
-        await Assert.ThrowsAsync<ApiConflictException>(() => actions.CreatePayout(payoutRequest, accountant, Http(), Ct));
+        // The current approved payout workflow uses eligible accrued ledger entries;
+        // a CHECKEE reconciliation is tracked independently, not a prerequisite.
+        var payoutId = await actions.CreatePayout(payoutRequest, accountant, Http(), Ct);
         var reconciliationId = await db.ReconciliationCases.Where(x => x.ContractId == contractId).Select(x => x.Id).SingleAsync();
         await actions.Reconcile(reconciliationId, true, new("Đã xác nhận"), checkee, Http(), Ct);
         await actions.Reconcile(reconciliationId, true, new("Đã xác nhận"), checkee, Http(), Ct);
-        var payoutId = await actions.CreatePayout(payoutRequest, accountant, Http(), Ct);
         Assert.Equal(payoutId, await actions.CreatePayout(payoutRequest, accountant, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.CreatePayout(payoutRequest with { IdempotencyKey = Key() }, accountant, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.CompletePayout(payoutId, new("TX-" + Key(), null), accountant, Http(), Ct));

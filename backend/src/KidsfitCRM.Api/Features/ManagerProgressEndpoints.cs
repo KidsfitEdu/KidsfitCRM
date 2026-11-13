@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
 
-/// <summary>Organization-scoped school progress; never reuse the broader /workspace customer scope.</summary>
+/// <summary>Shared read-only school progress projection with separate Board and direct-manager scopes.</summary>
 public static class ManagerProgressEndpoints
 {
     public static void MapManagerProgress(this RouteGroupBuilder group)
@@ -63,7 +63,9 @@ public static class ManagerProgressEndpoints
             .Where(c => db.DirectorySchools.Any(s => s.CustomerId == c.Id && !s.IsDeleted)
                 && protections.Any(p => p.CustomerId == c.Id))
             .Where(c => term == "" || c.DisplayName.Contains(term) || c.Code.Contains(term)
-                || db.DirectorySchools.Any(s => s.CustomerId == c.Id && s.SchoolCode.Contains(term)));
+                || db.DirectorySchools.Any(s => s.CustomerId == c.Id && s.SchoolCode.Contains(term))
+                || protections.Any(p => p.CustomerId == c.Id &&
+                    db.Users.Any(u => u.Id == p.OwnerUserId && u.Name.Contains(term))));
         if (state == "CONTRACTED")
             schools = schools.Where(c => protections.Any(p => p.CustomerId == c.Id && p.SourceType == "CONTRACT"));
         else if (state == "APPROACHING")

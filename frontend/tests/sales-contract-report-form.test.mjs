@@ -33,3 +33,17 @@ test('contract submission still uses evidence, idempotency and existing amounts'
   assert.match(screen,/evidence_id: response\.data\.id/);
   assert.match(screen,/const multiplier = plan === 'MONTHLY_9' \? 9 : 1/);
 });
+
+test('compact reference form keeps 44px fields and a small package selector',()=>{
+  assert.match(screen,/contentClassName="sm:max-w-\[680px\]"/);
+  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="signed_on"/);
+  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="service_start_on"/);
+  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="service_end_on"/);
+  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="maintenance_fee"/);
+  assert.match(screen,/flex h-14 min-w-0 cursor-pointer/);
+  assert.match(screen,/className="grid gap-2 grid-cols-2"/);
+  assert.match(screen,/Tổng giá trị hợp đồng/);
+  assert.match(screen,/border-dashed/);
+  assert.match(screen,/UploadCloud/);
+  assert.match(screen,/accept="\.pdf,image\/jpeg,image\/png,image\/webp"/);
+});

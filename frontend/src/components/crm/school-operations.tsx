@@ -600,7 +600,7 @@ export function SchoolOperations({
       />}
       {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isPending} preview={false}
+        loading={workspace.isPending}
         onPageChange={setPage} onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}
         onSearch={term => {setSearch(term);setPage(1);}}
         onStatusChange={value=>{setProposalStatus(value);setPage(1);}}

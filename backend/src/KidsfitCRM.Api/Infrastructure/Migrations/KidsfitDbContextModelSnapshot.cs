@@ -462,6 +462,69 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("commission_ledger_entries");
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.BoardCommissionPolicyVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<decimal>("ManagerPercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("manager_percent");
+
+                    b.Property<long?>("ManagerUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("manager_user_id");
+
+                    b.Property<long?>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<decimal>("SalesPercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("sales_percent");
+
+                    b.Property<long?>("SalesUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sales_user_id");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("scope")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("status")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Scope", "OrganizationId", "ManagerUserId", "SalesUserId", "CreatedAt")
+                        .HasDatabaseName("IX_board_commission_policy_versions_lookup");
+
+                    b.ToTable("board_commission_policy_versions");
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.CommissionPolicyVersion", b =>
                 {
                     b.Property<long>("Id")

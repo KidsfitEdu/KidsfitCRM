@@ -2,11 +2,10 @@
 import { LogOut } from 'lucide-react';
 import { AppBrand } from '@/components/common/app-brand';
 import { nav, type View } from '@/config/navigation';
-import type { DemoAccount } from '@/lib/demo-auth';
 
-type Props={visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;demoAccount?:DemoAccount;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};
+type Props={visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};
 const initials=(name:string)=>name.split(' ').slice(-2).map(p=>p[0]).join('').toUpperCase();
-export function Sidebar({visibleNav,currentView,onNavigate,userName,demoAccount,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout}:Props){
+export function Sidebar({visibleNav,currentView,onNavigate,userName,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout}:Props){
 return <>
       <aside className="crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white lg:flex">
         <div className="flex h-20 items-center px-5"><AppBrand inverted /></div>
@@ -31,10 +30,10 @@ return <>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{userName}</p>
             <p className="text-[11px] text-slate-400">
-              {demoAccount?.roleLabel ?? (isAdminWorkspace ? 'Quản trị viên' : membershipType === 'COLLABORATOR' || membershipType === 'PARTNER_COLLABORATOR' ? 'CTV' : membershipType === 'SALES' ? 'Nhân viên bán hàng' : membershipType === 'SALES_MANAGER' || membershipType === 'PARTNER_ADMIN' ? 'Quản lý bán hàng' : 'Thành viên CRM')}{organizationName ? ` · ${organizationName}` : ''}
+              {(isAdminWorkspace ? 'Quản trị viên' : membershipType === 'COLLABORATOR' || membershipType === 'PARTNER_COLLABORATOR' ? 'CTV' : membershipType === 'SALES' ? 'Nhân viên bán hàng' : membershipType === 'SALES_MANAGER' || membershipType === 'PARTNER_ADMIN' ? 'Quản lý bán hàng' : 'Thành viên CRM')}{organizationName ? ` · ${organizationName}` : ''}
             </p>
           </div>
-          {(apiBase || demoAccount) && (
+          {apiBase && (
             <button
               onClick={onLogout}
               aria-label="Đăng xuất"

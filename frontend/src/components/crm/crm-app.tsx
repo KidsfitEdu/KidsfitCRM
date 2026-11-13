@@ -16,10 +16,8 @@ import { canonicalCheckeeView, viewToPath, pathToView } from '@/config/routes';
 import { canonicalBoardView, canonicalCareView } from '@/config/routes';
 import { createApiClient, ApiRequestError, isBackendUnavailable } from '@/services/api.client';
 import { type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
-import type { DemoAccount } from '@/lib/demo-auth';
 
-const staticPreview = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-const apiBase = staticPreview ? '' : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
+const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '';
 const request = createApiClient(apiBase);
 // /health is mounted at the Backend origin, not under the /api prefix.
 const healthRequest = createApiClient(apiBase ? new URL(apiBase).origin : '');
@@ -37,14 +35,11 @@ export function CrmApp({ initialView }: { initialView?: View } = {}) {
   return <CrmWorkspace initialView={initialView} />;
 }
 
-// Shared workspace shell: the standalone Pages preview supplies fictional data explicitly.
-export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWorkspace }: {
-  initialView?: View; demoAccount?: DemoAccount; onDemoLogout?: () => void; initialWorkspace?: ChannelSalesWorkspace;
-}) {
+function CrmWorkspace({ initialView }: { initialView?: View }) {
   const [view, setView] = useState<View>(canonicalCareView(canonicalBoardView(canonicalCheckeeView(canonicalSalesView(initialView ?? 'dashboard')))));
   const [salesWorkflow, setSalesWorkflow] = useState<'invitations' | 'extensions' | undefined>(() => legacySalesWorkflowTab(initialView ?? 'dashboard'));
   const [token, setToken] = useState('');
-  const [ready, setReady] = useState(!apiBase);
+  const [ready, setReady] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<'idle'|'checking'|'active'|'offline'|'error'>('idle');
   const [retryIndex, setRetryIndex] = useState(0);
   const [healthRetryIndex, setHealthRetryIndex] = useState(0);
@@ -52,11 +47,11 @@ export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWo
   const [healthError, setHealthError] = useState('');
   const [connectionMessage, setConnectionMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userName, setUserName] = useState(demoAccount?.name ?? 'CRM');
+  const [userName, setUserName] = useState('CRM');
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [membershipType, setMembershipType] = useState<string | null>(null);
-  const [abilities, setAbilities] = useState<string[]>(demoAccount?.abilities ?? []);
-  const [workspace, setWorkspace] = useState<ChannelSalesWorkspace>(initialWorkspace ?? {
+  const [abilities, setAbilities] = useState<string[]>([]);
+  const [workspace, setWorkspace] = useState<ChannelSalesWorkspace>({
     data: [], metrics: { available: 0, approaching: 0, contracted: 0, expiring_soon: 0, contract_value: 0, collected_revenue: 0, commission_accrued: 0 }, pending_reconciliations: [], server_time: new Date(0).toISOString()
   });
   const [search, setSearch] = useState('');
@@ -139,7 +134,6 @@ export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWo
   };
 
   const logout = async () => {
-    if (onDemoLogout) { onDemoLogout(); return; }
     if (token) await request('/logout', token, { method: 'POST' }).catch(() => undefined);
     sessionStorage.removeItem('kidsfit_token');
     setAbilities([]);
@@ -152,7 +146,7 @@ export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWo
   };
 
   const mutation = async (path: string, body: unknown) => {
-    if (!apiBase || !token) throw new Error('Bản xem trước chỉ đọc. Kết nối Backend để cập nhật CRM.');
+    if (!apiBase || !token) throw new Error('Vui lòng đăng nhập hệ thống CRM để thực hiện thao tác.');
     await request(path, token, { method: 'POST', body: JSON.stringify(body) });
     await refresh();
   };
@@ -172,11 +166,11 @@ export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWo
 
   const isAdmin = has('channel_sales.school.directory.manage') && has('channel_sales.scope.all');
   const isManager = !isAdmin && has('channel_sales.school.allocation.manage');
-  const isDirector = !isAdmin && !isManager && (membershipType === 'DIRECTOR' || membershipType === 'BOARD' || demoAccount?.id === 'board');
-  const isAccountant = !isAdmin && !isManager && !isDirector && (membershipType === 'ACCOUNTANT' || demoAccount?.id === 'accountant');
-  const isCare = !isAdmin && !isManager && !isDirector && !isAccountant && (membershipType === 'CUSTOMER_SERVICE' || demoAccount?.id === 'care');
-  const isCheckee = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && (membershipType === 'CHECKEE' || demoAccount?.id === 'checkee');
-  const isSales = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && !isCheckee && (['SALES','COLLABORATOR','PARTNER_COLLABORATOR'].includes(membershipType ?? '') || demoAccount?.id === 'sales' || demoAccount?.id === 'ctv');
+  const isDirector = !isAdmin && !isManager && (membershipType === 'DIRECTOR' || membershipType === 'BOARD');
+  const isAccountant = !isAdmin && !isManager && !isDirector && (membershipType === 'ACCOUNTANT');
+  const isCare = !isAdmin && !isManager && !isDirector && !isAccountant && (membershipType === 'CUSTOMER_SERVICE');
+  const isCheckee = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && (membershipType === 'CHECKEE');
+  const isSales = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && !isCheckee && (['SALES','COLLABORATOR','PARTNER_COLLABORATOR'].includes(membershipType ?? ''));
 
   // One Sales menu for both employee and collaborator. The legacy screen entrypoints
   // are only adapters until their page bodies are consolidated.
@@ -208,7 +202,7 @@ export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWo
     if (!visibleNav.some(item=>item.id===next)) return;
     setView(next);
     setSalesWorkflow(undefined);
-    if (apiBase) window.history.pushState(null,'',viewToPath(next));
+    window.history.pushState(null,'',viewToPath(next));
   };
 
   const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue, salesWorkflow, onSalesNavigate: navigate };
@@ -228,13 +222,12 @@ export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWo
       onRetry={() => { setHealthError(''); setHealthRetryIndex(index => index + 1); }}/>;
   if (apiBase && !token) return <LoginPage loading={loading} onLogin={login} />;
 
-  return <AppProviders key={demoAccount?.id ?? token}>
+  return <AppProviders key={token}>
     <AppShell>
-      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
+      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
         <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
-          {demoAccount && <p className="rounded-xl border border-amber-300 p-3 text-sm">Bản xem trước tĩnh, chỉ đọc. Hãy kết nối Backend để thay đổi dữ liệu thực.</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div key={currentView} className="crm-page-enter">
           <Suspense fallback={<PageLoading label="Đang chuẩn bị màn hình..." />}>

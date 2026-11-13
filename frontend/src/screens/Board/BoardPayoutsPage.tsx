@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, RefreshCw } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppSelect } from '@/components/common/app-select';
@@ -101,18 +101,7 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
   return <div className="space-y-5">
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Duyệt phiếu chi"
       description="Kiểm tra số tiền Kế toán đề nghị so với chính sách BGĐ, phê duyệt hoặc trả về bổ sung."
-      actions={<AppButton type="button" tone="outline" leadingIcon={<RefreshCw className="size-4"/>}
-        disabled={!connected||query.isFetching} onClick={()=>void query.refetch()}>Làm mới</AppButton>}/>
-    {connected&&<div className="grid gap-3 sm:grid-cols-2">
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="text-xs text-muted-foreground">Phiếu đang chờ duyệt</p>
-        <p className="mt-2 text-2xl font-bold tabular-nums">{data?.summary.pending_count??'—'}</p>
-      </div>
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="text-xs text-muted-foreground">Tổng số tiền chờ duyệt</p>
-        <p className="mt-2 text-2xl font-bold tabular-nums">{data?channelMoney(data.summary.pending_amount):'—'}</p>
-      </div>
-    </div>}
+      />
     <AdminListPanel>
       <AdminListToolbar search={searchDraft} onSearchChange={setSearchDraft}
         onSearch={()=>{setSearch(searchDraft.trim());setPage(1);}}
@@ -141,7 +130,6 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
               <td className="px-4 py-3">
                 <p className="font-semibold">{p.code}</p>
                 <p className="mt-1 max-w-52 text-xs text-muted-foreground">{p.school_name||p.organization_name}</p>
-                <p className="text-xs text-muted-foreground">{p.contract_code||'—'}</p>
               </td>
               <td className="px-4 py-3">
                 <p className="font-medium">{p.beneficiary_name}</p>
@@ -176,7 +164,7 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
         {query.isFetching&&<p className="p-4 text-sm text-muted-foreground">Đang tải danh sách phiếu chi...</p>}
       </div>
       <AppPagination page={page} pageSize={pageSize} total={data?.pagination.total??0}
-        disabled={query.isFetching} showSummary={true} itemLabel="phiếu chi"
+        disabled={query.isFetching} showSummary={false} itemLabel="phiếu chi"
         pageSizeOptions={[10,20,50,100]}
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>

@@ -38,7 +38,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { channelDate, channelRequest } from '@/lib/channel-operations';
-import { paymentCycleForPlan } from '@/lib/contract-payment-plan';
+import { paymentCycleForPlan, getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { validateContract, type ContractErrors, type ContractField } from '@/lib/contract-validation';
 import type {
   ChannelCustomer,
@@ -1187,22 +1187,30 @@ function ContractDialog({
       });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Không thể báo cáo hợp đồng.';
-      appNotice.error('Không thể gửi hợp đồng xác minh.', message);
+      appNotice.error('Không thể gửi hợp đồng đến Quản lý.', message);
     } finally { setSaving(false); }
   };
 
-  return <SalesFormDialog title="Báo cáo hợp đồng"
-    subtitle="Nhập chi phí theo hợp đồng đã ký. CHECKEE sẽ xác minh hồ sơ và giá trị thực tế."
-    onClose={onClose}>
-    <form onSubmit={submit} noValidate>
+  return <AppDialog open onOpenChange={open=>{if(!open&&!saving)onClose();}}
+    busy={saving} title="Báo cáo hợp đồng"
+    description="Gửi hồ sơ hợp đồng đã ký để Quản lý bán hàng xem xét, phê duyệt trước khi chuyển CHECKEE xác minh."
+    contentClassName="sm:max-w-3xl"
+    footer={<>
+      <AppButton tone="neutral" type="button" className="h-11 min-w-28" disabled={saving} onClick={onClose}>Hủy</AppButton>
+      <AppButton tone="green" type="submit" form="sales-contract-report-form" className="h-11 min-w-44"
+        busy={saving}>{saving?'Đang gửi hồ sơ...':'Gửi Quản lý duyệt'}</AppButton>
+    </>}>
+    <form id="sales-contract-report-form" onSubmit={submit} noValidate>
       <CustomerHighlight customer={customer}/>
-      <div className="mt-4 space-y-4">
+      <div className="mt-5 space-y-5">
+        <section aria-labelledby="contract-info-heading" className="space-y-3">
+          <h3 id="contract-info-heading" className="text-sm font-semibold text-foreground">1. Thông tin hợp đồng</h3>
         <Field label="Ngày ký hợp đồng *">
           <Input name="signed_on" type="date" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e=>{setSignedOn(e.target.value);clearError("signed_on");}}/>
           {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
         </Field>
-        <fieldset className="space-y-3 rounded-xl border border-border p-4">
-          <legend className="px-2 text-sm font-semibold">Thời hạn sử dụng theo hợp đồng *</legend>
+        <div className="space-y-3 rounded-xl border border-border bg-muted/10 p-3 sm:p-4">
+          <h4 className="text-sm font-semibold text-foreground">Thời hạn sử dụng theo hợp đồng *</h4>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Ngày bắt đầu dịch vụ *">
               <Input type="date" data-field="service_start_on" value={serviceStartOn}
@@ -1223,22 +1231,24 @@ function ContractDialog({
               {errors.service_end_on&&<p role="alert" className="text-xs text-red-700">{errors.service_end_on}</p>}
             </Field>
           </div>
-          <p className="text-xs text-muted-foreground">Ngày kết thúc gợi ý sau một năm; vui lòng đối chiếu ngày thực tế trên hợp đồng. CHECKEE sẽ xác minh trước khi kỳ dịch vụ có hiệu lực.</p>
-        </fieldset>
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold">Gói dịch vụ & hình thức thanh toán *</legend>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="service_plan_choice" value="SCHOOL_YEAR"
-              checked={plan==='SCHOOL_YEAR'} onChange={()=>{setPlan('SCHOOL_YEAR');clearError('service_plan');}}/>
-            Gói năm học (9 tháng, tặng 3 tháng hè)
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="service_plan_choice" value="MONTHLY_9"
-              checked={plan==='MONTHLY_9'} onChange={()=>{setPlan('MONTHLY_9');clearError('service_plan');}}/>
-            Gói hàng tháng (9 tháng)
-          </label>
-          {errors.service_plan && <p role="alert" className="text-xs text-red-700">{errors.service_plan}</p>}
-        </fieldset>
+          <p className="text-xs text-muted-foreground">Ngày kết thúc được gợi ý sau một năm. Vui lòng đối chiếu với hợp đồng đã ký; CHECKEE xác minh sau khi Quản lý duyệt.</p>
+        </div>
+        </section>
+        <section aria-labelledby="contract-plan-heading" className="space-y-3 border-t border-border pt-5">
+          <h3 id="contract-plan-heading" className="text-sm font-semibold text-foreground">2. Gói dịch vụ và quy mô</h3>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-foreground">Gói dịch vụ & hình thức thanh toán *</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(['SCHOOL_YEAR','MONTHLY_9'] as const).map(option=><label key={option}
+                className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring ${plan===option?'border-primary bg-primary/5':'border-border bg-card hover:bg-muted/40'}`}>
+                <input type="radio" name="service_plan_choice" value={option} checked={plan===option}
+                  onChange={()=>{setPlan(option);clearError('service_plan');}}
+                  className="size-4 shrink-0 accent-[#1b5e20]"/>
+                <span className="font-medium">{getServicePlanLabel(option)}</span>
+              </label>)}
+            </div>
+            {errors.service_plan && <p role="alert" className="text-xs text-destructive">{errors.service_plan}</p>}
+          </fieldset>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Quy mô học sinh *">
             <Input aria-label="Quy mô học sinh" data-field="student_count" aria-invalid={!!errors.student_count} type="number" min={1} max={100000}
@@ -1268,6 +1278,9 @@ function ContractDialog({
           </label>)}</div>
         </fieldset>}
         {unitsError && <output className="block text-sm text-muted-foreground">Chưa tải được danh sách phân hiệu; vẫn có thể nhập số phân hiệu theo hợp đồng.</output>}
+        </section>
+        <section aria-labelledby="contract-fee-heading" className="space-y-3 border-t border-border pt-5">
+          <h3 id="contract-fee-heading" className="text-sm font-semibold text-foreground">3. Chi phí hợp đồng</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
             <AppCurrencyInput aria-label="Phí duy trì" data-field="maintenance_fee" aria-invalid={!!errors.maintenance_fee}
@@ -1283,7 +1296,7 @@ function ContractDialog({
         <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
           <h3 className="font-semibold">Chi phí theo hợp đồng</h3>
           <div className="flex items-center justify-between gap-3 text-sm">
-            <span>{plan==='MONTHLY_9'?'Phí duy trì (9 tháng)':'Phí duy trì (9 tháng)'}</span>
+            <span>Phí duy trì theo hợp đồng</span>
             <span className="tabular-nums">{Number.isSafeInteger(maintenance*multiplier) && maintenanceFee ? formatVnd(maintenance*multiplier) : '—'}</span>
           </div>
           <div className="flex items-center justify-between gap-3 text-sm">
@@ -1298,6 +1311,9 @@ function ContractDialog({
           </div>
           {errors.total_value && <p role="alert" className="text-xs text-red-700">{errors.total_value}</p>}
         </div>
+        </section>
+        <section aria-labelledby="contract-attachment-heading" className="space-y-3 border-t border-border pt-5">
+          <h3 id="contract-attachment-heading" className="text-sm font-semibold text-foreground">4. Hồ sơ đính kèm</h3>
         <Field label="Ghi chú hợp đồng (không bắt buộc)">
           <textarea name="contract_note" data-field="contract_note" aria-label="Ghi chú hợp đồng"
             aria-invalid={!!errors.contract_note} value={note} onChange={e=>{setNote(e.target.value);clearError("contract_note");}}
@@ -1313,10 +1329,10 @@ function ContractDialog({
           </Field>
           <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
         </div>
+        </section>
       </div>
-      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
     </form>
-  </SalesFormDialog>;
+  </AppDialog>;
 }
 
 function ReceiptDialog({

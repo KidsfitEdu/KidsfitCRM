@@ -763,7 +763,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var board = await UserId("board@kidsfit.vn");
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.ApprovePayout(payoutId, board, Http(), Ct));
         await actions.SubmitPayout(payoutId, accountant, Http(), Ct);
-        await Assert.ThrowsAsync<ApiConflictException>(() => actions.ApprovePayout(payoutId, accountant, Http(), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.ApprovePayout(payoutId, accountant, Http(), Ct));
         await actions.ApprovePayout(payoutId, board, Http(), Ct);
         await actions.ApprovePayout(payoutId, board, Http(), Ct);
         var completion = new CompletePayoutRequest("TX-" + Key(), null);

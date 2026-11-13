@@ -20,6 +20,9 @@ export type FinanceWorkspace = {
     contract_code: string;
     beneficiary_user_id: number;
     beneficiary_name: string;
+    beneficiary_role: 'SALES'|'MANAGER';
+    policy_source?: string;
+    board_policy_version_id?: number|null;
     beneficiary_organization_id: number;
     period: string;
     entry_type: string;
@@ -38,6 +41,7 @@ export type FinanceWorkspace = {
     organization_id: number;
     beneficiary_user_id: number;
     beneficiary_name: string;
+    beneficiary_role: 'SALES'|'MANAGER';
     code: string;
     period: string;
     gross_amount: number;
@@ -50,15 +54,9 @@ export type FinanceWorkspace = {
     events: { event_type: string; created_at: string; reason: string | null }[];
   }[];
   policies: {
-    id: number;
-    organization_id: number;
-    code: string;
-    name: string;
-    rate_percent: number;
-    effective_from: string;
-    effective_until: string | null;
-    status: string;
-    personnel_type?: string | null;
+    id:number; scope:'SYSTEM'|'MANAGER'|'SALES'; organization_id:number|null;
+    manager_user_id:number|null; sales_user_id:number|null;
+    sales_percent:number; manager_percent:number; created_at:string; status:string;
   }[];
   organizations: {
     id: number;

@@ -11,7 +11,7 @@ namespace KidsfitCRM.Api.Features;
 public static class CustomerWorkLogEndpoints
 {
     internal static async Task<IResult> List(long id, HttpContext http, KidsfitDbContext db,
-        CancellationToken ct, int page = 1, int pageSize = 20, string? type = null)
+        CancellationToken ct, int page = 1, int pageSize = 20, string? type = null, int assignmentPage = 1)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var activeOrgIds = access.OrganizationIds;
@@ -51,12 +51,17 @@ public static class CustomerWorkLogEndpoints
                 activity.Feedback, activity.Commitment, activity.Outcome, activity.EvidenceReference,
                 user_name = user.Name })
             .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
-        var assignments = await (from registration in db.ApproachRegistrations.AsNoTracking()
+        // The rights timeline is paged separately from activity notes. Never silently truncate at 100.
+        assignmentPage = Math.Clamp(assignmentPage, 1, 100_000);
+        var assignmentQuery = (from registration in db.ApproachRegistrations.AsNoTracking()
             join user in db.Users.AsNoTracking() on registration.OwnerUserId equals user.Id
             where registration.CustomerId == id && (access.All || activeOrgIds.Contains(registration.OwnerOrganizationId))
-            orderby registration.RegisteredAt descending
             select new { registration.Id, registration.RegisteredAt, registration.ProtectedUntil,
-                registration.Status, user_name = user.Name }).Take(100).ToArrayAsync(ct);
-        return Results.Ok(new { data, total, page, page_size = pageSize, assignments });
+                registration.Status, user_name = user.Name });
+        var assignmentTotal = await assignmentQuery.CountAsync(ct);
+        var assignments = await assignmentQuery.OrderByDescending(x => x.RegisteredAt).ThenByDescending(x => x.Id)
+            .Skip((assignmentPage - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
+        return Results.Ok(new { data, total, page, page_size = pageSize, assignments,
+            assignment_total = assignmentTotal, assignment_page = assignmentPage });
     }
 }

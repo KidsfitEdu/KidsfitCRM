@@ -134,6 +134,57 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Work_log_pages_more_than_one_hundred_approach_rights_without_leaking_other_school()
+    {
+        var seller = await Seller();
+        var outsider = await Seller();
+        var (registrationId, contractId) = await Contract(seller);
+        await using var db = fixture.Open();
+        var source = await db.ApproachRegistrations.SingleAsync(x => x.Id == registrationId, Ct);
+        var customerId = source.CustomerId;
+        var now = DateTime.UtcNow;
+        for (var i = 1; i <= 101; i++)
+        {
+            db.ApproachRegistrations.Add(new ApproachRegistration
+            {
+                CustomerId = customerId, OwnerUserId = seller,
+                OwnerOrganizationId = source.OwnerOrganizationId, CreatedByUserId = seller,
+                Status = "EXPIRED", RegisteredAt = now.AddDays(-i - 1),
+                ProtectedUntil = now.AddDays(-i), IdempotencyKey = Key(),
+                CreatedAt = now.AddDays(-i - 1), UpdatedAt = now.AddDays(-i)
+            });
+        }
+        for (var i = 0; i < 43; i++)
+            db.CustomerActivities.Add(new CustomerActivity
+            {
+                CustomerId = customerId, ApproachRegistrationId = registrationId,
+                UserId = seller, ActivityType = "NOTE", Content = "Nhật ký " + i,
+                CreatedAt = now.AddMinutes(-i), UpdatedAt = now.AddMinutes(-i)
+            });
+        await db.SaveChangesAsync(Ct);
+        static HttpContext AsUser(long id) => new DefaultHttpContext {
+            User = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier,id.ToString())],
+                    "IntegrationTest"))
+        };
+        var result = await CustomerWorkLogEndpoints.List(customerId, AsUser(seller), db,
+            Ct, page: 2, pageSize: 20, assignmentPage: 6);
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(
+            ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value,
+            new System.Text.Json.JsonSerializerOptions {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower
+            });
+        Assert.Equal(43, json.GetProperty("total").GetInt32());
+        Assert.Equal(20, json.GetProperty("data").GetArrayLength());
+        Assert.Equal(102, json.GetProperty("assignment_total").GetInt32());
+        Assert.Equal(6, json.GetProperty("assignment_page").GetInt32());
+        Assert.Equal(2, json.GetProperty("assignments").GetArrayLength());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            CustomerWorkLogEndpoints.List(customerId, AsUser(outsider), db, Ct));
+    }
+
+    [MySqlFact]
     public async Task Sales_protection_periods_show_confirmed_and_pending_with_owned_files_only()
     {
         var seller = await Seller();

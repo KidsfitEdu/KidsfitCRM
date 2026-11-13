@@ -423,7 +423,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
               <td className={adminTableCellClass}>{nice(c.next_follow_up_at)}</td>
               <td className={adminTableCellClass}><span className={datePending(c.protected_until) && c.visible_status==='APPROACHING'?'text-rose-600 font-semibold':''}>{nice(c.protected_until)}</span></td>
               <td className={adminTableCellClass}>{c.contract_code ?? '—'}</td>
-              <td className={adminTableCellClass}><div className="flex justify-center"><AdminIconAction icon={ListChecks} label={'Xem hoạt động ' + c.display_name} onClick={() => setSelection({kind:'progress',item:c})}/></div></td>
+              <td className={adminTableCellClass}><div className="flex justify-center"><AdminIconAction icon={ListChecks} label={'Xem hoạt động ' + c.display_name} onClick={() => preview ? setSelection({kind:'progress',item:c}) : setWorkLog({customerId:c.id,schoolName:c.display_name})}/></div></td>
             </tr>)}
           </tbody>
         </table>
@@ -533,18 +533,12 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
           {selection.item.decision_reason && <p>Quyết định: {selection.item.decision_reason}</p>}
           {selection.item.is_expired && <p className="rounded-xl bg-amber-50 p-3 text-amber-800">Quyền cũ đã hết hạn. Hồ sơ chờ duyệt không tự giữ suất tiếp cận.</p>}
         </div>}
-        {selection?.kind==='progress' && <div className="space-y-3 text-sm">
-          <p className="font-semibold text-base">{selection.item.display_name}</p>
-          <p>Phụ trách: {selection.item.owner_user_name ?? 'Chưa có'} · Trạng thái: {statusLabel(selection.item.visible_status)}</p>
-          <p>Lịch hẹn tiếp: {nice(selection.item.next_follow_up_at)} · Hạn bảo vệ: {nice(selection.item.protected_until)}</p>
-          {!preview && <AppButton tone="neutral" type="button" onClick={()=>{
-            setWorkLog({ customerId: selection.item.id, schoolName: selection.item.display_name });
-            setSelection(null);
-          }}>Xem nhật ký làm việc với trường</AppButton>}
-          {preview && <p>Nhật ký làm việc chỉ có trong API thật.</p>}
+        {selection?.kind==='progress' && preview && <div className="space-y-2 text-sm">
+          <p className="font-semibold">{selection.item.display_name}</p>
+          <p className="text-muted-foreground">Nhật ký làm việc được tải từ API khi đăng nhập vào hệ thống.</p>
         </div>}
     </AppDrawer>
-    <SchoolWorkLogDrawer open={workLog!==null} onOpenChange={v=>{if(!v)setWorkLog(null);}}
+    <SchoolWorkLogDrawer key={workLog?.customerId ?? "closed"} open={workLog!==null} onOpenChange={v=>{if(!v)setWorkLog(null);}}
       customerId={workLog?.customerId ?? null} schoolName={workLog?.schoolName ?? ''} apiBase={apiBase} token={token}/>
     <AppDrawer open={history!==null} onOpenChange={v=>{if(!v)setHistory(null);}}
       title="Lịch sử xử lý" description={history?.name}>

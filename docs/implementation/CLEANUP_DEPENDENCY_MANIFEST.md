@@ -1,43 +1,53 @@
-# KIDSFIT CRM — cleanup dependency manifest (work in progress)
+# KIDSFIT CRM — cleanup dependency and removal manifest
 
-Branch: `refactor/cleanup-legacy-crm-20261113` · base: `develop` @ `97e614e8ec6fd323bc7c703b3a7f2bf492729fb7`.
+Base: `develop` @ `97e614e8ec6fd323bc7c703b3a7f2bf492729fb7`  
+Branch: `refactor/cleanup-legacy-crm-20261113`  
+Review PR: #128 (Draft)
 
-## Rules
+## Scope and safeguards
 
-- Evidence = static source analysis, **not** database row usage or runtime tests.
-- DO NOT merge until Backend build, EF migrations, MySQL 8.4 integration tests, Frontend lint/build/tests, and smoke tests for seven roles pass.
-- No production or shared database reset; do not delete real school/contract/payment/audit/ledger history.
-- Existing EF migrations remain untouched. New destructive migration must be reviewed for live DB data before execution.
+Cleanup is limited to proven superseded artifacts. Never delete signed contract line descriptions, quantity/price/amount, customer protection history, receipts, commission ledger, payouts, evidence or audit trails. Do not alter already-applied EF migrations; the new migration records the change. A new or disposable MySQL 8.4 database is required for verification; live DB deployment requires a preflight catalog-use audit and backup. Removing the catalog eliminates historical package identifier metadata; the migration writes missing legacy package names into existing fee descriptions before dropping relationships, but **cannot preserve a historical package ID unless separately archived**.
 
-## Dependency classification
+## Dependency decisions (KEEP / MERGE / REMOVE)
 
-| Feature | Database / model | Backend | Frontend | Test dependencies | Status |
-|---|---|---|---|---|---|
-| Legacy CHECKEE catalog | `checkee_product_packages`, `sales_contract_items.product_package_id` | `ChannelSalesActions`, `ChannelSalesEndpoints`, `SchoolEndpoints` | `channel-sales.ts`, `school-directory.tsx`, legacy preview fixtures | `ChannelSalesMySqlTests`, `SchoolOperationsMySqlTests`, `SchoolWorkflowTests` | **CHANGE IN PROGRESS / TEST MIGRATION REQUIRED** |
-| Signed fee entries | `sales_contract_items.description,quantity,unit_price,amount` | Manual maintenance/setup fees | `channel-sales-view.tsx` | Manual-fees tests | KEEP |
-| Demo seeders | Synthetic users/schools/contracts | `DatabaseSeeder`, `CrmScenarioSeeder`, `AccountingScenarioSeeder`, `CrmReviewSeeder`, `Nt01DemoSeeder`, `ProtectionRenewalDemoSeeder`, `ServiceInterruptionDemoSeeder` | — | Tests directly invoke DatabaseSeeder and CrmScenarioSeeder | **BLOCKED: refactor test fixtures first** |
-| Initial bootstrap | roles, permissions, KIDSFIT/CHECKEE, users, draft policy | `InitialCrmSeeder` called via `--seed-initial` | Live authentication | bootstrap tests | KEEP |
-| Static preview | no live DB | `--seed-demo` disabled | `demo-access.tsx`, `demo-auth.ts`, `school-demo.ts`, `school-operations-preview.ts`, `frontend/demo` | demo / Pages preview tests | ISOLATE: only explicit `NEXT_PUBLIC_DEMO_MODE=true` |
-| Sales/Collaborator UI | shared SALES role | shared sales endpoints | `SalesStaffWorkspace`, `CollaboratorWorkspace`, `sales-navigation.ts` canonicalizes old URLs | navigation tests | MERGE / KEEP COMPATIBLE URLS UNTIL TESTS |
-| Legacy deep links | no DB | no separate API | Board oversight, CHECKEE history/reconciliation/disputes, care handover/followup | route tests | KEEP REDIRECTS UNTIL REFERENCE AUDIT |
-| Finance/audit/protection | existing business tables | accounting, background workers, verification | all seven role workflows | integration tests | KEEP |
+| Area | Change | Decision | Proof / consumer |
+|---|---|---|---|
+| CHECKEE package catalog | `checkee_product_packages`, `sales_contract_items.product_package_id`, catalog entity / DbSet / index / FK | REMOVE via `20261113230000_RemoveLegacyCheckeePackages` | Signed maintenance/setup and price lines are already stored on `sales_contract_items`; all Backend catalog lookups removed |
+| Manual contract fees | `description`, `quantity`, `unit_price`, `amount` | KEEP | Report and Manager revision flows, financial reconciliations |
+| Catalog API response fields | `packages` in workspace/school detail | REMOVE | No live Sales UI requires catalog |
+| Duplicate customer search route | `GET /api/channel-sales/customers/search` forwarding to `Workspace` | REMOVE | `GET /api/channel-sales/workspace` remains canonical |
+| Synthetic Backend seeders | 7 legacy seeders previously in API project | MOVE to `backend/tests/KidsfitCRM.Api.Tests/Fixtures/LegacySeeders` | Tests invoke `DatabaseSeeder` and `CrmScenarioSeeder`; production `--seed-demo` is disabled |
+| Initial bootstrap | `InitialCrmSeeder`, role/permission/org/admin bootstrap | KEEP | `Program.cs` uses `--migrate --seed-initial` |
+| Static demo customer fixtures | `demoChannelSalesWorkspace` | MOVE to `frontend/demo/channel-sales-fixture.ts` | Only preview and its tests use fictional customer records |
+| Static demo school fixtures | `school-demo.ts`, `school-operations-preview.ts` | MOVE to `frontend/demo/*-fixture.ts` | Dynamically imported only on preview branches; live requests use Backend |
+| Live login | `CrmApp` | KEEP and isolate | No fallback to demo when `NEXT_PUBLIC_API_URL` missing; demo has explicit `frontend/demo/demo-crm-app.tsx` |
+| Sales / Collaborator | 8 obsolete `src/screens/Collaborator` files | MERGE into existing `SalesStaffWorkspace` and `SalesFocusPage` | `sales-navigation.ts` maps legacy collaborator routes; tests verify aliases |
+| Retired UI screens | 10 legacy Board / CHECKEE / CustomerCare / Accounting pages | REMOVE | Existing canonical workspaces render other pages; legacy URL redirects preserved |
+| Remaining DB entities and API modules | Remaining business tables, worklog, finance, alert workers, RBAC | KEEP | Live permissions/workers/test consumers; lack of a visible screen is not evidence of unused API |
 
-## Changes made on branch
+## Source changes
 
-1. Retire CHECKEE package catalog references in live contract flow, request DTO, EF model and response types; add EF migration removing its column/FK/table. Existing signed item fee details are preserved; blank legacy item descriptions are filled from catalog name where possible.
-2. Explicitly gate static preview behind `NEXT_PUBLIC_DEMO_MODE=true`. Missing API configuration must show an error rather than silently open fake CRM.
+- Backend: `Domain/ChannelSalesEntities.cs`, `Infrastructure/KidsfitDbContext.cs`, EF snapshot, `Features/ChannelSalesActions.cs`, `ManagerContractEndpoints.cs`, `ChannelSalesContracts.cs`, `ChannelSalesEndpoints.cs`, `SchoolEndpoints.cs`, new migration.
+- Backend tests: three large MySQL tests rewritten for signed maintenance/setup fee components, service terms and cycle; historical-term repair test explicitly constructs an old contract; seven synthetic seeders moved to test-only fixtures, retaining test scenarios.
+- Frontend: `crm-app.tsx`, `demo/main.tsx`, `demo/demo-crm-app.tsx`, `demo/*-fixture.ts`, `school-directory.tsx`, `school-operations.tsx`, `ManagerWorklists.tsx`, Sales and Board navigation/tests; obsolete view files removed.
 
-## Outstanding blockers
+## SQL and migration safety
 
-- **Integration tests still depend on removed `CheckeeProductPackages` DbSet and positional `ReportSalesContractRequest` old parameter.** Update all call sites to manual fee-based contracts and refactor synthetic fixture setup before considering this branch mergeable.
-- **DatabaseSeeder and related demo seeders cannot be removed yet:** the test suite still directly calls them. First introduce independent test factories (no production seed invocation), then remove the legacy classes.
-- Migration drops the old catalog: inspect real DB for catalog rows, ensure historical references/metadata are archived where required, and test migration on a disposable MySQL 8.4 instance. MySQL DDL is not fully transactional.
-- Other purported unused APIs/components require complete caller search including background workers, tests, and deep-link routing, not just absence from current menu.
-- Full build/lint/MySQL verification: **NOT RUN** (no .NET SDK/MySQL/docker or local repo checkout in this execution environment).
+1. New migration executes a scoped UPDATE to populate empty `sales_contract_items.description` from the catalog name before removing the catalog FK/index/column and table. Existing line-item prices, quantities and amounts are never rewritten by this migration.
+2. MySQL DDL implicitly commits and is not fully atomic. Back up non-disposable DBs; inventory catalog usage and contract item descriptions first.
+3. No destructive script has been executed against production, staging or a shared database.
+4. Earlier migration history remains present, including initial catalog creation followed by retirement in the latest migration; do not delete migration files merely because a later migration removes their schema objects.
+5. Re-export the standalone `kidsfit_crm_schema.sql` after validation; previously generated SQL artifacts may not reflect the new migration.
 
-## Acceptance gate
+## Validation and review gate
 
-- Typecheck/build/test 100%; MySQL migration up on disposable DB with both empty and historical package references; verify historical amounts/contract descriptions unchanged.
-- Frontend main mode with unset API fails clearly; preview mode still works only when explicitly enabled.
-- Validate Sales, Admin, Director, Accounting, Sales Manager, CSKH, CHECKEE permissions and screens.
-- No data loss, no role escalation, no changes to historic migration files.
+- GitHub Actions on the feature branch executes .NET unit and MySQL 8.4 integration tests, Frontend lint, TypeScript, static demo tests, Vinext and static Pages build, and Windows routes.
+- Do not mark **PASS** unless workflow completed successfully against the exact final head SHA.
+- Confirm catalog retirement on a disposable DB with both empty and populated legacy item descriptions and amounts.
+- Validate backend authentication and RBAC for Admin, Director, Accounting, Sales Manager, CSKH, CHECKEE and Sales/CTV in live-mode smoke tests.
+- Review the full API caller inventory and remove only proven-unreferenced routes/components; avoid speculative drops.
+- **Do not auto-merge**. PR remains Draft until all required regression checks pass.
+
+## Explicitly retained
+
+`frontend/demo` static presentation remains because the repo deploys a separate GitHub Pages demo; demo users and fake schools are not live CRM accounts. `frontend/src/lib/demo-auth.ts` and `src/components/crm/demo-access.tsx` remain shared preview-only helpers imported by the demo target, not an automatic live-login fallback. Historic routes stay addressable through canonical aliases.

@@ -370,3 +370,53 @@ test('Sales extension form asks only for reason and lets the CRM calculate expir
   assert.match(form, /progress: reason/);
   assert.match(form, /extension-requests/);
 });
+
+
+test('Sales income detail prioritizes personal income without exposing administrative controls', () => {
+  const source = read('src/components/roles/SalesIncomePage.tsx');
+  const drawer = source.slice(source.indexOf('<AppDrawer open={!!selected}'));
+  assert.match(drawer, /Tổng quan thu nhập/);
+  assert.match(drawer, /Hoa hồng phát sinh/);
+  assert.match(drawer, /Đã nhận \(phân bổ\)/);
+  assert.match(drawer, /Chưa nhận/);
+  assert.match(drawer, /channelMoney\(selected\.commission\)/);
+  assert.match(drawer, /channelMoney\(selected\.paid\)/);
+  assert.match(drawer, /channelMoney\(selected\.unpaid\)/);
+  assert.ok(drawer.indexOf('Tổng quan thu nhập') < drawer.indexOf('Thông tin hợp đồng'));
+  assert.ok(drawer.indexOf('Thông tin hợp đồng') < drawer.indexOf('Chi tiết cách tính hoa hồng'));
+  assert.ok(drawer.indexOf('Chi tiết cách tính hoa hồng') < drawer.indexOf('Các khoản trường đã thanh toán'));
+  assert.ok(drawer.indexOf('Các khoản trường đã thanh toán') < drawer.indexOf('Lịch sử nhận hoa hồng'));
+  assert.doesNotMatch(drawer, /1\. Thông tin hợp đồng|2\. Cơ sở và chính sách hoa hồng|3\. Các khoản trường|4\. Lịch sử phiếu chi/);
+  assert.doesNotMatch(drawer, /Phê duyệt phiếu chi|Ghi nhận thanh toán/);
+});
+
+test('Sales income detail keeps genuine contract, ledger, receipts and payout allocation evidence', () => {
+  const source = read('src/components/roles/SalesIncomePage.tsx');
+  assert.match(source, /detail\.contract\.contract_value/);
+  assert.match(source, /detail\.contract\.contract_code/);
+  assert.match(source, /detail\.reconciliation_status==='CONFIRMED'/);
+  assert.match(source, /entry\.calculation_base/);
+  assert.match(source, /entry\.rate_percent/);
+  assert.match(source, /entry\.policy_code==='SYSTEM_DEFAULT'/);
+  assert.match(source, /detail\.ledger\.map/);
+  assert.match(source, /detail\.receipts\.map/);
+  assert.match(source, /detail\.payments\.map/);
+  assert.match(source, /payment\.allocated_amount/);
+  assert.match(source, /payment\.status==='PAID'/);
+  assert.match(source, /payment\.evidence_id && payment\.evidence_name/);
+  assert.match(source, /openProof\(payment\.evidence_id!,payment\.evidence_name!\)/);
+  assert.match(source, /Không có quyền mở chứng từ hoặc chứng từ không tồn tại/);
+  assert.match(source, /setProofError\(''\)/);
+  assert.match(source, /!detail&&!detailError/);
+  assert.match(source, /detailError&&/);
+  assert.match(source, /proofError&&/);
+});
+
+test('Sales commission detail endpoint remains tied to the authenticated beneficiary', () => {
+  const source = read('../backend/src/KidsfitCRM.Api/Features/SalesIncomeEndpoints.cs');
+  const detail = source.slice(source.indexOf('public static async Task<IResult> Detail('));
+  assert.match(detail, /var actor = http\.UserId\(\)/);
+  assert.match(detail, /x\.BeneficiaryUserId == actor && x\.ContractId == contractId/);
+  assert.match(detail, /payout\.BeneficiaryUserId == actor/);
+  assert.match(detail, /allocated_amount = allocation/);
+});

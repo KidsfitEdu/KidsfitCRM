@@ -58,7 +58,9 @@ test('Board has four menu items while historic reports route still loads dashboa
   assert.match(routes, /canonicalBoardView/);
   assert.match(routes, /'role-board-oversight' \? 'role-board-dashboard'/);
   assert.match(workspace, /oversight: DashboardPage/);
-  assert.match(dashboard, /Đối soát doanh thu theo kỳ/);
+  assert.match(dashboard, /Xu hướng doanh thu theo tháng/);
+  assert.match(dashboard, /Cơ cấu trạng thái trường/);
+  assert.doesNotMatch(dashboard, /Đối soát doanh thu theo kỳ|Hiệu suất phân bổ theo Quản lý và Sales|Cảnh báo cần theo dõi/);
 });
 
 test('Board queues share Sales search toolbar, icon actions and real server paging', () => {

@@ -979,10 +979,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               tại thời điểm khoản thu được ghi nhận. Nếu chưa xác nhận, phần Quản lý
               sẽ chờ rà soát và không được tự động chuyển cho người khác.</span>
           </label>}
-        {backfillPreview.manager_review_required&&<p role="status"
-          className="text-sm text-amber-800">
+        {backfillPreview.manager_review_required&&<output
+          className="block text-sm text-amber-800">
           Chưa xác định Quản lý hợp lệ. Chỉ tạo phần Sales; quyền hưởng Quản lý cần xác minh riêng.
-        </p>}
+        </output>}
         <div className="space-y-1">
           <label htmlFor="backfill-reason">Lý do đối soát / chứng từ tham chiếu *</label>
           <Input id="backfill-reason" maxLength={1000} value={backfillReason}

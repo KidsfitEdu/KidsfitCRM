@@ -32,7 +32,7 @@ test('Payout approval and completion preserve RBAC, status, amounts and evidence
 
 test('Accounting can enable payout from unassigned positive commission independently of CHECKEE', () => {
   assert.match(accounting, /!entry\.assigned_to_payout/);
-  assert.match(accounting, /eligiblePeriods = \[\.\.\.eligibleByPeriod\.entries\(\)\]/);
+  assert.match(accounting, /eligiblePeriods=\[\.\.\.eligibleByPeriod\.entries\(\)\]/);
   assert.doesNotMatch(accounting, /entry\.reconciled/);
   assert.doesNotMatch(accounting, /đối soát CHECKEE đã xác nhận/);
   assert.doesNotMatch(detailApi, /reconciled = db\.ReconciliationCases/);
@@ -46,4 +46,12 @@ test('Receipt accrual uses board split on collected cash and does not automatica
   assert.match(receiptActions,/NewCommissionAccrual/);
   assert.match(receiptActions,/COMMISSION_MANAGER_REVIEW_REQUIRED/);
   assert.doesNotMatch(payoutActions,/Backfill|CreateMissingLedger|GenerateCommissionAutomatically/);
+});
+
+test('Accounting separates contracts and role-specific payout overview',()=>{
+  assert.match(accounting,/Hợp đồng & khoản thu/);
+  assert.match(accounting,/Phiếu chi hoa hồng/);
+  assert.match(accounting,/beneficiary_role:currentBeneficiary\?\.role/);
+  assert.match(accounting,/role="tab"/);
+  assert.match(accounting,/financeOverview\?\.payouts/);
 });

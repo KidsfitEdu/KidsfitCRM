@@ -120,7 +120,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const payoutKey = useRef<string|null>(null);
   const [selectedScheduleId,setSelectedScheduleId] = useState<number|null>(null);
   const [selectedPayoutId,setSelectedPayoutId] = useState<number|null>(null);
-  const receiptAttempt = useRef<{signature:string; key:string; evidenceId:number|null}|null>(null);
+  const receiptAttempt = useRef<{signature:string; key:string; timestamp:string; evidenceId:number|null}|null>(null);
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
   const [amountInput, setAmountInput] = useState('');
   const [preview, setPreview] = useState<{url:string; name:string; mime:string}|null>(null);
@@ -248,11 +248,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     const today = accountingBusinessDay(new Date());
     const signedOn = contractSignedDay(detail.data.signed_on);
     const validation: FieldErrors = {};
-    if (!signedOn) {
-      validation.transaction_date = 'Không xác định được ngày ký hợp đồng. Vui lòng tải lại chi tiết.';
-    } else {
-      const dateError = validateTransactionDay(date, today, signedOn, entryMode);
-      if (dateError) validation.transaction_date = dateError;
+    if(entryMode==='receipt'&&!signedOn){
+      validation.transaction_date='Không xác định được ngày ký hợp đồng. Vui lòng tải lại chi tiết.';
+    }else{
+      const dateError=validateTransactionDay(date,today,signedOn??today,entryMode);
+      if(dateError)validation.transaction_date=dateError;
     }
     if (!Number.isSafeInteger(amount) || amount <= 0) validation.amount = 'Số tiền phải là số nguyên dương.';
     if (!reference) validation.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng.';
@@ -276,15 +276,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setSaving(true);
     let attemptedEvidenceId:number|null=null;
     try {
-      const timestamp = accountingTransactionTimestamp(date);
+      // Use the calendar date rather than a moving current timestamp as the
+      // retry signature; otherwise every retry generates a new idempotency key.
       const signature = JSON.stringify({
-        entryMode, selected, scheduleId, payoutId, date:timestamp, amount, reference:reference.toUpperCase(),
+        entryMode,selected,scheduleId,payoutId,date,amount,reference:reference.toUpperCase(),
         proof:[proof.name,proof.size,proof.lastModified],
       });
       if(receiptAttempt.current?.signature!==signature){
-        receiptAttempt.current={signature,key:crypto.randomUUID(),evidenceId:null};
+        receiptAttempt.current={
+          signature,key:crypto.randomUUID(),timestamp:accountingTransactionTimestamp(date),
+          evidenceId:null,
+        };
       }
-      const attempt = receiptAttempt.current!;
+      const attempt=receiptAttempt.current;
+      const timestamp=attempt.timestamp;
       if(attempt.evidenceId===null){
         const attachment=new FormData();
         attachment.set('kind',entryMode==='receipt'?'RECEIPT':'PAYOUT');
@@ -774,12 +779,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         <p className="text-xs text-muted-foreground">Phiếu mới ở trạng thái Nháp; chưa ghi nhận đã chuyển tiền. Giá trị thực tế do Backend xác nhận.</p>
         {payoutError&&<p role="alert" className="text-sm text-destructive">{payoutError}</p>}
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={saving} onClick={()=>setPayoutDialogOpen(false)}>Hủy</Button>
+          <Button type="button" variant="outline" disabled={saving} onClick={()=>{setPayoutDialogOpen(false);payoutKey.current=null;}}>Hủy</Button>
           <Button type="submit" disabled={saving||!chosenPeriod}>{saving?'Đang tạo...':'Xác nhận lập phiếu'}</Button>
         </div>
       </form>}
     </AppDialog>
-    <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
+    <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
       {detail && entryMode && <form noValidate className="space-y-4" onChange={event=>{
@@ -799,7 +804,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
               {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
           </select>{selectedScheduleId!==null&&<p className="text-xs text-muted-foreground">
-              Còn phải thu: {channelMoney(detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_due!-(detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_received??0))}
+              Còn phải thu: {channelMoney(Math.max(0,
+                (detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_due??0)-
+                (detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_received??0)))}
             </p>}{fieldErrors.schedule_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.schedule_id}</span>}</label> : <label className="block space-y-1"><span>Phiếu chi đã duyệt *</span>
           <select name="payout_id" required value={selectedPayoutId??''}
             onChange={e=>{

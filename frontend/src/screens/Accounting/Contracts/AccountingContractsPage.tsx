@@ -99,7 +99,8 @@ type Detail = {
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
   refunded_total: number;
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
-  ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
+  ledger: { id: number; entry_type: string; amount: number; rate_percent: number; calculation_base:number;
+    reason: string | null; occurred_at: string;
     period: string; beneficiary_user_id: number; beneficiary_name: string; beneficiary_organization_id: number;
     revenue_receipt_id:number|null;
     beneficiary_role: 'SALES'|'MANAGER'; policy_source: string; board_policy_version_id: number|null;
@@ -434,7 +435,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     &&entry.beneficiary_role===currentBeneficiary?.role
     &&entry.beneficiary_user_id===currentBeneficiary?.id);
   const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
-    .reduce((sum,entry)=>sum+(entry.rate_percent>0?entry.amount*100/entry.rate_percent:0),0);
+    .reduce((sum,entry)=>sum+entry.calculation_base,0);
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
   const openDraft = (payout?:Detail['payouts'][number]) => {
     setEditingPayout(payout??null);setPayoutError('');
@@ -1112,6 +1113,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                       <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(x.net_amount)}</td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${tone}`}>{payoutStatusLabel(x.status)}</span>
+                        {x.status==='CHANGES_REQUESTED'&&<p className="mt-1 max-w-48 text-xs text-amber-700 dark:text-amber-300">
+                          BGĐ yêu cầu: {x.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1)?.reason??'Cần bổ sung'}
+                        </p>}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex justify-center gap-2">

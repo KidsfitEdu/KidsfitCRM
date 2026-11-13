@@ -197,7 +197,8 @@ public static class AccountingContractEndpoints
             select new {
                 id = entry.Id, entry_type = entry.EntryType, beneficiary_name = recipient.Name, amount = entry.Amount,
                 revenue_receipt_id = entry.RevenueReceiptId,
-                rate_percent = entry.RatePercent, reason = entry.Reason, occurred_at = entry.OccurredAt,
+                rate_percent = entry.RatePercent, calculation_base = entry.CalculationBase,
+                reason = entry.Reason, occurred_at = entry.OccurredAt,
                 period = entry.Period, beneficiary_user_id = entry.BeneficiaryUserId,
                 beneficiary_role = entry.BeneficiaryRole, policy_source = entry.PolicySource,
                 board_policy_version_id = entry.BoardPolicyVersionId,

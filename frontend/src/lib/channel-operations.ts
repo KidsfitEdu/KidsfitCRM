@@ -1,4 +1,4 @@
-import { trackAppRequest } from '@/lib/loading-tracker';
+import { trackAppRequest } from './loading-tracker.ts';
 export type FinanceWorkspace = {
   personnel_types?: string[];
   period: string;

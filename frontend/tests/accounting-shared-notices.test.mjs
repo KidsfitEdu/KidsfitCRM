@@ -28,7 +28,9 @@ test('Accounting transaction validation stays beside the corresponding form fiel
   assert.match(ui, /fieldErrors\.schedule_id/);
   assert.match(ui, /fieldErrors\.payout_id/);
   assert.match(ui, /cause instanceof ChannelRequestError && cause\.status === 422/);
-  assert.match(ui, /date < signedOn/);
+  const validator = read('src/lib/accounting-transaction-date.ts');
+  assert.match(ui, /validateTransactionDay\(date, today, signedOn, entryMode\)/);
+  assert.match(validator, /date < signedOn/);
   assert.match(ui, /aria-invalid=\{Boolean\(fieldErrors\.transaction_date\)\}/);
 });
 
@@ -36,7 +38,9 @@ test('Accounting form suppresses browser validation and reports empty input erro
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(ui, /<form noValidate className="space-y-4"/);
   assert.match(ui, /if \(!reference\) validation\.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng\.'/);
-  assert.match(ui, /if \(!date\) validation\.transaction_date = 'Vui lòng chọn ngày giao dịch\.'/);
+  const validator = read('src/lib/accounting-transaction-date.ts');
+  assert.match(ui, /validateTransactionDay\(date, today, signedOn, entryMode\)/);
+  assert.match(validator, /if \(!date\) return 'Vui lòng chọn ngày giao dịch\.'/);
   assert.match(ui, /if \(!Number\.isSafeInteger\(amount\) \|\| amount <= 0\) validation\.amount/);
   assert.match(ui, /if \(!\(proof instanceof File\) \|\| proof\.size === 0\) validation\.proof/);
   assert.match(ui, /fieldErrors\.amount && <p role="alert"/);

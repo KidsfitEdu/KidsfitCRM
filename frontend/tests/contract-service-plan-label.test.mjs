@@ -9,9 +9,9 @@ test('All contract detail roles use a single Vietnamese service plan formatter',
   const shared = read('src/lib/contract-payment-plan.ts');
   assert.match(shared, /export const getServicePlanLabel/);
   assert.match(shared, /'SCHOOL_YEAR':?/);
-  assert.match(shared, /Gói năm học \(9 tháng, tặng 3 tháng hè\)/);
+  assert.match(shared, /Gói theo năm/);
   assert.match(shared, /'MONTHLY_9':?/);
-  assert.match(shared, /Gói hàng tháng \(9 tháng\)/);
+  assert.match(shared, /Gói hàng tháng/);
   assert.match(shared, /Chưa xác định/);
 
   for (const path of [

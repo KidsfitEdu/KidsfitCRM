@@ -196,7 +196,7 @@ test('Sales contract report does not ask for a contract code', () => {
   const form = view.slice(start, end);
   assert.doesNotMatch(form, /name="contract_code"|contract_code: text\(form/);
   assert.match(form, /name="contract_file"/);
-  assert.match(form, /label="Gửi hợp đồng xác minh"/);
+  assert.match(form, /label="Gửi Quản lý duyệt"/);
   const model = read('src/lib/channel-sales.ts');
   const payload = model.slice(model.indexOf('export type ReportContractInput ='), model.indexOf('export type RevenueReceiptInput ='));
   assert.doesNotMatch(payload, /contract_code:/);
@@ -271,9 +271,9 @@ test('Sales contract errors appear only in shared toast and duplicate report ope
   const contractEnd = source.indexOf('function ReceiptDialog({', contractStart);
   assert.ok(contractStart >= 0 && contractEnd > contractStart);
   const contract = source.slice(contractStart, contractEnd);
-  assert.match(contract, /appNotice\.error\('Không thể gửi hợp đồng xác minh\.'/);
+  assert.match(contract, /appNotice\.error\('Không thể gửi hợp đồng đến Quản lý\.'/);
   assert.doesNotMatch(contract, /setError\(message\)/);
-  assert.match(contract, /<DialogFooter saving=\{saving\} error="" onClose=\{onClose\} label="Gửi hợp đồng xác minh"\/>/);
+  assert.match(contract, /<DialogFooter saving=\{saving\} error="" onClose=\{onClose\} label="Gửi Quản lý duyệt"\/>/);
   assert.match(contract, /latest\.contracts\.length > 0/);
   assert.match(source, /const openContractReport = async/);
   assert.match(source, /profile\.contracts\.length > 0/);

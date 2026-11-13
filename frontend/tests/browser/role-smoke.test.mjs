@@ -48,7 +48,7 @@ test('seven CRM roles across eight demo accounts can log in and open their menu'
   const roles = [
     ['Quản trị viên',8],['Quản lý bán hàng',7],
     ['Nhân viên bán hàng',5],['CTV đối tác',5],
-    ['Ban giám đốc',5],['Kế toán',2],
+    ['Ban giám đốc',6],['Kế toán',2],
     ['Chăm sóc khách hàng',3],['CHECKEE',3],
   ];
   for (const [name,expected] of roles) {
@@ -143,7 +143,7 @@ test('Sales desktop uses accounting-style full-width underline tabs and a table 
 
 test('Board navigation merges reports and keeps styled exception queues', async () => {
   const {context,page,navigation,errors} = await login('Ban giám đốc');
-  assert.equal(await navigation.locator('button').count(),5);
+  assert.equal(await navigation.locator('button').count(),6);
   await navigation.getByRole('button',{name:'Theo dõi tiến độ',exact:true}).click();
   await page.getByRole('heading',{name:'Theo dõi tiến độ tiếp cận'}).waitFor();
   await page.getByText('Nhật ký và tiến độ toàn hệ thống chỉ hiển thị khi đăng nhập vào CRM có kết nối Backend.').waitFor();

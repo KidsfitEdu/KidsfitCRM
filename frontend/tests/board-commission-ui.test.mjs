@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import test from 'node:test';
+import {resolveManagerCommissionForm} from '../src/screens/Board/commission-manager-policy.ts';
 
 const src=(file)=>readFileSync(resolve(import.meta.dirname,'../src/',file),'utf8');
 const page=src('screens/Board/BoardCommissionPoliciesPanel.tsx');
@@ -58,4 +59,39 @@ test('save and reset use the backend snake_case contract',()=>{
   assert.match(page,/expected_version_id:confirmReset\.ownVersionId/);
   assert.match(page,/expected_version_id:managerReset\.id/);
   assert.doesNotMatch(page,/JSON\.stringify\(\{expectedVersionId:/);
+});
+
+test('manager button opens direct Dialog without the legacy manager Drawer',()=>{
+  assert.ok(page.includes('onClick={startManager}'));
+  assert.ok(page.includes("managerOnly={dialog?.scope==='MANAGER'}"));
+  assert.ok(page.includes('resolveManagerPolicy={getManagerRates}'));
+  assert.doesNotMatch(page,/managerListOpen|activeManagerRules|startManagerRule|resetManager/);
+  assert.ok(!page.includes('Thêm điều chỉnh'));
+  assert.ok(form.includes('{!managerOnly&&<div'));
+  assert.ok(form.includes('resolveManagerPolicy(f.organizationId,selectedId)'));
+  assert.ok(form.includes('!managerOnly&&(lockTarget||form.expectedVersionId!==null)'));
+});
+
+test('success and API errors use the shared toast; field validation remains in Dialog',()=>{
+  assert.ok(page.includes("import { appNotice } from '@/components/common/app-toast-provider'"));
+  assert.ok(page.includes("appNotice.success('Đã lưu và áp dụng tỷ lệ hoa hồng mới.')"));
+  assert.ok(page.includes("appNotice.success('Đã khôi phục chính sách kế thừa.')"));
+  assert.ok(page.includes("appNotice.error('Không thể lưu chính sách hoa hồng.'"));
+  assert.doesNotMatch(page,/setNotice\(|\{notice&&/);
+  assert.ok(form.includes('setLocalError'));
+});
+
+test('manager form loads existing scoped override, reset inheritance and new manager fallback',()=>{
+  const defaults={salesPercent:25,managerPercent:5};
+  const versions=[
+    {id:1,scope:'SYSTEM',organizationId:null,managerUserId:null,status:'ACTIVE',salesPercent:25,managerPercent:5,createdAt:'2026-11-13T03:00:00Z'},
+    {id:10,scope:'MANAGER',organizationId:1,managerUserId:20,status:'ACTIVE',salesPercent:20,managerPercent:10,createdAt:'2026-11-13T03:05:00Z'},
+    {id:11,scope:'MANAGER',organizationId:2,managerUserId:20,status:'ACTIVE',salesPercent:24,managerPercent:6,createdAt:'2026-11-13T03:06:00Z'},
+    {id:12,scope:'MANAGER',organizationId:1,managerUserId:30,status:'RESET',salesPercent:0,managerPercent:0,createdAt:'2026-11-13T03:07:00Z'},
+    {id:13,scope:'MANAGER',organizationId:1,managerUserId:20,status:'ACTIVE',salesPercent:22,managerPercent:8,createdAt:'2026-11-13T03:08:00Z'},
+  ];
+  assert.deepEqual(resolveManagerCommissionForm(versions,defaults,1,20),{salesPercent:'22',managerPercent:'8',expectedVersionId:13});
+  assert.deepEqual(resolveManagerCommissionForm(versions,defaults,2,20),{salesPercent:'24',managerPercent:'6',expectedVersionId:11});
+  assert.deepEqual(resolveManagerCommissionForm(versions,defaults,1,30),{salesPercent:'25',managerPercent:'5',expectedVersionId:12});
+  assert.deepEqual(resolveManagerCommissionForm(versions,defaults,1,40),{salesPercent:'25',managerPercent:'5',expectedVersionId:null});
 });

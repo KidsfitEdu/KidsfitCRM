@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Eye, Pencil, RotateCcw, UsersRound } from 'lucide-react';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { appNotice } from '@/components/common/app-toast-provider';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -12,6 +13,7 @@ import { AdminListPanel, AdminListToolbar, AdminIconAction, adminTableClass,
 import { BoardCommissionDialog, type CommissionFormValues, type CommissionManager,
   type CommissionOrganization, type CommissionSales } from './BoardCommissionDialog';
 import { channelRequest } from '@/lib/channel-operations';
+import { resolveManagerCommissionForm } from './commission-manager-policy';
 import type { RolePageProps } from '@/types/role-pages';
 
 type PolicyVersion = {
@@ -83,10 +85,6 @@ const mapWorkspace=(raw:ApiWorkspace):Workspace=>({
   }))
 });
 const formatTime=(value:string)=>new Date(value).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});
-const initial=(scope:'MANAGER'|'SALES'):CommissionFormValues=>({
-  scope,organizationId:null,managerUserId:null,salesUserId:null,
-  salesPercent:'25',managerPercent:'5',expectedVersionId:null
-});
 const sourceLabel=(source:string)=>source==='SALES'?'Điều chỉnh riêng Sales':
   source==='MANAGER'?'Theo Quản lý':'Mặc định hệ thống';
 
@@ -97,13 +95,10 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [formError,setFormError]=useState('');
-  const [notice,setNotice]=useState('');
   const [dialog,setDialog]=useState<CommissionFormValues|null>(null);
   const [detail,setDetail]=useState<SalesRow|null>(null);
   const [confirmReset,setConfirmReset]=useState<SalesRow|null>(null);
-  const [managerListOpen,setManagerListOpen]=useState(false);
   const [defaultHistoryOpen,setDefaultHistoryOpen]=useState(false);
-  const [managerReset,setManagerReset]=useState<PolicyVersion|null>(null);
   const [org,setOrg]=useState('ALL');
   const [manager,setManager]=useState('ALL');
   const [sales,setSales]=useState('ALL');
@@ -132,6 +127,16 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     &&[p.name,p.email,p.managerName??'',p.managerEmail??'']
       .some(s=>s.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'))));
   const pageRows=visible.slice((page-1)*pageSize,page*pageSize);
+  const startManager=()=>{
+    setFormError('');
+    setDialog({
+      scope:'MANAGER',organizationId:null,managerUserId:null,salesUserId:null,
+      salesPercent:String(defaults.salesPercent),managerPercent:String(defaults.managerPercent),
+      expectedVersionId:null
+    });
+  };
+  const getManagerRates=(organizationId:number,managerUserId:number)=>
+    resolveManagerCommissionForm(history,defaults,organizationId,managerUserId);
   const startDefault=()=>{
     setFormError('');setDialog({
       scope:'SYSTEM',organizationId:null,managerUserId:null,salesUserId:null,
@@ -151,7 +156,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
       (v.scope==='SYSTEM'||(h.organizationId===v.organizationId&&
         (v.scope==='MANAGER'?h.managerUserId===v.managerUserId:h.salesUserId===v.salesUserId))))
       .sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.id-a.id)[0];
-    setBusy(true);setFormError('');setNotice('');
+    setBusy(true);setFormError('');
     try{
       await channelRequest(apiBase,token,'/board-commission',{method:'POST',body:JSON.stringify({
         scope:v.scope,organization_id:v.scope==='SYSTEM'?null:v.organizationId,
@@ -160,41 +165,27 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
         sales_percent:Number(v.salesPercent),manager_percent:Number(v.managerPercent),
         expected_version_id:previous?.id??null
       })});
-      setDialog(null);setNotice('Đã lưu và áp dụng tỷ lệ hoa hồng mới.');await load();
-    }catch(e){setFormError(e instanceof Error?e.message:'Không thể lưu chính sách.');}
+      setDialog(null);await load();
+      appNotice.success('Đã lưu và áp dụng tỷ lệ hoa hồng mới.');
+    }catch(e){
+      const message=e instanceof Error?e.message:'Không thể lưu chính sách.';
+      setFormError(message);
+      appNotice.error('Không thể lưu chính sách hoa hồng.',message);
+    }
     finally{setBusy(false);}
   };
   const reset=async()=>{
     if(!confirmReset?.ownVersionId)return;
-    setBusy(true);setError('');setNotice('');
+    setBusy(true);setError('');
     try{
       await channelRequest(apiBase,token,'/board-commission/'+confirmReset.ownVersionId+'/reset',{
         method:'POST',body:JSON.stringify({expected_version_id:confirmReset.ownVersionId})
       });
-      setConfirmReset(null);setNotice('Đã khôi phục chính sách kế thừa.');await load();
-    }catch(e){setError(e instanceof Error?e.message:'Không khôi phục được chính sách.');}
-    finally{setBusy(false);}
-  };
-  const activeManagerRules=history.filter(h=>h.scope==='MANAGER'&&h.managerUserId!==null)
-    .filter(h=>!history.some(other=>other.id!==h.id&&other.scope==='MANAGER'
-      &&other.organizationId===h.organizationId&&other.managerUserId===h.managerUserId
-      &&(other.createdAt>h.createdAt||(other.createdAt===h.createdAt&&other.id>h.id))))
-    .filter(h=>h.status==='ACTIVE');
-  const startManagerRule=(p:PolicyVersion)=>{
-    setManagerListOpen(false);setFormError('');
-    setDialog({scope:'MANAGER',organizationId:p.organizationId,managerUserId:p.managerUserId,
-      salesUserId:null,salesPercent:String(p.salesPercent),managerPercent:String(p.managerPercent),
-      expectedVersionId:p.id});
-  };
-  const resetManager=async()=>{
-    if(!managerReset)return;
-    setBusy(true);setError('');setNotice('');
-    try{
-      await channelRequest(apiBase,token,'/board-commission/'+managerReset.id+'/reset',{
-        method:'POST',body:JSON.stringify({expected_version_id:managerReset.id})
-      });
-      setManagerReset(null);setNotice('Đã khôi phục cấu hình Quản lý về mặc định.');await load();
-    }catch(e){setError(e instanceof Error?e.message:'Không khôi phục được cấu hình Quản lý.');}
+      setConfirmReset(null);await load();
+      appNotice.success('Đã khôi phục chính sách kế thừa.');
+    }catch(e){
+      appNotice.error('Không khôi phục được chính sách.',e instanceof Error?e.message:'Vui lòng thử lại.');
+    }
     finally{setBusy(false);}
   };
   const revisions=detail?history.filter(h=>h.scope==='SALES'&&
@@ -229,12 +220,11 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     <section className="flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-lg font-bold">Danh sách hoa hồng theo Sales</h3>
         <p className="mt-1 text-sm text-muted-foreground">Cùng một Quản lý có thể có tỷ lệ khác nhau theo từng Sales.</p></div>
-      <AppButton leadingIcon={<UsersRound className="size-4"/>} onClick={()=>setManagerListOpen(true)}>
+      <AppButton leadingIcon={<UsersRound className="size-4"/>} onClick={startManager}>
         Cấu hình theo Quản lý
       </AppButton>
     </section>
 
-    {notice&&<output className="block rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">{notice}</output>}
     {error&&<p role="alert" className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
 
     <AdminListPanel>
@@ -307,25 +297,9 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
         </p>}
       </div>
     </AppDrawer>
-    <AppDrawer open={managerListOpen} onOpenChange={setManagerListOpen}
-      title="Cấu hình theo Quản lý" description="BGĐ quản lý ngoại lệ cho đội Sales trực thuộc"
-      footer={<><AppButton tone="neutral" onClick={()=>setManagerListOpen(false)}>Đóng</AppButton>
-        <AppButton onClick={()=>{setManagerListOpen(false);setFormError('');setDialog(initial('MANAGER'));}}>Thêm điều chỉnh</AppButton></>}>
-      <div className="space-y-3">
-        {activeManagerRules.map(p=><div key={p.id} className="rounded-xl border border-border p-4">
-          <p className="font-semibold">{managers.find(m=>m.id===p.managerUserId)?.name??'Quản lý'}</p>
-          <p className="text-xs text-muted-foreground">{orgs.find(o=>o.id===p.organizationId)?.name??'Tổ chức'}</p>
-          <p className="mt-2 text-sm">Sales {p.salesPercent}% · Quản lý {p.managerPercent}%</p>
-          <div className="mt-3 flex justify-end gap-2">
-            <AdminIconAction icon={Pencil} tone="blue" label="Điều chỉnh cấu hình Quản lý" onClick={()=>startManagerRule(p)}/>
-            <AdminIconAction icon={RotateCcw} tone="neutral" label="Khôi phục cấu hình Quản lý" onClick={()=>{setManagerListOpen(false);setManagerReset(p);}}/>
-          </div>
-        </div>)}
-        {activeManagerRules.length===0&&<p className="text-sm text-muted-foreground">Chưa có cấu hình riêng cho Quản lý.</p>}
-      </div>
-    </AppDrawer>
     <BoardCommissionDialog initial={dialog} organizations={orgs} managers={managers} sales={people}
-      error={formError} busy={busy} lockTarget={dialog?.scope==='SYSTEM'||(dialog?.scope==='SALES'&&dialog.salesUserId!==null)||dialog?.expectedVersionId!==null} onClose={()=>{if(!busy){setDialog(null);setFormError('');}}}
+      error={formError} busy={busy} managerOnly={dialog?.scope==='MANAGER'} resolveManagerPolicy={getManagerRates}
+      lockTarget={dialog?.scope==='SYSTEM'||(dialog?.scope==='SALES'&&dialog.salesUserId!==null)||dialog?.expectedVersionId!==null} onClose={()=>{if(!busy){setDialog(null);setFormError('');}}}
       onSave={form=>void save(form)}/>
     <AppDrawer open={detail!==null} onOpenChange={v=>{if(!v)setDetail(null)}}
       title="Chi tiết hoa hồng Sales" description="Tỷ lệ áp dụng và lịch sử thay đổi">
@@ -346,10 +320,6 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
         {revisions.length===0&&<p className="text-muted-foreground">Chưa có điều chỉnh riêng, đang kế thừa chính sách.</p>}
       </div>}
     </AppDrawer>
-    <ConfirmDialog open={managerReset!==null} onOpenChange={v=>{if(!v&&!busy)setManagerReset(null)}}
-      title="Khôi phục chính sách Quản lý" busy={busy}
-      description="Đội Sales sẽ kế thừa tỷ lệ hệ thống, trừ các Sales đã được BGĐ điều chỉnh riêng."
-      confirmLabel="Khôi phục" onConfirm={()=>void resetManager()}/>
     <ConfirmDialog open={confirmReset!==null} onOpenChange={v=>{if(!v&&!busy)setConfirmReset(null)}}
       title="Khôi phục tỷ lệ kế thừa" busy={busy}
       description={'Sales '+(confirmReset?.name??'')+' sẽ quay về chính sách của Quản lý phụ trách hoặc mặc định hệ thống. Lịch sử cũ vẫn được giữ.'}

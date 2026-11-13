@@ -16,11 +16,14 @@ export type CommissionManager={id:number;organizationId:number;name:string;email
 export type CommissionSales={userId:number;organizationId:number;managerUserId:number|null;name:string;email:string;code:string};
 
 export function BoardCommissionDialog({
-  initial,organizations,managers,sales,busy,error,lockTarget=false,onClose,onSave
+  initial,organizations,managers,sales,busy,error,lockTarget=false,
+  managerOnly=false,resolveManagerPolicy,onClose,onSave
 }:{
   initial:CommissionFormValues|null;
   organizations:CommissionOrganization[];managers:CommissionManager[];sales:CommissionSales[];
-  busy:boolean;error:string;lockTarget?:boolean;onClose:()=>void;onSave:(form:CommissionFormValues)=>void;
+  busy:boolean;error:string;lockTarget?:boolean;managerOnly?:boolean;
+  resolveManagerPolicy?:(organizationId:number,managerUserId:number)=>Pick<CommissionFormValues,'salesPercent'|'managerPercent'|'expectedVersionId'>;
+  onClose:()=>void;onSave:(form:CommissionFormValues)=>void;
 }){
   const [form,setForm]=useState<CommissionFormValues|null>(initial);
   const [localError,setLocalError]=useState('');
@@ -44,11 +47,11 @@ export function BoardCommissionDialog({
   const chosenSales=sales.find(s=>s.userId===form?.salesUserId&&s.organizationId===form?.organizationId);
   return <AppDialog open={initial!==null} busy={busy} onOpenChange={v=>{if(!v)onClose();}}
     title={form?.scope==='SYSTEM'?'Chỉnh sửa hoa hồng mặc định':form?.scope==='MANAGER'?'Điều chỉnh theo Quản lý':'Điều chỉnh hoa hồng Sales'}
-    description="Thay đổi được áp dụng ngay khi lưu thành công và tự động ghi nhật ký."
+    description={managerOnly?'Điều chỉnh nhanh tỷ lệ cho Sales trực thuộc Quản lý trong tổ chức được chọn.':'Thay đổi được áp dụng ngay khi lưu thành công và tự động ghi nhật ký.'}
     footer={<><AppButton tone="neutral" disabled={busy} onClick={onClose}>Hủy</AppButton>
       <AppButton busy={busy} onClick={submit}>Lưu &amp; áp dụng</AppButton></>}>
     {form&&<div className="space-y-4">
-      <div className="space-y-1.5">
+      {!managerOnly&&<div className="space-y-1.5">
         <label htmlFor="board-commission-scope" className="text-sm font-medium">Phạm vi áp dụng *</label>
         <AppNativeSelect id="board-commission-scope" containerClassName="w-full" value={form.scope}
           disabled={busy||lockTarget||form.expectedVersionId!==null}
@@ -57,13 +60,15 @@ export function BoardCommissionDialog({
           <option value="MANAGER">Theo Quản lý bán hàng</option>
           <option value="SALES">Riêng từng Sales / CTV</option>
         </AppNativeSelect>
-      </div>
+      </div>}
       {form.scope!=='SYSTEM'&&<>
         <div className="space-y-1.5">
           <label htmlFor="board-commission-org" className="text-sm font-medium">Tổ chức *</label>
           <AppNativeSelect id="board-commission-org" containerClassName="w-full" value={form.organizationId??0}
-            disabled={busy||lockTarget||form.expectedVersionId!==null}
-            onChange={e=>setForm(f=>f?{...f,organizationId:Number(e.target.value)||null,managerUserId:null,salesUserId:null}:f)}>
+            disabled={busy||(!managerOnly&&(lockTarget||form.expectedVersionId!==null))}
+            onChange={e=>setForm(f=>f?{...f,organizationId:Number(e.target.value)||null,managerUserId:null,salesUserId:null,
+              expectedVersionId:null,salesPercent:initial?.salesPercent??f.salesPercent,
+              managerPercent:initial?.managerPercent??f.managerPercent}:f)}>
             <option value={0}>Chọn tổ chức</option>
             {organizations.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
           </AppNativeSelect>
@@ -71,8 +76,18 @@ export function BoardCommissionDialog({
         <div className="space-y-1.5">
           <label htmlFor="board-commission-manager" className="text-sm font-medium">Quản lý phụ trách {form.scope==='MANAGER'?'*':''}</label>
           <AppNativeSelect id="board-commission-manager" containerClassName="w-full" value={form.managerUserId??0}
-            disabled={busy||!form.organizationId||lockTarget||form.expectedVersionId!==null}
-            onChange={e=>setForm(f=>f?{...f,managerUserId:Number(e.target.value)||null,salesUserId:null}:f)}>
+            disabled={busy||!form.organizationId||(!managerOnly&&(lockTarget||form.expectedVersionId!==null))}
+            onChange={e=>setForm(f=>{
+              if(!f)return f;
+              const selectedId=Number(e.target.value)||null;
+              if(managerOnly&&f.organizationId&&selectedId&&resolveManagerPolicy){
+                return {...f,managerUserId:selectedId,salesUserId:null,
+                  ...resolveManagerPolicy(f.organizationId,selectedId)};
+              }
+              return {...f,managerUserId:selectedId,salesUserId:null,
+                ...(managerOnly?{expectedVersionId:null,salesPercent:initial?.salesPercent??f.salesPercent,
+                  managerPercent:initial?.managerPercent??f.managerPercent}:{})};
+            })}>
             <option value={0}>{form.scope==='MANAGER'?'Chọn Quản lý':'Tất cả Quản lý'}</option>
             {managerOptions.map(m=><option key={m.organizationId+'-'+m.id} value={m.id}>{m.name} · {m.email}</option>)}
           </AppNativeSelect>
@@ -105,6 +120,9 @@ export function BoardCommissionDialog({
       <div className="rounded-xl border border-border/80 bg-muted/40 p-3 text-sm">
         Tổng tỷ lệ sau điều chỉnh: <strong className="tabular-nums">{Number(form.salesPercent)+Number(form.managerPercent)}%</strong>
       </div>
+      {managerOnly&&<p className="text-xs leading-5 text-muted-foreground">
+        Tỷ lệ áp dụng cho Sales đang kế thừa theo Quản lý. Sales có cấu hình riêng sẽ không bị ghi đè.
+      </p>}
       {(localError||error)&&<p role="alert" className="text-sm text-destructive">{localError||error}</p>}
     </div>}
   </AppDialog>;

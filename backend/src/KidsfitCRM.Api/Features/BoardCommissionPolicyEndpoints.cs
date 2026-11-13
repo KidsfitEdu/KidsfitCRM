@@ -45,7 +45,7 @@ public static class BoardCommissionPolicyEndpoints
     private static async Task<bool> HasDirectorAccess(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        return access.Has(Permissions.ChannelSalesPolicyManage) && access.All
+        return access.Has(Permissions.ChannelSalesPolicyManage)
             && await IsDirector(db, access.UserId, ct);
     }
 
@@ -89,10 +89,13 @@ public static class BoardCommissionPolicyEndpoints
                     db.Roles.Any(r => r.Id == ur.RoleId && r.Code == "SALES"))
             select new { m.OrganizationId, m.UserId, m.ManagerUserId, u.Name, u.Email, u.Code })
             .ToArrayAsync(ct);
-        var managers = await db.Users.AsNoTracking()
-            .Where(u => u.Status == "ACTIVE" && db.UserRoles.Any(ur =>
-                ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Code == "SALES_MANAGER")))
-            .Select(u => new { u.Id, u.Name, u.Email, u.Code }).ToArrayAsync(ct);
+        var managers = await (from m in db.OrganizationMemberships.AsNoTracking()
+            join u in db.Users.AsNoTracking() on m.UserId equals u.Id
+            where m.Status == "ACTIVE" && u.Status == "ACTIVE" &&
+                db.UserRoles.Any(ur => ur.UserId == u.Id &&
+                    db.Roles.Any(r => r.Id == ur.RoleId && r.Code == "SALES_MANAGER"))
+            select new { u.Id, m.OrganizationId, u.Name, u.Email, u.Code })
+            .ToArrayAsync(ct);
         var policies = await db.BoardCommissionPolicyVersions.AsNoTracking()
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).ToArrayAsync(ct);
         var current = personnel.Select(s =>

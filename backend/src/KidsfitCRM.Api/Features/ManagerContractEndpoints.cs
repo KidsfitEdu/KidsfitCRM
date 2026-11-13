@@ -546,17 +546,16 @@ public static class ManagerContractEndpoints
                 throw new ApiConflictException("Hợp đồng đã có khoản thu; cần Kế toán điều chỉnh trước khi sửa phí.");
             var items = await db.SalesContractItems.Where(x => x.ContractId == id).ToListAsync(ct);
             if (items.Count == 0) throw new ApiConflictException("Hợp đồng chưa có dòng chi phí.");
-            var packageId = items[0].ProductPackageId;
             db.SalesContractItems.RemoveRange(items);
             var qty = contract.ServicePlan == "MONTHLY_9" ? 9 : 1;
             db.SalesContractItems.Add(new SalesContractItem {
-                ContractId = id, ProductPackageId = packageId, Description = qty == 9
+                ContractId = id, Description = qty == 9
                     ? "Phí duy trì mỗi tháng (9 tháng)" : "Phí duy trì năm học (9 tháng)",
                 Quantity = qty, UnitPrice = maintenance, Amount = maintenance * qty,
                 CreatedAt = now, UpdatedAt = now
             });
             if (setup > 0) db.SalesContractItems.Add(new SalesContractItem {
-                ContractId = id, ProductPackageId = packageId, Description = "Phí khởi tạo (một lần)",
+                ContractId = id, Description = "Phí khởi tạo (một lần)",
                 Quantity = 1, UnitPrice = setup, Amount = setup, CreatedAt = now, UpdatedAt = now
             });
             var schedules = await db.RevenueSchedules.Where(x => x.ContractId == id).OrderBy(x => x.Id).ToListAsync(ct);

@@ -17,5 +17,5 @@ test('manager progress filters reset and preserve existing action panel',()=>{
   assert.match(source,/setStaffFilter\('ALL'\)/);
   assert.match(source,/setPage\(1\)/);
   assert.match(source,/setWorkLog/);
-  assert.match(source,/progressPage\.map/);
+  assert.match(source,/<ProgressTableRows rows=\{progressPage\}/);
 });

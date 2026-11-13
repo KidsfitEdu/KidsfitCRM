@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AlertTriangle, Building2, FileCheck2, RefreshCw, Wallet } from 'lucide-react';
-import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
@@ -84,7 +84,7 @@ export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-busy={report.isFetching}>
       {cards.map(card=><AppStatCard key={card.label} {...card}/>)}
     </div>
-    {report.isPending&&connected&&<p role="status" className="text-sm text-muted-foreground">Đang tải dữ liệu báo cáo…</p>}
+    {report.isPending&&connected&&<output className="block text-sm text-muted-foreground">Đang tải dữ liệu báo cáo…</output>}
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
       <section className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 xl:col-span-2">
         <div className="mb-4">
@@ -137,9 +137,7 @@ export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
                     {name}: {boardNumber(Number(value))} trường
                   </span>}/>} />
                 <Pie data={schoolMix} dataKey="value" nameKey="label"
-                  innerRadius={62} outerRadius={95} paddingAngle={2}>
-                  {schoolMix.map(item=><Cell key={item.key} fill={item.fill}/>)}
-                </Pie>
+                  innerRadius={62} outerRadius={95} paddingAngle={2}/>
               </PieChart>
             </ChartContainer>
           : <div className="flex h-[230px] items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted-foreground">

@@ -155,3 +155,19 @@ test('Board payout approvals have dedicated menu and route instead of hidden fin
   assert.match(board, /AppDrawer/);
   assert.match(board, /AppPagination/);
 });
+
+test('Board payout approval list stays compact without losing detail or filtering', () => {
+  const board = read('screens/Board/BoardPayoutsPage.tsx');
+  const list = board.split('<AdminListPanel>')[1]?.split('<AppDrawer')[0] ?? '';
+  const detail = board.split('<AppDrawer')[1] ?? '';
+  assert.doesNotMatch(board, /RefreshCw|Phiếu đang chờ duyệt|Tổng số tiền chờ duyệt/);
+  assert.doesNotMatch(list, /p\\.contract_code/);
+  assert.match(detail, /selected\\.contract_code/);
+  assert.match(list, /showSummary=\\{false\\}/);
+  assert.match(list, /pageSizeOptions=\\{\\[10,20,50,100\\]\\}/);
+  assert.match(list, /AdminListToolbar/);
+  assert.match(list, /onReset=/);
+  assert.match(list, /onSearch=/);
+  assert.match(board, /canDecide\\(selected\\)/);
+  assert.match(board, /ConfirmDialog/);
+});

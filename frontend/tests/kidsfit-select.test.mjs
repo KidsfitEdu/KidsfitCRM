@@ -33,14 +33,15 @@ test('Accounting filters and pagination share branded dropdown without changing 
   assert.match(accounting,/Lịch sử tài chính/);
 });
 
-test('CRM list filters keep the native control for form, time and validation use',()=>{
+test('CRM keeps native time/payment selectors while renewal school supports inline search',()=>{
   const picker=source('src/components/common/forms/app-date-time-picker.tsx');
   const personnel=source('src/screens/Admin/Personnel/PersonnelPage.tsx');
   const renewal=source('src/components/roles/ContractRenewalSalesPanel.tsx');
   assert.match(picker,/<AppNativeSelect id=\{fieldId \+ '-hour'\}/);
   assert.match(picker,/<AppNativeSelect id=\{fieldId \+ '-minute'\}/);
   assert.match(personnel,/<AppNativeSelect id="admin-new-org"/);
-  assert.match(renewal,/<AppNativeSelect id="kc02-contract"/);
+  assert.match(renewal,/<AppSearchCombobox id="kc02-contract"/);
+  assert.match(renewal,/<AppNativeSelect id="kc02-cycle"/);
   for(const path of ['src/screens/Admin/Proposals/ProposalsPage.tsx',
     'src/screens/Board/BoardDisputesPage.tsx',
     'src/screens/Checkee/Verification/VerificationPage.tsx',

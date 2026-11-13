@@ -73,7 +73,6 @@ const headings: Record<ManagerWorklistSection, { title: string; description: str
 };
 const reason: SchoolActionField = { name: 'reason', label: 'Lý do / căn cứ quyết định', type: 'textarea' };
 const nice = (date: string | null | undefined) => date ? workflowDate(date) : '—';
-const datePending = (date: string | null | undefined) => !!date && new Date(date).getTime() <= Date.now();
 const statusLabel = (code: string) => workflowLabels[code] ?? ({ AVAILABLE: 'Chưa đăng ký', APPROACHING: 'Đang tiếp cận', CONTRACTED: 'Đã ký hợp đồng' } as Record<string,string>)[code] ?? code;
 
 export function ManagerWorklists({ section, apiBase, token, abilities, onChanged }: ManagerPageProps & { section: ManagerWorklistSection }) {

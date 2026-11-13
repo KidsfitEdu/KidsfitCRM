@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   FileCheck2,
   FilePenLine,
+  UploadCloud,
   Handshake,
   Landmark,
   Phone,
@@ -38,7 +39,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { channelDate, channelRequest } from '@/lib/channel-operations';
-import { paymentCycleForPlan } from '@/lib/contract-payment-plan';
+import { paymentCycleForPlan, getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { validateContract, type ContractErrors, type ContractField } from '@/lib/contract-validation';
 import type {
   ChannelCustomer,
@@ -1187,16 +1188,16 @@ function ContractDialog({
       });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Không thể báo cáo hợp đồng.';
-      appNotice.error('Không thể gửi hợp đồng xác minh.', message);
+      appNotice.error('Không thể gửi hợp đồng đến Quản lý.', message);
     } finally { setSaving(false); }
   };
 
   return <SalesFormDialog title="Báo cáo hợp đồng"
-    subtitle="Nhập chi phí theo hợp đồng đã ký. CHECKEE sẽ xác minh hồ sơ và giá trị thực tế."
+    subtitle="Gửi hồ sơ hợp đồng đã ký đến Quản lý bán hàng duyệt trước khi chuyển CHECKEE xác minh."
     onClose={onClose}>
     <form onSubmit={submit} noValidate>
       <CustomerHighlight customer={customer}/>
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 [&_input:not([type=radio]):not([type=checkbox]):not([type=file])]:h-11 [&_input:not([type=radio]):not([type=checkbox]):not([type=file])]:rounded-xl [&_input:not([type=radio]):not([type=checkbox]):not([type=file])]:px-3 [&_legend]:leading-5">
         <Field label="Ngày ký hợp đồng *">
           <Input name="signed_on" type="date" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e=>{setSignedOn(e.target.value);clearError("signed_on");}}/>
           {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
@@ -1227,17 +1228,16 @@ function ContractDialog({
         </fieldset>
         <fieldset className="space-y-2">
           <legend className="text-sm font-semibold">Gói dịch vụ & hình thức thanh toán *</legend>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="service_plan_choice" value="SCHOOL_YEAR"
-              checked={plan==='SCHOOL_YEAR'} onChange={()=>{setPlan('SCHOOL_YEAR');clearError('service_plan');}}/>
-            Gói năm học (9 tháng, tặng 3 tháng hè)
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="service_plan_choice" value="MONTHLY_9"
-              checked={plan==='MONTHLY_9'} onChange={()=>{setPlan('MONTHLY_9');clearError('service_plan');}}/>
-            Gói hàng tháng (9 tháng)
-          </label>
-          {errors.service_plan && <p role="alert" className="text-xs text-red-700">{errors.service_plan}</p>}
+          <div className="grid grid-cols-2 gap-2">
+            {(['SCHOOL_YEAR','MONTHLY_9'] as const).map(option=><label key={option}
+              className={`flex min-h-[52px] cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring ${plan===option?'border-primary bg-primary/5':'border-border bg-card hover:bg-muted/40'}`}>
+              <input type="radio" name="service_plan_choice" value={option}
+                checked={plan===option} onChange={()=>{setPlan(option);clearError('service_plan');}}
+                className="size-4 shrink-0 accent-[#1b5e20]"/>
+              <span className="min-w-0 font-medium">{getServicePlanLabel(option)}</span>
+            </label>)}
+          </div>
+          {errors.service_plan && <p role="alert" className="text-xs text-destructive">{errors.service_plan}</p>}
         </fieldset>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Quy mô học sinh *">
@@ -1298,6 +1298,18 @@ function ContractDialog({
           </div>
           {errors.total_value && <p role="alert" className="text-xs text-red-700">{errors.total_value}</p>}
         </div>
+        <div className="space-y-2">
+          <label className="relative flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/10 px-3 py-4 text-center transition-colors hover:border-primary/70 hover:bg-primary/5 focus-within:ring-2 focus-within:ring-ring">
+            <UploadCloud className="size-5 text-muted-foreground" aria-hidden="true"/>
+            <span className="max-w-full break-all text-sm font-semibold">{file ? file.name : 'Tải hợp đồng đã ký *'}</span>
+            <span className="text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB</span>
+            <Input name="contract_file" data-field="contract_file" aria-label="Tải hợp đồng đã ký" aria-invalid={!!errors.contract_file}
+              type="file" className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              accept=".pdf,image/jpeg,image/png,image/webp"
+              onChange={e=>{setFile(e.target.files?.[0] ?? null);clearError('contract_file');}}/>
+          </label>
+          {errors.contract_file && <p role="alert" className="text-xs text-destructive">{errors.contract_file}</p>}
+        </div>
         <Field label="Ghi chú hợp đồng (không bắt buộc)">
           <textarea name="contract_note" data-field="contract_note" aria-label="Ghi chú hợp đồng"
             aria-invalid={!!errors.contract_note} value={note} onChange={e=>{setNote(e.target.value);clearError("contract_note");}}
@@ -1305,16 +1317,8 @@ function ContractDialog({
             placeholder="Nhập thông tin cần xác minh thêm (nếu có)..."/>
           {errors.contract_note && <p role="alert" className="text-xs text-red-700">{errors.contract_note}</p>}
         </Field>
-        <div>
-          <Field label="File hợp đồng đã ký *">
-            <Input name="contract_file" data-field="contract_file" aria-invalid={!!errors.contract_file} type="file"
-              accept=".pdf,image/jpeg,image/png,image/webp" onChange={e=>{setFile(e.target.files?.[0] ?? null);clearError("contract_file");}}/>
-            {errors.contract_file && <p role="alert" className="text-xs text-red-700">{errors.contract_file}</p>}
-          </Field>
-          <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
-        </div>
       </div>
-      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi hợp đồng xác minh"/>
+      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi Quản lý duyệt"/>
     </form>
   </SalesFormDialog>;
 }

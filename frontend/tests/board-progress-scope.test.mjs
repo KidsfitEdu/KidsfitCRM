@@ -16,7 +16,7 @@ test('Board progress is accessible from Board navigation and same View routing',
   assert.match(navigation,/role-board-progress/);
   assert.match(navigation,/Theo dõi tiến độ/);
   assert.match(sections,/progress: \{label:"Theo dõi tiến độ"/);
-  assert.match(workspace,/progress: BoardProgressPage/);
+  assert.match(workspace,/progress: ProgressPage/);
 });
 test('Board and managers share one progress table and one journal drawer',()=>{
   assert.match(manager,/<ProgressTableHeading\/>/);

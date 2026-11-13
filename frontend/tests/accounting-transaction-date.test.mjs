@@ -32,10 +32,10 @@ test('Payout is independent of contract signed date but not allowed in future', 
 });
 
 test('Accounting page adds field error only when validation returns a message', () => {
-  assert.match(source, /const dateError = validateTransactionDay\(date, today, signedOn, entryMode\)/);
-  assert.match(source, /if \(dateError\) validation\.transaction_date = dateError/);
+  assert.match(source, /const dateError=validateTransactionDay\(date,today,signedOn\?\?today,entryMode\)/);
+  assert.match(source, /if\(dateError\)validation\.transaction_date=dateError/);
   assert.match(source, /const today = accountingBusinessDay\(new Date\(\)\)/);
-  assert.match(source, /const timestamp = accountingTransactionTimestamp\(date\)/);
+  assert.match(source, /timestamp:accountingTransactionTimestamp\(date\)/);
 });
 
 test('Today at 09:36 Vietnam time uses actual time rather than future 12:00', () => {

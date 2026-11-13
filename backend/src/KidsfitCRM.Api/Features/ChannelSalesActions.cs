@@ -495,6 +495,10 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             }
             await EnsureOrganizationScope(contract.OwnerOrganizationId, actorId, cancellationToken);
             if (contract.Status != "ACTIVE") throw new ApiConflictException("Chỉ có thể ghi nhận thu cho hợp đồng đang hoạt động.");
+            // Check early so the client receives a field-level validation error.
+            // The unique database index remains the final guard for concurrent contracts.
+            if (await db.RevenueReceipts.AsNoTracking().AnyAsync(x => x.ReferenceCode == referenceCode, cancellationToken))
+                throw ApiValidationException.For("reference_code", "Mã giao dịch ngân hàng đã được ghi nhận cho khoản thu khác. Vui lòng kiểm tra mã trên chứng từ.");
             if (contract.OwnerPersonnelType is null)
             {
                 // Legacy contracts acquire a group snapshot at their first subsequent receipt.
@@ -597,7 +601,10 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             db.ChangeTracker.Clear();
             var replay = await db.RevenueReceipts.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
             if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.RecordedByUserId, actorId, replay.RequestFingerprint, hash);
-            throw new ApiConflictException("Mã phiếu thu hoặc yêu cầu này đã được ghi nhận.");
+            // Concurrent requests for different contracts can race through the earlier check.
+            if (await db.RevenueReceipts.AsNoTracking().AnyAsync(x => x.ReferenceCode == referenceCode, cancellationToken))
+                throw ApiValidationException.For("reference_code", "Mã giao dịch ngân hàng đã được ghi nhận cho khoản thu khác. Vui lòng kiểm tra mã trên chứng từ.");
+            throw new ApiConflictException("Không thể ghi nhận khoản thu do xung đột dữ liệu. Vui lòng tải lại hợp đồng và thử lại.");
         }
     }
 

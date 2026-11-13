@@ -14,7 +14,7 @@ test('Accounting shows server and operation failures using the shared notice, no
   assert.match(ui, /appNotice\.error\('Không thể lưu giao dịch\.'/);
   assert.match(ui, /appNotice\.error\('Không tạo được phiếu chi\.'/);
   assert.match(ui, /appNotice\.error\('Không duyệt được phiếu chi\.'/);
-  assert.match(ui, /appNotice\.success\(entryMode === 'receipt' \? 'Đã ghi nhận khoản thu\.'/);
+  assert.match(ui, /appNotice\.success\(entryMode==='receipt'\?'Đã ghi nhận khoản thu\.'/);
   assert.doesNotMatch(ui, /actionError|setActionError|\{error && <p role="alert"/);
 });
 
@@ -27,9 +27,9 @@ test('Accounting transaction validation stays beside the corresponding form fiel
   assert.match(ui, /fieldErrors\.reference_code/);
   assert.match(ui, /fieldErrors\.schedule_id/);
   assert.match(ui, /fieldErrors\.payout_id/);
-  assert.match(ui, /cause instanceof ChannelRequestError && cause\.status === 422/);
+  assert.match(ui, /cause instanceof ChannelRequestError && cause\.status===422/);
   const validator = read('src/lib/accounting-transaction-date.ts');
-  assert.match(ui, /validateTransactionDay\(date, today, signedOn, entryMode\)/);
+  assert.match(ui, /validateTransactionDay\(date,today,signedOn\?\?today,entryMode\)/);
   assert.match(validator, /date < signedOn/);
   assert.match(ui, /aria-invalid=\{Boolean\(fieldErrors\.transaction_date\)\}/);
 });
@@ -39,7 +39,7 @@ test('Accounting form suppresses browser validation and reports empty input erro
   assert.match(ui, /<form noValidate className="space-y-4"/);
   assert.match(ui, /if \(!reference\) validation\.reference_code = 'Vui lòng nhập mã giao dịch ngân hàng\.'/);
   const validator = read('src/lib/accounting-transaction-date.ts');
-  assert.match(ui, /validateTransactionDay\(date, today, signedOn, entryMode\)/);
+  assert.match(ui, /validateTransactionDay\(date,today,signedOn\?\?today,entryMode\)/);
   assert.match(validator, /if \(!date\) return 'Vui lòng chọn ngày giao dịch\.'/);
   assert.match(ui, /if \(!Number\.isSafeInteger\(amount\) \|\| amount <= 0\) validation\.amount/);
   assert.match(ui, /if \(!\(proof instanceof File\) \|\| proof\.size === 0\) validation\.proof/);

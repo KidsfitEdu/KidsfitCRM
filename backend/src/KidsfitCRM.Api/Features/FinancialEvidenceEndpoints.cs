@@ -78,6 +78,40 @@ public static class FinancialEvidenceEndpoints
             new { data = new { id = proof.Id, kind = proof.Kind, file_name = proof.FileName } });
     }
 
+
+    /// <summary>
+    /// Discard only an unassigned temporary RECEIPT/PAYOUT upload made by this actor.
+    /// Never delete an attachment already linked to an audited financial record.
+    /// </summary>
+    public static async Task<IResult> DiscardUnattached(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var actorId = http.UserId();
+        var proof = await db.FinancialEvidences.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == id && x.UploadedByUserId == actorId, ct)
+            ?? throw new KeyNotFoundException();
+        var access = await ChannelSalesAccess.Load(db, actorId, ct);
+        var allowed = proof.Kind switch
+        {
+            "RECEIPT" when proof.ContractId.HasValue =>
+                access.Has(Permissions.ChannelSalesRecordRevenue)
+                && await access.Contracts(db).AnyAsync(x => x.Id == proof.ContractId.Value, ct),
+            "PAYOUT" when proof.PayoutId.HasValue =>
+                access.Has(Permissions.ChannelSalesPayoutComplete)
+                && await access.Payouts(db).AnyAsync(x => x.Id == proof.PayoutId.Value, ct),
+            _ => false,
+        };
+        if (!allowed) throw new KeyNotFoundException();
+        // ExecuteDelete enforces the unattached predicate atomically. A concurrent
+        // receipt/paid-payout transaction that attached the file wins the race.
+        var removed = await db.FinancialEvidences
+            .Where(x => x.Id == id && x.UploadedByUserId == actorId
+                && x.AttachedAt == null && x.RevenueReceiptId == null)
+            .ExecuteDeleteAsync(ct);
+        if (removed != 1)
+            throw new ApiConflictException("Chứng từ đã được gắn với giao dịch, không thể xóa.");
+        return Results.NoContent();
+    }
+
     public static async Task<IResult> Download(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);

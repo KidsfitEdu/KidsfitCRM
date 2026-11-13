@@ -204,13 +204,20 @@ public static class AccountingContractEndpoints
                 id = x.Id, code = x.Code, net_amount = x.NetAmount, status = x.Status,
                 paid_at = x.PaidAt, payment_reference = x.PaymentReference
             }).ToArrayAsync(ct);
-        var evidence = await db.FinancialEvidences.AsNoTracking().Where(x => x.ContractId == id && x.AttachedAt != null)
+        // Payout proofs are attached to a payout, not directly to a contract.
+        // Return only payout proofs reachable through the current scoped ledger.
+        var evidence = await db.FinancialEvidences.AsNoTracking()
+            .Where(x => x.AttachedAt != null &&
+                (x.ContractId == id || (x.PayoutId.HasValue && payoutIds.Contains(x.PayoutId.Value))))
             .Select(x => new { id = x.Id, kind = x.Kind, file_name = x.FileName,
                 revenue_receipt_id = x.RevenueReceiptId, payout_id = x.PayoutId }).ToArrayAsync(ct);
         var selectedUnitIds = System.Text.Json.JsonSerializer.Deserialize<long[]>(contract.school_unit_ids_json ?? "[]") ?? [];
         var schoolUnits = await db.SchoolUnits.AsNoTracking().Where(x => selectedUnitIds.Contains(x.Id))
             .Select(x => new { id = x.Id, name = x.Name }).ToArrayAsync(ct);
-        return Results.Ok(new { data = contract, schedules, receipts, ledger, payouts, evidence, school_units = schoolUnits,
+        var refundedTotal = await db.RevenueRefunds.AsNoTracking()
+            .Where(x => x.ContractId == id).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
+        return Results.Ok(new { data = contract, schedules, receipts, refunded_total = refundedTotal,
+            ledger, payouts, evidence, school_units = schoolUnits,
             timeline.current_period, timeline.next_confirmed_period, timeline.latest_confirmed_period,
             timeline.previous_period, timeline.period_history });
     }

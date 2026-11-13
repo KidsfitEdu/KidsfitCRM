@@ -474,6 +474,27 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         await Assert.ThrowsAsync<KeyNotFoundException>(() => new ChannelSalesActions(db).AddActivity(id, new("NOTE", "Đã bị ngưng", null), owner, Http(), Ct));
     }
 
+
+    [MySqlFact]
+    public async Task Duplicate_bank_reference_reports_field_error_without_double_recording_money()
+    {
+        var seller = await Seller();
+        var (_, contractId) = await Contract(seller);
+        var accountant = await UserId("accountant@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var reference = "RC-" + Key();
+        var first = new RecordRevenueReceiptRequest(Key(), null, 100_000m, DateTime.UtcNow, reference, "BANK_TRANSFER");
+        await actions.RecordRevenueReceipt(contractId, first, accountant, Http(), Ct);
+        var rejected = await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.RecordRevenueReceipt(contractId, first with { IdempotencyKey = Key() }, accountant, Http(), Ct));
+        Assert.Contains("reference_code", rejected.Errors.Keys);
+        db.ChangeTracker.Clear();
+        Assert.Equal(1, await db.RevenueReceipts.CountAsync(x => x.ReferenceCode == reference));
+        Assert.Equal(100_000m, await db.RevenueSchedules.Where(x => x.ContractId == contractId)
+            .Select(x => x.AmountReceived).SingleAsync());
+    }
+
     [MySqlFact]
     public async Task Receipt_failure_rolls_back_money_and_schedule_then_success_replays_once()
     {

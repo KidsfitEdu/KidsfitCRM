@@ -41,7 +41,7 @@ const payoutStatusLabel = (status: string) => ({
 
 // Presentation only: preserve the YYYY-MM period used by payout API and accounting ledger.
 const payoutPeriodLabel = (period: string) => {
-  const match = /^(\\d{4})-(\\d{2})$/.exec(period);
+  const match = /^(\d{4})-(\d{2})$/.exec(period);
   return match ? `Tháng ${match[2]}/${match[1]}` : period;
 };
 

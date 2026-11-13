@@ -15,9 +15,15 @@ public static class CustomerWorkLogEndpoints
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var activeOrgIds = access.OrganizationIds;
+        var managerOnly = !access.All && access.Has(Permissions.ChannelSalesTeamManage);
         var canRead = access.All || await db.ApproachRegistrations.AnyAsync(r =>
             r.CustomerId == id && activeOrgIds.Contains(r.OwnerOrganizationId) &&
-            (access.Organization || r.OwnerUserId == access.UserId), ct);
+            (managerOnly
+                ? db.OrganizationMemberships.Any(m =>
+                    m.UserId == r.OwnerUserId && m.OrganizationId == r.OwnerOrganizationId
+                    && m.ManagerUserId == access.UserId
+                    && (m.Status == "ACTIVE" || m.Status == "SUSPENDED"))
+                : access.Organization || r.OwnerUserId == access.UserId), ct);
         if (!canRead)
             throw new KeyNotFoundException();
 
@@ -31,7 +37,11 @@ public static class CustomerWorkLogEndpoints
             // Never leak notes created under another partner's school approach.
             query = query.Where(a => a.ApproachRegistrationId.HasValue &&
                 db.ApproachRegistrations.Any(r =>
-                    r.Id == a.ApproachRegistrationId && activeOrgIds.Contains(r.OwnerOrganizationId)));
+                    r.Id == a.ApproachRegistrationId && activeOrgIds.Contains(r.OwnerOrganizationId)
+                    && (!managerOnly || db.OrganizationMemberships.Any(m =>
+                        m.UserId == r.OwnerUserId && m.OrganizationId == r.OwnerOrganizationId
+                        && m.ManagerUserId == access.UserId
+                        && (m.Status == "ACTIVE" || m.Status == "SUSPENDED")))));
         }
 
         var normalizedType = type?.Trim().ToUpperInvariant();
@@ -55,7 +65,12 @@ public static class CustomerWorkLogEndpoints
         assignmentPage = Math.Clamp(assignmentPage, 1, 100_000);
         var assignmentQuery = (from registration in db.ApproachRegistrations.AsNoTracking()
             join user in db.Users.AsNoTracking() on registration.OwnerUserId equals user.Id
-            where registration.CustomerId == id && (access.All || activeOrgIds.Contains(registration.OwnerOrganizationId))
+            where registration.CustomerId == id &&
+                (access.All || (activeOrgIds.Contains(registration.OwnerOrganizationId)
+                && (!managerOnly || db.OrganizationMemberships.Any(m =>
+                    m.UserId == registration.OwnerUserId && m.OrganizationId == registration.OwnerOrganizationId
+                    && m.ManagerUserId == access.UserId
+                    && (m.Status == "ACTIVE" || m.Status == "SUSPENDED")))))
             select new { registration.Id, registration.RegisteredAt, registration.ProtectedUntil,
                 registration.Status, user_name = user.Name });
         var assignmentTotal = await assignmentQuery.CountAsync(ct);

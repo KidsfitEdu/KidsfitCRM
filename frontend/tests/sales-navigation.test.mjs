@@ -165,7 +165,7 @@ test('Income simplification and Sales page-size selection stay consistent', () =
   const shared = read('src/components/common/sales-list.tsx');
   assert.doesNotMatch(income, /Kỳ hoa hồng|Lịch sử phiếu chi của tôi|Chưa nhận có thể gồm/);
   assert.match(income, /Tổng hoa hồng/);
-  assert.match(income, /CHI TIẾT HOA HỒNG/);
+  assert.match(income, /Chi tiết hoa hồng/);
   assert.doesNotMatch(focus, /Đề xuất mới chỉ được thêm vào danh bạ/);
   assert.match(operations, /const pageSize = embeddedSalesTable \? salesPageSize/);
   assert.match(operations, /setTab\(initialTab\)/);

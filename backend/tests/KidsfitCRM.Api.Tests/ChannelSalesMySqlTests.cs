@@ -593,6 +593,39 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Historical_receipt_requires_explicit_confirmation_and_never_backfills_twice()
+    {
+        var seller = await Seller();
+        var accountant = await UserId("accountant@kidsfit.vn");
+        var (_, contractId) = await Contract(seller);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var receipt = await actions.RecordRevenueReceipt(contractId,
+            new(Key(), null, 400_000m, DateTime.UtcNow, "RC-" + Key(), "BANK_TRANSFER"),
+            accountant, Http(), Ct);
+        // Simulate a receipt recorded before the BGĐ policy integration.
+        var legacy = await db.CommissionLedgerEntries
+            .Where(x => x.RevenueReceiptId == receipt).ExecuteDeleteAsync(Ct);
+        Assert.True(legacy >= 1);
+        db.ChangeTracker.Clear();
+        var preview = await actions.PreviewReceiptCommissionBackfill(receipt, accountant, Ct);
+        Assert.IsAssignableFrom<Microsoft.AspNetCore.Http.IValueHttpResult>(preview);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.BackfillReceiptCommission(receipt,
+                new(false, "Kiểm tra thu cũ"), accountant, Http(), Ct));
+        await actions.BackfillReceiptCommission(receipt,
+            new(true, "Đã đối chiếu chứng từ và lịch sử khoản thu", false), accountant, Http(), Ct);
+        Assert.Equal(1, await db.CommissionLedgerEntries.CountAsync(x =>
+            x.RevenueReceiptId == receipt && x.BeneficiaryRole == "SALES"));
+        Assert.False(await db.CommissionLedgerEntries.AnyAsync(x =>
+            x.RevenueReceiptId == receipt && x.BeneficiaryRole == "MANAGER"));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.BackfillReceiptCommission(receipt,
+                new(true, "Gửi lại yêu cầu", false), accountant, Http(), Ct));
+        Assert.Single(await db.CommissionLedgerEntries.Where(x => x.RevenueReceiptId == receipt).ToArrayAsync());
+    }
+
+    [MySqlFact]
     public async Task Concurrent_receipts_cannot_overcollect_contract_balance()
     {
         var seller = await Seller();

@@ -96,6 +96,9 @@ public sealed partial class ChannelSalesActions
             throw new ApiConflictException("Khoản thu đã có bút toán hoa hồng; không tự tính lại hoặc bổ sung chồng lấn. Cần rà soát lịch sử.");
         if (assessment.EligibleCash <= 0)
             throw new ApiConflictException("Khoản thu không còn số tiền thực thu đủ điều kiện tính hoa hồng.");
+        if (assessment.SalesRate <= 0 && !(assessment.ManagerRate > 0
+            && assessment.ManagerValid && request.ManagerVerified))
+            throw new ApiConflictException("Chưa có người hưởng và tỷ lệ dương đã được xác minh để tạo bút toán.");
         var now = DateTime.UtcNow;
         if (assessment.SalesRate > 0)
             db.CommissionLedgerEntries.Add(NewCommissionAccrual(

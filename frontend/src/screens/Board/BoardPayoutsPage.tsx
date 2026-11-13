@@ -25,6 +25,7 @@ type Payout = {
   withholding_amount:number; withholding_reason:string|null; net_amount:number;
   approved_at:string|null; paid_at:string|null; payment_reference:string|null;
   school_name:string|null; contract_code:string|null;
+  contract_count:number; contract_total_value:number|null;
   events:{event_type:string;reason:string|null;created_at:string}[];
 };
 type ApprovalQueue = {
@@ -169,7 +170,17 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
     <AppDrawer wide open={selected!==null} onOpenChange={open=>{if(!open&&!busy)setSelectedId(null);}}
-      busy={busy} title={selected?'Chi tiết '+selected.code:'Chi tiết phiếu chi'}>
+      busy={busy} title={selected?'Chi tiết '+selected.code:'Chi tiết phiếu chi'}
+      footer={<div className="flex w-full flex-wrap items-center justify-end gap-2">
+        <AppButton type="button" tone="neutral" disabled={busy} onClick={()=>setSelectedId(null)}>Đóng</AppButton>
+        {selected&&canDecide(selected)&&<>
+          <AppButton type="button" tone="outline" disabled={busy}
+            onClick={()=>{setReturnId(selected.id);setReason('');}}>Yêu cầu bổ sung</AppButton>
+          <AppButton type="button" tone="green"
+            disabled={busy||(difference(selected)&&!selected.adjustment_reason?.trim())}
+            onClick={()=>setConfirmId(selected.id)}>Phê duyệt phiếu chi</AppButton>
+        </>}
+      </div>}>
       {selected&&<div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <AdminStatusBadge status={selected.status} label={statusLabels[selected.status]??selected.status}/>
@@ -179,7 +190,7 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
           <h3 className="mb-3 font-semibold">Thông tin phiếu chi</h3>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             {[
-              ['Trường học',selected.school_name??'—'],['Hợp đồng',selected.contract_code??'—'],
+              ['Trường học',selected.school_name??'—'],['Hợp đồng',selected.contract_count>1?`${selected.contract_count} hợp đồng`:selected.contract_code??'—'],
               ['Tổ chức',selected.organization_name],['Người hưởng',selected.beneficiary_name],
               ['Vai trò',selected.beneficiary_role==='MANAGER'?'Quản lý':'Sales'],
               ['Kế toán lập phiếu',selected.creator_name],
@@ -190,19 +201,25 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
           </dl>
         </section>
         <section className="rounded-xl border p-4">
-          <h3 className="mb-3 font-semibold">Đối chiếu hoa hồng</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">Hệ thống đề xuất</p>
-              <p className="mt-1 text-lg font-bold tabular-nums">{channelMoney(selected.suggested_amount)}</p>
-              <p className="text-sm text-muted-foreground">{selected.suggested_rate_percent}%</p>
+          <h3 className="mb-3 font-semibold">Chi tiết khoản chi hoa hồng</h3>
+          <dl className="space-y-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <dt className="text-muted-foreground">
+                {selected.contract_count>1?`Tổng giá trị ${selected.contract_count} hợp đồng`:'Tổng giá trị hợp đồng'}
+              </dt>
+              <dd className="font-semibold tabular-nums">
+                {selected.contract_total_value==null?'Chưa có dữ liệu':channelMoney(selected.contract_total_value)}
+              </dd>
             </div>
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <p className="text-xs text-muted-foreground">Kế toán đề nghị</p>
-              <p className="mt-1 text-lg font-bold tabular-nums">{channelMoney(selected.requested_amount)}</p>
-              <p className="text-sm text-muted-foreground">{selected.requested_rate_percent}%</p>
+            <div className="flex items-center justify-between gap-2">
+              <dt className="text-muted-foreground">Tỷ lệ hoa hồng Kế toán đề nghị</dt>
+              <dd className="font-semibold tabular-nums">{selected.requested_rate_percent}%</dd>
             </div>
-          </div>
+            <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+              <dt className="font-medium">Tổng tiền hoa hồng</dt>
+              <dd className="text-lg font-bold tabular-nums">{channelMoney(selected.requested_amount)}</dd>
+            </div>
+          </dl>
           {difference(selected)&&<div className="mt-3 rounded-lg border border-amber-300/60 bg-amber-50/50 p-3 dark:bg-amber-950/20">
             <p className="text-xs font-medium">Lý do điều chỉnh *</p>
             <p className="mt-1 text-sm whitespace-pre-wrap">{selected.adjustment_reason||'Chưa được cung cấp — không nên duyệt.'}</p>
@@ -210,7 +227,7 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
           <dl className="mt-3 flex flex-col gap-2 text-sm">
             <div className="flex justify-between gap-2"><dt>Khấu trừ</dt><dd className="font-medium tabular-nums">{channelMoney(selected.withholding_amount)}</dd></div>
             {selected.withholding_reason&&<p className="text-xs text-muted-foreground">Lý do khấu trừ: {selected.withholding_reason}</p>}
-            <div className="flex justify-between gap-2 border-t pt-3"><dt className="font-semibold">Tổng thực chi</dt><dd className="text-lg font-bold tabular-nums">{channelMoney(selected.net_amount)}</dd></div>
+            <div className="flex justify-between gap-2 border-t pt-3"><dt className="font-semibold">Tổng số tiền được nhận</dt><dd className="text-lg font-bold tabular-nums">{channelMoney(selected.net_amount)}</dd></div>
           </dl>
         </section>
         <section className="rounded-xl border p-4">
@@ -223,13 +240,6 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
             </div>)}</div>
             :<p className="text-sm text-muted-foreground">Chưa có lịch sử.</p>}
         </section>
-        {canDecide(selected)&&<div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <AppButton tone="outline" disabled={busy} onClick={()=>{setReturnId(selected.id);setReason('');}}>
-            Yêu cầu bổ sung
-          </AppButton>
-          <AppButton tone="green" disabled={busy||difference(selected)&&!selected.adjustment_reason?.trim()}
-            onClick={()=>setConfirmId(selected.id)}>Phê duyệt phiếu chi</AppButton>
-        </div>}
         {selected.status==='APPROVED'&&<p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
           Đã phê duyệt. Kế toán thực hiện chuyển khoản và tải chứng từ thanh toán.
         </p>}

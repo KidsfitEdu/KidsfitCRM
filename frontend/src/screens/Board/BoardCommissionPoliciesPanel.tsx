@@ -49,6 +49,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
   const [detail,setDetail]=useState<SalesRow|null>(null);
   const [confirmReset,setConfirmReset]=useState<SalesRow|null>(null);
   const [managerListOpen,setManagerListOpen]=useState(false);
+  const [defaultHistoryOpen,setDefaultHistoryOpen]=useState(false);
   const [managerReset,setManagerReset]=useState<PolicyVersion|null>(null);
   const [org,setOrg]=useState('ALL');
   const [manager,setManager]=useState('ALL');
@@ -157,7 +158,10 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
           <div><h3 className="text-lg font-semibold">Mặc định hệ thống</h3>
             <p className="text-sm text-muted-foreground">Áp dụng cho Sales chưa có cấu hình riêng hoặc theo Quản lý.</p></div>
         </div>
-        <AdminIconAction icon={Pencil} tone="green" label="Chỉnh sửa hoa hồng mặc định" onClick={startDefault}/>
+        <div className="flex shrink-0 items-center gap-2">
+          <AdminIconAction icon={Eye} label="Xem lịch sử hoa hồng mặc định" onClick={()=>setDefaultHistoryOpen(true)}/>
+          <AdminIconAction icon={Pencil} tone="green" label="Chỉnh sửa hoa hồng mặc định" onClick={startDefault}/>
+        </div>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {([{label:'Sales hưởng',value:defaults.salesPercent},{label:'Quản lý hưởng',value:defaults.managerPercent},
@@ -238,6 +242,18 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} disabled={loading}/>
     </AdminListPanel>
 
+    <AppDrawer open={defaultHistoryOpen} onOpenChange={setDefaultHistoryOpen}
+      title="Lịch sử hoa hồng mặc định" description="Các phiên bản trước/sau của chính sách toàn hệ thống">
+      <div className="space-y-3">
+        {history.filter(h=>h.scope==='SYSTEM').map(h=><div key={h.id} className="rounded-xl border border-border p-4 text-sm">
+          <p className="font-semibold">Sales {h.salesPercent}% · Quản lý {h.managerPercent}%</p>
+          <p className="mt-1 text-xs text-muted-foreground">{formatTime(h.createdAt)} · BGĐ (ID): {h.createdByUserId}</p>
+        </div>)}
+        {!history.some(h=>h.scope==='SYSTEM')&&<p className="text-sm text-muted-foreground">
+          Chưa có thay đổi riêng. Đang sử dụng mức mặc định ban đầu 25% + 5%.
+        </p>}
+      </div>
+    </AppDrawer>
     <AppDrawer open={managerListOpen} onOpenChange={setManagerListOpen}
       title="Cấu hình theo Quản lý" description="BGĐ quản lý ngoại lệ cho đội Sales trực thuộc"
       footer={<><AppButton tone="neutral" onClick={()=>setManagerListOpen(false)}>Đóng</AppButton>

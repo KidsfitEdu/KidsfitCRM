@@ -580,7 +580,7 @@ export function SchoolOperations({
       )}
       {embeddedSalesTable && active === 'invitations' && <SalesInvitationList
         invitations={data.invitations} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isPending} preview={false} pendingOnly={pendingOnly}
+        loading={workspace.isPending} pendingOnly={pendingOnly}
         onPageChange={setPage}
         onPageSizeChange={size => { setSalesPageSize(size); setPage(1); }}
         onSearch={term => {setSearch(term);setPage(1);}}

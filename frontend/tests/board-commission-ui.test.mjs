@@ -38,3 +38,24 @@ test('financial ledger and manager-write screens stay independent',()=>{
   assert.doesNotMatch(page,/commission-ledger|payouts|\/commission-config\/manager/);
   assert.doesNotMatch(form,/commission-ledger|payouts/);
 });
+
+test('commission API response is mapped from snake_case before rendering totals and filters',()=>{
+  for(const field of ['sales_percent','manager_percent','total_percent','organization_id',
+    'user_id','manager_user_id','manager_name','manager_email','has_own_override',
+    'own_version_id','version_id','created_at','created_by_user_id']){
+    assert.ok(page.includes(field),field);
+  }
+  assert.match(page,/mapWorkspace\(await channelRequest<ApiWorkspace>/);
+  assert.match(page,/requireRate\(raw\.defaults\.sales_percent/);
+  assert.match(page,/requireRate\(raw\.defaults\.manager_percent/);
+  assert.match(page,/requireRate\(s\.total_percent/);
+});
+
+test('save and reset use the backend snake_case contract',()=>{
+  assert.match(page,/sales_percent:Number\(v\.salesPercent\)/);
+  assert.match(page,/manager_percent:Number\(v\.managerPercent\)/);
+  assert.match(page,/expected_version_id:previous\?\.id\?\?null/);
+  assert.match(page,/expected_version_id:confirmReset\.ownVersionId/);
+  assert.match(page,/expected_version_id:managerReset\.id/);
+  assert.doesNotMatch(page,/JSON\.stringify\(\{expectedVersionId:/);
+});

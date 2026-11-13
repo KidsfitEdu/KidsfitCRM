@@ -29,6 +29,59 @@ type Workspace={
   organizations:CommissionOrganization[];managers:CommissionManager[];
   data:SalesRow[];history:PolicyVersion[];
 };
+// The ASP.NET API uses JsonNamingPolicy.SnakeCaseLower; keep its wire DTO
+// separate from the camelCase values used by this screen.
+type ApiPolicyVersion = {
+  id:number; scope:'SYSTEM'|'MANAGER'|'SALES'; organization_id:number|null;
+  manager_user_id:number|null; sales_user_id:number|null;
+  sales_percent:number; manager_percent:number; status:string;
+  created_at:string; created_by_user_id:number;
+};
+type ApiWorkspace = {
+  defaults:{sales_percent:number;manager_percent:number;version_id:number|null;is_configured:boolean};
+  organizations:CommissionOrganization[];
+  managers:Array<Omit<CommissionManager,'organizationId'>&{organization_id:number}>;
+  data:Array<Omit<CommissionSales,'organizationId'|'userId'|'managerUserId'>&{
+    organization_id:number;user_id:number;manager_user_id:number|null;
+    manager_name:string|null;manager_email:string|null;
+    sales_percent:number;manager_percent:number;total_percent:number;
+    source:string;version_id:number|null;own_version_id:number|null;has_own_override:boolean;
+  }>;
+  history:ApiPolicyVersion[];
+};
+const requireRate=(value:number,field:string):number=>{
+  if(typeof value!=='number'||!Number.isFinite(value)){
+    throw new Error('API trả về tỷ lệ hoa hồng không hợp lệ: '+field+'.');
+  }
+  return value;
+};
+const mapWorkspace=(raw:ApiWorkspace):Workspace=>({
+  defaults:{
+    salesPercent:requireRate(raw.defaults.sales_percent,'sales_percent'),
+    managerPercent:requireRate(raw.defaults.manager_percent,'manager_percent'),
+    versionId:raw.defaults.version_id,isConfigured:raw.defaults.is_configured
+  },
+  organizations:raw.organizations,
+  managers:raw.managers.map(m=>({
+    id:m.id,organizationId:m.organization_id,name:m.name,email:m.email,code:m.code
+  })),
+  data:raw.data.map(s=>({
+    userId:s.user_id,organizationId:s.organization_id,managerUserId:s.manager_user_id,
+    name:s.name,email:s.email,code:s.code,managerName:s.manager_name,managerEmail:s.manager_email,
+    salesPercent:requireRate(s.sales_percent,'sales_percent'),
+    managerPercent:requireRate(s.manager_percent,'manager_percent'),
+    totalPercent:requireRate(s.total_percent,'total_percent'),
+    source:s.source,versionId:s.version_id,ownVersionId:s.own_version_id,
+    hasOwnOverride:s.has_own_override
+  })),
+  history:raw.history.map(p=>({
+    id:p.id,scope:p.scope,organizationId:p.organization_id,
+    managerUserId:p.manager_user_id,salesUserId:p.sales_user_id,
+    salesPercent:requireRate(p.sales_percent,'sales_percent'),
+    managerPercent:requireRate(p.manager_percent,'manager_percent'),
+    status:p.status,createdAt:p.created_at,createdByUserId:p.created_by_user_id
+  }))
+});
 const formatTime=(value:string)=>new Date(value).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});
 const initial=(scope:'MANAGER'|'SALES'):CommissionFormValues=>({
   scope,organizationId:null,managerUserId:null,salesUserId:null,
@@ -61,7 +114,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
   const load=useCallback(async()=>{
     if(!apiBase||!token||!can)return;
     setLoading(true);setError('');
-    try{setWorkspace(await channelRequest<Workspace>(apiBase,token,'/board-commission'));}
+    try{setWorkspace(mapWorkspace(await channelRequest<ApiWorkspace>(apiBase,token,'/board-commission')));}
     catch(e){setError(e instanceof Error?e.message:'Không tải được chính sách hoa hồng.');}
     finally{setLoading(false);}
   },[apiBase,token,can]);
@@ -101,11 +154,11 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     setBusy(true);setFormError('');setNotice('');
     try{
       await channelRequest(apiBase,token,'/board-commission',{method:'POST',body:JSON.stringify({
-        scope:v.scope,organizationId:v.scope==='SYSTEM'?null:v.organizationId,
-        managerUserId:v.scope==='MANAGER'?v.managerUserId:null,
-        salesUserId:v.scope==='SALES'?v.salesUserId:null,
-        salesPercent:Number(v.salesPercent),managerPercent:Number(v.managerPercent),
-        expectedVersionId:previous?.id??null
+        scope:v.scope,organization_id:v.scope==='SYSTEM'?null:v.organizationId,
+        manager_user_id:v.scope==='MANAGER'?v.managerUserId:null,
+        sales_user_id:v.scope==='SALES'?v.salesUserId:null,
+        sales_percent:Number(v.salesPercent),manager_percent:Number(v.managerPercent),
+        expected_version_id:previous?.id??null
       })});
       setDialog(null);setNotice('Đã lưu và áp dụng tỷ lệ hoa hồng mới.');await load();
     }catch(e){setFormError(e instanceof Error?e.message:'Không thể lưu chính sách.');}
@@ -116,7 +169,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     setBusy(true);setError('');setNotice('');
     try{
       await channelRequest(apiBase,token,'/board-commission/'+confirmReset.ownVersionId+'/reset',{
-        method:'POST',body:JSON.stringify({expectedVersionId:confirmReset.ownVersionId})
+        method:'POST',body:JSON.stringify({expected_version_id:confirmReset.ownVersionId})
       });
       setConfirmReset(null);setNotice('Đã khôi phục chính sách kế thừa.');await load();
     }catch(e){setError(e instanceof Error?e.message:'Không khôi phục được chính sách.');}
@@ -138,7 +191,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     setBusy(true);setError('');setNotice('');
     try{
       await channelRequest(apiBase,token,'/board-commission/'+managerReset.id+'/reset',{
-        method:'POST',body:JSON.stringify({expectedVersionId:managerReset.id})
+        method:'POST',body:JSON.stringify({expected_version_id:managerReset.id})
       });
       setManagerReset(null);setNotice('Đã khôi phục cấu hình Quản lý về mặc định.');await load();
     }catch(e){setError(e instanceof Error?e.message:'Không khôi phục được cấu hình Quản lý.');}

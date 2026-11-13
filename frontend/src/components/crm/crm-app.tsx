@@ -19,7 +19,8 @@ import { createApiClient, ApiRequestError, isBackendUnavailable } from '@/servic
 import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
 import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
 
-const apiBase = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? '' : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
+const staticPreview = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+const apiBase = staticPreview ? '' : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
 const request = createApiClient(apiBase);
 // /health is mounted at the Backend origin, not under the /api prefix.
 const healthRequest = createApiClient(apiBase ? new URL(apiBase).origin : '');
@@ -34,7 +35,10 @@ const CheckeeWorkspace = lazy(() => import('@/screens/Checkee/CheckeeWorkspace')
 const ChannelOperations = lazy(() => import('@/components/crm/channel-operations').then(m => ({ default: m.ChannelOperations })));
 
 export function CrmApp({ initialView }: { initialView?: View } = {}) {
-  if (apiBase) return <CrmWorkspace initialView={initialView} />;
+  if (!staticPreview) {
+    if (!apiBase) return <p role="alert">Thiếu NEXT_PUBLIC_API_URL. Hãy cấu hình kết nối Backend để sử dụng dữ liệu CRM thật.</p>;
+    return <CrmWorkspace initialView={initialView} />;
+  }
   return <DemoAccess>{(account, logout) => <CrmWorkspace key={account.id} initialView={initialView} demoAccount={account} onDemoLogout={logout} />}</DemoAccess>;
 }
 

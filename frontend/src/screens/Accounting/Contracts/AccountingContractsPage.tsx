@@ -3,12 +3,13 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
+import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,12 @@ const payoutStatusLabel = (status: string) => ({
   CANCELLED: 'Đã hủy',
   REJECTED: 'Đã từ chối',
 } as Record<string, string>)[status] ?? 'Chưa xác định';
+
+// Presentation only: preserve the YYYY-MM period used by payout API and accounting ledger.
+const payoutPeriodLabel = (period: string) => {
+  const match = /^(\\d{4})-(\\d{2})$/.exec(period);
+  return match ? `Tháng ${match[2]}/${match[1]}` : period;
+};
 
 const accountingBusinessDay = (date: Date) => new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -1028,28 +1035,25 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     <p className="text-xs text-muted-foreground">Chọn đúng người hưởng và kỳ trước khi tạo phiếu nháp.</p>
                   </div>
                 </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-                  <label className="flex min-w-0 flex-col gap-1 text-xs font-medium">
-                    Người hưởng
-                    <select aria-label="Người hưởng hoa hồng" value={currentBeneficiary?.key??''}
-                      onChange={event=>{setPayoutBeneficiary(event.target.value);setPayoutPeriod('');payoutKey.current=null;}}
-                      className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">
-                      {beneficiaries.map(item=><option key={item.key} value={item.key}>
-                        {item.role==='MANAGER'?'Quản lý':'Sales'} · {item.name}
-                      </option>)}
-                    </select>
-                  </label>
-                  <label className="flex min-w-0 flex-col gap-1 text-xs font-medium">
-                    Kỳ hoa hồng
-                    <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
-                      onChange={event=>setPayoutPeriod(event.target.value)}
-                      className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">
-                      {eligiblePeriods.map(period=><option key={period} value={period}>
-                        {period} · {channelMoney(eligibleByPeriod.get(period)??0)}
-                      </option>)}
-                    </select>
-                  </label>
-                  <Button type="button" className="h-10 w-full sm:w-auto" disabled={saving || !chosenPeriod}
+                <div className="mt-3 grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <label htmlFor="accounting-payout-beneficiary" className="text-xs font-medium">Người hưởng</label>
+                    <AppSelect id="accounting-payout-beneficiary" ariaLabel="Người hưởng hoa hồng"
+                      value={currentBeneficiary?.key??''}
+                      onValueChange={value=>{setPayoutBeneficiary(value);setPayoutPeriod('');payoutKey.current=null;}}
+                      options={beneficiaries.map(item=>({
+                        value:item.key,label:`${item.role==='MANAGER'?'Quản lý':'Sales'} · ${item.name}`
+                      }))} className="w-full"/>
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <label htmlFor="accounting-payout-period" className="text-xs font-medium">Kỳ hoa hồng</label>
+                    <AppSelect id="accounting-payout-period" ariaLabel="Kỳ hoa hồng để lập phiếu chi"
+                      value={chosenPeriod} onValueChange={setPayoutPeriod}
+                      options={eligiblePeriods.map(period=>({
+                        value:period,label:`${payoutPeriodLabel(period)} · ${channelMoney(eligibleByPeriod.get(period)??0)}`
+                      }))} className="w-full"/>
+                  </div>
+                  <Button type="button" className="h-10 w-full sm:col-span-2 lg:col-span-1 lg:w-auto" disabled={saving || !chosenPeriod}
                     onClick={()=>openDraft()}>
                     <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
                   </Button>
@@ -1123,10 +1127,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                             aria-label={`Xem chứng từ khoản chi ${x.code}`}
                             onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>}
                           {(x.status==='DRAFT'||x.status==='CHANGES_REQUESTED')&&canCreatePayout&&<>
-                            <Button type="button" variant="outline" size="sm" disabled={saving}
-                              onClick={()=>openDraft(x)}>Sửa nháp</Button>
-                            <Button type="button" size="sm" disabled={saving}
-                              onClick={()=>void submitPayout(x.id)}>Gửi BGĐ</Button>
+                            <AdminIconAction icon={Pencil} tone="neutral" disabled={saving}
+                              label={`Sửa phiếu nháp ${x.code}`} onClick={()=>openDraft(x)}/>
+                            <AdminIconAction icon={Send} tone="green" disabled={saving}
+                              label={`Gửi phiếu ${x.code} đến BGĐ phê duyệt`}
+                              onClick={()=>void submitPayout(x.id)}/>
                           </>}
                           {x.status==='PENDING_APPROVAL'&&canApprovePayout&&<>
                             <Button type="button" variant="outline" size="sm" disabled={saving}
@@ -1249,7 +1254,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               {(editingPayout?.beneficiary_role??currentBeneficiary?.role)==='MANAGER'?'Quản lý':'Sales'}
             </span>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {editingPayout?.period??chosenPeriod}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {payoutPeriodLabel(editingPayout?.period??chosenPeriod)}</p>
         </div>
         <div className="space-y-3 rounded-xl border border-border/80 p-4">
           <p className="text-xs text-muted-foreground">Hệ thống đề xuất:{' '}

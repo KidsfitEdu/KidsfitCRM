@@ -14,7 +14,7 @@
 | `CHECKEE` | Independent verification/reconciliation, request evidence | CHECKEE-scoped cases; no internal salary/commission by default |
 | `SALES` | Both employees and collaborators: register/receive school, propose, contact, request extension, contract report, own income | Own assigned leads and permitted directory |
 
-Employee vs collaborator is an optional *membership/personnel attribute for reporting only*, not an eighth authorization role. Both may self-register or be assigned. Both have **default 10 concurrent schools**; Admin may override per member with audit. Both share **provisional 30%** commission concept, but not a live rate until the official policy is approved.
+Employee vs collaborator is an optional *membership/personnel attribute for reporting only*, not an eighth authorization role. Both may self-register or be assigned. Both have **default 10 concurrent schools**; Admin may override per member with audit. Both share the BGĐ-defined Sales rate (25% fallback); a valid manager receives a separate Manager share (5% fallback).
 
 ## Target business action permissions
 

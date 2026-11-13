@@ -3,13 +3,14 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1080,15 +1081,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <span className="text-xs tabular-nums text-muted-foreground">{detail.payouts.length} phiếu</span>
             </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
-            <table className="w-full min-w-[650px] text-left text-sm">
+            <table className="w-full min-w-[760px] table-fixed text-left text-sm">
               <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
                 <tr>
-                  <th scope="col" className="px-3 py-3">Phiếu chi / Giao dịch</th>
-                  <th scope="col" className="px-3 py-3">Người hưởng</th>
-                  <th scope="col" className="px-3 py-3">Ngày chuyển</th>
-                  <th scope="col" className="px-3 py-3 text-right">Số tiền</th>
-                  <th scope="col" className="px-3 py-3">Trạng thái</th>
-                  <th scope="col" className="px-3 py-3 text-center">Thao tác</th>
+                  <th scope="col" className="w-[23%] px-3 py-3">Mã phiếu</th>
+                  <th scope="col" className="w-[21%] px-3 py-3">Người hưởng</th>
+                  <th scope="col" className="w-[16%] px-3 py-3">Ngày chuyển</th>
+                  <th scope="col" className="w-[14%] px-3 py-3 text-right">Số tiền</th>
+                  <th scope="col" className="w-[15%] px-3 py-3">Trạng thái</th>
+                  <th scope="col" className="w-[11%] px-3 py-3 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
@@ -1102,27 +1103,37 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   </td></tr>
                   : detail.payouts.map(x=>{
                     const proof = detail.evidence.find(e=>e.payout_id===x.id);
+                    const latestRequest = x.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1);
                     const tone = x.status==='PAID'
                       ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
                       : x.status==='APPROVED'
                         ? 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300'
                         : 'border-border bg-muted/50 text-muted-foreground';
                     return <tr key={x.id} className="hover:bg-muted/20">
-                      <td className="max-w-[190px] break-all px-3 py-3">
-                        <p className="font-medium">{x.code}</p>
-                        {x.payment_reference&&<p className="mt-1 text-xs text-muted-foreground">{x.payment_reference}</p>}
+                      <td className="min-w-0 px-3 py-3">
+                        <p className="truncate font-medium" title={x.code}>{x.code}</p>
+                        {x.payment_reference&&<p className="mt-1 truncate text-xs text-muted-foreground" title={x.payment_reference}>{x.payment_reference}</p>}
                       </td>
                       <td className="px-3 py-3">{x.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {detail.ledger.find(e=>e.beneficiary_user_id===x.beneficiary_user_id)?.beneficiary_name??'—'}</td>
                       <td className="whitespace-nowrap px-3 py-3">{x.paid_at?channelDate(x.paid_at):'Chưa chuyển'}</td>
                       <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(x.net_amount)}</td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${tone}`}>{payoutStatusLabel(x.status)}</span>
-                        {x.status==='CHANGES_REQUESTED'&&<p className="mt-1 max-w-48 text-xs text-amber-700 dark:text-amber-300">
-                          BGĐ yêu cầu: {x.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1)?.reason??'Cần bổ sung'}
-                        </p>}
+                        <span className={`inline-flex max-w-full whitespace-nowrap rounded-full border px-2 py-1 text-xs font-medium ${tone}`}>{payoutStatusLabel(x.status)}</span>
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex justify-center gap-2">
+                        <div className="flex flex-nowrap justify-center gap-1">
+                          {x.status==='CHANGES_REQUESTED'&&<Popover>
+                            <PopoverTrigger type="button" title="Xem yêu cầu bổ sung từ BGĐ"
+                              aria-label={`Xem yêu cầu bổ sung phiếu ${x.code}`}
+                              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-amber-800 transition-colors hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                              <MessageSquareText aria-hidden="true" className="size-4"/>
+                            </PopoverTrigger>
+                            <PopoverContent side="top" align="end" className="w-[min(90vw,350px)] space-y-2 p-4">
+                              <PopoverTitle className="text-sm font-semibold">BGĐ yêu cầu bổ sung</PopoverTitle>
+                              <p className="max-h-52 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{latestRequest?.reason?.trim()||'Chưa có nội dung yêu cầu.'}</p>
+                              {latestRequest?.created_at&&<p className="text-xs text-muted-foreground">Yêu cầu lúc {channelDate(latestRequest.created_at)}</p>}
+                            </PopoverContent>
+                          </Popover>}
                           {proof&&<Button type="button" variant="outline" size="icon" title="Xem chứng từ khoản chi"
                             aria-label={`Xem chứng từ khoản chi ${x.code}`}
                             onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>}
@@ -1243,6 +1254,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       busy={saving} title={editingPayout?'Chỉnh sửa phiếu chi Nháp':'Lập phiếu chi hoa hồng'}
       description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh.">
       {detail&&payoutDialogOpen&&<form className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
+        {editingPayout?.status==='CHANGES_REQUESTED'&&<section className="rounded-xl border border-amber-300/70 bg-amber-50/70 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+          <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
+            <MessageSquareText aria-hidden="true" className="size-4"/> BGĐ yêu cầu bổ sung
+          </div>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+            {editingPayout.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1)?.reason?.trim()||'Chưa có nội dung yêu cầu.'}
+          </p>
+        </section>}
         <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
           <p className="text-xs font-medium text-muted-foreground">Người hưởng</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">

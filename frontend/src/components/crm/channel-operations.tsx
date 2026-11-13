@@ -848,30 +848,11 @@ function FinancePanel({
                         Yêu cầu bổ sung
                       </Button>
                     </>)}
-                  {payout.status === 'APPROVED' &&
-                    can('channel_sales.payout.complete') && (
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          showModal(
-                            <ReasonForm
-                              title="Ghi nhận đã chi"
-                              description={`${payout.beneficiary_name} · ${money(payout.net_amount)}. Nhập mã giao dịch đã thực hiện để lưu xác nhận.`}
-                              label="Mã giao dịch / phiếu chi"
-                              onSubmit={async (payment_reference) => {
-                                await run({
-                                  path: `/payouts/${payout.id}/complete`,
-                                  body: { payment_reference },
-                                });
-                                closeModal();
-                              }}
-                            />,
-                          )
-                        }
-                      >
-                        Ghi nhận đã chi <ChevronRight />
-                      </Button>
-                    )}
+                  {payout.status === 'APPROVED' && (
+                    <p className="max-w-48 text-xs text-muted-foreground">
+                      Đã duyệt · Kế toán chuyển khoản và tải chứng từ tại Hợp đồng & khoản thu.
+                    </p>
+                  )}
                 </div>
               </div>
               <details className="mt-3 text-xs text-muted-foreground">

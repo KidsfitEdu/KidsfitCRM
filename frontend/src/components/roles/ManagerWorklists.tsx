@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Eye, History, Plus, X, Ban, ListChecks } from 'lucide-react';
+import { Check, Eye, History, Plus, X, Ban } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -10,6 +10,7 @@ import { AppSelect } from '@/components/common/app-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
+import { ProgressTableHeading, ProgressTableRows, type ProgressSchool } from '@/components/crm/schools/school-progress-table';
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
 import { Button } from '@/components/ui/button';
 import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
@@ -61,7 +62,6 @@ type School = { id: number; display_name: string; school_code: string; visible_s
 type SchoolList = { data: School[]; total: number };
 type ReleasedSchool={id:number;customer_id:number;school_code:string;school_name:string;released_at:string};
 type ReleasedResult={data:ReleasedSchool[];total:number;page:number;page_size:number};
-type ProgressSchool=Pick<ChannelCustomer,'id'|'code'|'display_name'|'visible_status'|'owner_user_name'|'protected_until'|'next_follow_up_at'|'contract_code'> & {owner_user_id:number};
 type ProgressResult={data:ProgressSchool[];total:number;page:number;page_size:number;staff:{id:number;name:string}[]};
 type HistoryResult = { data: { id: number; action: string; actor_name: string; created_at: string; new_values: string | null }[] };
 
@@ -366,7 +366,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
             {section === 'proposals' ? <tr><th className="px-5 py-4">Trường học</th><th className="px-5 py-4">Người đề xuất</th><th className="px-5 py-4">Quản lý</th><th className="px-5 py-4">Hạn xử lý</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-center">Thao tác</th></tr>
             : section === 'allocations' ? <tr><th className="px-5 py-4">Trường học</th><th className="px-5 py-4">Sales/CTV nhận</th><th className="px-5 py-4">Người phân bổ</th><th className="px-5 py-4">Hạn phản hồi</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-center">Thao tác</th></tr>
               : section === 'extensions' ? <tr><th className="px-5 py-4">Trường học</th><th className="px-5 py-4">Người yêu cầu</th><th className="px-5 py-4">Hạn bảo vệ</th><th className="px-5 py-4">Đề nghị đến</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-center">Thao tác</th></tr>
-                : <tr><th className="px-5 py-4">Trường học</th><th className="px-5 py-4">Sales phụ trách</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4">Lịch hẹn tiếp</th><th className="px-5 py-4">Hạn bảo vệ</th><th className="px-5 py-4">Hợp đồng</th><th className="px-5 py-4 text-center">Chi tiết</th></tr>}
+                : <ProgressTableHeading/>}
           </thead>
           <tbody>
             {section === 'proposals' && windowRows.map(row => {
@@ -416,15 +416,9 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
                 </div></td>
               </tr>;
             })}
-            {section === 'progress' && progressPage.map(c => <tr key={c.id} className="border-t border-border/70 even:bg-muted/20 hover:bg-accent">
-              <td className={adminTableCellClass}><p className="font-semibold">{c.display_name}</p><p className="mt-1 text-xs text-muted-foreground">{c.code}</p></td>
-              <td className={adminTableCellClass}>{c.owner_user_name ?? 'Chưa phân công'}</td>
-              <td className={adminTableCellClass}><AdminStatusBadge status={c.visible_status} label={statusLabel(c.visible_status)}/></td>
-              <td className={adminTableCellClass}>{nice(c.next_follow_up_at)}</td>
-              <td className={adminTableCellClass}><span className={datePending(c.protected_until) && c.visible_status==='APPROACHING'?'text-rose-600 font-semibold':''}>{nice(c.protected_until)}</span></td>
-              <td className={adminTableCellClass}>{c.contract_code ?? '—'}</td>
-              <td className={adminTableCellClass}><div className="flex justify-center"><AdminIconAction icon={ListChecks} label={'Xem hoạt động ' + c.display_name} onClick={() => preview ? setSelection({kind:'progress',item:c}) : setWorkLog({customerId:c.id,schoolName:c.display_name})}/></div></td>
-            </tr>)}
+            {section === 'progress' && <ProgressTableRows rows={progressPage}
+              onJournal={c=>preview ? setSelection({kind:'progress',item:c})
+                : setWorkLog({customerId:c.id,schoolName:c.display_name})}/>}
           </tbody>
         </table>
         {!busy && failed && <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">

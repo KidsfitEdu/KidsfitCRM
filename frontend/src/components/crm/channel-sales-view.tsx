@@ -1203,8 +1203,10 @@ function ContractDialog({
         busy={saving}>{saving?'Đang gửi hồ sơ...':'Gửi Quản lý duyệt'}</AppButton>
     </>}>
     <form id="sales-contract-report-form" onSubmit={submit} noValidate>
-      <CustomerHighlight customer={customer}/>
-      <div className="mt-4 space-y-5">
+      <p className="mb-4 truncate text-xs text-muted-foreground" title={customer.display_name}>
+        Trường học: <span className="font-semibold text-foreground">{customer.display_name}</span>
+      </p>
+      <div className="space-y-5">
         <section aria-labelledby="contract-info-heading" className="space-y-3">
           <h3 id="contract-info-heading" className="text-sm font-semibold text-foreground">1. Thông tin hợp đồng</h3>
         <Field label="Ngày ký hợp đồng *">

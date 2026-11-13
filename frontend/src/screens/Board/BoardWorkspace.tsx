@@ -3,6 +3,7 @@
 import type { RolePageProps } from '@/types/role-pages';
 import { rolePageSections } from '@/config/role-pages';
 import { DashboardPage } from './Dashboard/DashboardPage';
+import { BoardProgressPage } from './BoardProgressPage';
 import { OverduePage } from './Overdue/OverduePage';
 import { DisputesPage } from './Disputes/DisputesPage';
 import { PoliciesPage } from './Policies/PoliciesPage';
@@ -11,6 +12,7 @@ export type RoleSection = keyof typeof rolePageSections.Board;
 type Props = RolePageProps & {section: RoleSection};
 const pages = {
   dashboard: DashboardPage,
+  progress: BoardProgressPage,
   oversight: DashboardPage,
   overdue: OverduePage,
   disputes: DisputesPage,

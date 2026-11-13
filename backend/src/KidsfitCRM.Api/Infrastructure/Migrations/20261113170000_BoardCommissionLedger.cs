@@ -37,15 +37,17 @@ public sealed class BoardCommissionLedger : Migration
         migrationBuilder.CreateIndex("IX_commission_ledger_entries_revenue_receipt_id_beneficiary_role",
             "commission_ledger_entries", new[] { "revenue_receipt_id", "beneficiary_role" }, unique:true);
         migrationBuilder.AddForeignKey(
-            "FK_commission_ledger_entries_revenue_receipts_revenue_receipt_id",
-            "commission_ledger_entries", "revenue_receipt_id", "revenue_receipts", "id",
+            name:"FK_commission_ledger_entries_revenue_receipts_revenue_receipt_id",
+            table:"commission_ledger_entries", column:"revenue_receipt_id",
+            principalTable:"revenue_receipts", principalColumn:"id",
             onDelete:ReferentialAction.Restrict);
         migrationBuilder.DropColumn("policy_version_id", "commission_ledger_entries");
         migrationBuilder.CreateIndex("IX_commission_ledger_entries_board_policy_version_id",
             "commission_ledger_entries", "board_policy_version_id");
         migrationBuilder.AddForeignKey(
-            "FK_commission_ledger_entries_board_commission_policy_versions_~",
-            "commission_ledger_entries", "board_policy_version_id", "board_commission_policy_versions", "id",
+            name:"FK_commission_ledger_entries_board_commission_policy_versions_~",
+            table:"commission_ledger_entries", column:"board_policy_version_id",
+            principalTable:"board_commission_policy_versions", principalColumn:"id",
             onDelete:ReferentialAction.Restrict);
         migrationBuilder.DropTable("commission_policy_versions");
     }

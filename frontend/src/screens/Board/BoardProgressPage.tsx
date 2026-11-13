@@ -25,7 +25,7 @@ type ProgressResult={
 export function BoardProgressPage({apiBase,token,abilities}:RolePageProps) {
   const preview=!apiBase;
   const allowed=abilities.includes('*')||
-    (abilities.includes('channel_sales.all_scope')&&abilities.includes('channel_sales.customer.view'));
+    (abilities.includes('channel_sales.scope.all')&&abilities.includes('channel_sales.customer.view'));
   const [draft,setDraft]=useState('');
   const [search,setSearch]=useState('');
   const [orgFilter,setOrgFilter]=useState('ALL');

@@ -41,7 +41,7 @@ test('Payout tracking is UI-only and contract detail workflow remains available'
   assert.match(page,/accountingTab==='CONTRACTS'/);
   assert.match(page,/setSelected\(row.id\)/);
   assert.match(page,/\/payouts\/\$\{.*\}\/submit/);
-  assert.match(part,/financeOverview\?\.payouts/);
+  assert.match(page,/financeOverview\?\.payouts/);
   assert.match(part,/title=\{p.code\}/);
   assert.match(part,/channelMoney\(p.net_amount\)/);
 });

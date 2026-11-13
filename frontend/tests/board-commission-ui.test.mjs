@@ -57,7 +57,7 @@ test('save and reset use the backend snake_case contract',()=>{
   assert.match(page,/manager_percent:Number\(v\.managerPercent\)/);
   assert.match(page,/expected_version_id:previous\?\.id\?\?null/);
   assert.match(page,/expected_version_id:confirmReset\.ownVersionId/);
-  assert.match(page,/expected_version_id:managerReset\.id/);
+  assert.doesNotMatch(page,/managerReset\.id/);
   assert.doesNotMatch(page,/JSON\.stringify\(\{expectedVersionId:/);
 });
 

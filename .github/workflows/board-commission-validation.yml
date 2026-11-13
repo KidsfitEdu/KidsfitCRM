@@ -64,6 +64,7 @@ jobs:
       Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
       Seed__AdminPassword: "ephemeral-ci-only-admin-password"
       Seed__BoardPassword: "ephemeral-ci-only-board-password"
+      Seed__CheckeePassword: "ephemeral-ci-only-checkee-password"
       Seed__DisposableDatabase: "true"
       ASPNETCORE_ENVIRONMENT: "Development"
     steps:

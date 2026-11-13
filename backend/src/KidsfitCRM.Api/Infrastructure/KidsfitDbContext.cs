@@ -18,7 +18,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<CustomerIdentifier> CustomerIdentifiers => Set<CustomerIdentifier>();
     public DbSet<ApproachRegistration> ApproachRegistrations => Set<ApproachRegistration>();
     public DbSet<CustomerActivity> CustomerActivities => Set<CustomerActivity>();
-    public DbSet<CheckeeProductPackage> CheckeeProductPackages => Set<CheckeeProductPackage>();
     public DbSet<SalesContract> SalesContracts => Set<SalesContract>();
     public DbSet<SalesContractItem> SalesContractItems => Set<SalesContractItem>();
     public DbSet<CustomerProtection> CustomerProtections => Set<CustomerProtection>();
@@ -136,7 +135,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     {
         UniqueCode<Organization>(b, 40);
         UniqueCode<ChannelCustomer>(b, 32);
-        UniqueCode<CheckeeProductPackage>(b, 40);
         UniqueCode<Payout>(b, 48);
 
         b.Entity<Organization>().Property(x => x.Name).HasMaxLength(190);
@@ -184,10 +182,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<CustomerActivity>().Property(x => x.Outcome).HasMaxLength(40);
         b.Entity<CustomerActivity>().Property(x => x.EvidenceReference).HasMaxLength(500);
         b.Entity<CustomerActivity>().HasIndex(x => new { x.CustomerId, x.CreatedAt });
-
-        b.Entity<CheckeeProductPackage>().Property(x => x.Name).HasMaxLength(190);
-        b.Entity<CheckeeProductPackage>().Property(x => x.Status).HasMaxLength(24);
-        Money<CheckeeProductPackage>(b, x => x.ListPrice);
 
         b.Entity<SalesContract>().Property(x => x.ContractCode).HasMaxLength(64).UseCollation("utf8mb4_bin");
         b.Entity<SalesContract>().Property(x => x.OwnerPersonnelType).HasMaxLength(32).UseCollation("utf8mb4_bin");
@@ -304,7 +298,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<ContractRenewalEvent, ContractRenewal>(x => x.ContractRenewalId);
         Restrict<ContractRenewalEvent, User>(x => x.ActorUserId);
         Restrict<FinancialEvidence, ContractRenewal>(x => x.ContractRenewalId);
-        Restrict<SalesContractItem, SalesContract>(x => x.ContractId); Restrict<SalesContractItem, CheckeeProductPackage>(x => x.ProductPackageId);
+        Restrict<SalesContractItem, SalesContract>(x => x.ContractId);
         Restrict<ServiceInterruptionEvent, ChannelCustomer>(x => x.CustomerId);
         Restrict<ServiceInterruptionEvent, SalesContract>(x => x.ContractId);
         Restrict<ServiceInterruptionEvent, CustomerProtection>(x => x.ProtectionId);

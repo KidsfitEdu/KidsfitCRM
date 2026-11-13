@@ -1605,6 +1605,50 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.True(report.GetProperty("available_schools").GetInt32() >= 2);
     }
 
+    [MySqlFact]
+    public async Task Board_dashboard_returns_six_vietnam_months_and_current_protection_mix()
+    {
+        var board = await User("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var report = Json(await SchoolOperationsEndpoints.Report(Http(board), db, "2026-03", Ct));
+        var trend = report.GetProperty("revenue_trend");
+        Assert.Equal(JsonValueKind.Array, trend.ValueKind);
+        Assert.Equal(6, trend.GetArrayLength());
+        Assert.Equal("2025-10", trend[0].GetProperty("period").GetString());
+        Assert.Equal("2026-02", trend[4].GetProperty("period").GetString());
+        Assert.Equal("2026-03", trend[5].GetProperty("period").GetString());
+        foreach (var month in trend.EnumerateArray())
+        {
+            var period = month.GetProperty("period").GetString()!;
+            var startLocal = DateTime.ParseExact(period + "-01", "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture);
+            var from = DateTime.SpecifyKind(startLocal.AddHours(-7), DateTimeKind.Utc);
+            var to = DateTime.SpecifyKind(startLocal.AddMonths(1).AddHours(-7), DateTimeKind.Utc);
+            var collected = await db.RevenueReceipts.Where(x => x.Status == "COMPLETED"
+                && x.ReceivedAt >= from && x.ReceivedAt < to).SumAsync(x => (decimal?)x.Amount, Ct) ?? 0;
+            var refunded = await db.RevenueRefunds.Where(x =>
+                x.RefundedAt >= from && x.RefundedAt < to).SumAsync(x => (decimal?)x.Amount, Ct) ?? 0;
+            Assert.Equal(collected, month.GetProperty("collected").GetDecimal());
+            Assert.Equal(refunded, month.GetProperty("refunded").GetDecimal());
+            Assert.Equal(collected-refunded, month.GetProperty("net").GetDecimal());
+        }
+        Assert.Equal(trend[4].GetProperty("net").GetDecimal(),
+            report.GetProperty("previous_net_revenue").GetDecimal());
+        var mix = report.GetProperty("school_statuses");
+        Assert.Equal(JsonValueKind.Object, mix.ValueKind);
+        var total = await db.DirectorySchools.CountAsync(s => !s.IsDeleted, Ct);
+        Assert.Equal(total, report.GetProperty("available_schools").GetInt32()
+            + mix.GetProperty("approaching").GetInt32()
+            + mix.GetProperty("contracted").GetInt32());
+
+        var scenario = await Arrange();
+        await using var managerDb = fixture.Open();
+        var managerReport = Json(await SchoolOperationsEndpoints.Report(
+            Http(scenario.Manager.UserId), managerDb, "2026-03", Ct));
+        Assert.Equal(JsonValueKind.Null, managerReport.GetProperty("school_statuses").ValueKind);
+        Assert.Equal(JsonValueKind.Null, managerReport.GetProperty("revenue_trend").ValueKind);
+    }
+
     [MySqlFact] public async Task BoardOverdueFilterAppliesBeforeCountAndPaging()
     {
         var scenario = await Arrange();

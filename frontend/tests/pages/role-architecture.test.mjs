@@ -129,7 +129,7 @@ test('Board legacy reports route remains an alias, not an active sixth menu item
   assert.match(routes, /role-board-oversight/);
   assert.doesNotMatch(nav, /\{ id: 'role-board-oversight', label:/);
   assert.match(app, /canonicalBoardView/);
-  assert.ok(existsSync(file('src/screens/Board/Oversight/OversightPage.tsx')));
+  assert.equal(existsSync(file('src/screens/Board/Oversight/OversightPage.tsx')), false);
 });
 
 test('CSKH school page separates profile, recording and history into three icon actions', () => {

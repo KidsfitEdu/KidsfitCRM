@@ -48,7 +48,6 @@ public static class ChannelSalesEndpoints
         channel.MapGet("/evidence/{id:long}", FinancialEvidenceEndpoints.Download).RequireAuthorization(Permissions.ChannelSalesView);
         ManagerProgressEndpoints.MapManagerProgress(channel);
         channel.MapGet("/workspace", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
-        channel.MapGet("/customers/search", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapPost("/approach-registrations", async (RegisterApproachRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>
         {
             var id = await actions.RegisterCustomerApproach(request, http.UserId(), http, cancellationToken);

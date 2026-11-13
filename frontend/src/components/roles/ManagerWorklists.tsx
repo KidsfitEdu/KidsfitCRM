@@ -21,7 +21,7 @@ import { loadAllocationSchools } from '@/lib/manager-allocation';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { workflowLabels, workflowDate, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 import { schoolOperationsPreview } from '@/lib/school-operations-preview';
-import { demoChannelSalesWorkspace, type ChannelCustomer } from '@/lib/channel-sales';
+import type { ChannelCustomer } from '@/lib/channel-sales';
 import type { ManagerPageProps } from '@/types/manager-pages';
 
 export type ManagerWorklistSection = 'proposals' | 'allocations' | 'progress' | 'extensions';
@@ -112,8 +112,9 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   });
   const customers = useQuery<ProgressResult>({
     queryKey: [...channelQueryKeys.all, 'manager-progress-schools', page, pageSize, search, filter, staffFilter],
-    queryFn: () => {
+    queryFn: async () => {
       if (preview) {
+        const { demoChannelSalesWorkspace } = await import('../../../demo/channel-sales-fixture');
         const data = demoChannelSalesWorkspace.data.filter(c =>
           (filter === 'ALL' || c.visible_status === filter) &&
           (staffFilter === 'ALL' || c.owner_user_name === staffFilter) &&

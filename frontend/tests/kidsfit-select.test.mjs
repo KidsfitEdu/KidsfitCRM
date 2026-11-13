@@ -23,7 +23,7 @@ test('Kidsfit list filters use the existing Base UI Select primitive and accessi
 test('Accounting filters and pagination share branded dropdown without changing filter semantics',()=>{
   const accounting=source('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   const pagination=source('src/components/common/app-pagination.tsx');
-  assert.equal((accounting.match(/<AppSelect\b/g)||[]).length,2);
+  assert.ok((accounting.match(/<AppSelect\b/g)||[]).length>=4); // Two existing filters plus payout role and status.
   assert.match(accounting,/onValueChange=\{next=>\{setWorkspaceStatus\(next\);setPage\(1\);\}\}/);
   assert.match(accounting,/onValueChange=\{next=>\{setOwnerUserId\(next\);setPage\(1\);\}\}/);
   assert.match(pagination,/pageSizeOptions\.map\(size => \(\{value:String\(size\),label:String\(size\)\}\)\)/);

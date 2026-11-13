@@ -558,37 +558,37 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 receiptProof.UpdatedAt = now;
             }
 
-            var receiptDate = ChannelSalesValidation.BusinessDate(receivedAt);
-            var policy = await db.CommissionPolicyVersions
-                .Where(x => x.Status == "ACTIVE" && (x.OrganizationId == contract.OwnerOrganizationId || x.OrganizationId == null)
-                    && x.EffectiveFrom <= receiptDate && (x.PersonnelType == null || x.PersonnelType == contract.OwnerPersonnelType))
-                .OrderByDescending(x => x.OrganizationId == contract.OwnerOrganizationId)
-                .ThenByDescending(x => x.PersonnelType != null)
-                .ThenByDescending(x => x.EffectiveFrom)
-                .ThenByDescending(x => x.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-            // Recording verified money must not fail when no approved commission policy is effective.
-            if (policy is not null && (policy.EffectiveUntil is null || policy.EffectiveUntil >= receiptDate))
-            {
-                db.CommissionLedgerEntries.Add(new CommissionLedgerEntry
-                {
-                    ContractId = contract.Id,
-                    RevenueReceiptId = receipt.Id,
-                    PolicyVersionId = policy.Id,
-                    BeneficiaryUserId = contract.OwnerUserId,
-                    BeneficiaryOrganizationId = contract.OwnerOrganizationId,
-                    EntryType = "ACCRUAL",
-                    CalculationBase = amount,
-                    RatePercent = policy.RatePercent,
-                    Amount = decimal.Round(amount * policy.RatePercent / 100m, 0, MidpointRounding.AwayFromZero),
-                    Status = "ACCRUED",
-                    Period = ChannelSalesValidation.BusinessPeriod(receivedAt),
-                    OccurredAt = receivedAt,
-                    CreatedByUserId = actorId,
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                });
-            }
+            var policies = await db.BoardCommissionPolicyVersions.AsNoTracking()
+                .Where(p => p.CreatedAt <= receivedAt).ToArrayAsync(cancellationToken);
+            var managerId = await db.OrganizationMemberships.AsNoTracking()
+                .Where(m => m.OrganizationId == contract.OwnerOrganizationId
+                    && m.UserId == contract.OwnerUserId
+                    && (m.Status == "ACTIVE" || m.Status == "SUSPENDED"))
+                .OrderByDescending(m => m.IsPrimary).ThenByDescending(m => m.CreatedAt)
+                .Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);
+            var policy = BoardCommissionPolicyEndpoints.ResolveAt(policies,
+                contract.OwnerOrganizationId, managerId, contract.OwnerUserId, receivedAt);
+            // One immutable entitlement per beneficiary role; both use this actual
+            // completed cash amount, never the contract face value.
+            if (policy.Sales > 0m)
+                db.CommissionLedgerEntries.Add(NewCommissionAccrual(
+                    contract, receipt, actorId, receivedAt, now, amount,
+                    "SALES", contract.OwnerUserId, policy.Sales, policy.Source, policy.VersionId));
+            if (policy.Manager > 0m && managerId.HasValue && managerId != contract.OwnerUserId
+                && await db.OrganizationMemberships.AnyAsync(m =>
+                    m.OrganizationId == contract.OwnerOrganizationId && m.UserId == managerId
+                    && m.Status == "ACTIVE" && db.Users.Any(u => u.Id == m.UserId && u.Status == "ACTIVE")
+                    && db.UserRoles.Any(ur => ur.UserId == m.UserId && db.Roles.Any(r =>
+                        r.Id == ur.RoleId && r.Code == "SALES_MANAGER")), cancellationToken))
+                db.CommissionLedgerEntries.Add(NewCommissionAccrual(
+                    contract, receipt, actorId, receivedAt, now, amount,
+                    "MANAGER", managerId.Value, policy.Manager, policy.Source, policy.VersionId));
+            else if (policy.Manager > 0m)
+                Audit.Add(db, actorId, "COMMISSION_MANAGER_REVIEW_REQUIRED", nameof(RevenueReceipt),
+                    receipt.Id, null, new {
+                        contract.OwnerOrganizationId, contract.OwnerUserId,
+                        manager_user_id = managerId, policy.Manager, policy.VersionId
+                    }, http);
             Audit.Add(db, actorId, "RECORD_CHANNEL_REVENUE", nameof(RevenueReceipt), receipt.Id, null,
                 new { receipt.ContractId, receipt.Amount, receipt.ReferenceCode, receipt.ReceivedAt }, http);
             await db.SaveChangesAsync(cancellationToken);
@@ -607,6 +607,21 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             throw new ApiConflictException("Không thể ghi nhận khoản thu do xung đột dữ liệu. Vui lòng tải lại hợp đồng và thử lại.");
         }
     }
+
+    private static CommissionLedgerEntry NewCommissionAccrual(
+        SalesContract contract, RevenueReceipt receipt, long actorId,
+        DateTime receivedAt, DateTime now, decimal amount, string role,
+        long beneficiaryId, decimal rate, string source, long? versionId) => new()
+    {
+        ContractId = contract.Id, RevenueReceiptId = receipt.Id,
+        BoardPolicyVersionId = versionId, PolicySource = source,
+        BeneficiaryRole = role, BeneficiaryUserId = beneficiaryId,
+        BeneficiaryOrganizationId = contract.OwnerOrganizationId, EntryType = "ACCRUAL",
+        CalculationBase = amount, RatePercent = rate,
+        Amount = decimal.Round(amount * rate / 100m, 0, MidpointRounding.AwayFromZero),
+        Status = "ACCRUED", Period = ChannelSalesValidation.BusinessPeriod(receivedAt),
+        OccurredAt = receivedAt, CreatedByUserId = actorId, CreatedAt = now, UpdatedAt = now
+    };
 
     public async Task Reconcile(long caseId, bool confirm, ReconcileContractRequest request, long actorId, HttpContext http, CancellationToken cancellationToken)
     {

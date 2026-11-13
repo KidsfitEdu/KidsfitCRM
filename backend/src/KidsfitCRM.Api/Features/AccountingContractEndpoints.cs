@@ -195,6 +195,8 @@ public static class AccountingContractEndpoints
                 id = x.Id, entry_type = x.EntryType, amount = x.Amount,
                 rate_percent = x.RatePercent, reason = x.Reason, occurred_at = x.OccurredAt,
                 period = x.Period, beneficiary_user_id = x.BeneficiaryUserId,
+                beneficiary_role = x.BeneficiaryRole, policy_source = x.PolicySource,
+                board_policy_version_id = x.BoardPolicyVersionId,
                 beneficiary_organization_id = x.BeneficiaryOrganizationId,
                 assigned_to_payout = db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id)
             }).ToArrayAsync(ct);
@@ -202,6 +204,7 @@ public static class AccountingContractEndpoints
         var payouts = await access.Payouts(db).AsNoTracking().Where(x => payoutIds.Contains(x.Id))
             .OrderByDescending(x => x.CreatedAt).Select(x => new {
                 id = x.Id, code = x.Code, net_amount = x.NetAmount, status = x.Status,
+                beneficiary_user_id = x.BeneficiaryUserId, beneficiary_role = x.BeneficiaryRole,
                 paid_at = x.PaidAt, payment_reference = x.PaymentReference
             }).ToArrayAsync(ct);
         // Payout proofs are attached to a payout, not directly to a contract.

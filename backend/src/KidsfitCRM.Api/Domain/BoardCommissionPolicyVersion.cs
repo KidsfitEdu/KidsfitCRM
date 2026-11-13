@@ -1,8 +1,8 @@
 namespace KidsfitCRM.Api.Domain;
 
 /// <summary>
-/// BGĐ-only configuration. This is deliberately separate from financial
-/// CommissionPolicyVersion and never triggers ledger or payout writes.
+/// Versioned BGĐ policy, the sole source for new financial commission accruals.
+/// Existing ledger entries retain their immutable policy and rate snapshots.
 /// </summary>
 public sealed class BoardCommissionPolicyVersion : EntityBase
 {

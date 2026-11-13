@@ -131,3 +131,26 @@ test('Board overdue screen excludes the GI-01 panel while keeping escalation que
   assert.match(accounting, /\/accounting\/contracts\//);
   assert.match(accounting, /service-history/);
 });
+
+test('Board payout approvals have dedicated menu and route instead of hidden finance panel',()=>{
+  const nav=read('config/navigation.ts');
+  const pages=read('config/role-pages.ts');
+  const workspace=read('screens/Board/BoardWorkspace.tsx');
+  const board=read('screens/Board/BoardPayoutsPage.tsx');
+  const endpoint=readFileSync(resolve(import.meta.dirname,
+    '../../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs'),'utf8');
+  assert.match(nav, /role-board-payouts', label: 'Duyệt phiếu chi'/);
+  assert.match(pages, /payouts: \{label:"Duyệt phiếu chi"/);
+  assert.match(workspace, /payouts: BoardPayoutsPage/);
+  assert.match(board, /payouts\/approval-queue/);
+  assert.match(endpoint, /\/payouts\/approval-queue/);
+  assert.match(board, /PENDING_APPROVAL/);
+  assert.match(board, /CHANGES_REQUESTED/);
+  assert.match(board, /\/payouts\/.*\/approve/);
+  assert.match(board, /\/payouts\/.*\/return/);
+  assert.match(board, /suggested_amount/);
+  assert.match(board, /requested_amount/);
+  assert.match(board, /adjustment_reason/);
+  assert.match(board, /AppDrawer/);
+  assert.match(board, /AppPagination/);
+});

@@ -17,9 +17,9 @@ test('Sales renewal list loads independently of selected form contract',()=>{
 
 test('Contract renewal creation still requires exact source contract',()=>{
   const ui=read('src/components/roles/ContractRenewalSalesPanel.tsx');
-  assert.match(ui,/Hợp đồng được phép tái ký \*/);
+  assert.match(ui,/Trường được phép tái ký \*/);
   assert.match(ui,/value=\{contractId\}/);
-  assert.match(ui,/onChange=\{e=>changeContractForForm\(e.target.value\)\}/);
+  assert.match(ui,/onValueChange=\{changeContractForForm\}/);
   assert.match(ui,/resetForm\(\);setContractId\(''\);setActiveId\(null\);setDrawer\('create'\)/);
   assert.match(ui,/\/contracts\/\$\{contractId\}\/renewals/);
   assert.match(ui,/total=\{total\}/);

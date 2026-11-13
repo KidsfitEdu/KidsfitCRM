@@ -10,7 +10,8 @@ const sales=read('src/components/crm/channel-sales-view.tsx');
 const backend=read('../backend/src/KidsfitCRM.Api/Features/CustomerWorkLogEndpoints.cs');
 
 test('manager progress opens the same school journal directly while retaining preview fallback',()=>{
-  assert.match(manager,/preview \? setSelection\(\{kind:'progress',item:c\}\) : setWorkLog\(\{customerId:c.id,schoolName:c.display_name\}\)/);
+  assert.match(manager,/onJournal=\{c=>preview \? setSelection\(\{kind:'progress',item:c\}\)/);
+  assert.match(manager,/setWorkLog\(\{customerId:c.id,schoolName:c.display_name\}\)/);
   assert.doesNotMatch(manager,/Xem nhật ký làm việc với trường/);
   assert.match(manager,/<SchoolWorkLogDrawer key=\{workLog\?\.customerId \?\? "closed"\}/);
   assert.match(sales,/<SchoolWorkLogDrawer open=\{true\}/);

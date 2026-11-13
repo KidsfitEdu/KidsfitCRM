@@ -20,7 +20,6 @@ export function ProgressTableHeading({board=false}:{board?:boolean}) {
     {board&&<th className="px-5 py-4">Tổ chức</th>}
     <th className="px-5 py-4">Sales phụ trách</th>
     <th className="px-5 py-4">Trạng thái</th>
-    <th className="px-5 py-4">Lịch hẹn tiếp</th>
     <th className="px-5 py-4">Hạn bảo vệ</th>
     <th className="px-5 py-4">Hợp đồng</th>
     <th className="px-5 py-4 text-center">Chi tiết</th>
@@ -40,7 +39,6 @@ export function ProgressTableRows({rows,board=false,onJournal}:{
     <td className={adminTableCellClass}>{row.owner_user_name??'Chưa phân công'}</td>
     <td className={adminTableCellClass}><AdminStatusBadge status={row.visible_status}
       label={row.visible_status==='CONTRACTED'?'Đã ký hợp đồng':'Đang tiếp cận'}/></td>
-    <td className={adminTableCellClass}>{nice(row.next_follow_up_at)}</td>
     <td className={adminTableCellClass}>{nice(row.protected_until)}</td>
     <td className={adminTableCellClass}><span className="break-all">{row.contract_code??'—'}</span></td>
     <td className={adminTableCellClass}>

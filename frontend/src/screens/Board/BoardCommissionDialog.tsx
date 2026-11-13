@@ -16,11 +16,11 @@ export type CommissionManager={id:number;name:string;email:string;code:string};
 export type CommissionSales={userId:number;organizationId:number;managerUserId:number|null;name:string;email:string;code:string};
 
 export function BoardCommissionDialog({
-  initial,organizations,managers,sales,busy,error,onClose,onSave
+  initial,organizations,managers,sales,busy,error,lockTarget=false,onClose,onSave
 }:{
   initial:CommissionFormValues|null;
   organizations:CommissionOrganization[];managers:CommissionManager[];sales:CommissionSales[];
-  busy:boolean;error:string;onClose:()=>void;onSave:(form:CommissionFormValues)=>void;
+  busy:boolean;error:string;lockTarget?:boolean;onClose:()=>void;onSave:(form:CommissionFormValues)=>void;
 }){
   const [form,setForm]=useState<CommissionFormValues|null>(initial);
   const [localError,setLocalError]=useState('');
@@ -51,7 +51,7 @@ export function BoardCommissionDialog({
       <div className="space-y-1.5">
         <label htmlFor="board-commission-scope" className="text-sm font-medium">Phạm vi áp dụng *</label>
         <AppNativeSelect id="board-commission-scope" containerClassName="w-full" value={form.scope}
-          disabled={busy||form.expectedVersionId!==null}
+          disabled={busy||lockTarget||form.expectedVersionId!==null}
           onChange={e=>setForm(f=>f?{...f,scope:e.target.value as CommissionScope,organizationId:null,managerUserId:null,salesUserId:null,expectedVersionId:null}:f)}>
           <option value="SYSTEM">Mặc định toàn hệ thống</option>
           <option value="MANAGER">Theo Quản lý bán hàng</option>
@@ -62,7 +62,7 @@ export function BoardCommissionDialog({
         <div className="space-y-1.5">
           <label htmlFor="board-commission-org" className="text-sm font-medium">Tổ chức *</label>
           <AppNativeSelect id="board-commission-org" containerClassName="w-full" value={form.organizationId??0}
-            disabled={busy||form.expectedVersionId!==null}
+            disabled={busy||lockTarget||form.expectedVersionId!==null}
             onChange={e=>setForm(f=>f?{...f,organizationId:Number(e.target.value)||null,managerUserId:null,salesUserId:null}:f)}>
             <option value={0}>Chọn tổ chức</option>
             {organizations.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
@@ -71,7 +71,7 @@ export function BoardCommissionDialog({
         <div className="space-y-1.5">
           <label htmlFor="board-commission-manager" className="text-sm font-medium">Quản lý phụ trách {form.scope==='MANAGER'?'*':''}</label>
           <AppNativeSelect id="board-commission-manager" containerClassName="w-full" value={form.managerUserId??0}
-            disabled={busy||!form.organizationId||form.expectedVersionId!==null}
+            disabled={busy||!form.organizationId||lockTarget||form.expectedVersionId!==null}
             onChange={e=>setForm(f=>f?{...f,managerUserId:Number(e.target.value)||null,salesUserId:null}:f)}>
             <option value={0}>{form.scope==='MANAGER'?'Chọn Quản lý':'Tất cả Quản lý'}</option>
             {managerOptions.map(m=><option key={m.id} value={m.id}>{m.name} · {m.email}</option>)}
@@ -80,7 +80,7 @@ export function BoardCommissionDialog({
         {form.scope==='SALES'&&<div className="space-y-1.5">
           <label htmlFor="board-commission-sales" className="text-sm font-medium">Sales / CTV *</label>
           <AppNativeSelect id="board-commission-sales" containerClassName="w-full" value={form.salesUserId??0}
-            disabled={busy||!form.organizationId||form.expectedVersionId!==null}
+            disabled={busy||!form.organizationId||lockTarget||form.expectedVersionId!==null}
             onChange={e=>setForm(f=>f?{...f,salesUserId:Number(e.target.value)||null}:f)}>
             <option value={0}>Chọn Sales theo tên hoặc email</option>
             {availableSales.map(s=><option key={s.userId} value={s.userId}>{s.name} · {s.email}</option>)}

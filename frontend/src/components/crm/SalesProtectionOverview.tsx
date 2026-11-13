@@ -215,7 +215,7 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
 
         <section aria-labelledby="sales-protection-history-heading" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
           <h3 id="sales-protection-history-heading" className="flex items-center gap-2 font-bold text-foreground"><History aria-hidden="true" className="size-4 text-primary"/>Lịch sử gián đoạn và quyết định</h3>
-          {historyLoading&&<p role="status" className="mt-3 text-sm text-muted-foreground">Đang tải lịch sử xử lý...</p>}
+          {historyLoading&&<output className="block mt-3 text-sm text-muted-foreground">Đang tải lịch sử xử lý...</output>}
           {detailError&&<p role="alert" className="mt-3 text-sm text-destructive">{detailError}</p>}
           {!historyLoading&&!detailError&&history.length===0&&<div className="mt-3 flex items-start gap-2 rounded-xl bg-muted/40 p-3">
             <FileText aria-hidden="true" className="size-4 shrink-0 text-muted-foreground"/>

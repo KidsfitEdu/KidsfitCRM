@@ -361,7 +361,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </AppButton>
       </form>
       {busy && rows.length > 0 && <div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..." /></div>}
-      {busy && rows.length === 0 ? <div className="space-y-3 p-5" role="status" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</div> : <div className="overflow-x-auto">
+      {busy && rows.length === 0 ? <output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</output> : <div className="overflow-x-auto">
         <table className="w-full min-w-[1280px] text-left text-sm">
           <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white">
             <tr>
@@ -450,7 +450,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description="Kế toán / Chi tiết hợp đồng">
-      {!detail ? <div className="space-y-3 p-3" role="status" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></div> : <div className="space-y-5 text-sm">
+      {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
         <div className="space-y-2 rounded-xl bg-muted/25 p-4 sm:p-5">
           <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
           <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>

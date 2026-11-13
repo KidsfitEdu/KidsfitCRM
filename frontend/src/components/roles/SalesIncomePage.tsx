@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Eye } from 'lucide-react';
+import { CheckCircle2, Clock3, Eye, FileImage, ExternalLink } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
-import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/common/buttons/app-button';
 import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
 
 type Row = { contract_id:number; contract_code:string; school_name:string;
@@ -25,7 +25,8 @@ type IncomeDetail = {
     payment_reference:string|null;allocated_amount:number;evidence_id:number|null;evidence_name:string|null}[];
 };
 const statusLabel: Record<string,string> = {
-  DRAFT:'Chờ duyệt', APPROVED:'Chờ chuyển', PAID:'Đã chuyển'
+  DRAFT:'Nháp', PENDING_APPROVAL:'Chờ duyệt', CHANGES_REQUESTED:'Cần bổ sung',
+  APPROVED:'Chờ chuyển', PAID:'Đã chuyển'
 };
 
 export function SalesIncomePage({apiBase,token,abilities}:{
@@ -124,56 +125,120 @@ export function SalesIncomePage({apiBase,token,abilities}:{
         </SalesListRow>)}
       </SalesListLayout>
     </>}
-    <AppDrawer open={!!selected} onOpenChange={open=>{if(!open)setSelected(null);}}
-      title="CHI TIẾT HOA HỒNG" description={selected?.school_name??''} wide>
+    <AppDrawer open={!!selected} onOpenChange={open=>{if(!open){setSelected(null);setProofError('');}}}
+      title="Chi tiết hoa hồng" description={selected?.school_name??''} wide>
       {selected&&<div className="space-y-5 text-sm">
-        <div className="rounded-xl border p-4"><p className="font-semibold">{selected.school_name}</p>
-          <p className="mt-1 text-muted-foreground">{selected.contract_code}</p></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Hoa hồng phát sinh</p><p className="mt-2 font-semibold">{channelMoney(selected.commission)}</p></div>
-          <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Đã nhận (phân bổ)</p><p className="mt-2 font-semibold">{channelMoney(selected.paid)}</p></div>
-        </div>
-        <p>Chưa nhận: <strong>{channelMoney(selected.unpaid)}</strong></p>
-        {detailError&&<p role="alert" className="text-red-700">{detailError}</p>}
-        {!detail&&!detailError&&<p className="text-muted-foreground">Đang tải chi tiết…</p>}
+        <section aria-label="Tổng quan hoa hồng" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Tổng quan thu nhập</h3>
+          <p className="text-xs text-muted-foreground">Hoa hồng phát sinh</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-foreground">{channelMoney(selected.commission)}</p>
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-border pt-4 sm:grid-cols-2">
+            <div className="rounded-xl bg-green-50 p-3 dark:bg-green-950/30">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-green-800 dark:text-green-200">
+                <CheckCircle2 className="size-4" aria-hidden="true"/>Đã nhận (phân bổ)
+              </p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-green-800 dark:text-green-200">{channelMoney(selected.paid)}</p>
+            </div>
+            <div className="rounded-xl bg-muted/50 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Clock3 className="size-4" aria-hidden="true"/>Chưa nhận
+              </p>
+              <p className="mt-1 text-lg font-bold tabular-nums">{channelMoney(selected.unpaid)}</p>
+            </div>
+          </div>
+        </section>
+        {detailError&&<p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-destructive">{detailError}</p>}
+        {!detail&&!detailError&&<p role="status" className="rounded-xl border border-border p-4 text-muted-foreground">Đang tải chi tiết hoa hồng…</p>}
         {detail&&<>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="text-base font-semibold">1. Thông tin hợp đồng</h3>
-            <p>Giá trị hợp đồng: {channelMoney(detail.contract.contract_value)}</p>
-            <p>Trạng thái hợp đồng: {detail.contract.contract_status}</p>
-            <p>Đối soát CHECKEE: {detail.reconciliation_status==='CONFIRMED'?'Đã xác nhận':(detail.reconciliation_status??'Chưa đối soát')}</p>
-          </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="text-base font-semibold">2. Cơ sở và chính sách hoa hồng</h3>
-            {detail.ledger.map(entry=><div key={entry.id} className="rounded-lg border p-3">
-              <div className="flex flex-wrap justify-between gap-2">
-                <strong>{channelMoney(entry.amount)}</strong>
-                <span className="text-muted-foreground">Kỳ {entry.period} · {channelDate(entry.occurred_at)}</span>
+          <section aria-labelledby="sales-income-contract" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 id="sales-income-contract" className="font-semibold text-foreground">Thông tin hợp đồng</h3>
+              <span className={detail.reconciliation_status==='CONFIRMED'
+                ?'inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
+                :'inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground'}>
+                {detail.reconciliation_status==='CONFIRMED'&&<CheckCircle2 className="size-3.5" aria-hidden="true"/>}
+                {detail.reconciliation_status==='CONFIRMED'?'Đã đối soát':'Chưa xác nhận đối soát'}
+              </span>
+            </div>
+            <dl className="space-y-3 rounded-xl border border-border p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <dt className="text-muted-foreground">Trường học</dt>
+                <dd className="max-w-full break-words text-right font-medium">{detail.contract.school_name}</dd>
               </div>
-              <p className="mt-2 text-muted-foreground">Cơ sở: {channelMoney(entry.calculation_base)} · Tỷ lệ {entry.rate_percent}% · {entry.policy_code}</p>
-              {entry.reason&&<p className="mt-1">Điều chỉnh: {entry.reason}</p>}
-            </div>)}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <dt className="text-muted-foreground">Mã hợp đồng</dt>
+                <dd className="max-w-full break-all text-right font-medium">{detail.contract.contract_code}</dd>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <dt className="text-muted-foreground">Giá trị hợp đồng</dt>
+                <dd className="font-semibold tabular-nums">{channelMoney(detail.contract.contract_value)}</dd>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <dt className="text-muted-foreground">Trạng thái hợp đồng</dt>
+                <dd className="font-medium">{detail.contract.contract_status==='VERIFIED'?'Đã xác minh':detail.contract.contract_status==='CANCELLED'?'Đã hủy':detail.contract.contract_status==='ACTIVE'?'Đang hiệu lực':detail.contract.contract_status==='PENDING'?'Đang xử lý':'Theo hồ sơ hợp đồng'}</dd>
+              </div>
+            </dl>
           </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="text-base font-semibold">3. Các khoản trường đã thanh toán làm cơ sở tính</h3>
-            {detail.receipts.length===0?<p className="text-muted-foreground">Chưa có khoản thu liên kết với bút toán.</p>
-              :detail.receipts.map(x=><div key={x.id} className="flex flex-wrap justify-between gap-2 border-b py-2">
-              <span>{channelDate(x.received_at)} · {x.reference_code||'—'}</span><strong>{channelMoney(x.amount)}</strong>
-            </div>)}
+          <section aria-labelledby="sales-income-policy" className="space-y-3">
+            <h3 id="sales-income-policy" className="font-semibold text-foreground">Chi tiết cách tính hoa hồng</h3>
+            {detail.ledger.length===0?<p className="rounded-xl border p-4 text-muted-foreground">Chưa có bút toán hoa hồng.</p>
+              :detail.ledger.map(entry=><div key={entry.id} className="space-y-3 rounded-xl border border-border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <span className="font-semibold tabular-nums">{channelMoney(entry.amount)}</span>
+                  <span className="text-xs text-muted-foreground">Kỳ {entry.period} · {channelDate(entry.occurred_at)}</span>
+                </div>
+                <dl className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="text-muted-foreground">Số tiền làm căn cứ tính</dt>
+                    <dd className="font-medium tabular-nums">{channelMoney(entry.calculation_base)}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-muted-foreground">Tỷ lệ hoa hồng</dt>
+                    <dd className="font-semibold tabular-nums">{entry.rate_percent}%</dd>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="text-muted-foreground">Chính sách áp dụng</dt>
+                    <dd className="font-medium">{entry.policy_code==='SYSTEM_DEFAULT'?'Chính sách mặc định':'Chính sách theo hồ sơ'}</dd>
+                  </div>
+                </dl>
+                {entry.reason&&<p className="rounded-lg bg-muted/50 p-2 text-muted-foreground">Điều chỉnh: {entry.reason}</p>}
+              </div>)}
+            <p className="text-xs leading-5 text-muted-foreground">Hoa hồng được ghi nhận theo số tiền thực thu đủ điều kiện và chính sách của từng bút toán, không tự động tính trên toàn bộ giá trị hợp đồng.</p>
           </section>
-          <section className="space-y-2 border-t pt-4">
-            <h3 className="text-base font-semibold">4. Lịch sử phiếu chi liên quan</h3>
-            {detail.payments.length===0?<p className="text-muted-foreground">Chưa có phiếu chi cho các bút toán này.</p>
-              :detail.payments.map(x=><div key={x.id} className="rounded-lg border p-3">
-                <div className="flex flex-wrap justify-between gap-2"><strong>{x.code}</strong><span>{statusLabel[x.status]??x.status}</span></div>
-                <p className="mt-2">Phần tiền phân bổ: {channelMoney(x.allocated_amount)}</p>
-                <p className="mt-1 text-muted-foreground">{x.paid_at?channelDate(x.paid_at):'Chưa chuyển'} · {x.payment_reference||'Chưa có mã giao dịch'}</p>
-                {x.evidence_id && x.evidence_name && <Button type="button" variant="outline" size="sm"
-                  className="mt-2" onClick={()=>void openProof(x.evidence_id!,x.evidence_name!)}>Xem ảnh chứng từ</Button>}
+          <section aria-labelledby="sales-income-receipts" className="space-y-3">
+            <h3 id="sales-income-receipts" className="font-semibold text-foreground">Các khoản trường đã thanh toán</h3>
+            {detail.receipts.length===0?<p className="rounded-xl border border-border p-4 text-muted-foreground">Chưa có khoản thu liên kết với bút toán.</p>
+              :<div className="divide-y divide-border rounded-xl border border-border px-4">
+                {detail.receipts.map(receipt=><div key={receipt.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                  <span className="text-muted-foreground">{channelDate(receipt.received_at)} · {receipt.reference_code||'—'}</span>
+                  <span className="font-semibold tabular-nums">{channelMoney(receipt.amount)}</span>
+                </div>)}
+              </div>}
+          </section>
+          <section aria-labelledby="sales-income-payments" className="space-y-3">
+            <h3 id="sales-income-payments" className="font-semibold text-foreground">Lịch sử nhận hoa hồng</h3>
+            {detail.payments.length===0?<p className="rounded-xl border border-border p-4 text-muted-foreground">Chưa có phiếu chi cho các bút toán này.</p>
+              :detail.payments.map(payment=><div key={payment.id} className="space-y-3 rounded-xl border border-border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <strong className="min-w-0 break-all">{payment.code}</strong>
+                  <span className={payment.status==='PAID'
+                    ?'rounded-full border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
+                    :'rounded-full border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground'}>
+                    {statusLabel[payment.status]??'Đang xử lý'}
+                  </span>
+                </div>
+                <p className="text-lg font-bold tabular-nums">{channelMoney(payment.allocated_amount)}</p>
+                <p className="text-xs text-muted-foreground">{payment.paid_at?channelDate(payment.paid_at):'Chưa chuyển'} · {payment.payment_reference||'Chưa có mã giao dịch'}</p>
+                {payment.evidence_id && payment.evidence_name&&<AppButton type="button" tone="outline" className="h-9"
+                  leadingIcon={<FileImage className="size-4" aria-hidden="true"/>}
+                  trailingIcon={<ExternalLink className="size-3.5" aria-hidden="true"/>}
+                  onClick={()=>void openProof(payment.evidence_id!,payment.evidence_name!)}>
+                  Xem chứng từ
+                </AppButton>}
               </div>)}
           </section>
-          {proofError&&<p role="alert" className="text-red-700">{proofError}</p>}
-          <p className="text-xs text-muted-foreground">Với phiếu chi gộp nhiều hợp đồng, số tiền được phân bổ theo tỷ trọng bút toán; không phải giao dịch ngân hàng tách riêng cho từng trường.</p>
+          {proofError&&<p role="alert" className="rounded-xl border border-destructive/30 p-3 text-destructive">{proofError}</p>}
+          <p className="text-xs leading-5 text-muted-foreground">Với phiếu chi gộp nhiều hợp đồng, số tiền hiển thị là phần phân bổ theo tỷ trọng bút toán, không phải một giao dịch ngân hàng riêng cho từng trường.</p>
         </>}
       </div>}
     </AppDrawer>

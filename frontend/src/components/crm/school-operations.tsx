@@ -286,9 +286,7 @@ export function SchoolOperations({
       appNotice.warning('Đã lưu, nhưng chưa tải lại được danh sách.', 'Vui lòng làm mới trang để xem dữ liệu mới nhất.');
   };
   const data = workspace.data;
-  const matches = (...values: (string | null)[]) => {
-    return true;
-  };
+  const matches = (..._values: (string | null)[]) => true;
   const historyButton = (kind: string, id: number, name: string) =>
     (
       <Button
@@ -602,7 +600,7 @@ export function SchoolOperations({
       />}
       {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isPending} preview={preview}
+        loading={workspace.isPending} preview={false}
         onPageChange={setPage} onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}
         onSearch={term => {setSearch(term);setPage(1);}}
         onStatusChange={value=>{setProposalStatus(value);setPage(1);}}

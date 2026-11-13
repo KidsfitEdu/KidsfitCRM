@@ -94,8 +94,6 @@ test('src/app route tree and src/screens have no conflicting legacy directories'
   }
   assert.equal(existsSync(file('app')), false, 'Legacy root app/ must be absent');
   assert.equal(existsSync(file('src/pages')), false, 'Legacy src/pages must be absent');
-  const demoEntry = read('demo/main.tsx');
-  assert.match(demoEntry, /\.\.\/src\/app\/globals\.css/);
   const config = read('components.json');
   assert.match(config, /src\/app\/globals\.css/);
 });

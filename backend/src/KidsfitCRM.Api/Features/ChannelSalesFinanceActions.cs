@@ -39,6 +39,15 @@ public sealed partial class ChannelSalesActions
                 && !db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id))
                 .OrderBy(x => x.Id).ToListAsync(ct);
             if (entries.Count == 0) throw new ApiConflictException("Không có hoa hồng đủ điều kiện trong kỳ đã chọn. Kiểm tra bút toán hoa hồng, kỳ phát sinh và phiếu chi trước đó.");
+            // A ledger accrual is not yet a payable commission until CHECKEE has
+            // confirmed the corresponding contract's reconciliation. Guard every
+            // included contract, including multi-contract payouts in one period.
+            var contractIds = entries.Select(x => x.ContractId).Distinct().ToArray();
+            var reconciledContracts = await db.ReconciliationCases.AsNoTracking()
+                .Where(x => contractIds.Contains(x.ContractId) && x.Status == "CONFIRMED")
+                .Select(x => x.ContractId).Distinct().ToArrayAsync(ct);
+            if (reconciledContracts.Length != contractIds.Length)
+                throw new ApiConflictException("Chỉ lập phiếu chi khi CHECKEE đã xác nhận đối soát tất cả hợp đồng liên quan.");
             var gross = entries.Sum(x => x.Amount);
             if (gross <= 0) throw new ApiConflictException("Tổng hoa hồng còn lại trong kỳ phải dương để lập phiếu chi.");
             if (request.WithholdingAmount > gross) throw ApiValidationException.For("withholding_amount", "Khấu trừ không được vượt tổng hoa hồng.");

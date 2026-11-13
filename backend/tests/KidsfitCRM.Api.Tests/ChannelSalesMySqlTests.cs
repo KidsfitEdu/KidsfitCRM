@@ -176,7 +176,11 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         }
         static System.Text.Json.JsonElement Json(IResult result) =>
             System.Text.Json.JsonSerializer.SerializeToElement(
-                ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value);
+                ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value,
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower
+                });
 
         var httpA = AsSales(sellerA);
         var all = Json(await ContractRenewalEndpoints.MineList(httpA, db,
@@ -576,7 +580,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var actions = new ChannelSalesActions(db);
         var error = await Assert.ThrowsAsync<ApiValidationException>(() => actions.AssignContractCare(
             0, new AssignContractCareRequest(Key(), admin, kidsfitId, null), admin, Http(), Ct));
-        Assert.Contains("Chăm sóc khách hàng", error.Message);
+        Assert.Contains("Chăm sóc khách hàng", error.Errors["user_id"][0]);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.AssignContractCare(
             0, new AssignContractCareRequest(Key(), caretaker, kidsfitId, null), admin, Http(), Ct));
 
@@ -595,7 +599,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         await db.SaveChangesAsync(Ct);
         var dualError = await Assert.ThrowsAsync<ApiValidationException>(() => actions.AssignContractCare(
             0, new AssignContractCareRequest(Key(), dualRole.Id, kidsfitId, null), admin, Http(), Ct));
-        Assert.Contains("quản trị viên", dualError.Message);
+        Assert.Contains("quản trị viên", dualError.Errors["user_id"][0]);
     }
 
     [MySqlFact]

@@ -22,8 +22,6 @@ public static class AccountingScenarioSeeder
         var accountant = await db.Users.SingleAsync(x => x.Email == "accountant@kidsfit.vn");
         var manager = await db.Users.SingleAsync(x => x.Email == "manager@kidsfit.vn");
         var package = await db.CheckeeProductPackages.SingleAsync(x => x.Code == "CHECKEE_GROWTH");
-        var policySales = await db.CommissionPolicyVersions.SingleAsync(x => x.Code == "DEMO-SALES-30-2026");
-        var policyCtv = await db.CommissionPolicyVersions.SingleAsync(x => x.Code == "DEMO-CTV-30-2026");
         var proofBytes = Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0d8AAAAASUVORK5CYII=");
         var sha = Convert.ToHexString(SHA256.HashData(proofBytes));
@@ -31,11 +29,11 @@ public static class AccountingScenarioSeeder
         foreach (var scenario in new[]
         {
             new {Code = "DEMO-ACC-SALES", School = "Trường Mầm Non Hoa Sen (Demo)",
-                Owner = sales, Org = kidsfit, Policy = policySales,
+                Owner = sales, Org = kidsfit,
                 Type = "SALES", Plan = "SCHOOL_YEAR", Total = 30_000_000m, Schedules = 3,
                 ActualReceipts = 1, Branches = 2, Transfer = false},
             new {Code = "DEMO-ACC-CTV", School = "Trường Mầm Non Sao Mai (Demo)",
-                Owner = ctv, Org = partner, Policy = policyCtv,
+                Owner = ctv, Org = partner,
                 Type = "COLLABORATOR", Plan = "MONTHLY_9", Total = 45_000_000m, Schedules = 1,
                 ActualReceipts = 1, Branches = 3, Transfer = true},
         })
@@ -182,17 +180,32 @@ public static class AccountingScenarioSeeder
                 var entry = new CommissionLedgerEntry
                 {
                     ContractId = contract.Id, RevenueReceiptId = receipt.Id,
-                    PolicyVersionId = scenario.Policy.Id,
+                    BoardPolicyVersionId = null, PolicySource = "SYSTEM_DEFAULT", BeneficiaryRole = "SALES",
                     BeneficiaryUserId = scenario.Owner.Id,
                     BeneficiaryOrganizationId = scenario.Org.Id,
                     EntryType = "ACCRUAL", CalculationBase = amount,
-                    RatePercent = 30m, Amount = amount * 0.3m,
+                    RatePercent = 25m, Amount = decimal.Round(amount * 0.25m, 0, MidpointRounding.AwayFromZero),
                     Status = "ACCRUED", Period = now.ToString("yyyy-MM"),
                     OccurredAt = now.AddDays(-10+j), CreatedByUserId = accountant.Id,
                     CreatedAt = now, UpdatedAt = now,
                 };
                 db.CommissionLedgerEntries.Add(entry);
                 entries.Add(entry);
+                var managerId = await db.OrganizationMemberships.AsNoTracking()
+                    .Where(x => x.OrganizationId == scenario.Org.Id && x.UserId == scenario.Owner.Id)
+                    .Select(x => x.ManagerUserId).FirstOrDefaultAsync();
+                if (managerId.HasValue && await db.OrganizationMemberships.AnyAsync(m =>
+                    m.OrganizationId == scenario.Org.Id && m.UserId == managerId.Value && m.Status == "ACTIVE"))
+                    db.CommissionLedgerEntries.Add(new CommissionLedgerEntry {
+                        ContractId=contract.Id, RevenueReceiptId=receipt.Id,
+                        PolicySource="SYSTEM_DEFAULT", BeneficiaryRole="MANAGER",
+                        BeneficiaryUserId=managerId.Value, BeneficiaryOrganizationId=scenario.Org.Id,
+                        EntryType="ACCRUAL", CalculationBase=amount, RatePercent=5m,
+                        Amount=decimal.Round(amount * 0.05m, 0, MidpointRounding.AwayFromZero),
+                        Status="ACCRUED", Period=now.ToString("yyyy-MM"),
+                        OccurredAt=now.AddDays(-10+j), CreatedByUserId=accountant.Id,
+                        CreatedAt=now, UpdatedAt=now
+                    });
             }
             await db.SaveChangesAsync();
             if (scenario.Transfer)

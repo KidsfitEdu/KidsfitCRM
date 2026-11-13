@@ -296,74 +296,7 @@ public static class DatabaseSeeder
         }));
         await db.SaveChangesAsync();
 
-        if (!await db.CommissionPolicyVersions.AnyAsync(x => x.Code == "KIDSFIT-2026-V1"))
-        {
-            db.CommissionPolicyVersions.Add(new CommissionPolicyVersion
-            {
-                OrganizationId = kidsfit.Id,
-                Code = "KIDSFIT-2026-V1",
-                Name = "Chính sách mẫu KIDSFIT 2026",
-                RatePercent = 0m,
-                EffectiveFrom = new DateOnly(2026, 1, 1),
-                Status = "DRAFT",
-                CreatedByUserId = admin.Id,
-                CreatedAt = now,
-                UpdatedAt = now,
-            });
-        }
-        if (!await db.CommissionPolicyVersions.AnyAsync(x => x.Code == "PARTNER-2026-V1"))
-        {
-            db.CommissionPolicyVersions.Add(new CommissionPolicyVersion
-            {
-                OrganizationId = partner.Id,
-                Code = "PARTNER-2026-V1",
-                Name = "Chính sách mẫu đối tác 2026",
-                RatePercent = 0m,
-                EffectiveFrom = new DateOnly(2026, 1, 1),
-                Status = "DRAFT",
-                CreatedByUserId = admin.Id,
-                CreatedAt = now,
-                UpdatedAt = now,
-            });
-        }
-        await db.SaveChangesAsync();
-
-        // Optional accounting scenarios are restricted to disposable nonproduction databases.
-        // Base fixture remains stable for older integrity tests; opt in via Seed:AccountingScenarios=true.
-        if (services.GetRequiredService<IConfiguration>().GetValue<bool>("Seed:AccountingScenarios"))
-        {
-        // 30% is the approved rate for employees and collaborators, applied to actual receipts.
-        // Keep legacy DRAFT policies unchanged to preserve their historical meaning.
-        var demoRateEffective = new DateOnly(2026, 1, 1);
-        foreach (var (org, personnelType, code) in new[]
-        {
-            (kidsfit, "SALES", "DEMO-SALES-30-2026"),
-            (partner, "COLLABORATOR", "DEMO-CTV-30-2026"),
-        })
-        {
-            if (!await db.CommissionPolicyVersions.AnyAsync(x => x.Code == code))
-                db.CommissionPolicyVersions.Add(new CommissionPolicyVersion
-                {
-                    OrganizationId = org.Id,
-                    Code = code,
-                    Name = $"Hoa hồng thực thu 30% - {personnelType} - dữ liệu demo",
-                    PersonnelType = personnelType,
-                    RatePercent = 30m,
-                    EffectiveFrom = demoRateEffective,
-                    Status = "ACTIVE",
-                    CreatedByUserId = admin.Id,
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                });
-            if (org.CommissionRateCeiling < 30m)
-            {
-                org.CommissionRateCeiling = 30m;
-                org.UpdatedAt = now;
-            }
-        }
-        await db.SaveChangesAsync();
-        }
-
+        // BGĐ policy is authoritative. Synthetic fixtures use system fallback 25/5.
         // Legacy synthetic customers are excluded when a cohesive 10-school review is selected.
         if (!services.GetRequiredService<IConfiguration>().GetValue<bool>("Seed:ReviewFixtures"))
         {
@@ -411,7 +344,6 @@ public static class DatabaseSeeder
         if (!await db.ChannelCustomers.AnyAsync(x => x.Code == "CUS-DEMO-CONTRACT"))
         {
             var package = await db.CheckeeProductPackages.SingleAsync(x => x.Code == "CHECKEE_GROWTH");
-            var policy = await db.CommissionPolicyVersions.SingleAsync(x => x.Code == "KIDSFIT-2026-V1");
             var customer = new ChannelCustomer
             {
                 Code = "CUS-DEMO-CONTRACT", CustomerType = "ORGANIZATION", DisplayName = "Trường Mầm non Happy House",
@@ -449,7 +381,20 @@ public static class DatabaseSeeder
             var receipt = new RevenueReceipt { ContractId = contract.Id, RevenueScheduleId = schedule.Id, Amount = 15_000_000m, ReceivedAt = now.AddDays(-20), ReferenceCode = "RC-2026-0001", PaymentMethod = "BANK_TRANSFER", Status = "COMPLETED", IdempotencyKey = "seed-receipt-happy-house", RecordedByUserId = admin.Id, CreatedAt = now.AddDays(-20), UpdatedAt = now };
             db.RevenueReceipts.Add(receipt);
             await db.SaveChangesAsync();
-            db.CommissionLedgerEntries.Add(new CommissionLedgerEntry { ContractId = contract.Id, RevenueReceiptId = receipt.Id, PolicyVersionId = policy.Id, BeneficiaryUserId = sales.Id, BeneficiaryOrganizationId = kidsfit.Id, EntryType = "ACCRUAL", CalculationBase = 15_000_000m, RatePercent = 10m, Amount = 1_500_000m, Status = "ACCRUED", Period = $"{receipt.ReceivedAt:yyyy-MM}", OccurredAt = receipt.ReceivedAt, CreatedByUserId = admin.Id, CreatedAt = receipt.CreatedAt, UpdatedAt = now });
+            db.CommissionLedgerEntries.Add(new CommissionLedgerEntry { ContractId = contract.Id, RevenueReceiptId = receipt.Id, BoardPolicyVersionId = null, PolicySource = "SYSTEM_DEFAULT", BeneficiaryRole = "SALES", BeneficiaryUserId = sales.Id, BeneficiaryOrganizationId = kidsfit.Id, EntryType = "ACCRUAL", CalculationBase = 15_000_000m, RatePercent = 25m, Amount = 3_750_000m, Status = "ACCRUED", Period = $"{receipt.ReceivedAt:yyyy-MM}", OccurredAt = receipt.ReceivedAt, CreatedByUserId = admin.Id, CreatedAt = receipt.CreatedAt, UpdatedAt = now });
+            var managerId = await db.OrganizationMemberships.AsNoTracking()
+                .Where(x => x.UserId == sales.Id && x.OrganizationId == kidsfit.Id)
+                .Select(x => x.ManagerUserId).FirstOrDefaultAsync();
+            if (managerId.HasValue)
+                db.CommissionLedgerEntries.Add(new CommissionLedgerEntry {
+                    ContractId=contract.Id, RevenueReceiptId=receipt.Id,
+                    PolicySource="SYSTEM_DEFAULT", BeneficiaryRole="MANAGER",
+                    BeneficiaryUserId=managerId.Value, BeneficiaryOrganizationId=kidsfit.Id,
+                    EntryType="ACCRUAL", CalculationBase=15_000_000m, RatePercent=5m,
+                    Amount=750_000m, Status="ACCRUED", Period=$"{receipt.ReceivedAt:yyyy-MM}",
+                    OccurredAt=receipt.ReceivedAt, CreatedByUserId=admin.Id,
+                    CreatedAt=receipt.CreatedAt, UpdatedAt=now
+                });
             var reconciliation = new ReconciliationCase { CustomerId = customer.Id, ContractId = contract.Id, CheckeeOrganizationId = checkee.Id, Status = "PENDING", OpenedAt = contract.CreatedAt, CreatedAt = contract.CreatedAt, UpdatedAt = now };
             db.ReconciliationCases.Add(reconciliation);
             await db.SaveChangesAsync();

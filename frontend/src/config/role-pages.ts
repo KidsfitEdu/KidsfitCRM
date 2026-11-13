@@ -5,6 +5,7 @@
 export const rolePageSections = {
   Board: {
     dashboard: {label:"Tổng quan",panel:"dashboard",tab:""},
+    progress: {label:"Theo dõi tiến độ",panel:"progress",tab:""},
     oversight: {label:"Giám sát & báo cáo (đường dẫn cũ)",panel:"dashboard",tab:""},
     overdue: {label:"Hồ sơ quá hạn",panel:"operations",tab:"proposals"},
     disputes: {label:"Tranh chấp",panel:"operations",tab:"disputes"},

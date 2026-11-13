@@ -22,7 +22,10 @@ test('Payout creation requires accrued ledger entries, period and beneficiary bu
 test('Payout approval and completion preserve RBAC, status, amounts and evidence validation', () => {
   assert.match(payoutActions, /RequirePermission\(actorId, Permissions\.ChannelSalesPayoutApprove/);
   assert.match(payoutActions, /RequirePermission\(actorId, Permissions\.ChannelSalesPayoutComplete/);
-  assert.match(payoutActions, /if \(payout\.Status != "DRAFT"\)/);
+  assert.match(payoutActions, /if \(payout\.Status != "PENDING_APPROVAL"\)/);
+  assert.match(payoutActions, /SubmitPayout\(/);
+  assert.match(payoutActions, /ReturnPayout\(/);
+  assert.match(payoutActions, /RequireIndependentPayoutApprover/);
   assert.match(payoutActions, /if \(payout\.Status != "APPROVED"\)/);
   assert.match(payoutActions, /request\.Amount\.Value != payout\.NetAmount/);
   assert.match(payoutActions, /proof\.Kind != "PAYOUT"/);
@@ -90,5 +93,23 @@ test('Backfill and payout dialogs show explicit reviewed amounts and never claim
   assert.match(accounting,/Bước 3 · Lý do đối soát/);
   assert.match(accounting,/backfillManagerVerified/);
   assert.match(accounting,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
-  assert.match(accounting,/Xác nhận lập phiếu/);
+  assert.match(accounting,/Lưu nháp/);
+  assert.match(accounting,/Gửi BGĐ/);
+  assert.match(accounting,/Lý do điều chỉnh/);
+});
+
+test('One shared payout transitions through BGĐ approval with required adjustment rationale',()=>{
+  const actions=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
+  const endpoints=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs');
+  const model=read('../backend/src/KidsfitCRM.Api/Domain/ChannelSalesEntities.cs');
+  assert.match(endpoints,/\/payouts\/\{id:long\}\/draft/);
+  assert.match(endpoints,/\/payouts\/\{id:long\}\/submit/);
+  assert.match(endpoints,/\/payouts\/\{id:long\}\/return/);
+  assert.match(actions,/payout\.Status = "PENDING_APPROVAL"/);
+  assert.match(actions,/payout\.Status = "CHANGES_REQUESTED"/);
+  assert.match(actions,/payout\.Status = "APPROVED"/);
+  assert.match(actions,/payout\.Status = "PAID"/);
+  assert.match(actions,/adjustment_reason/);
+  assert.match(model,/SuggestedRatePercent/);
+  assert.match(model,/RequestedAmount/);
 });

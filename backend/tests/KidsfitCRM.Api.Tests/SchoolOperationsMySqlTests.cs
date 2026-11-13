@@ -1725,7 +1725,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync());
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct));
         var payout = await a.CreatePayout(new(Key(), s.OrgId, s.Seller.UserId, ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow), 0, null), admin, Http(), Ct);
-        await a.ApprovePayout(payout, admin, Http(), Ct);
+        await a.SubmitPayout(payout, admin, Http(), Ct);
+        var board = await User("board@kidsfit.vn");
+        await a.ApprovePayout(payout, board, Http(), Ct);
         await a.CompletePayout(payout, new("PAY-" + Key(), "Quyết toán hoa hồng hợp lệ sau nghỉ"), admin, Http(), Ct);
         Assert.Equal("PAID", (await db.Payouts.FindAsync(payout))!.Status);
     }

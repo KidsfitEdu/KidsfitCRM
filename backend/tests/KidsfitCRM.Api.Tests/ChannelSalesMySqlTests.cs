@@ -760,8 +760,12 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.Equal(payoutId, await actions.CreatePayout(payoutRequest, accountant, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.CreatePayout(payoutRequest with { IdempotencyKey = Key() }, accountant, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.CompletePayout(payoutId, new("TX-" + Key(), null), accountant, Http(), Ct));
-        await actions.ApprovePayout(payoutId, accountant, Http(), Ct);
-        await actions.ApprovePayout(payoutId, accountant, Http(), Ct);
+        var board = await UserId("board@kidsfit.vn");
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.ApprovePayout(payoutId, board, Http(), Ct));
+        await actions.SubmitPayout(payoutId, accountant, Http(), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.ApprovePayout(payoutId, accountant, Http(), Ct));
+        await actions.ApprovePayout(payoutId, board, Http(), Ct);
+        await actions.ApprovePayout(payoutId, board, Http(), Ct);
         var completion = new CompletePayoutRequest("TX-" + Key(), null);
         await actions.CompletePayout(payoutId, completion, accountant, Http(), Ct);
         await actions.CompletePayout(payoutId, completion, accountant, Http(), Ct);
@@ -770,7 +774,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.Equal("PAID", paid!.Status);
         Assert.Equal(125_000m, paid.GrossAmount);
         Assert.Equal(120_000m, paid.NetAmount);
-        Assert.Equal(3, await db.PayoutEvents.CountAsync(x => x.PayoutId == payoutId));
+        Assert.Equal(4, await db.PayoutEvents.CountAsync(x => x.PayoutId == payoutId));
         Assert.Equal("ACCRUED", (await db.CommissionLedgerEntries.FindAsync(entry.Id))!.Status);
         Assert.Equal(1, await db.PayoutItems.CountAsync(x => x.CommissionLedgerEntryId == entry.Id));
         Assert.Equal(1, await db.ReconciliationEvents.CountAsync(x => x.ReconciliationCaseId == reconciliationId && x.EventType == "CONFIRMED"));

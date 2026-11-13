@@ -292,56 +292,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("channel_customers");
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.CheckeeProductPackage", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext")
-                        .HasColumnName("description");
-
-                    b.Property<decimal>("ListPrice")
-                        .HasPrecision(19)
-                        .HasColumnType("decimal(19,0)")
-                        .HasColumnName("list_price");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("checkee_product_packages");
-                });
-
             modelBuilder.Entity("KidsfitCRM.Api.Domain.CommissionLedgerEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -2274,10 +2224,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("varchar(255)")
                         .HasColumnName("description");
 
-                    b.Property<long?>("ProductPackageId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("product_package_id");
-
                     b.Property<decimal>("Quantity")
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)")
@@ -2295,8 +2241,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContractId");
-
-                    b.HasIndex("ProductPackageId");
 
                     b.ToTable("sales_contract_items");
                 });
@@ -4098,11 +4042,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasForeignKey("ContractId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.CheckeeProductPackage", null)
-                        .WithMany()
-                        .HasForeignKey("ProductPackageId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolCapacityChange", b =>

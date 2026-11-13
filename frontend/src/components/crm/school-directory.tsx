@@ -108,7 +108,6 @@ type Detail = {
   can_request_extension?: boolean;
   can_allocate?: boolean;
   can_dispute?: boolean;
-  packages: { id: number; name: string; list_price: number }[];
   units: {
     id: number;
     version: number;

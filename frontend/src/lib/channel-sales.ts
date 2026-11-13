@@ -32,14 +32,6 @@ export type ChannelCustomer = {
   extension_unavailable_reason?: string | null;
 };
 
-export type CheckeePackage = {
-  id: number;
-  code: string;
-  name: string;
-  description: string | null;
-  list_price: number;
-};
-
 export type ChannelSalesMetrics = {
   available: number;
   approaching: number;
@@ -54,7 +46,6 @@ export type ChannelSalesWorkspace = {
   capabilities?: { view_revenue: boolean; view_commission: boolean };
   data: ChannelCustomer[];
   metrics: ChannelSalesMetrics;
-  packages: CheckeePackage[];
   pending_reconciliations: {
     id: number;
     customer_id: number;
@@ -101,7 +92,6 @@ export type ReportContractInput = {
   service_start_on: string;
   service_end_on: string;
   payment_cycle: 'MONTHLY' | 'YEARLY';
-  product_package_id?: number;
   total_value: number;
   first_payment_due_on?: string;
   evidence_reference?: string;
@@ -217,29 +207,6 @@ export const demoChannelSalesWorkspace: ChannelSalesWorkspace = {
     collected_revenue: 15000000,
     commission_accrued: 0,
   },
-  packages: [
-    {
-      id: 1,
-      code: 'CHECKEE_START',
-      name: 'CHECKEE Start',
-      description: 'Gói khởi động cho đơn vị quy mô nhỏ',
-      list_price: 12000000,
-    },
-    {
-      id: 2,
-      code: 'CHECKEE_GROWTH',
-      name: 'CHECKEE Growth',
-      description: 'Gói vận hành và mở rộng đội ngũ',
-      list_price: 30000000,
-    },
-    {
-      id: 3,
-      code: 'CHECKEE_ENTERPRISE',
-      name: 'CHECKEE Enterprise',
-      description: 'Gói tùy chỉnh cho chuỗi và doanh nghiệp',
-      list_price: 60000000,
-    },
-  ],
   pending_reconciliations: [],
   server_time: new Date().toISOString(),
 };

@@ -55,7 +55,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   const [membershipType, setMembershipType] = useState<string | null>(null);
   const [abilities, setAbilities] = useState<string[]>(demoAccount?.abilities ?? []);
   const [workspace, setWorkspace] = useState<ChannelSalesWorkspace>(demoAccount ? presentDemoWorkspace(demoChannelSalesWorkspace, demoAccount) : {
-    data: [], metrics: { available: 0, approaching: 0, contracted: 0, expiring_soon: 0, contract_value: 0, collected_revenue: 0, commission_accrued: 0 }, packages: [], pending_reconciliations: [], server_time: new Date(0).toISOString()
+    data: [], metrics: { available: 0, approaching: 0, contracted: 0, expiring_soon: 0, contract_value: 0, collected_revenue: 0, commission_accrued: 0 }, pending_reconciliations: [], server_time: new Date(0).toISOString()
   });
   const [search, setSearch] = useState('');
   const [dark, setDark] = useState(false);

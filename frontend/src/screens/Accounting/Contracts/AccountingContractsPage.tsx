@@ -76,7 +76,7 @@ type ContractRow = {
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
 type BackfillPreview={
   receipt_id:number;contract_id:number;eligible_cash:number;
-  sales_user_id:number;manager_user_id:number|null;
+  sales_user_id:number;manager_user_id:number|null;manager_name:string|null;
   manager_review_required:boolean;requires_manager_verification:boolean;
   sales_percent:number;manager_percent:number;
   sales_amount:number;manager_amount:number;
@@ -971,6 +971,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             {backfillPreview.board_policy_version_id?' · Phiên bản #'+backfillPreview.board_policy_version_id:''}
           </p>
         </div>
+        {backfillPreview.requires_manager_verification&&<p className="text-xs text-muted-foreground">
+          Quản lý đang được đề xuất: <strong>{backfillPreview.manager_name??'Chưa xác định'}</strong>.
+          Cần đối chiếu lịch sử phân công tại ngày thu; không xác nhận chỉ dựa vào phân công hiện tại.
+        </p>}
         {backfillPreview.requires_manager_verification&&
           <label className="flex gap-2 rounded-lg border border-border p-3">
             <input type="checkbox" className="mt-1" checked={backfillManagerVerified}

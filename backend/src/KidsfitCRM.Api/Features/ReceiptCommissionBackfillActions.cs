@@ -13,13 +13,14 @@ public sealed partial class ChannelSalesActions
 {
     private sealed record ReceiptCommissionAssessment(
         RevenueReceipt Receipt, SalesContract Contract, decimal EligibleCash,
-        long? ManagerId, bool ManagerValid, decimal SalesRate, decimal ManagerRate,
+        long? ManagerId, string? ManagerName, bool ManagerValid, decimal SalesRate, decimal ManagerRate,
         string PolicySource, long? PolicyVersionId, int LedgerCount)
     {
         public object Preview => new {
             receipt_id = Receipt.Id, contract_id = Contract.Id,
             eligible_cash = EligibleCash, sales_user_id = Contract.OwnerUserId,
             manager_user_id = ManagerValid ? ManagerId : null,
+            manager_name = ManagerValid ? ManagerName : null,
             manager_review_required = ManagerRate > 0 && !ManagerValid,
             requires_manager_verification = ManagerRate > 0 && ManagerValid,
             sales_percent = SalesRate, manager_percent = ManagerRate,
@@ -58,13 +59,16 @@ public sealed partial class ChannelSalesActions
                 && db.Users.Any(u => u.Id == m.UserId && u.Status == "ACTIVE")
                 && db.UserRoles.Any(ur => ur.UserId == m.UserId
                     && db.Roles.Any(r => r.Id == ur.RoleId && r.Code == "SALES_MANAGER")), ct);
+        var managerName = managerValid
+            ? await db.Users.AsNoTracking().Where(x => x.Id == managerId!.Value)
+                .Select(x => x.Name).SingleOrDefaultAsync(ct) : null;
         var versions = await db.BoardCommissionPolicyVersions.AsNoTracking()
             .Where(x => x.CreatedAt <= receipt.ReceivedAt).ToArrayAsync(ct);
         var p = BoardCommissionPolicyEndpoints.ResolveAt(versions,
             contract.OwnerOrganizationId, managerId, contract.OwnerUserId, receipt.ReceivedAt);
         var existing = await db.CommissionLedgerEntries.AsNoTracking()
             .CountAsync(x => x.RevenueReceiptId == receiptId, ct);
-        return new(receipt, contract, eligibleCash, managerId, managerValid,
+        return new(receipt, contract, eligibleCash, managerId, managerName, managerValid,
             p.Sales, p.Manager, p.Source, p.VersionId, existing);
     }
 

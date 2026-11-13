@@ -131,7 +131,7 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(dashboard.includes('aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}'));
   assert.ok(operations.includes('Nhận trường ${x.school_name}'));
   assert.ok(operations.includes('Từ chối gia hạn ${x.school_name}'));
-  assert.ok(operations.includes('<AppPagination page={preview ? 1 : page}'));
+  assert.ok(operations.includes('<AppPagination page={page}'));
   assert.ok(operations.includes('onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}'));
   assert.ok(finance.includes('total={data.ledger.length}'));
   assert.ok(finance.includes('total={data.payouts.length}'));

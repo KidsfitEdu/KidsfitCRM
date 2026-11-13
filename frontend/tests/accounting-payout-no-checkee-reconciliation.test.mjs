@@ -70,3 +70,25 @@ test('Legacy receipt requires explicit verified backfill and never silently reas
   assert.match(accounting,/manager_verified:backfillManagerVerified/);
   assert.match(accounting,/!detail.ledger.some\(entry=>entry.revenue_receipt_id===receipt.id\)/);
 });
+
+test('Commission detail prioritizes actionable reconciliation and separate role summaries',()=>{
+  assert.match(accounting,/aria-labelledby="contract-commission-heading"/);
+  assert.match(accounting,/Cần đối soát khoản thu/);
+  assert.match(accounting,/pendingBackfillReceipts\.map\(receipt/);
+  assert.match(accounting,/Kiểm tra & đối soát/);
+  assert.match(accounting,/Hoa hồng Sales/);
+  assert.match(accounting,/Hoa hồng Quản lý/);
+  assert.match(accounting,/Chưa đưa vào phiếu/);
+  assert.match(accounting,/Lịch sử phiếu chi/);
+  assert.match(accounting,/beneficiaries=beneficiaryEntries\.filter/);
+  assert.match(accounting,/eligiblePeriods\.length>0/);
+});
+
+test('Backfill and payout dialogs show explicit reviewed amounts and never claim money was sent',()=>{
+  assert.match(accounting,/Bước 1 · Kiểm tra khoản thu/);
+  assert.match(accounting,/Bước 2 · Kiểm tra người hưởng/);
+  assert.match(accounting,/Bước 3 · Lý do đối soát/);
+  assert.match(accounting,/backfillManagerVerified/);
+  assert.match(accounting,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
+  assert.match(accounting,/Xác nhận lập phiếu/);
+});

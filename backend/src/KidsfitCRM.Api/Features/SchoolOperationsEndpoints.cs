@@ -453,9 +453,51 @@ public static class SchoolOperationsEndpoints
         var revenue = await db.RevenueReceipts.Where(x => contractIds.Contains(x.ContractId) && x.Status == "COMPLETED" && x.ReceivedAt >= start && x.ReceivedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
         var refunded = await db.RevenueRefunds.Where(x => contractIds.Contains(x.ContractId) && x.RefundedAt >= start && x.RefundedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
         var canMoney = a.Has(Permissions.ChannelSalesCommissionView);
+        // Historical revenue is calculated against the same authorised contract set as the KPI.
+        // Month boundaries are local Vietnam calendar months, stored as UTC instants.
+        var revenueTrend = new List<(string period, decimal collected, decimal refunded, decimal net)>();
+        if (a.All && canMoney)
+        {
+            for (var offset = 5; offset >= 0; offset--)
+            {
+                // Shift months on the first local day, not the UTC day before it.
+                // Otherwise February/March boundaries can drift to the 28th/30th.
+                var monthStart = DateTime.SpecifyKind(start.AddHours(7).AddMonths(-offset).AddHours(-7), DateTimeKind.Utc);
+                var monthEnd = DateTime.SpecifyKind(start.AddHours(7).AddMonths(1 - offset).AddHours(-7), DateTimeKind.Utc);
+                var gross = await db.RevenueReceipts.AsNoTracking()
+                    .Where(x => contractIds.Contains(x.ContractId) && x.Status == "COMPLETED"
+                        && x.ReceivedAt >= monthStart && x.ReceivedAt < monthEnd)
+                    .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+                var returns = await db.RevenueRefunds.AsNoTracking()
+                    .Where(x => contractIds.Contains(x.ContractId)
+                        && x.RefundedAt >= monthStart && x.RefundedAt < monthEnd)
+                    .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+                revenueTrend.Add((monthStart.AddHours(7).ToString("yyyy-MM"), gross, returns, gross - returns));
+            }
+        }
+        // Snapshot of canonical directory schools: contract-protected takes priority
+        // over approach-protected; unprotected schools form the remaining pool.
+        // This is not a historical snapshot for the selected reporting month.
+        var schools = db.DirectorySchools.AsNoTracking().Where(s => !s.IsDeleted);
+        var contractedSchools = await schools.CountAsync(s =>
+            db.CustomerProtections.Any(p => p.CustomerId == s.CustomerId
+                && p.Status == "ACTIVE" && p.SourceType == "CONTRACT" && p.EffectiveUntil > now), ct);
+        var approachingSchools = await schools.CountAsync(s =>
+            db.CustomerProtections.Any(p => p.CustomerId == s.CustomerId
+                && p.Status == "ACTIVE" && p.EffectiveUntil > now)
+            && !db.CustomerProtections.Any(p => p.CustomerId == s.CustomerId
+                && p.Status == "ACTIVE" && p.SourceType == "CONTRACT" && p.EffectiveUntil > now), ct);
         return Results.Ok(new
         {
             period = selected, server_time = now,
+            revenue_trend = a.All && canMoney ? revenueTrend.Select(x => new {
+                period = x.period, collected = x.collected, refunded = x.refunded, net = x.net
+            }).ToArray() : null,
+            previous_net_revenue = a.All && canMoney && revenueTrend.Count >= 2
+                ? (decimal?)revenueTrend[^2].net : null,
+            school_statuses = a.All ? new {
+                approaching = approachingSchools, contracted = contractedSchools
+            } : null,
             available_schools = await db.DirectorySchools.CountAsync(s => !s.IsDeleted && !db.CustomerProtections.Any(p => p.CustomerId == s.CustomerId && p.Status == "ACTIVE" && p.EffectiveUntil > now), ct),
             expired_approaches = await registrations.CountAsync(x => x.ProtectedUntil <= now && x.RegisteredAt >= start && x.RegisteredAt < end && (x.Status == "ACTIVE" || x.Status == "EXPIRED"), ct),
             active_contracts = await contracts.CountAsync(x => x.Status == "ACTIVE", ct),

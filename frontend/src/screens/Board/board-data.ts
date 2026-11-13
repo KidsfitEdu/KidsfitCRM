@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { channelRequest, currentBusinessPeriod } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace, SchoolOperationsReport } from '@/lib/school-operations';
 
-export function useBoardData(apiBase: string, token: string, period: string, page = 1) {
+export function useBoardData(apiBase: string, token: string, period: string, page = 1, withOperations = true) {
   const connected = Boolean(apiBase && token);
   const report = useQuery({
     queryKey: ['board', 'report', period, apiBase],
@@ -16,7 +16,7 @@ export function useBoardData(apiBase: string, token: string, period: string, pag
     queryKey: ['board', 'operations', apiBase, page],
     queryFn: () => channelRequest<SchoolOperationsWorkspace>(apiBase, token,
       '/school-operations?page=' + page),
-    enabled: connected,
+    enabled: connected && withOperations,
   });
   return { report, operations, connected };
 }

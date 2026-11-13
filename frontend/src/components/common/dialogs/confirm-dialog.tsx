@@ -11,6 +11,7 @@ type Props = {
   description?: ReactNode;
   confirmLabel?: string;
   busy?: boolean;
+  confirmDisabled?: boolean;
   destructive?: boolean;
   onConfirm: () => void;
   children?: ReactNode;
@@ -20,7 +21,7 @@ type Props = {
 /** Shared KIDSFIT confirmation shell, with no icon on the primary action. */
 export function ConfirmDialog({
   open, onOpenChange, title, description, confirmLabel = 'Xác nhận',
-  busy = false, destructive = false, onConfirm, children, compactHeader = false,
+  busy = false, confirmDisabled = false, destructive = false, onConfirm, children, compactHeader = false,
 }: Props) {
   return <AppDialog open={open} onOpenChange={onOpenChange} title={title} footerAlign="center"
     busy={busy} contentClassName="sm:max-w-md"
@@ -28,7 +29,7 @@ export function ConfirmDialog({
     footer={<>
       <AppButton type="button" tone="neutral" disabled={busy} className="h-11 w-full sm:w-40"
         onClick={() => onOpenChange(false)}>Hủy</AppButton>
-      <AppButton type="button" tone={destructive ? 'danger' : 'green'} busy={busy}
+      <AppButton type="button" tone={destructive ? 'danger' : 'green'} busy={busy} disabled={busy||confirmDisabled}
         className="h-11 w-full sm:w-40" onClick={onConfirm}>
         {busy ? 'Đang xử lý…' : confirmLabel}
       </AppButton>

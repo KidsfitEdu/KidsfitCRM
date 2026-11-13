@@ -252,7 +252,7 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
       description={confirmation?'Phê duyệt '+confirmation.code+' với số tiền thực chi '+channelMoney(confirmation.net_amount)+'? Sau khi duyệt, Kế toán mới được thanh toán.':undefined}
       onConfirm={()=>{if(confirmId!==null)void perform(confirmId,'approve');}}/>
     <ConfirmDialog open={returnId!==null} onOpenChange={open=>{if(!open&&!busy){setReturnId(null);setReason('');}}}
-      busy={busy} title="Yêu cầu Kế toán bổ sung" confirmLabel="Trả phiếu về Kế toán"
+      busy={busy} confirmDisabled={!reason.trim()} title="Yêu cầu Kế toán bổ sung" confirmLabel="Trả phiếu về Kế toán"
       description={returning?'Trả phiếu '+returning.code+' về cho Kế toán chỉnh sửa. Lý do được ghi vào lịch sử.':undefined}
       onConfirm={()=>{if(returnId!==null)void perform(returnId,'return');}}>
       <label htmlFor="board-payout-return-reason" className="block text-sm font-medium">Lý do yêu cầu bổ sung *</label>

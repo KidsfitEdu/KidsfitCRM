@@ -136,7 +136,8 @@ export function SchoolWorkLogDrawer({open,onOpenChange,customerId,schoolName,api
   const entries=logs.data?.data??[];
   const grouped: {date:string;items:WorkLog[]}[]=[];
   for(const log of entries){
-    const date=dayOf(log.occurred_at??log.created_at);
+    // The server sorts by recorded timestamp, so calendar groups remain chronological.
+    const date=dayOf(log.created_at);
     const last=grouped[grouped.length-1];
     if(last?.date===date)last.items.push(log);
     else grouped.push({date,items:[log]});

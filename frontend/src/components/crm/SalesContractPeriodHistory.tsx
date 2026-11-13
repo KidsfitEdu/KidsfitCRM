@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Download, Eye, FileText, Files } from 'lucide-react';
 import { channelMoney, channelRequest } from '@/lib/channel-operations';
 import { AppStatusBadge } from '@/components/common/app-status-badge';
-import { EvidencePreviewDialog } from '@/components/common/evidence-preview-dialog';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { Button } from '@/components/ui/button';
 
@@ -32,7 +31,6 @@ const statusLabels: Record<string, string> = {
 const date = (value: string | null) => value
   ? new Date(value.slice(0, 10) + 'T00:00:00+07:00').toLocaleDateString('vi-VN', {timeZone: 'Asia/Ho_Chi_Minh'})
   : 'Chưa cập nhật';
-type Preview = {url: string; name: string; mime: string};
 
 export function SalesContractPeriodHistory({customerId, apiBase, token}:{
   customerId: number; apiBase: string; token: string;
@@ -41,7 +39,6 @@ export function SalesContractPeriodHistory({customerId, apiBase, token}:{
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [preview, setPreview] = useState<Preview | null>(null);
   const [fileBusy, setFileBusy] = useState<number | null>(null);
 
   useEffect(() => {
@@ -61,10 +58,17 @@ export function SalesContractPeriodHistory({customerId, apiBase, token}:{
     return () => { active = false; };
   }, [apiBase,token,customerId]);
 
-  // Revoke authenticated in-memory URLs whenever the preview is closed or unmounted.
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
-
   async function accessFile(item: NonNullable<ContractPeriod['evidence']>, mode: 'view' | 'download') {
+    // Reserve the tab in the user's click event, before awaiting authenticated bytes.
+    const tab = mode === 'view' ? window.open('', '_blank') : null;
+    if (mode === 'view' && !tab) {
+      appNotice.error('Không mở được tab xem hợp đồng.', 'Trình duyệt đang chặn cửa sổ mới. Vui lòng cho phép popup rồi thử lại.');
+      return;
+    }
+    if (tab) {
+      tab.opener = null;
+      tab.document.title = 'Đang mở hợp đồng...';
+    }
     setFileBusy(item.id);
     try {
       const response = await fetch(apiBase + '/channel-sales/evidence/' + item.id, {
@@ -72,11 +76,18 @@ export function SalesContractPeriodHistory({customerId, apiBase, token}:{
       });
       if (!response.ok) throw new Error('Không có quyền truy cập hoặc tệp không còn tồn tại.');
       const data = await response.blob();
-      // The existing endpoint returns octet-stream; use verified database metadata for preview.
+      // Endpoint returns octet-stream; use database-verified metadata for native PDF/image rendering.
       const blob = new Blob([data], {type: item.mime_type});
       const url = URL.createObjectURL(blob);
-      if (mode === 'view') setPreview({url, name: item.file_name, mime: item.mime_type});
-      else {
+      if (mode === 'view') {
+        if (!tab || tab.closed) {
+          URL.revokeObjectURL(url);
+          throw new Error('Tab xem hợp đồng đã đóng. Vui lòng thử lại.');
+        }
+        tab.location.replace(url);
+        // Keep the blob alive for the new tab; revoke when the originating CRM page unloads.
+        window.addEventListener('pagehide', () => URL.revokeObjectURL(url), {once:true});
+      } else {
         const link = document.createElement('a');
         link.href = url;
         link.download = item.file_name;
@@ -86,6 +97,7 @@ export function SalesContractPeriodHistory({customerId, apiBase, token}:{
         setTimeout(() => URL.revokeObjectURL(url), 1500);
       }
     } catch (reason) {
+      if (tab && !tab.closed) tab.close();
       appNotice.error(mode === 'view' ? 'Không xem được hợp đồng.' : 'Không tải được hợp đồng.',
         reason instanceof Error ? reason.message : 'Vui lòng thử lại.');
     } finally { setFileBusy(null); }
@@ -152,6 +164,5 @@ export function SalesContractPeriodHistory({customerId, apiBase, token}:{
         })}
       </div>
     </section>
-    <EvidencePreviewDialog preview={preview} onClose={() => setPreview(null)}/>
   </>;
 }

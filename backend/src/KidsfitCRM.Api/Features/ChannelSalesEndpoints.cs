@@ -82,6 +82,7 @@ public static class ChannelSalesEndpoints
         }).RequireAuthorization(Permissions.ChannelSalesReconcile);
         channel.MapGet("/commissions/me", MyCommissions).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         channel.MapChannelSalesOperations();
+        channel.MapBoardCommissionPolicies();
         ContractRenewalEndpoints.Map(channel);
         ProtectionRenewalEndpoints.Map(channel);
         SalesProtectionOverviewEndpoints.Map(channel);

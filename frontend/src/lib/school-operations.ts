@@ -200,6 +200,11 @@ export type SchoolOperationsReport = {
   net_collected_revenue: number | null;
   overdue_proposals: number;
   overdue_extensions: number;
+  /** Last six Vietnam business months, ending at period. Null if financial permission is missing. */
+  revenue_trend: { period: string; collected: number; refunded: number; net: number }[] | null;
+  previous_net_revenue: number | null;
+  /** Current protection snapshot (not a historical period snapshot). */
+  school_statuses: { approaching: number; contracted: number } | null;
   allocation_performance: {
     assigned_by_user_id: number;
     assignee_user_id: number;

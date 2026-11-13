@@ -210,6 +210,8 @@ public static class AccountingContractEndpoints
                 id = x.Id, code = x.Code, net_amount = x.NetAmount, status = x.Status,
                 suggested_rate_percent = x.SuggestedRatePercent, requested_rate_percent = x.RequestedRatePercent,
                 suggested_amount = x.SuggestedAmount, requested_amount = x.RequestedAmount,
+                withholding_amount = x.WithholdingAmount, withholding_reason = x.WithholdingReason,
+                period = x.Period,
                 adjustment_reason = x.AdjustmentReason, submitted_at = x.SubmittedAt,
                 created_by_user_id = x.CreatedByUserId,
                 events = db.PayoutEvents.Where(ev => ev.PayoutId == x.Id).OrderBy(ev => ev.CreatedAt)

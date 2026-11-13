@@ -108,6 +108,7 @@ type Detail = {
     beneficiary_role:'SALES'|'MANAGER'; beneficiary_user_id:number;
     suggested_rate_percent:number; requested_rate_percent:number;
     suggested_amount:number; requested_amount:number;
+    withholding_amount:number; withholding_reason:string|null; period:string;
     adjustment_reason:string|null; events:{event_type:string;reason:string|null;created_at:string}[] }[];
   evidence: {id:number;kind:string;file_name:string;revenue_receipt_id:number|null;payout_id:number|null}[];
   school_units: {id:number;name:string}[];
@@ -440,7 +441,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setPayoutRate(String(payout?.requested_rate_percent??suggestedRate));
     setPayoutRequestedAmount(String(payout?.requested_amount??(eligibleByPeriod.get(chosenPeriod)??0)));
     setPayoutAdjustmentReason(payout?.adjustment_reason??'');
-    setPayoutWithholding('0');setPayoutWithholdingReason('');
+    setPayoutWithholding(String(payout?.withholding_amount??0));
+    setPayoutWithholdingReason(payout?.withholding_reason??'');
     payoutKey.current=null;setPayoutDialogOpen(true);
   };
   const openBackfill = async (receiptId:number) => {
@@ -1236,12 +1238,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <p className="text-xs font-medium text-muted-foreground">Người hưởng</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <UserRound className="size-4 text-primary" aria-hidden="true"/>
-            <span className="font-semibold text-foreground">{currentBeneficiary?.name??'Chưa chọn người hưởng'}</span>
+            <span className="font-semibold text-foreground">{editingPayout
+              ? detail.ledger.find(entry=>entry.beneficiary_user_id===editingPayout.beneficiary_user_id)?.beneficiary_name??'Người hưởng'
+              : currentBeneficiary?.name??'Chưa chọn người hưởng'}</span>
             <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-              {currentBeneficiary?.role==='MANAGER'?'Quản lý':'Sales'}
+              {(editingPayout?.beneficiary_role??currentBeneficiary?.role)==='MANAGER'?'Quản lý':'Sales'}
             </span>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {chosenPeriod}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {editingPayout?.period??chosenPeriod}</p>
         </div>
         <div className="space-y-3 rounded-xl border border-border/80 p-4">
           <p className="text-xs text-muted-foreground">Hệ thống đề xuất:{' '}

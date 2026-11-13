@@ -584,13 +584,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   };
   return <div className="space-y-5">
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
-    <div role="tablist" aria-label="Nghiệp vụ Kế toán" className="flex flex-wrap gap-2 border-b border-border pb-2">
+    <div role="tablist" aria-label="Nghiệp vụ Kế toán"
+      className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent">
       {([{key:'CONTRACTS',label:'Hợp đồng & khoản thu'},
          {key:'PAYOUTS',label:'Phiếu chi hoa hồng'}] as const).map(item=>
         <button type="button" role="tab" key={item.key}
           aria-selected={accountingTab===item.key} onClick={()=>setAccountingTab(item.key)}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${accountingTab===item.key
-            ?'bg-[#1b5e20] text-white':'bg-muted/40 text-muted-foreground hover:bg-muted'}`}>
+          className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${accountingTab===item.key
+            ?'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
+            :'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
           {item.label}
         </button>)}
     </div>

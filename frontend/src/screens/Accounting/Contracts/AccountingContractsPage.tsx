@@ -30,6 +30,8 @@ const paymentScheduleLabel = (status: string) => ({
 
 const payoutStatusLabel = (status: string) => ({
   DRAFT: 'Nháp',
+  PENDING_APPROVAL: 'Chờ BGĐ duyệt',
+  CHANGES_REQUESTED: 'Cần bổ sung',
   APPROVED: 'Đã duyệt',
   PAID: 'Đã chi',
   CANCELLED: 'Đã hủy',
@@ -103,7 +105,10 @@ type Detail = {
     beneficiary_role: 'SALES'|'MANAGER'; policy_source: string; board_policy_version_id: number|null;
     assigned_to_payout: boolean }[];
   payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null;
-    beneficiary_role:'SALES'|'MANAGER'; beneficiary_user_id:number }[];
+    beneficiary_role:'SALES'|'MANAGER'; beneficiary_user_id:number;
+    suggested_rate_percent:number; requested_rate_percent:number;
+    suggested_amount:number; requested_amount:number;
+    adjustment_reason:string|null; events:{event_type:string;reason:string|null;created_at:string}[] }[];
   evidence: {id:number;kind:string;file_name:string;revenue_receipt_id:number|null;payout_id:number|null}[];
   school_units: {id:number;name:string}[];
 };
@@ -137,6 +142,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [payoutPeriod, setPayoutPeriod] = useState('');
   const [payoutBeneficiary, setPayoutBeneficiary] = useState('');
   const [payoutDialogOpen,setPayoutDialogOpen] = useState(false);
+  const [editingPayout,setEditingPayout]=useState<Detail['payouts'][number]|null>(null);
+  const [payoutRate,setPayoutRate]=useState('0');
+  const [payoutRequestedAmount,setPayoutRequestedAmount]=useState('0');
+  const [payoutAdjustmentReason,setPayoutAdjustmentReason]=useState('');
+  const [returningPayoutId,setReturningPayoutId]=useState<number|null>(null);
+  const [payoutReturnReason,setPayoutReturnReason]=useState('');
   const [backfillPreview,setBackfillPreview]=useState<BackfillPreview|null>(null);
   const [backfillReason,setBackfillReason]=useState('');
   const [backfillManagerVerified,setBackfillManagerVerified]=useState(false);
@@ -418,6 +429,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const eligiblePeriods=[...eligibleByPeriod.entries()]
     .filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
   const chosenPeriod=eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'');
+  const eligibleForSelection=eligibleEntries.filter(entry=>entry.period===chosenPeriod
+    &&entry.beneficiary_role===currentBeneficiary?.role
+    &&entry.beneficiary_user_id===currentBeneficiary?.id);
+  const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
+    .reduce((sum,entry)=>sum+(entry.rate_percent>0?entry.amount*100/entry.rate_percent:0),0);
+  const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
+  const openDraft = (payout?:Detail['payouts'][number]) => {
+    setEditingPayout(payout??null);setPayoutError('');
+    setPayoutRate(String(payout?.requested_rate_percent??suggestedRate));
+    setPayoutRequestedAmount(String(payout?.requested_amount??(eligibleByPeriod.get(chosenPeriod)??0)));
+    setPayoutAdjustmentReason(payout?.adjustment_reason??'');
+    setPayoutWithholding('0');setPayoutWithholdingReason('');
+    payoutKey.current=null;setPayoutDialogOpen(true);
+  };
   const openBackfill = async (receiptId:number) => {
     setBackfillBusy(true);
     try {
@@ -451,31 +476,66 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     }finally{setBackfillBusy(false);}
   };
   const createPayout = async () => {
-    if(!detail||!chosenPeriod||!currentBeneficiary)return;
-    const gross=eligibleByPeriod.get(chosenPeriod)??0;
-    const withholding=parseMoneyInput(payoutWithholding);
-    if(!Number.isSafeInteger(withholding)||withholding<0||withholding>gross){
-      setPayoutError('Khấu trừ phải từ 0 đ đến tổng hoa hồng hợp lệ.');return;
+    if(!detail||(!editingPayout&&(!chosenPeriod||!currentBeneficiary)))return;
+    const rate=Number(payoutRate),amount=parseMoneyInput(payoutRequestedAmount),
+      withholding=parseMoneyInput(payoutWithholding);
+    if(!Number.isFinite(rate)||rate<0||rate>100||Math.round(rate*10000)!==rate*10000
+      ||!Number.isSafeInteger(amount)||amount<=0||!Number.isSafeInteger(withholding)
+      ||withholding<0||withholding>=amount){
+      setPayoutError('Kiểm tra lại % hoa hồng, số tiền đề nghị và khấu trừ.');return;
     }
     if(withholding>0&&!payoutWithholdingReason.trim()){
-      setPayoutError('Vui lòng nêu lý do cho khoản khấu trừ.');return;
+      setPayoutError('Vui lòng nhập lý do khấu trừ.');return;
     }
-    setPayoutError('');setSaving(true);
+    setSaving(true);setPayoutError('');
     try{
-      payoutKey.current??=crypto.randomUUID();
-      await channelRequest(apiBase,token,'/payouts',{method:'POST',body:JSON.stringify({
-        idempotency_key:payoutKey.current,organization_id:detail.data.owner_organization_id,
-        beneficiary_user_id:currentBeneficiary?.id,beneficiary_role:currentBeneficiary?.role,
-        period:chosenPeriod,contract_id:detail.data.id,withholding_amount:withholding,
-        withholding_reason:withholding>0?payoutWithholdingReason.trim():null,
-      })});
-      payoutKey.current=null;setPayoutDialogOpen(false);setDetailRevision(v=>v+1);
-      appNotice.success('Đã lập phiếu chi hoa hồng ở trạng thái Nháp.');
+      if(editingPayout){
+        await channelRequest(apiBase,token,`/payouts/${editingPayout.id}/draft`,{
+          method:'PATCH',body:JSON.stringify({
+            requested_rate_percent:rate,requested_amount:amount,
+            adjustment_reason:payoutAdjustmentReason.trim()||null,
+            withholding_amount:withholding,
+            withholding_reason:withholding>0?payoutWithholdingReason.trim():null
+          })
+        });
+      }else{
+        payoutKey.current??=crypto.randomUUID();
+        await channelRequest(apiBase,token,'/payouts',{method:'POST',body:JSON.stringify({
+          idempotency_key:payoutKey.current,organization_id:detail.data.owner_organization_id,
+          beneficiary_user_id:currentBeneficiary?.id,beneficiary_role:currentBeneficiary?.role,
+          period:chosenPeriod,contract_id:detail.data.id,withholding_amount:withholding,
+          withholding_reason:withholding>0?payoutWithholdingReason.trim():null,
+          requested_rate_percent:rate,requested_amount:amount,
+          adjustment_reason:payoutAdjustmentReason.trim()||null
+        })});
+      }
+      setPayoutDialogOpen(false);setEditingPayout(null);payoutKey.current=null;
+      setDetailRevision(v=>v+1);
+      appNotice.success('Đã lưu phiếu Nháp; cần gửi BGĐ duyệt trước khi chuyển tiền.');
       await load();
     }catch(cause){
-      const message=cause instanceof Error?cause.message:'Vui lòng thử lại.';
-      setPayoutError(message);appNotice.error('Không tạo được phiếu chi.',message);
+      setPayoutError(cause instanceof Error?cause.message:'Vui lòng thử lại.');
     }finally{setSaving(false);}
+  };
+  const submitPayout = async (id:number) => {
+    setSaving(true);
+    try{
+      await channelRequest(apiBase,token,`/payouts/${id}/submit`,{method:'POST'});
+      setDetailRevision(v=>v+1);appNotice.success('Đã gửi BGĐ duyệt phiếu chi.');
+    }catch(cause){appNotice.error('Không gửi duyệt được.',cause instanceof Error?cause.message:'Vui lòng thử lại.');}
+    finally{setSaving(false);}
+  };
+  const returnPayout = async () => {
+    if(!returningPayoutId||!payoutReturnReason.trim())return;
+    setSaving(true);
+    try{
+      await channelRequest(apiBase,token,`/payouts/${returningPayoutId}/return`,{
+        method:'POST',body:JSON.stringify({reason:payoutReturnReason.trim()})
+      });
+      setReturningPayoutId(null);setPayoutReturnReason('');
+      setDetailRevision(v=>v+1);appNotice.success('Đã trả lại phiếu cho Kế toán bổ sung.');
+    }catch(cause){appNotice.error('Không trả phiếu được.',cause instanceof Error?cause.message:'Vui lòng thử lại.');}
+    finally{setSaving(false);}
   };
   const approvePayout = async (id: number) => {
     setSaving(true);
@@ -987,7 +1047,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     </select>
                   </label>
                   <Button type="button" className="h-10 w-full sm:w-auto" disabled={saving || !chosenPeriod}
-                    onClick={()=>{setPayoutWithholding('0');setPayoutWithholdingReason('');setPayoutError('');payoutKey.current=null;setPayoutDialogOpen(true);}}>
+                    onClick={()=>openDraft()}>
                     <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
                   </Button>
                 </div>
@@ -1056,8 +1116,18 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                           {proof&&<Button type="button" variant="outline" size="icon" title="Xem chứng từ khoản chi"
                             aria-label={`Xem chứng từ khoản chi ${x.code}`}
                             onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>}
-                          {x.status==='DRAFT'&&canApprovePayout&&<Button type="button" variant="outline" size="sm" disabled={saving}
-                            onClick={()=>void approvePayout(x.id)}>Duyệt</Button>}
+                          {(x.status==='DRAFT'||x.status==='CHANGES_REQUESTED')&&canCreatePayout&&<>
+                            <Button type="button" variant="outline" size="sm" disabled={saving}
+                              onClick={()=>openDraft(x)}>Sửa nháp</Button>
+                            <Button type="button" size="sm" disabled={saving}
+                              onClick={()=>void submitPayout(x.id)}>Gửi BGĐ</Button>
+                          </>}
+                          {x.status==='PENDING_APPROVAL'&&canApprovePayout&&<>
+                            <Button type="button" variant="outline" size="sm" disabled={saving}
+                              onClick={()=>setReturningPayoutId(x.id)}>Yêu cầu bổ sung</Button>
+                            <Button type="button" size="sm" disabled={saving}
+                              onClick={()=>void approvePayout(x.id)}>Duyệt</Button>
+                          </>}
                         </div>
                       </td>
                     </tr>;

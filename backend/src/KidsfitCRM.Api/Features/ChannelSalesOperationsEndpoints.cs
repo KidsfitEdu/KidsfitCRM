@@ -15,6 +15,9 @@ public static class ChannelSalesOperationsEndpoints
         group.MapGet("/accounting/contracts/{id:long}", AccountingContractEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapPut("/accounting/contracts/{id:long}/service-term", AccountingContractEndpoints.SetServiceTerm).RequireAuthorization(Permissions.ChannelSalesRecordRevenue);
         group.MapGet("/finance", Finance).RequireAuthorization(Permissions.ChannelSalesCommissionView);
+        // BGĐ approval inbox: one view of the existing payouts, never another payout table.
+        group.MapGet("/payouts/approval-queue", BoardPayoutApprovalQueue)
+            .RequireAuthorization(Permissions.ChannelSalesPayoutApprove);
         group.MapGet("/income/me", SalesIncomeEndpoints.Mine).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/income/me/contracts/{contractId:long}", SalesIncomeEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/schools/mine", SalesSchoolEndpoints.Mine).RequireAuthorization(Permissions.ChannelSalesView);
@@ -117,6 +120,94 @@ public static class ChannelSalesOperationsEndpoints
             activities,
             can_record_support = internalScope && customer.LifecycleStatus == "CONTRACTED" && access.Has(Permissions.ChannelSalesActivity)
                 && (access.All || await access.Contracts(db).AnyAsync(x => x.CustomerId == id && x.Status == "ACTIVE", ct)),
+        });
+    }
+
+
+    /// <summary>BGĐ sees all Accounting-submitted payouts within its authorized scope,
+    /// regardless of the payout's earning month. No drafts or payout writes in this endpoint.</summary>
+    private static async Task<IResult> BoardPayoutApprovalQueue(
+        HttpContext http, KidsfitDbContext db, string? status,
+        string? search, long? organizationId, int page = 1, int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesPayoutApprove)) return Results.Forbid();
+        var actorIsBoard = await db.UserRoles.AsNoTracking().AnyAsync(link =>
+            link.UserId == access.UserId && db.Roles.Any(role =>
+                role.Id == link.RoleId && (role.Code == "DIRECTOR" || role.Code == "ADMIN")), ct);
+        if (!actorIsBoard) return Results.Forbid();
+
+        var selectedStatus = string.IsNullOrWhiteSpace(status) ? "PENDING_APPROVAL" : status.Trim().ToUpperInvariant();
+        if (selectedStatus is not ("ALL" or "PENDING_APPROVAL" or "CHANGES_REQUESTED" or "APPROVED" or "PAID"))
+            throw ApiValidationException.For("status", "Trạng thái phiếu chi không hợp lệ.");
+        if (page < 1 || pageSize < 1 || pageSize > 100)
+            throw ApiValidationException.For("page", "Trang hoặc số dòng/trang không hợp lệ.");
+        if (organizationId.HasValue && organizationId.Value < 1)
+            throw ApiValidationException.For("organizationId", "Tổ chức không hợp lệ.");
+
+        // Scoping is performed before searching, counting or selecting rows.
+        var scope = access.Payouts(db).AsNoTracking();
+        var submitted = scope.Where(x => x.Status != "DRAFT");
+        var pendingCount = await submitted.CountAsync(x => x.Status == "PENDING_APPROVAL", ct);
+        var pendingAmount = await submitted.Where(x => x.Status == "PENDING_APPROVAL")
+            .SumAsync(x => (decimal?)x.NetAmount, ct) ?? 0m;
+        var filtered = submitted;
+        if (selectedStatus != "ALL") filtered = filtered.Where(x => x.Status == selectedStatus);
+        if (organizationId.HasValue) filtered = filtered.Where(x => x.OrganizationId == organizationId.Value);
+        var keyword = search?.Trim();
+        if (!string.IsNullOrEmpty(keyword))
+        {
+            if (keyword.Length > 120) throw ApiValidationException.For("search", "Tìm kiếm tối đa 120 ký tự.");
+            filtered = filtered.Where(x => x.Code.Contains(keyword) ||
+                db.Users.Any(u => u.Id == x.BeneficiaryUserId && u.Name.Contains(keyword)) ||
+                db.Users.Any(u => u.Id == x.CreatedByUserId && u.Name.Contains(keyword)));
+        }
+        var total = await filtered.CountAsync(ct);
+        var items = await (from payout in filtered
+            join beneficiary in db.Users on payout.BeneficiaryUserId equals (long?)beneficiary.Id
+            join creator in db.Users on payout.CreatedByUserId equals creator.Id
+            join organization in db.Organizations on payout.OrganizationId equals organization.Id
+            orderby payout.SubmittedAt descending, payout.Id descending
+            select new
+            {
+                payout.Id, payout.Code, payout.OrganizationId, organization_name = organization.Name,
+                payout.Period, payout.Status, payout.CreatedAt, payout.SubmittedAt,
+                payout.BeneficiaryRole, payout.BeneficiaryUserId, beneficiary_name = beneficiary.Name,
+                payout.CreatedByUserId, creator_name = creator.Name,
+                payout.SuggestedRatePercent, payout.SuggestedAmount,
+                payout.RequestedRatePercent, payout.RequestedAmount,
+                payout.AdjustmentReason, payout.WithholdingAmount, payout.WithholdingReason,
+                payout.NetAmount, payout.ApprovedAt, payout.PaidAt, payout.PaymentReference,
+                contract_code = (from item in db.PayoutItems
+                    join entry in db.CommissionLedgerEntries on item.CommissionLedgerEntryId equals entry.Id
+                    join contract in db.SalesContracts on entry.ContractId equals contract.Id
+                    where item.PayoutId == payout.Id
+                    select contract.ContractCode).FirstOrDefault(),
+                school_name = (from item in db.PayoutItems
+                    join entry in db.CommissionLedgerEntries on item.CommissionLedgerEntryId equals entry.Id
+                    join contract in db.SalesContracts on entry.ContractId equals contract.Id
+                    join school in db.ChannelCustomers on contract.CustomerId equals school.Id
+                    where item.PayoutId == payout.Id
+                    select school.DisplayName).FirstOrDefault(),
+                events = db.PayoutEvents.Where(e => e.PayoutId == payout.Id)
+                    .OrderBy(e => e.CreatedAt)
+                    .Select(e => new { event_type = e.EventType, reason = e.Reason, created_at = e.CreatedAt })
+                    .ToArray()
+            })
+            .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
+
+        var organizations = await db.Organizations.AsNoTracking()
+            .Where(x => x.Status == "ACTIVE" && (access.All || access.OrganizationIds.Contains(x.Id)))
+            .OrderBy(x => x.Name)
+            .Select(x => new { id = x.Id, name = x.Name }).ToArrayAsync(ct);
+
+        return Results.Ok(new
+        {
+            items,
+            organizations,
+            summary = new { pending_count = pendingCount, pending_amount = pendingAmount },
+            pagination = new { page, page_size = pageSize, total }
         });
     }
 

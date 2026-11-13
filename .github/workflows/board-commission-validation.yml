@@ -63,6 +63,7 @@ jobs:
       ConnectionStrings__MySql: "Server=127.0.0.1;Port=3306;Database=crm_board_commission_ci;User ID=root;Password=ephemeral-ci-only;SslMode=Disabled;"
       Jwt__Key: "ephemeral-only-jwt-key-32-bytes-long"
       Seed__AdminPassword: "ephemeral-ci-only-admin-password"
+      Seed__BoardPassword: "ephemeral-ci-only-board-password"
       Seed__DisposableDatabase: "true"
       ASPNETCORE_ENVIRONMENT: "Development"
     steps:

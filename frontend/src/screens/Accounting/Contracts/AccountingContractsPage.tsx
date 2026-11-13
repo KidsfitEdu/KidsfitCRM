@@ -9,7 +9,7 @@ import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
-import { AdminIconAction } from '@/components/common/admin-list-ui';
+import { AdminIconAction, AdminListPanel, AdminListToolbar, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
@@ -143,6 +143,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [financeStatus,setFinanceStatus]=useState('ALL');
   const [financeOrganization,setFinanceOrganization]=useState('ALL');
   const [financeSearch,setFinanceSearch]=useState('');
+  const [financeAppliedSearch,setFinanceAppliedSearch]=useState('');
+  const [financePage,setFinancePage]=useState(1);
+  const [financePageSize,setFinancePageSize]=useState(20);
+  const [financeLoading,setFinanceLoading]=useState(false);
   const [financeRole,setFinanceRole]=useState('ALL');
   const [financeOverview,setFinanceOverview]=useState<FinanceWorkspace|null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -200,11 +204,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   useEffect(()=>{
     if(!connected||accountingTab!=='PAYOUTS')return;
     let active=true;
+    setFinanceLoading(true);
+    setFinanceOverview(null);
     void channelRequest<FinanceWorkspace>(apiBase,token,
       `/finance?period=${encodeURIComponent(financePeriod)}`)
       .then(value=>{if(active)setFinanceOverview(value);})
       .catch(cause=>{if(active)appNotice.error('Không tải được danh sách phiếu chi.',
-        cause instanceof Error?cause.message:'Vui lòng thử lại.');});
+        cause instanceof Error?cause.message:'Vui lòng thử lại.');})
+      .finally(()=>{if(active)setFinanceLoading(false);});
     return()=>{active=false;};
   },[apiBase,token,connected,accountingTab,financePeriod,detailRevision]);
 
@@ -564,17 +571,17 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setWorkspaceStatus('ALL');
     setPage(1);
   };
-  const financeKeyword=financeSearch.trim().toLocaleLowerCase('vi-VN');
+  const financeKeyword=financeAppliedSearch.trim().toLocaleLowerCase('vi-VN');
   const displayedPayouts=(financeOverview?.payouts??[])
     .filter(p=>(financeStatus==='ALL'||p.status===financeStatus)
       &&(financeRole==='ALL'||p.beneficiary_role===financeRole)
       &&(financeOrganization==='ALL'||p.organization_id===Number(financeOrganization))
       &&(!financeKeyword||[p.code,p.beneficiary_name].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
-  const availableCommissions=(financeOverview?.ledger??[])
-    .filter(entry=>entry.payout_status==='ACCRUED'
-      &&(financeRole==='ALL'||entry.beneficiary_role===financeRole)
-      &&(financeOrganization==='ALL'||entry.beneficiary_organization_id===Number(financeOrganization))
-      &&(!financeKeyword||[entry.beneficiary_name,entry.contract_code].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
+  const visiblePayouts=displayedPayouts.slice((financePage-1)*financePageSize,financePage*financePageSize);
+  const resetFinanceFilters=()=>{
+    setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
+    setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
+  };
   return <div className="space-y-5">
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <div role="tablist" aria-label="Nghiệp vụ Kế toán" className="flex flex-wrap gap-2 border-b border-border pb-2">
@@ -699,77 +706,71 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageChange={setPage}
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </section>}
-    {accountingTab==='PAYOUTS'&&<section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold">Phiếu chi theo người hưởng</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Mỗi phiếu chỉ dành cho một Sales hoặc Quản lý. Kế toán không chỉnh tỷ lệ BGĐ tại đây.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    {accountingTab==='PAYOUTS'&&<AdminListPanel>
+      <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
+        onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
+        onReset={resetFinanceFilters} searchLabel="Tìm người hưởng hoặc mã phiếu chi"
+        placeholder="Tìm mã phiếu, người hưởng..."
+        filters={<div className="flex flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor="accounting-finance-period">Kỳ hoa hồng</label>
-          <Input id="accounting-finance-period" type="month" className="w-40" value={financePeriod}
-            onChange={event=>setFinancePeriod(event.target.value)}/>
-          <Input aria-label="Tìm người hưởng hoặc mã phiếu chi" className="w-52"
-            placeholder="Người hưởng, mã phiếu..." value={financeSearch}
-            onChange={event=>setFinanceSearch(event.target.value)}/>
-          <AppSelect ariaLabel="Lọc tổ chức phiếu chi" value={financeOrganization}
+          <Input id="accounting-finance-period" type="month" className="h-10 w-40 rounded-lg"
+            value={financePeriod} onChange={event=>{setFinancePeriod(event.target.value);setFinancePage(1);}}/>
+          <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-[160px]"
+            value={financeOrganization}
             options={[{value:'ALL',label:'Tất cả tổ chức'},
               ...(financeOverview?.organizations??[]).map(org=>({value:String(org.id),label:org.name}))]}
-            onValueChange={setFinanceOrganization}/>
-          <AppSelect ariaLabel="Lọc người hưởng hoa hồng" value={financeRole}
+            onValueChange={next=>{setFinanceOrganization(next);setFinancePage(1);}}/>
+          <AppSelect ariaLabel="Lọc người hưởng hoa hồng" className="w-[166px]"
+            value={financeRole}
             options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
-            onValueChange={setFinanceRole}/>
-          <AppSelect ariaLabel="Lọc trạng thái phiếu chi" value={financeStatus}
-            options={[{value:'ALL',label:'Mọi trạng thái'},{value:'DRAFT',label:'Chờ duyệt'},
-              {value:'APPROVED',label:'Chờ chuyển khoản'},{value:'PAID',label:'Đã chi'}]}
-            onValueChange={setFinanceStatus}/>
-        </div>
-      </div>
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[750px] text-left text-sm">
-          <thead className="bg-[#1b5e20] text-xs font-semibold uppercase text-white">
-            <tr><th className="px-4 py-3">Phiếu chi</th><th className="px-3 py-3">Người hưởng</th>
-              <th className="px-3 py-3">Vai trò</th><th className="px-3 py-3 text-right">Thực chi</th>
-              <th className="px-3 py-3">Trạng thái</th><th className="px-3 py-3">Kỳ</th></tr>
+            onValueChange={next=>{setFinanceRole(next);setFinancePage(1);}}/>
+          <AppSelect ariaLabel="Lọc trạng thái phiếu chi" className="w-[155px]"
+            value={financeStatus}
+            options={[{value:'ALL',label:'Tất cả'},
+              {value:'DRAFT',label:'Nháp'},
+              {value:'PENDING_APPROVAL',label:'Chờ BGĐ duyệt'},
+              {value:'CHANGES_REQUESTED',label:'Cần bổ sung'},
+              {value:'APPROVED',label:'Đã duyệt'},
+              {value:'PAID',label:'Đã chi'},
+              {value:'CANCELLED',label:'Đã hủy'},
+              {value:'REJECTED',label:'Đã từ chối'}]}
+            onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
+        </div>}/>
+      <div className="overflow-x-auto">
+        <table className={adminTableClass}>
+          <thead className={adminTableHeadClass}>
+            <tr>
+              <th scope="col" className="w-[27%] px-5 py-4">Mã phiếu</th>
+              <th scope="col" className="px-4 py-4">Người hưởng</th>
+              <th scope="col" className="px-4 py-4">Vai trò</th>
+              <th scope="col" className="px-4 py-4 text-right">Thực chi</th>
+              <th scope="col" className="px-4 py-4">Trạng thái</th>
+              <th scope="col" className="px-4 py-4">Kỳ</th>
+            </tr>
           </thead>
-          <tbody className="divide-y divide-border">
-            {displayedPayouts.map(p=><tr key={p.id} className="hover:bg-muted/20">
-              <td className="px-4 py-3 font-medium">{p.code}</td>
-              <td className="px-3 py-3">{p.beneficiary_name}</td>
-              <td className="px-3 py-3">{p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</td>
-              <td className="px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}</td>
-              <td className="px-3 py-3">{payoutStatusLabel(p.status)}</td>
-              <td className="px-3 py-3">{p.period}</td>
+          <tbody className="divide-y divide-border/70">
+            {visiblePayouts.map(p=><tr key={p.id} className="transition-colors even:bg-muted/20 hover:bg-accent">
+              <td className="px-5 py-4"><span title={p.code} className="block max-w-[265px] truncate font-semibold">{p.code}</span></td>
+              <td className="px-4 py-4">{p.beneficiary_name}</td>
+              <td className="px-4 py-4">{p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</td>
+              <td className="whitespace-nowrap px-4 py-4 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}</td>
+              <td className="px-4 py-4">
+                <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${p.status==='PAID'?'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':p.status==='CHANGES_REQUESTED'?'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200':p.status==='REJECTED'||p.status==='CANCELLED'?'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200':'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200'}`}>{payoutStatusLabel(p.status)}</span>
+              </td>
+              <td className="whitespace-nowrap px-4 py-4">{payoutPeriodLabel(p.period)}</td>
             </tr>)}
-            {!displayedPayouts.length&&<tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-              Không có phiếu chi phù hợp trong kỳ. Chọn kỳ khác hoặc kiểm tra khoản hoa hồng chưa lập phiếu.
+            {!visiblePayouts.length&&<tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-muted-foreground">
+              {financeLoading?'Đang tải danh sách phiếu chi...':!connected?'Cần đăng nhập để xem phiếu chi.':'Không có phiếu chi phù hợp với bộ lọc.'}
             </td></tr>}
           </tbody>
         </table>
       </div>
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Hoa hồng chưa lập phiếu</h3>
-        <p className="text-xs text-muted-foreground">Chọn hợp đồng để lập phiếu riêng theo Sales hoặc Quản lý và duyệt/chuyển tiền tại chi tiết hợp đồng.</p>
-        <div className="divide-y rounded-lg border border-border">
-          {availableCommissions.slice(0,30).map(entry=><div key={entry.id}
-            className="flex flex-wrap items-center justify-between gap-3 px-3 py-3">
-            <div><p className="text-sm font-semibold">{entry.beneficiary_name} · {entry.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</p>
-              <p className="text-xs text-muted-foreground">{entry.contract_code} · {entry.rate_percent}% · {entry.period}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <strong className="tabular-nums">{channelMoney(entry.amount)}</strong>
-              <Button type="button" size="sm" variant="outline" onClick={()=>{
-                setSelected(entry.contract_id);setPayoutBeneficiary(`${entry.beneficiary_role}:${entry.beneficiary_user_id}`);
-                setPayoutPeriod(entry.period);
-              }}>Xem hợp đồng</Button>
-            </div>
-          </div>)}
-          {!availableCommissions.length&&<p className="p-4 text-sm text-muted-foreground">
-            Không có bút toán hoa hồng chưa phân bổ trong kỳ.
-          </p>}
-        </div>
-      </div>
-    </section>}
+      <AppPagination page={financePage} pageSize={financePageSize} total={displayedPayouts.length}
+        itemLabel="phiếu chi" disabled={financeLoading} showSummary={false}
+        pageSizeOptions={[10,20,50,100]}
+        onPageChange={setFinancePage}
+        onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
+    </AdminListPanel>}
     <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description="Kế toán / Chi tiết hợp đồng">

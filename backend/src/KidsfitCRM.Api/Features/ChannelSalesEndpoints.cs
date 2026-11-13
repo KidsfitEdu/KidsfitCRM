@@ -44,6 +44,7 @@ public static class ChannelSalesEndpoints
         var channel = secured.MapGroup("/channel-sales");
         channel.MapGet("/contract-school-units/{customerId:long}", AccountingContractEndpoints.SchoolUnits).RequireAuthorization(Permissions.ChannelSalesReportContract);
         channel.MapPost("/evidence", FinancialEvidenceEndpoints.Upload).RequireAuthorization(Permissions.ChannelSalesView).DisableAntiforgery();
+        channel.MapDelete("/evidence/{id:long}", FinancialEvidenceEndpoints.DiscardUnattached).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapGet("/evidence/{id:long}", FinancialEvidenceEndpoints.Download).RequireAuthorization(Permissions.ChannelSalesView);
         ManagerProgressEndpoints.MapManagerProgress(channel);
         channel.MapGet("/workspace", Workspace).RequireAuthorization(Permissions.ChannelSalesView);

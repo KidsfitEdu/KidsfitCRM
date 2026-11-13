@@ -1,8 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
-import { Eye, Plus, RotateCcw, Search } from 'lucide-react';
+import { Eye, Plus, RotateCcw, Search, UploadCloud } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { AppSearchCombobox } from '@/components/common/app-search-combobox';
+import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
 import { AppNativeSelect } from '@/components/common/app-native-select';
@@ -249,54 +252,84 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           onClick={()=>{setContractId(String(selectedRenewal.contract_id));openResubmit(selectedRenewal);}}>Bổ sung hồ sơ này</Button>}
       </div>}
     </AppDrawer>
-    <AppDrawer wide open={drawer==='create'||drawer==='resubmit'} busy={saving}
+    <AppDialog open={drawer==='create'||drawer==='resubmit'} busy={saving}
       onOpenChange={open=>{if(!open){setDrawer(null);setActiveId(null);resetForm();}}}
-      title={drawer==='resubmit'?'BỔ SUNG HỒ SƠ TÁI KÝ':'TẠO HỒ SƠ TÁI KÝ'}
-      description="Gửi hợp đồng đã ký trực tiếp cho Kế toán">
-      <form id="kc02-sales-renewal-form" className="space-y-5" onSubmit={send}>
-        <p className="text-sm text-muted-foreground">Kỳ tái ký một năm lịch; gián đoạn giữa hai kỳ phải có lý do.</p>
-        <label htmlFor="kc02-contract" className="block space-y-1 text-sm">
-          <span className="font-medium">Hợp đồng được phép tái ký *</span>
-          <AppNativeSelect id="kc02-contract" containerClassName="mt-1 w-full" value={contractId}
-            disabled={drawer==='resubmit'||saving} required onChange={e=>changeContractForForm(e.target.value)}>
-            <option value="">Chọn hợp đồng...</option>
-            {eligible.map(x=><option key={x.id} value={x.id}>{x.school_name} · {x.contract_code}</option>)}
-          </AppNativeSelect>
-        </label>
-        {selected&&<div className="space-y-1 rounded-lg border bg-muted/30 p-3 text-sm">
+      title={drawer==='resubmit'?'Bổ sung hồ sơ tái ký':'Tạo hồ sơ tái ký'}
+      description="Gửi hợp đồng đã ký đến Kế toán xác nhận."
+      contentClassName="sm:max-w-[720px]" bodyClassName="py-4 sm:py-5"
+      footer={<>
+        <AppButton tone="neutral" type="button" className="h-11 min-w-24" disabled={saving}
+          onClick={()=>{setDrawer(null);setActiveId(null);resetForm();}}>Hủy</AppButton>
+        <AppButton tone="green" type="submit" form="kc02-sales-renewal-form"
+          className="h-11 min-w-40" busy={saving}
+          disabled={saving||!selected||(drawer==='create'&&selected.pending)}>
+          {saving?'Đang gửi...':drawer==='resubmit'?'Gửi bổ sung':'Gửi Kế toán xác nhận'}
+        </AppButton>
+      </>}>
+      <form id="kc02-sales-renewal-form" className="space-y-4" onSubmit={send}>
+        <div className="space-y-1.5">
+          <label htmlFor="kc02-contract" className="block text-[13px] font-medium">Trường được phép tái ký *</label>
+          <AppSearchCombobox id="kc02-contract" value={contractId}
+            options={eligible.map(x=>({value:String(x.id),label:x.school_name,
+              detail:eligible.filter(other=>other.school_name===x.school_name).length>1
+                ? 'Kỳ gần nhất kết thúc: '+(x.latest_end_on??x.source_end_on??'Chưa xác định') : undefined}))}
+            onValueChange={changeContractForForm}
+            placeholder="Nhập tên trường để tìm kiếm..." disabled={drawer==='resubmit'||saving} required/>
+        </div>
+        {selected&&<div className="space-y-1 rounded-xl border border-border bg-muted/30 p-3 text-sm">
           <p>Kỳ gần nhất kết thúc: <strong>{previousEnd?channelDate(previousEnd):'Chưa có hạn dịch vụ từ KC-01'}</strong></p>
-          {selected.pending&&drawer==='create'&&<p className="text-amber-700">Có hồ sơ đang chờ xử lý, không thể tạo hồ sơ trùng.</p>}
+          {selected.pending&&drawer==='create'&&<p className="text-amber-700 dark:text-amber-300">Có hồ sơ đang chờ xử lý, không thể tạo hồ sơ trùng.</p>}
         </div>}
         <div className="grid gap-4 sm:grid-cols-2">
-          <label htmlFor="kc02-signed" className="space-y-1 text-sm">Ngày ký *<Input id="kc02-signed" type="date" required value={signedOn} onChange={e=>setSignedOn(e.target.value)}/></label>
-          <label htmlFor="kc02-start" className="space-y-1 text-sm">Ngày bắt đầu dịch vụ *<Input id="kc02-start" type="date" required value={start} onChange={e=>setStart(e.target.value)}/></label>
-          <label htmlFor="kc02-end" className="space-y-1 text-sm">Ngày kết thúc theo hợp đồng *<Input id="kc02-end" type="date" required value={end} onChange={e=>setEnd(e.target.value)}/></label>
-          <label htmlFor="kc02-cycle" className="space-y-1 text-sm">Chu kỳ thanh toán *
-            <AppNativeSelect id="kc02-cycle" containerClassName="mt-1 w-full" value={cycle} onChange={e=>setCycle(e.target.value)}>
+          <div className="space-y-1.5">
+            <label htmlFor="kc02-signed" className="block text-[13px] font-medium">Ngày ký hợp đồng *</label>
+            <Input id="kc02-signed" className="h-11 w-full rounded-xl px-3 text-sm" type="date" required
+              value={signedOn} onChange={e=>setSignedOn(e.target.value)}/>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="kc02-start" className="block text-[13px] font-medium">Ngày bắt đầu dịch vụ *</label>
+            <Input id="kc02-start" className="h-11 w-full rounded-xl px-3 text-sm" type="date" required
+              value={start} onChange={e=>setStart(e.target.value)}/>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="kc02-end" className="block text-[13px] font-medium">Ngày kết thúc dịch vụ *</label>
+            <Input id="kc02-end" className="h-11 w-full rounded-xl px-3 text-sm" type="date" required
+              value={end} onChange={e=>setEnd(e.target.value)}/>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="kc02-cycle" className="block text-[13px] font-medium">Chu kỳ thanh toán *</label>
+            <AppNativeSelect id="kc02-cycle" containerClassName="w-full" value={cycle}
+              disabled={saving} required onChange={e=>setCycle(e.target.value)}>
               <option value="MONTHLY">Theo tháng</option><option value="YEARLY">Theo năm</option>
             </AppNativeSelect>
-          </label>
-          <label htmlFor="kc02-amount" className="space-y-1 text-sm">Giá trị kỳ tái ký (VNĐ) *<Input id="kc02-amount" type="number" min="1" step="1" required value={amount} onChange={e=>setAmount(e.target.value)}/></label>
-          <label htmlFor="kc02-file" className="space-y-1 text-sm">File hợp đồng đã ký (PDF hoặc ảnh, tối đa 5 MB) *
-            <Input key={fileRevision} id="kc02-file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" required
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="kc02-amount" className="block text-[13px] font-medium">Giá trị kỳ tái ký (VNĐ) *</label>
+          <AppCurrencyInput id="kc02-amount" className="h-11 w-full rounded-xl px-3 text-sm"
+            required value={amount} onValueChange={setAmount} placeholder="Nhập giá trị hợp đồng"/>
+        </div>
+        {gapDetected&&<div className="space-y-1.5">
+          <label htmlFor="kc02-gap-reason" className="block text-[13px] font-medium">Lý do khoảng trống giữa hai kỳ dịch vụ *</label>
+          <Input id="kc02-gap-reason" className="h-11 w-full rounded-xl px-3 text-sm" required
+            maxLength={1000} value={gapReason}
+            placeholder="Ví dụ: Nhà trường tạm ngừng sử dụng trước khi tái ký"
+            onChange={e=>setGapReason(e.target.value)}/>
+        </div>}
+        <div className="space-y-1.5">
+          <label htmlFor="kc02-file" className="block text-[13px] font-medium">Hợp đồng đã ký *</label>
+          <label htmlFor="kc02-file" className="relative flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/10 px-3 py-4 text-center transition-colors hover:border-primary/70 hover:bg-primary/5 focus-within:ring-2 focus-within:ring-ring">
+            <UploadCloud aria-hidden="true" className="size-6 text-muted-foreground"/>
+            <span className="max-w-full break-all text-sm font-semibold">{file?.name??'Chọn hợp đồng đã ký'}</span>
+            <span className="text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB</span>
+            <Input key={fileRevision} id="kc02-file" type="file" required
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              accept=".pdf,image/jpeg,image/png,image/webp"
               onChange={e=>setFile(e.target.files?.[0]??null)}/>
           </label>
         </div>
-        {gapDetected&&<label htmlFor="kc02-gap-reason" className="block space-y-1 text-sm">
-          Lý do khoảng trống giữa hai kỳ dịch vụ *
-          <Input id="kc02-gap-reason" required maxLength={1000} value={gapReason}
-            placeholder="Ví dụ: Nhà trường tạm ngừng sử dụng trước khi tái ký"
-            onChange={e=>setGapReason(e.target.value)}/>
-        </label>}
-        <p className="text-xs text-muted-foreground">Không tự thay đổi quyền bảo vệ Sales, doanh thu, lịch thu hoặc hoa hồng.</p>
-        <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="outline" type="button" disabled={saving} onClick={()=>{setDrawer(null);resetForm();}}>Hủy</Button>
-          <Button disabled={saving||!selected||(drawer==='create'&&selected.pending)} type="submit">
-            {saving?'Đang gửi...':drawer==='resubmit'?'Gửi bổ sung':'Gửi trực tiếp Kế toán'}
-          </Button>
-        </div>
       </form>
-    </AppDrawer>
+    </AppDialog>
   </div>;
 
   function changeContractForForm(value:string){

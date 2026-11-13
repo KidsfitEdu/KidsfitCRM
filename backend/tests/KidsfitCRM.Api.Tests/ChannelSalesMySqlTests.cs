@@ -134,6 +134,114 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Board_progress_sees_all_organizations_while_managers_and_worklogs_stay_in_their_teams()
+    {
+        var managerA = await Seller();
+        var managerB = await Seller();
+        var partnerManager = await Seller();
+        var salesA = await Seller();
+        var salesB = await Seller();
+        var partnerSales = await Seller();
+        var director = await UserId("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var managerRole = await db.Roles.Where(r => r.Code == "SALES_MANAGER").Select(r => r.Id).SingleAsync(Ct);
+        db.UserRoles.AddRange(new[] {managerA, managerB, partnerManager}.Select(id =>
+            new UserRole {UserId = id, RoleId = managerRole}));
+        var partnerOrg = await db.Organizations.Where(o => o.Code == "PARTNER_AN_PHAT").Select(o => o.Id).SingleAsync(Ct);
+        var mainOrg = await db.Organizations.Where(o => o.Code == "KIDSFIT").Select(o => o.Id).SingleAsync(Ct);
+        var memberships = await db.OrganizationMemberships.Where(m =>
+            new[] {managerA, managerB, partnerManager, salesA, salesB, partnerSales}.Contains(m.UserId)).ToArrayAsync(Ct);
+        foreach (var membership in memberships)
+        {
+            if (membership.UserId == salesA) membership.ManagerUserId = managerA;
+            if (membership.UserId == salesB) membership.ManagerUserId = managerB;
+            if (membership.UserId == partnerManager || membership.UserId == partnerSales)
+                membership.OrganizationId = partnerOrg;
+            if (membership.UserId == partnerSales) membership.ManagerUserId = partnerManager;
+        }
+        var now = DateTime.UtcNow;
+        foreach (var item in new[] {
+            (salesA,mainOrg,"KIDSFIT TEAM A"),
+            (salesB,mainOrg,"KIDSFIT TEAM B"),
+            (partnerSales,partnerOrg,"PARTNER TEAM")})
+        {
+            var school = new ChannelCustomer { Code = Key()[..18], DisplayName = item.Item3,
+                OrganizationId = item.Item2, CreatedByUserId = item.Item1,
+                CreatedAt = now, UpdatedAt = now };
+            db.ChannelCustomers.Add(school);
+            await db.SaveChangesAsync(Ct);
+            db.DirectorySchools.Add(new DirectorySchool {
+                CustomerId = school.Id, SchoolCode = "SCH-" + Key()[..18],
+                CreatedAt = now, UpdatedAt = now
+            });
+            db.CustomerProtections.Add(new CustomerProtection {
+                CustomerId = school.Id, OwnerUserId = item.Item1, OwnerOrganizationId = item.Item2,
+                SourceType = "APPROACH", Status = "ACTIVE",
+                EffectiveFrom = now.AddDays(-1), EffectiveUntil = now.AddDays(4),
+                CreatedAt = now, UpdatedAt = now
+            });
+            var registration = new ApproachRegistration {
+                CustomerId = school.Id, OwnerUserId = item.Item1, OwnerOrganizationId = item.Item2,
+                CreatedByUserId = item.Item1, RegisteredAt = now.AddDays(-1),
+                ProtectedUntil = now.AddDays(4), IdempotencyKey = Key(),
+                Status = "ACTIVE", CreatedAt = now, UpdatedAt = now
+            };
+            db.ApproachRegistrations.Add(registration);
+            await db.SaveChangesAsync(Ct);
+            db.CustomerActivities.Add(new CustomerActivity {
+                CustomerId = school.Id, ApproachRegistrationId = registration.Id,
+                UserId = item.Item1, ActivityType = "NOTE", Content = "Ghi nhận trong đội",
+                CreatedAt = now, UpdatedAt = now
+            });
+        }
+        await db.SaveChangesAsync(Ct);
+
+        static HttpContext AsUser(long userId) => new DefaultHttpContext {
+            User = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier,userId.ToString())],
+                    "IntegrationTest"))
+        };
+        async Task<System.Text.Json.JsonElement> ForManager(long id, long? seller = null) {
+            var result = await ManagerProgressEndpoints.List(AsUser(id), db, null, null, seller, 1, 20, Ct);
+            return System.Text.Json.JsonSerializer.SerializeToElement(
+                ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value);
+        }
+        async Task<System.Text.Json.JsonElement> ForBoard(long? org = null, long? seller = null) {
+            var result = await ManagerProgressEndpoints.BoardList(AsUser(director), db,
+                null, null, seller, org, 1, 20, Ct);
+            return System.Text.Json.JsonSerializer.SerializeToElement(
+                ((Microsoft.AspNetCore.Http.IValueHttpResult)result).Value);
+        }
+        var board = await ForBoard();
+        Assert.True(board.GetProperty("total").GetInt32() >= 3);
+        Assert.Contains(board.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("display_name").GetString() == "PARTNER TEAM");
+        var scopedBoard = await ForBoard(partnerOrg, partnerSales);
+        Assert.Single(scopedBoard.GetProperty("data").EnumerateArray());
+        Assert.Equal("PARTNER TEAM", scopedBoard.GetProperty("data")[0].GetProperty("display_name").GetString());
+        var teamA = await ForManager(managerA);
+        Assert.Single(teamA.GetProperty("data").EnumerateArray());
+        Assert.Equal("KIDSFIT TEAM A", teamA.GetProperty("data")[0].GetProperty("display_name").GetString());
+        var teamB = await ForManager(managerB);
+        Assert.Single(teamB.GetProperty("data").EnumerateArray());
+        Assert.Equal("KIDSFIT TEAM B", teamB.GetProperty("data")[0].GetProperty("display_name").GetString());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            ManagerProgressEndpoints.List(AsUser(managerA), db, null, null, salesB, 1, 20, Ct));
+        var partnerTeam = await ForManager(partnerManager);
+        Assert.Single(partnerTeam.GetProperty("data").EnumerateArray());
+        Assert.Equal("PARTNER TEAM", partnerTeam.GetProperty("data")[0].GetProperty("display_name").GetString());
+        var otherSchool = await db.ChannelCustomers.Where(x => x.DisplayName == "KIDSFIT TEAM B")
+            .Select(x => x.Id).SingleAsync(Ct);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            CustomerWorkLogEndpoints.List(otherSchool, AsUser(managerA), db, Ct));
+        var boardWorklog = await CustomerWorkLogEndpoints.List(otherSchool, AsUser(director), db, Ct);
+        var worklog = System.Text.Json.JsonSerializer.SerializeToElement(
+            ((Microsoft.AspNetCore.Http.IValueHttpResult)boardWorklog).Value);
+        Assert.True(worklog.GetProperty("total").GetInt32() >= 1);
+    }
+
+    [MySqlFact]
     public async Task Work_log_pages_more_than_one_hundred_approach_rights_without_leaking_other_school()
     {
         var seller = await Seller();

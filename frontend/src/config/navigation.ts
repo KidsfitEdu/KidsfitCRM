@@ -20,6 +20,7 @@ export type View =
   | 'manager-extensions'
   | 'manager-team'
   | 'role-board-dashboard'
+  | 'role-board-progress'
   | 'role-board-oversight'
   | 'role-board-overdue'
   | 'role-board-disputes'
@@ -64,6 +65,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
   { id: 'admin-care-assignments', label: 'Phân công CSKH', shortLabel: 'Phân công CSKH', icon: Headset },
   { id: 'role-board-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'role-board-progress', label: 'Theo dõi tiến độ', shortLabel: 'Tiến độ', icon: TrendingUp },
   { id: 'role-board-overdue', label: 'Hồ sơ quá hạn', shortLabel: 'Quá hạn', icon: Clock3 },
   { id: 'role-board-disputes', label: 'Tranh chấp', shortLabel: 'Tranh chấp', icon: ShieldCheck },
   { id: 'role-board-policies', label: 'Chính sách', shortLabel: 'Chính sách', icon: BookOpenCheck },
@@ -120,6 +122,7 @@ export const viewCopy: Record<
   'admin-policies': { eyebrow: 'Quản trị / Chính sách vận hành', title: 'Quản lý chính sách vận hành', description: 'Xem phiên bản chính sách và thời hạn xử lý theo quy định.' },
   'admin-care-assignments': { eyebrow: 'Quản trị / Chăm sóc khách hàng', title: 'Phân công CSKH', description: 'Admin điều phối nhân sự chăm sóc khách hàng.' },
   'role-board-dashboard': {eyebrow:'Ban giám đốc',title:'Tổng quan',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  'role-board-progress': {eyebrow:'Ban giám đốc',title:'Theo dõi tiến độ',description:'Giám sát Sales/CTV và hoạt động tiếp cận toàn hệ thống theo phân quyền.'},
   'role-board-oversight': {eyebrow:'Ban giám đốc',title:'Báo cáo',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-overdue': {eyebrow:'Ban giám đốc',title:'Quá hạn',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-disputes': {eyebrow:'Ban giám đốc',title:'Tranh chấp',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},

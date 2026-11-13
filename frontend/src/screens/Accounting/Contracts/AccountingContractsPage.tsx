@@ -116,6 +116,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
   }).format(new Date()));
   const [financeStatus,setFinanceStatus]=useState('ALL');
+  const [financeOrganization,setFinanceOrganization]=useState('ALL');
+  const [financeSearch,setFinanceSearch]=useState('');
   const [financeRole,setFinanceRole]=useState('ALL');
   const [financeOverview,setFinanceOverview]=useState<FinanceWorkspace|null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -436,12 +438,17 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setWorkspaceStatus('ALL');
     setPage(1);
   };
+  const financeKeyword=financeSearch.trim().toLocaleLowerCase('vi-VN');
   const displayedPayouts=(financeOverview?.payouts??[])
     .filter(p=>(financeStatus==='ALL'||p.status===financeStatus)
-      &&(financeRole==='ALL'||p.beneficiary_role===financeRole));
+      &&(financeRole==='ALL'||p.beneficiary_role===financeRole)
+      &&(financeOrganization==='ALL'||p.organization_id===Number(financeOrganization))
+      &&(!financeKeyword||[p.code,p.beneficiary_name].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
   const availableCommissions=(financeOverview?.ledger??[])
     .filter(entry=>entry.payout_status==='ACCRUED'
-      &&(financeRole==='ALL'||entry.beneficiary_role===financeRole));
+      &&(financeRole==='ALL'||entry.beneficiary_role===financeRole)
+      &&(financeOrganization==='ALL'||entry.beneficiary_organization_id===Number(financeOrganization))
+      &&(!financeKeyword||[entry.beneficiary_name,entry.contract_code].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
   return <div className="space-y-5">
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <div role="tablist" aria-label="Nghiệp vụ Kế toán" className="flex flex-wrap gap-2 border-b border-border pb-2">
@@ -576,6 +583,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <label className="sr-only" htmlFor="accounting-finance-period">Kỳ hoa hồng</label>
           <Input id="accounting-finance-period" type="month" className="w-40" value={financePeriod}
             onChange={event=>setFinancePeriod(event.target.value)}/>
+          <Input aria-label="Tìm người hưởng hoặc mã phiếu chi" className="w-52"
+            placeholder="Người hưởng, mã phiếu..." value={financeSearch}
+            onChange={event=>setFinanceSearch(event.target.value)}/>
+          <AppSelect ariaLabel="Lọc tổ chức phiếu chi" value={financeOrganization}
+            options={[{value:'ALL',label:'Tất cả tổ chức'},
+              ...(financeOverview?.organizations??[]).map(org=>({value:String(org.id),label:org.name}))]}
+            onValueChange={setFinanceOrganization}/>
           <AppSelect ariaLabel="Lọc người hưởng hoa hồng" value={financeRole}
             options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
             onValueChange={setFinanceRole}/>

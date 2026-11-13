@@ -10,7 +10,7 @@ import {
   saveDemoSession,
   presentDemoWorkspace,
 } from '../src/lib/demo-auth.ts';
-import { demoChannelSalesWorkspace } from '../src/lib/channel-sales.ts';
+import { demoChannelSalesWorkspace } from '../demo/channel-sales-fixture.ts';
 
 function memoryStorage() {
   const values = new Map();

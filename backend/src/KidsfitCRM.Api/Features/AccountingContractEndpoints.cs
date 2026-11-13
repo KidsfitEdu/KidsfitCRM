@@ -208,6 +208,12 @@ public static class AccountingContractEndpoints
         var payouts = await access.Payouts(db).AsNoTracking().Where(x => payoutIds.Contains(x.Id))
             .OrderByDescending(x => x.CreatedAt).Select(x => new {
                 id = x.Id, code = x.Code, net_amount = x.NetAmount, status = x.Status,
+                suggested_rate_percent = x.SuggestedRatePercent, requested_rate_percent = x.RequestedRatePercent,
+                suggested_amount = x.SuggestedAmount, requested_amount = x.RequestedAmount,
+                adjustment_reason = x.AdjustmentReason, submitted_at = x.SubmittedAt,
+                created_by_user_id = x.CreatedByUserId,
+                events = db.PayoutEvents.Where(ev => ev.PayoutId == x.Id).OrderBy(ev => ev.CreatedAt)
+                    .Select(ev => new { event_type = ev.EventType, reason = ev.Reason, created_at = ev.CreatedAt }).ToArray(),
                 beneficiary_user_id = x.BeneficiaryUserId, beneficiary_role = x.BeneficiaryRole,
                 paid_at = x.PaidAt, payment_reference = x.PaymentReference
             }).ToArrayAsync(ct);

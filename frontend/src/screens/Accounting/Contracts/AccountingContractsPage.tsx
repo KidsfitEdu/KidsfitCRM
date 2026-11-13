@@ -74,6 +74,15 @@ type ContractRow = {
   has_financial_history:boolean;
 };
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
+type BackfillPreview={
+  receipt_id:number;contract_id:number;eligible_cash:number;
+  sales_user_id:number;manager_user_id:number|null;
+  manager_review_required:boolean;requires_manager_verification:boolean;
+  sales_percent:number;manager_percent:number;
+  sales_amount:number;manager_amount:number;
+  policy_source:string;board_policy_version_id:number|null;
+  has_existing_ledger:boolean;can_apply:boolean;
+};
 type Detail = {
   current_period:ServicePeriod|null;
   next_confirmed_period:ServicePeriod|null;
@@ -90,6 +99,7 @@ type Detail = {
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
     period: string; beneficiary_user_id: number; beneficiary_name: string; beneficiary_organization_id: number;
+    revenue_receipt_id:number|null;
     beneficiary_role: 'SALES'|'MANAGER'; policy_source: string; board_policy_version_id: number|null;
     assigned_to_payout: boolean }[];
   payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null;
@@ -127,6 +137,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [payoutPeriod, setPayoutPeriod] = useState('');
   const [payoutBeneficiary, setPayoutBeneficiary] = useState('');
   const [payoutDialogOpen,setPayoutDialogOpen] = useState(false);
+  const [backfillPreview,setBackfillPreview]=useState<BackfillPreview|null>(null);
+  const [backfillReason,setBackfillReason]=useState('');
+  const [backfillManagerVerified,setBackfillManagerVerified]=useState(false);
+  const [backfillBusy,setBackfillBusy]=useState(false);
   const [payoutWithholding,setPayoutWithholding] = useState('0');
   const [payoutWithholdingReason,setPayoutWithholdingReason] = useState('');
   const [payoutError,setPayoutError] = useState('');
@@ -243,6 +257,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
   const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
   const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
+  const canAdjustCommission=abilities.includes('channel_sales.commission.adjust')||abilities.includes('*');
   const canApprovePayout = abilities.includes('channel_sales.payout.approve') || abilities.includes('*');
   const openReceipt = () => {
     setFieldErrors({});setAmountInput('');
@@ -395,6 +410,38 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const eligiblePeriods=[...eligibleByPeriod.entries()]
     .filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
   const chosenPeriod=eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'');
+  const openBackfill = async (receiptId:number) => {
+    setBackfillBusy(true);
+    try {
+      const result=await channelRequest<{data:BackfillPreview}>(apiBase,token,
+        `/revenue-receipts/${receiptId}/commission-backfill-preview`);
+      setBackfillPreview(result.data);
+      setBackfillReason('');
+      setBackfillManagerVerified(false);
+    }catch(cause){
+      appNotice.error('Không thể xem đối soát hoa hồng.',
+        cause instanceof Error?cause.message:'Vui lòng thử lại.');
+    }finally{setBackfillBusy(false);}
+  };
+  const confirmBackfill = async () => {
+    if(!backfillPreview||!backfillPreview.can_apply||!backfillReason.trim())return;
+    setBackfillBusy(true);
+    try{
+      await channelRequest(apiBase,token,
+        `/revenue-receipts/${backfillPreview.receipt_id}/commission-backfill`,{
+          method:'POST',body:JSON.stringify({
+            confirm:true,reason:backfillReason.trim(),
+            manager_verified:backfillManagerVerified
+          })
+        });
+      setBackfillPreview(null);setDetailRevision(v=>v+1);
+      appNotice.success('Đã tạo bút toán hoa hồng sau đối soát khoản thu.');
+      await load();
+    }catch(cause){
+      appNotice.error('Không thể đối soát khoản thu.',
+        cause instanceof Error?cause.message:'Vui lòng thử lại.');
+    }finally{setBackfillBusy(false);}
+  };
   const createPayout = async () => {
     if(!detail||!chosenPeriod||!currentBeneficiary)return;
     const gross=eligibleByPeriod.get(chosenPeriod)??0;
@@ -820,6 +867,22 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 onClick={()=>{setPayoutWithholding('0');setPayoutWithholdingReason('');setPayoutError('');payoutKey.current=null;setPayoutDialogOpen(true);}}><Plus className="size-4"/> Lập phiếu chi</Button>
             </div>}
           </div>
+          {canAdjustCommission&&detail.receipts.some(receipt=>
+            !detail.ledger.some(entry=>entry.revenue_receipt_id===receipt.id))&&
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/20">
+              <p className="font-medium text-sm">Khoản thu cũ chưa có bút toán hoa hồng</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Kiểm tra số thực thu, tỷ lệ và người hưởng trước khi tạo bổ sung. Không tự động sửa hoa hồng đã ghi nhận.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {detail.receipts.filter(receipt=>
+                  !detail.ledger.some(entry=>entry.revenue_receipt_id===receipt.id))
+                  .map(receipt=><Button type="button" key={receipt.id} size="sm" variant="outline"
+                    disabled={backfillBusy} onClick={()=>void openBackfill(receipt.id)}>
+                    Đối soát {receipt.reference_code} · {channelMoney(receipt.amount)}
+                  </Button>)}
+              </div>
+            </div>}
           {canCreatePayout && eligiblePeriods.length===0 && <p className="text-xs text-muted-foreground">
             {detail.ledger.length===0 ? (detail.receipts.length > 0 ? 'Khoản thu đã ghi nhận nhưng chưa có bút toán hoa hồng. Vui lòng kiểm tra chính sách hoa hồng áp dụng tại ngày thu.' : 'Chưa có khoản thu để phát sinh hoa hồng cho hợp đồng này.')
               : detail.ledger.every(x=>x.assigned_to_payout) ? 'Hoa hồng đã được đưa vào phiếu chi. Xem trạng thái phiếu chi bên dưới.'
@@ -891,6 +954,53 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </section>
       </div>}
     </AppDrawer>
+    <AppDialog open={Boolean(backfillPreview)}
+      onOpenChange={open=>{if(!open&&!backfillBusy)setBackfillPreview(null);}}
+      busy={backfillBusy} title="Đối soát hoa hồng khoản thu cũ"
+      description="Chỉ tạo bút toán mới sau khi Kế toán xem trước và xác nhận. Khoản đã có hoa hồng không được tự tính lại.">
+      {backfillPreview&&<div className="space-y-4 text-sm">
+        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+          <div className="flex justify-between gap-2"><span>Thực thu đủ điều kiện</span>
+            <strong>{channelMoney(backfillPreview.eligible_cash)}</strong></div>
+          <div className="flex justify-between gap-2"><span>Sales · {backfillPreview.sales_percent}%</span>
+            <strong>{channelMoney(backfillPreview.sales_amount)}</strong></div>
+          <div className="flex justify-between gap-2"><span>Quản lý · {backfillPreview.manager_percent}%</span>
+            <strong>{channelMoney(backfillPreview.manager_amount)}</strong></div>
+          <p className="text-xs text-muted-foreground">
+            Chính sách: {backfillPreview.policy_source}
+            {backfillPreview.board_policy_version_id?' · Phiên bản #'+backfillPreview.board_policy_version_id:''}
+          </p>
+        </div>
+        {backfillPreview.requires_manager_verification&&
+          <label className="flex gap-2 rounded-lg border border-border p-3">
+            <input type="checkbox" className="mt-1" checked={backfillManagerVerified}
+              onChange={event=>setBackfillManagerVerified(event.target.checked)}/>
+            <span>Tôi đã kiểm tra và xác nhận Quản lý đang hiển thị thực sự phụ trách Sales
+              tại thời điểm khoản thu được ghi nhận. Nếu chưa xác nhận, phần Quản lý
+              sẽ chờ rà soát và không được tự động chuyển cho người khác.</span>
+          </label>}
+        {backfillPreview.manager_review_required&&<p role="status"
+          className="text-sm text-amber-800">
+          Chưa xác định Quản lý hợp lệ. Chỉ tạo phần Sales; quyền hưởng Quản lý cần xác minh riêng.
+        </p>}
+        <div className="space-y-1">
+          <label htmlFor="backfill-reason">Lý do đối soát / chứng từ tham chiếu *</label>
+          <Input id="backfill-reason" maxLength={1000} value={backfillReason}
+            onChange={event=>setBackfillReason(event.target.value)}
+            placeholder="Đối soát khoản thu lịch sử và kiểm tra hồ sơ"/>
+        </div>
+        {!backfillPreview.can_apply&&<p role="alert" className="text-destructive">
+          Khoản thu đã có bút toán hoặc không còn số tiền đủ điều kiện; không được ghi trùng.
+        </p>}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" disabled={backfillBusy} onClick={()=>setBackfillPreview(null)}>Hủy</Button>
+          <Button disabled={backfillBusy||!backfillPreview.can_apply||!backfillReason.trim()}
+            onClick={()=>void confirmBackfill()}>
+            {backfillBusy?'Đang đối soát...':'Xác nhận tạo bút toán'}
+          </Button>
+        </div>
+      </div>}
+    </AppDialog>
     <AppDialog open={Boolean(detail&&payoutDialogOpen)}
       onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open)payoutKey.current=null;}}}
       busy={saving} title="Lập phiếu chi hoa hồng"

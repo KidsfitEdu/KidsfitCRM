@@ -55,7 +55,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
     {
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var registration = await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(), Ct);
-        var contract = await a.ReportSignedContract(registration, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m), s.Seller.UserId, Http(), Ct);
+        var contract = await a.ReportSignedContract(registration, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"), s.Seller.UserId, Http(), Ct);
         await a.ReviewSchoolContract(contract, s.Manager.UserId, Http(), Ct);
         await a.Reconcile(await db.ReconciliationCases.Where(x => x.ContractId == contract).Select(x => x.Id).SingleAsync(), true, new("Kiểm thử xác minh"), await User("checkee@kidsfit.vn"), Http(), Ct);
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
@@ -248,7 +248,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open();
         var actions = new ChannelSalesActions(db);
         var registrationId = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
-        var contractId = await actions.ReportSignedContract(registrationId, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m),
+        var contractId = await actions.ReportSignedContract(registrationId, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"),
             scenario.Seller.UserId, Http(), Ct);
         await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
         var reconciliationId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
@@ -287,7 +287,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open();
         var actions = new ChannelSalesActions(db);
         var registration = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
-        var contractId = await actions.ReportSignedContract(registration, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m),
+        var contractId = await actions.ReportSignedContract(registration, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"),
             scenario.Seller.UserId, Http(), Ct);
         await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
         var caseId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
@@ -309,7 +309,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var secondRegistration = await actions.RegisterCustomerApproach(Claim(scenario.OtherCustomerId),
             scenario.Peer.UserId, Http(), Ct);
         var pendingContract = await actions.ReportSignedContract(secondRegistration,
-            new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m), scenario.Peer.UserId, Http(), Ct);
+            new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"), scenario.Peer.UserId, Http(), Ct);
         // A scoped Accountant belongs to the same partner as the created contracts.
         var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
         var initial = Json(await AccountingContractEndpoints.List(Http(accountant), db, null, null,
@@ -2167,7 +2167,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var actions = new ChannelSalesActions(db);
         var registration = await actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Seller.UserId, Http(), Ct);
         var contractId = await actions.ReportSignedContract(registration,
-            new(Key(), "REV-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "ORIGINAL-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m),
+            new(Key(), "REV-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "ORIGINAL-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"),
             scenario.Seller.UserId, Http(), Ct);
 
         Assert.Equal("PENDING_REVIEW", (await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct)).Status);
@@ -2208,7 +2208,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             new(proof.Id, SignedOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow),
                 ServicePlan: "MONTHLY_9", StudentCount: 450, BranchCount: 2,
                 SchoolUnitIds: [], MaintenanceFee: 100_000m, SetupFee: 200_000m,
-                ContractNote: "Đã cập nhật theo yêu cầu Quản lý."),
+                ContractNote: "Đã cập nhật theo yêu cầu Quản lý.", ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"),
             Http(scenario.Seller.UserId), db, Ct);
         db.ChangeTracker.Clear();
         var submitted = await db.SalesContracts.AsNoTracking().SingleAsync(c => c.Id == contractId, Ct);

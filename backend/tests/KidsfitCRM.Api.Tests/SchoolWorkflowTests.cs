@@ -182,7 +182,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         await using var db = fixture.Open(); var actions = new ChannelSalesActions(db);
         var registration = await actions.RegisterCustomerApproach(Claim(customerId, Key()), ctv.UserId, Http(), Ct);
 
-        var request = new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m);
+        var request = new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY");
         var contractId = await actions.ReportSignedContract(registration, request, ctv.UserId, Http(), Ct);
         Assert.Equal(contractId, await actions.ReportSignedContract(registration, request, ctv.UserId, Http(), Ct));
         Assert.Equal("PENDING_REVIEW", (await db.SalesContracts.FindAsync(contractId))!.Status);
@@ -213,7 +213,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var customer = (await Import(1))[0]; var ctv = await Ctv(); var admin = await User("admin@kidsfit.vn");
         await using var db = fixture.Open(); var actions = new ChannelSalesActions(db);
         var registration = await actions.RegisterCustomerApproach(Claim(customer, Key()), ctv.UserId, Http(), Ct);
-        var request = new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, null, ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m);
+        var request = new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, null, ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY");
         await Assert.ThrowsAsync<ApiValidationException>(() => actions.ReportSignedContract(registration, request, ctv.UserId, Http(), Ct));
         var contract = await actions.ReportSignedContract(registration, request with { EvidenceReference = "TEST" }, ctv.UserId, Http(), Ct);
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.RecordRevenueReceipt(contract, new(Key(), null, 10, null, "TEST-" + Key(), "CASH"), admin, Http(), Ct));
@@ -273,7 +273,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var admin = await User("admin@kidsfit.vn"); var partner = await User("partner@kidsfit.vn"); var checkee = await User("checkee@kidsfit.vn");
         await using var db = fixture.Open(); var actions = new ChannelSalesActions(db);
         var registration = await actions.RegisterCustomerApproach(Claim(customer, Key()), oldOwner.UserId, Http(), Ct);
-        var contractId = await actions.ReportSignedContract(registration, new(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m), oldOwner.UserId, Http(), Ct);
+        var contractId = await actions.ReportSignedContract(registration, new(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"), oldOwner.UserId, Http(), Ct);
         await actions.ReviewSchoolContract(contractId, partner, Http(), Ct);
         await db.ApproachRegistrations.Where(x => x.Id == registration).ExecuteUpdateAsync(s => s.SetProperty(x => x.ProtectedUntil, DateTime.UtcNow.AddMinutes(-1)));
         await db.CustomerProtections.Where(x => x.ApproachRegistrationId == registration).ExecuteUpdateAsync(s => s.SetProperty(x => x.EffectiveUntil, DateTime.UtcNow.AddMinutes(-1)));
@@ -386,7 +386,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         db.FinancialEvidences.Add(first);
         await db.SaveChangesAsync();
         var contractId = await actions.ReportSignedContract(registration,
-            new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, null, EvidenceId: first.Id, ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m), seller.UserId, Http(), Ct);
+            new ReportSalesContractRequest(Key(), "SC-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, null, EvidenceId: first.Id, ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"), seller.UserId, Http(), Ct);
         // Manager permissions are now scoped to direct reports, not merely shared organization.
         await db.OrganizationMemberships.Where(m => m.Id == seller.MembershipId)
             .ExecuteUpdateAsync(x => x.SetProperty(m => m.ManagerUserId, (long?)manager), Ct);

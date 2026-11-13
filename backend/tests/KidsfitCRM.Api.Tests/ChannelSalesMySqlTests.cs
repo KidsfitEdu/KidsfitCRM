@@ -121,7 +121,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var actions = new ChannelSalesActions(db);
         var registrationId = await actions.RegisterCustomerApproach(Approach(), sellerId, Http(), Ct);
 
-        var request = new ReportSalesContractRequest(Key(), "CT-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m);
+        var request = new ReportSalesContractRequest(Key(), "CT-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY");
         var contractId = await actions.ReportSignedContract(registrationId, request, sellerId, Http(), Ct);
         Assert.Equal(contractId, await actions.ReportSignedContract(registrationId, request, sellerId, Http(), Ct));
         return (registrationId, contractId);
@@ -505,7 +505,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
             var maintenance = monthly ? 1_716_000m : 11_880_000m;
             var setup = monthly ? 4_395_600m : 3_996_000m;
             var total = maintenance * (monthly ? 9 : 1) + setup;
-            var request = new ReportSalesContractRequest(Key(), null, signedOn, null, total, null, "CONTRACT-TEST", ServicePlan: monthly ? "MONTHLY_9" : "SCHOOL_YEAR", StudentCount: 450, MaintenanceFee: maintenance, SetupFee: setup, ContractNote: "Giá đã đối chiếu với hợp đồng", BranchCount: 3);
+            var request = new ReportSalesContractRequest(Key(), null, signedOn, null, total, null, "CONTRACT-TEST", ServicePlan: monthly ? "MONTHLY_9" : "SCHOOL_YEAR", StudentCount: 450, MaintenanceFee: maintenance, SetupFee: setup, ContractNote: "Giá đã đối chiếu với hợp đồng", BranchCount: 3, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddMonths(monthly ? 9 : 12).AddDays(-1), PaymentCycle: monthly ? "MONTHLY" : "YEARLY");
             var contractId = await actions.ReportSignedContract(registration, request, seller, Http(), Ct);
             var contract = await db.SalesContracts.AsNoTracking().SingleAsync(x => x.Id == contractId, Ct);
             Assert.Equal(total, contract.TotalValue);
@@ -530,7 +530,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var actions = new ChannelSalesActions(db);
         var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
 
-        var request = new ReportSalesContractRequest(Key(), null, ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 15_876_000m, null, "CONTRACT-TEST", ServicePlan: "SCHOOL_YEAR", StudentCount: 450, MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m, BranchCount: -1);
+        var request = new ReportSalesContractRequest(Key(), null, ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 15_876_000m, null, "CONTRACT-TEST", ServicePlan: "SCHOOL_YEAR", StudentCount: 450, MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m, BranchCount: -1, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY");
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             actions.ReportSignedContract(registration, request, seller, Http(), Ct));
         Assert.False(await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration, Ct));
@@ -544,7 +544,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var actions = new ChannelSalesActions(db);
         var registration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
 
-        var request = new ReportSalesContractRequest(Key(), null, ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 15_876_001m, null, "CONTRACT-TEST", ServicePlan: "SCHOOL_YEAR", StudentCount: 450, MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m);
+        var request = new ReportSalesContractRequest(Key(), null, ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 15_876_001m, null, "CONTRACT-TEST", ServicePlan: "SCHOOL_YEAR", StudentCount: 450, MaintenanceFee: 11_880_000m, SetupFee: 3_996_000m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY");
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             actions.ReportSignedContract(registration, request, seller, Http(), Ct));
         Assert.False(await db.SalesContracts.AnyAsync(x => x.ApproachRegistrationId == registration, Ct));
@@ -560,7 +560,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var signedOn = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
 
         var firstRegistration = await actions.RegisterCustomerApproach(Approach(), seller, Http(), Ct);
-        var automaticRequest = new ReportSalesContractRequest(Key(), null, signedOn, null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m);
+        var automaticRequest = new ReportSalesContractRequest(Key(), null, signedOn, null, 1_000_000m, null, "TEST-EVIDENCE", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY");
         var automaticId = await actions.ReportSignedContract(firstRegistration, automaticRequest, seller, Http(), Ct);
         var automaticCode = await db.SalesContracts.Where(x => x.Id == automaticId)
             .Select(x => x.ContractCode).SingleAsync(Ct);

@@ -94,7 +94,7 @@ test('Backfill and payout dialogs show explicit reviewed amounts and never claim
   assert.match(accounting,/backfillManagerVerified/);
   assert.match(accounting,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
   assert.match(accounting,/Lưu nháp/);
-  assert.match(accounting,/Gửi BGĐ/);
+  assert.match(accounting,/Gửi phiếu .* đến BGĐ phê duyệt/);
   assert.match(accounting,/Lý do điều chỉnh/);
 });
 

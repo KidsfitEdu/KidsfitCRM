@@ -397,11 +397,16 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     ? detail.receipts.filter(receipt=>!detail.ledger.some(entry=>entry.revenue_receipt_id===receipt.id))
     : [];
   const eligibleEntries=(detail?.ledger??[]).filter(entry=>!entry.assigned_to_payout);
-  const beneficiaries=Array.from(new Map(eligibleEntries.map(entry=>[
+  const beneficiaryEntries=Array.from(new Map(eligibleEntries.map(entry=>[
     `${entry.beneficiary_role}:${entry.beneficiary_user_id}`,
     {key:`${entry.beneficiary_role}:${entry.beneficiary_user_id}`,
       id:entry.beneficiary_user_id,role:entry.beneficiary_role,name:entry.beneficiary_name},
   ])).values());
+  const beneficiaries=beneficiaryEntries.filter(beneficiary=>
+    eligibleEntries.some(entry=>entry.beneficiary_user_id===beneficiary.id
+      &&entry.beneficiary_role===beneficiary.role)
+    &&eligibleEntries.filter(entry=>entry.beneficiary_user_id===beneficiary.id
+      &&entry.beneficiary_role===beneficiary.role).reduce((sum,entry)=>sum+entry.amount,0)>0);
   const currentBeneficiary=beneficiaries.find(x=>x.key===payoutBeneficiary)??beneficiaries[0];
   const eligibleByPeriod=new Map<string,number>();
   for(const entry of eligibleEntries){
@@ -1069,48 +1074,71 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       busy={backfillBusy} title="Đối soát hoa hồng khoản thu cũ"
       description="Chỉ tạo bút toán mới sau khi Kế toán xem trước và xác nhận. Khoản đã có hoa hồng không được tự tính lại.">
       {backfillPreview&&<div className="space-y-4 text-sm">
-        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-          <div className="flex justify-between gap-2"><span>Thực thu đủ điều kiện</span>
-            <strong>{channelMoney(backfillPreview.eligible_cash)}</strong></div>
-          <div className="flex justify-between gap-2"><span>Sales · {backfillPreview.sales_percent}%</span>
-            <strong>{channelMoney(backfillPreview.sales_amount)}</strong></div>
-          <div className="flex justify-between gap-2"><span>Quản lý · {backfillPreview.manager_percent}%</span>
-            <strong>{channelMoney(backfillPreview.manager_amount)}</strong></div>
-          <p className="text-xs text-muted-foreground">
-            Chính sách: {backfillPreview.policy_source}
-            {backfillPreview.board_policy_version_id?' · Phiên bản #'+backfillPreview.board_policy_version_id:''}
-          </p>
+        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bước 1 · Kiểm tra khoản thu</p>
+          <p className="mt-2 text-xs text-muted-foreground">Khoản thực thu đủ điều kiện</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{channelMoney(backfillPreview.eligible_cash)}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-md bg-background px-2 py-1">Mã phiếu thu #{backfillPreview.receipt_id}</span>
+            <span className="rounded-md bg-background px-2 py-1">
+              {backfillPreview.board_policy_version_id
+                ?`Chính sách BGĐ #${backfillPreview.board_policy_version_id}`
+                :'Chính sách BGĐ mặc định'}
+            </span>
+          </div>
         </div>
-        {backfillPreview.requires_manager_verification&&<p className="text-xs text-muted-foreground">
-          Quản lý đang được đề xuất: <strong>{backfillPreview.manager_name??'Chưa xác định'}</strong>.
-          Cần đối chiếu lịch sử phân công tại ngày thu; không xác nhận chỉ dựa vào phân công hiện tại.
-        </p>}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bước 2 · Kiểm tra người hưởng</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border/80 bg-card p-4">
+              <p className="text-xs font-medium text-muted-foreground">Sales · {backfillPreview.sales_percent}%</p>
+              <p className="mt-2 text-lg font-bold tabular-nums">{channelMoney(backfillPreview.sales_amount)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Bút toán Sales</p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-card p-4">
+              <p className="text-xs font-medium text-muted-foreground">Quản lý · {backfillPreview.manager_percent}%</p>
+              <p className="mt-2 text-lg font-bold tabular-nums">{channelMoney(backfillPreview.manager_amount)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {backfillPreview.manager_name||'Chưa xác minh người hưởng'}
+              </p>
+            </div>
+          </div>
+        </div>
         {backfillPreview.requires_manager_verification&&
-          <label className="flex gap-2 rounded-lg border border-border p-3">
-            <input type="checkbox" className="mt-1" checked={backfillManagerVerified}
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/20 p-4 text-sm leading-6">
+            <input type="checkbox" className="mt-1 size-4 shrink-0 accent-primary"
+              checked={backfillManagerVerified}
               onChange={event=>setBackfillManagerVerified(event.target.checked)}/>
-            <span>Tôi đã kiểm tra và xác nhận Quản lý đang hiển thị thực sự phụ trách Sales
-              tại thời điểm khoản thu được ghi nhận. Nếu chưa xác nhận, phần Quản lý
-              sẽ chờ rà soát và không được tự động chuyển cho người khác.</span>
+            <span>
+              <strong className="block font-semibold">Xác nhận Quản lý lịch sử</strong>
+              Đã kiểm tra {backfillPreview.manager_name||'người quản lý'} thực sự phụ trách Sales
+              tại ngày thu. Nếu chưa xác nhận, chỉ tạo phần Sales và phần Quản lý được giữ để rà soát.
+            </span>
           </label>}
-        {backfillPreview.manager_review_required&&<output
-          className="block text-sm text-amber-800">
-          Chưa xác định Quản lý hợp lệ. Chỉ tạo phần Sales; quyền hưởng Quản lý cần xác minh riêng.
-        </output>}
-        <div className="space-y-1">
-          <label htmlFor="backfill-reason">Lý do đối soát / chứng từ tham chiếu *</label>
+        {backfillPreview.manager_review_required&&
+          <output className="flex gap-2 rounded-lg border border-amber-300/60 bg-amber-50/60 p-3 text-xs leading-5 text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200">
+            <AlertCircle className="size-4 shrink-0" aria-hidden="true"/>
+            Chưa xác định được Quản lý hợp lệ. Chỉ tính hoa hồng Sales; phần Quản lý cần rà soát riêng.
+          </output>}
+        <div className="space-y-2">
+          <label htmlFor="backfill-reason" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Bước 3 · Lý do đối soát *
+          </label>
           <Input id="backfill-reason" maxLength={1000} value={backfillReason}
             onChange={event=>setBackfillReason(event.target.value)}
-            placeholder="Đối soát khoản thu lịch sử và kiểm tra hồ sơ"/>
+            placeholder="VD: Đã đối chiếu khoản thu và chứng từ với Kế toán"/>
+          <p className="text-xs text-muted-foreground">Lý do được lưu trong lịch sử kiểm tra tài chính.</p>
         </div>
-        {!backfillPreview.can_apply&&<p role="alert" className="text-destructive">
-          Khoản thu đã có bút toán hoặc không còn số tiền đủ điều kiện; không được ghi trùng.
+        {!backfillPreview.can_apply&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          Khoản thu đã có bút toán hoặc không còn số tiền hợp lệ; không thể tạo trùng.
         </p>}
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" disabled={backfillBusy} onClick={()=>setBackfillPreview(null)}>Hủy</Button>
-          <Button disabled={backfillBusy||!backfillPreview.can_apply||!backfillReason.trim()}
+        <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" className="w-full sm:w-auto"
+            disabled={backfillBusy} onClick={()=>setBackfillPreview(null)}>Hủy</Button>
+          <Button type="button" className="w-full sm:w-auto"
+            disabled={backfillBusy||!backfillPreview.can_apply||!backfillReason.trim()}
             onClick={()=>void confirmBackfill()}>
-            {backfillBusy?'Đang đối soát...':'Xác nhận tạo bút toán'}
+            {backfillBusy?'Đang đối soát...':'Xác nhận tạo bút toán'} <ArrowRight className="size-4" aria-hidden="true"/>
           </Button>
         </div>
       </div>}
@@ -1119,42 +1147,53 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open)payoutKey.current=null;}}}
       busy={saving} title="Lập phiếu chi hoa hồng"
       description="Xem lại người nhận, kỳ hoa hồng và số tiền trước khi tạo phiếu Nháp.">
-      {detail&&payoutDialogOpen&&<form className="space-y-4" onSubmit={event=>{event.preventDefault();void createPayout();}}>
-        <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
-          <p className="text-sm text-muted-foreground">Người nhận hoa hồng</p>
-          <p className="font-semibold">{currentBeneficiary?.name??'Chưa chọn người hưởng'}
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
+      {detail&&payoutDialogOpen&&<form className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
+        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
+          <p className="text-xs font-medium text-muted-foreground">Người hưởng</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <UserRound className="size-4 text-primary" aria-hidden="true"/>
+            <span className="font-semibold text-foreground">{currentBeneficiary?.name??'Chưa chọn người hưởng'}</span>
+            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
               {currentBeneficiary?.role==='MANAGER'?'Quản lý':'Sales'}
             </span>
-          </p>
-          <p className="text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ {chosenPeriod}</p>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {chosenPeriod}</p>
         </div>
-        <div className="flex items-center justify-between gap-2 text-sm">
-          <span>Hoa hồng đủ điều kiện</span>
-          <strong className="tabular-nums">{channelMoney(eligibleByPeriod.get(chosenPeriod)??0)}</strong>
+        <div className="space-y-3 rounded-xl border border-border/80 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Hoa hồng đủ điều kiện</span>
+            <strong className="tabular-nums">{channelMoney(eligibleByPeriod.get(chosenPeriod)??0)}</strong>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="payout-withholding" className="text-sm font-medium">Số tiền khấu trừ (VNĐ)</label>
+            <AppCurrencyInput id="payout-withholding" value={payoutWithholding}
+              onValueChange={value=>{setPayoutWithholding(value);payoutKey.current=null;setPayoutError('');}}/>
+          </div>
+          {parseMoneyInput(payoutWithholding)>0&&<div className="space-y-1.5">
+            <label htmlFor="payout-withholding-reason" className="text-sm font-medium">Lý do khấu trừ *</label>
+            <Input id="payout-withholding-reason" value={payoutWithholdingReason}
+              onChange={event=>{setPayoutWithholdingReason(event.target.value);payoutKey.current=null;setPayoutError('');}}
+              maxLength={1000} required/>
+          </div>}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+            <span className="font-semibold text-foreground">Dự kiến thực chi</span>
+            <strong className="text-xl font-bold tabular-nums text-primary">
+              {channelMoney(Math.max(0,(eligibleByPeriod.get(chosenPeriod)??0)-parseMoneyInput(payoutWithholding)))}
+            </strong>
+          </div>
         </div>
-        <div className="space-y-1">
-          <label htmlFor="payout-withholding">Số tiền khấu trừ (VNĐ)</label>
-          <AppCurrencyInput id="payout-withholding" value={payoutWithholding}
-            onValueChange={value=>{setPayoutWithholding(value);payoutKey.current=null;setPayoutError('');}}/>
-        </div>
-        {parseMoneyInput(payoutWithholding)>0&&<div className="space-y-1">
-          <label htmlFor="payout-withholding-reason">Lý do khấu trừ *</label>
-          <Input id="payout-withholding-reason" value={payoutWithholdingReason}
-            onChange={event=>{setPayoutWithholdingReason(event.target.value);payoutKey.current=null;setPayoutError('');}}
-            maxLength={1000} required/>
-        </div>}
-        <div className="flex items-center justify-between rounded-xl bg-muted/40 p-4">
-          <span className="font-semibold">Dự kiến thực chi</span>
-          <strong className="text-lg tabular-nums">
-            {channelMoney(Math.max(0,(eligibleByPeriod.get(chosenPeriod)??0)-parseMoneyInput(payoutWithholding)))}
-          </strong>
-        </div>
-        <p className="text-xs text-muted-foreground">Phiếu mới ở trạng thái Nháp; chưa ghi nhận đã chuyển tiền. Giá trị thực tế do Backend xác nhận.</p>
-        {payoutError&&<p role="alert" className="text-sm text-destructive">{payoutError}</p>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={saving} onClick={()=>{setPayoutDialogOpen(false);payoutKey.current=null;}}>Hủy</Button>
-          <Button type="submit" disabled={saving||!chosenPeriod}>{saving?'Đang tạo...':'Xác nhận lập phiếu'}</Button>
+        <p className="flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
+          <ClipboardCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
+          Thao tác này chỉ lập phiếu ở trạng thái Nháp, chưa ghi nhận chuyển khoản.
+          Giá trị chính thức sẽ được Backend kiểm tra.
+        </p>
+        {payoutError&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{payoutError}</p>}
+        <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" className="w-full sm:w-auto"
+            disabled={saving} onClick={()=>{setPayoutDialogOpen(false);payoutKey.current=null;}}>Hủy</Button>
+          <Button type="submit" className="w-full sm:w-auto" disabled={saving||!chosenPeriod}>
+            {saving?'Đang tạo...':'Xác nhận lập phiếu'}
+          </Button>
         </div>
       </form>}
     </AppDialog>

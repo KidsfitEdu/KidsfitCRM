@@ -137,7 +137,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         UniqueCode<Organization>(b, 40);
         UniqueCode<ChannelCustomer>(b, 32);
         UniqueCode<CheckeeProductPackage>(b, 40);
-        UniqueCode<CommissionPolicyVersion>(b, 48);
         UniqueCode<Payout>(b, 48);
 
         b.Entity<Organization>().Property(x => x.Name).HasMaxLength(190);
@@ -307,7 +306,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<CustomerProtection, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerProtection, User>(x => x.OwnerUserId); Restrict<CustomerProtection, Organization>(x => x.OwnerOrganizationId); Restrict<CustomerProtection, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerProtection, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, SalesContract>(x => x.ContractId);
         Restrict<RevenueReceipt, SalesContract>(x => x.ContractId); Restrict<RevenueReceipt, RevenueSchedule>(x => x.RevenueScheduleId); Restrict<RevenueReceipt, User>(x => x.RecordedByUserId);
-        Restrict<CommissionPolicyVersion, Organization>(x => x.OrganizationId); Restrict<CommissionPolicyVersion, User>(x => x.CreatedByUserId);
         Restrict<CommissionLedgerEntry, SalesContract>(x => x.ContractId); Restrict<CommissionLedgerEntry, RevenueReceipt>(x => x.RevenueReceiptId); Restrict<CommissionLedgerEntry, BoardCommissionPolicyVersion>(x => x.BoardPolicyVersionId); Restrict<CommissionLedgerEntry, User>(x => x.BeneficiaryUserId); Restrict<CommissionLedgerEntry, Organization>(x => x.BeneficiaryOrganizationId); Restrict<CommissionLedgerEntry, User>(x => x.CreatedByUserId);
         Restrict<CommissionLedgerEntry, CommissionLedgerEntry>(x => x.RelatedEntryId);
         Restrict<Payout, Organization>(x => x.OrganizationId); Restrict<Payout, User>(x => x.CreatedByUserId); Restrict<PayoutItem, Payout>(x => x.PayoutId); Restrict<PayoutItem, CommissionLedgerEntry>(x => x.CommissionLedgerEntryId);

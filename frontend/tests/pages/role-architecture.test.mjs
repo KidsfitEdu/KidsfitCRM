@@ -10,14 +10,13 @@ const profileSections = {
   Admin: ['Dashboard','Schools','Proposals','Personnel','Capacities','Policies','Reports','CareAssignments'],
   SalesManager: ['Dashboard','Proposals','Allocations','Progress','Contracts','Extensions','Team'],
   SalesStaff: ['Dashboard','Schools','Customers','Activities','Proposals','Income'],
-  Collaborator: ['Dashboard','Schools','Proposals','Invitations','Approaches','Extensions','Income'],
   Board: ['Dashboard','Progress','Overdue','Disputes','Policies'],
   Accounting: ['Dashboard','Revenue'],
   CustomerCare: ['Dashboard','Cases','Customers'],
   Checkee: ['Dashboard','Verification','Support'],
 };
 
-test('All 41 active role menu pages exist and are compiled from src/screens', () => {
+test('All 33 canonical role pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
@@ -30,7 +29,7 @@ test('All 41 active role menu pages exist and are compiled from src/screens', ()
       total += 1;
     }
   }
-  assert.equal(total, 41);
+  assert.equal(total, 33);
 });
 
 test('Active navigation targets match role page registry and preserve aliases', () => {

@@ -29,7 +29,6 @@ const BoardWorkspace = lazy(() => import('@/screens/Board/BoardWorkspace').then(
 const AccountingWorkspace = lazy(() => import('@/screens/Accounting/AccountingWorkspace').then(m => ({ default: m.AccountingWorkspace })));
 const CustomerCareWorkspace = lazy(() => import('@/screens/CustomerCare/CustomerCareWorkspace').then(m => ({ default: m.CustomerCareWorkspace })));
 const SalesStaffWorkspace = lazy(() => import('@/screens/SalesStaff/SalesStaffWorkspace').then(m => ({ default: m.SalesStaffWorkspace })));
-const CollaboratorWorkspace = lazy(() => import('@/screens/Collaborator/CollaboratorWorkspace').then(m => ({ default: m.CollaboratorWorkspace })));
 const CheckeeWorkspace = lazy(() => import('@/screens/Checkee/CheckeeWorkspace').then(m => ({ default: m.CheckeeWorkspace })));
 const ChannelOperations = lazy(() => import('@/components/crm/channel-operations').then(m => ({ default: m.ChannelOperations })));
 
@@ -245,7 +244,6 @@ export function CrmWorkspace({ initialView, demoAccount, onDemoLogout, initialWo
             {currentView.startsWith('role-accounting-') && <AccountingWorkspace section={currentView.slice('role-accounting-'.length) as import('@/screens/Accounting/AccountingWorkspace').RoleSection} {...roleProps}/>}
             {currentView.startsWith('role-customer-care-') && <CustomerCareWorkspace section={currentView.slice('role-customer-care-'.length) as import('@/screens/CustomerCare/CustomerCareWorkspace').RoleSection} {...roleProps}/>}
             {currentView.startsWith('role-sales-staff-') && <SalesStaffWorkspace section={currentView.slice('role-sales-staff-'.length) as import('@/screens/SalesStaff/SalesStaffWorkspace').RoleSection} {...roleProps}/>}
-            {currentView.startsWith('role-collaborator-') && <CollaboratorWorkspace section={currentView.slice('role-collaborator-'.length) as import('@/screens/Collaborator/CollaboratorWorkspace').RoleSection} {...roleProps}/>}
             {currentView.startsWith('role-checkee-') && <CheckeeWorkspace section={currentView.slice('role-checkee-'.length) as import('@/screens/Checkee/CheckeeWorkspace').RoleSection} {...roleProps}/>}
             {currentView === 'channel-sales' && <ChannelOperations apiBase={apiBase} token={token} abilities={abilities} onChanged={refresh}
               customerView={(onOpenCustomer) => <ChannelSalesView onOpenCustomer={onOpenCustomer} workspace={workspace} search={search} setSearch={setSearch}

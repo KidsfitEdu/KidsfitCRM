@@ -32,7 +32,7 @@ test('shared QueryClient belongs to a keyed session, not separate role workspace
   const provider = read('src/providers/AppProviders.tsx');
   assert.match(app, /<AppProviders key=\{demoAccount\?\.id \?\? token/);
   assert.match(provider, /new QueryClient\(/);
-  for (const profile of ['Board','Accounting','CustomerCare','SalesStaff','Collaborator','Checkee','SalesManager']) {
+  for (const profile of ['Board','Accounting','CustomerCare','SalesStaff','Checkee','SalesManager']) {
     const workspace = read('src/screens/'+profile+'/'+profile+'Workspace.tsx');
     assert.doesNotMatch(workspace, /new QueryClient\(/);
   }

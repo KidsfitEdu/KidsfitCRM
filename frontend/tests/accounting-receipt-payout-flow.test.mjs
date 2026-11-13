@@ -19,7 +19,8 @@ test('Receipt validates balance and reuses submitted identity for a retry',()=>{
 test('Temporary proofs may be removed only by their uploader while unattached',()=>{
   assert.ok(ui.includes("method:'DELETE'"));
   assert.ok(ui.includes('[400,404,409,422].includes(cause.status)'));
-  assert.ok(evidence.includes('proof.UploadedByUserId == actorId'));
+  assert.ok(evidence.includes('x.UploadedByUserId == actorId'));
+  assert.ok(evidence.includes('UploadedByUserId == actorId'));
   assert.ok(evidence.includes('x.AttachedAt == null && x.RevenueReceiptId == null'));
 });
 test('Payout previews amount, withholding and approval process',()=>{

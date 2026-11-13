@@ -318,9 +318,10 @@ test('Contract reporting and revisions share one validator and retain existing s
   assert.match(editor, /existingEvidence: detail\.evidence\.length > 0/);
 });
 
-test('Sales proposal list keeps school codes searchable but hides them from table rows', () => {
+test('Sales proposal list delegates search to Backend and hides internal school codes from rows', () => {
   const source = read('src/components/roles/SalesProposalTable.tsx');
-  assert.match(source, /normalize\(\[x\.name,x\.school_code,x\.submitted_by,x\.province,x\.ward\]/);
+  assert.match(source, /onSearch\(term\.trim\(\)\)/);
+  assert.doesNotMatch(source, /demo|preview/);
   assert.doesNotMatch(source, /title=\{item\.school_code\}|\{item\.school_code\}<\/p>/);
   assert.match(source, /placeholder="Tên trường, khu vực, người đề xuất\.\.\."/);
   assert.match(source, /centerColumns=\{\[3\]\}/);

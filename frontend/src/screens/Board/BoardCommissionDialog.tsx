@@ -12,7 +12,7 @@ export type CommissionFormValues = {
   salesPercent:string;managerPercent:string;expectedVersionId:number|null;
 };
 export type CommissionOrganization={id:number;name:string;code:string};
-export type CommissionManager={id:number;name:string;email:string;code:string};
+export type CommissionManager={id:number;organizationId:number;name:string;email:string;code:string};
 export type CommissionSales={userId:number;organizationId:number;managerUserId:number|null;name:string;email:string;code:string};
 
 export function BoardCommissionDialog({
@@ -39,7 +39,7 @@ export function BoardCommissionDialog({
     setLocalError('');onSave(form);
   };
   const members=sales.filter(s=>!form?.organizationId||s.organizationId===form.organizationId);
-  const managerOptions=managers.filter(m=>members.some(s=>s.managerUserId===m.id));
+  const managerOptions=managers.filter(m=>m.organizationId===form?.organizationId);
   const availableSales=members.filter(s=>!form?.managerUserId||s.managerUserId===form.managerUserId);
   const chosenSales=sales.find(s=>s.userId===form?.salesUserId&&s.organizationId===form?.organizationId);
   return <AppDialog open={initial!==null} busy={busy} onOpenChange={v=>{if(!v)onClose();}}
@@ -74,7 +74,7 @@ export function BoardCommissionDialog({
             disabled={busy||!form.organizationId||lockTarget||form.expectedVersionId!==null}
             onChange={e=>setForm(f=>f?{...f,managerUserId:Number(e.target.value)||null,salesUserId:null}:f)}>
             <option value={0}>{form.scope==='MANAGER'?'Chọn Quản lý':'Tất cả Quản lý'}</option>
-            {managerOptions.map(m=><option key={m.id} value={m.id}>{m.name} · {m.email}</option>)}
+            {managerOptions.map(m=><option key={m.organizationId+'-'+m.id} value={m.id}>{m.name} · {m.email}</option>)}
           </AppNativeSelect>
         </div>
         {form.scope==='SALES'&&<div className="space-y-1.5">

@@ -179,6 +179,17 @@ public static class ChannelSalesOperationsEndpoints
                 payout.RequestedRatePercent, payout.RequestedAmount,
                 payout.AdjustmentReason, payout.WithholdingAmount, payout.WithholdingReason,
                 payout.NetAmount, payout.ApprovedAt, payout.PaidAt, payout.PaymentReference,
+                // Distinct contracts: one payout can include multiple ledger entries for one contract.
+                // Query through payout items, never duplicate contract values per ledger entry.
+                contract_count = db.SalesContracts.Count(contract =>
+                    db.PayoutItems.Any(item => item.PayoutId == payout.Id &&
+                        db.CommissionLedgerEntries.Any(entry =>
+                            entry.Id == item.CommissionLedgerEntryId && entry.ContractId == contract.Id))),
+                contract_total_value = db.SalesContracts
+                    .Where(contract => db.PayoutItems.Any(item => item.PayoutId == payout.Id &&
+                        db.CommissionLedgerEntries.Any(entry =>
+                            entry.Id == item.CommissionLedgerEntryId && entry.ContractId == contract.Id)))
+                    .Sum(contract => (decimal?)contract.TotalValue),
                 contract_code = (from item in db.PayoutItems
                     join entry in db.CommissionLedgerEntries on item.CommissionLedgerEntryId equals entry.Id
                     join contract in db.SalesContracts on entry.ContractId equals contract.Id

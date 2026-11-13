@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   FileCheck2,
   FilePenLine,
+  UploadCloud,
   Handshake,
   Landmark,
   Phone,
@@ -1194,7 +1195,8 @@ function ContractDialog({
   return <AppDialog open onOpenChange={open=>{if(!open&&!saving)onClose();}}
     busy={saving} title="Báo cáo hợp đồng"
     description="Gửi hồ sơ hợp đồng đã ký để Quản lý bán hàng xem xét, phê duyệt trước khi chuyển CHECKEE xác minh."
-    contentClassName="sm:max-w-3xl"
+    contentClassName="sm:max-w-[680px]"
+    bodyClassName="px-4 py-4 sm:px-6 sm:py-5"
     footer={<>
       <AppButton tone="neutral" type="button" className="h-11 min-w-28" disabled={saving} onClick={onClose}>Hủy</AppButton>
       <AppButton tone="green" type="submit" form="sales-contract-report-form" className="h-11 min-w-44"
@@ -1202,18 +1204,17 @@ function ContractDialog({
     </>}>
     <form id="sales-contract-report-form" onSubmit={submit} noValidate>
       <CustomerHighlight customer={customer}/>
-      <div className="mt-5 space-y-5">
+      <div className="mt-4 space-y-5">
         <section aria-labelledby="contract-info-heading" className="space-y-3">
           <h3 id="contract-info-heading" className="text-sm font-semibold text-foreground">1. Thông tin hợp đồng</h3>
         <Field label="Ngày ký hợp đồng *">
-          <Input name="signed_on" type="date" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e=>{setSignedOn(e.target.value);clearError("signed_on");}}/>
+          <Input name="signed_on" type="date" className="h-11 rounded-xl px-3" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e=>{setSignedOn(e.target.value);clearError("signed_on");}}/>
           {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
         </Field>
-        <div className="space-y-3 rounded-xl border border-border bg-muted/10 p-3 sm:p-4">
-          <h4 className="text-sm font-semibold text-foreground">Thời hạn sử dụng theo hợp đồng *</h4>
+        <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Ngày bắt đầu dịch vụ *">
-              <Input type="date" data-field="service_start_on" value={serviceStartOn}
+              <Input type="date" className="h-11 rounded-xl px-3" data-field="service_start_on" value={serviceStartOn}
                 aria-invalid={!!errors.service_start_on} onChange={e=>{
                   setServiceStartOn(e.target.value);clearError('service_start_on');
                   if(!serviceEndOn && e.target.value){
@@ -1226,7 +1227,7 @@ function ContractDialog({
               {errors.service_start_on&&<p role="alert" className="text-xs text-red-700">{errors.service_start_on}</p>}
             </Field>
             <Field label="Ngày kết thúc dịch vụ *">
-              <Input type="date" data-field="service_end_on" value={serviceEndOn}
+              <Input type="date" className="h-11 rounded-xl px-3" data-field="service_end_on" value={serviceEndOn}
                 aria-invalid={!!errors.service_end_on} onChange={e=>{setServiceEndOn(e.target.value);clearError('service_end_on');}}/>
               {errors.service_end_on&&<p role="alert" className="text-xs text-red-700">{errors.service_end_on}</p>}
             </Field>
@@ -1238,9 +1239,9 @@ function ContractDialog({
           <h3 id="contract-plan-heading" className="text-sm font-semibold text-foreground">2. Gói dịch vụ và quy mô</h3>
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium text-foreground">Gói dịch vụ & hình thức thanh toán *</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2 grid-cols-2">
               {(['SCHOOL_YEAR','MONTHLY_9'] as const).map(option=><label key={option}
-                className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring ${plan===option?'border-primary bg-primary/5':'border-border bg-card hover:bg-muted/40'}`}>
+                className={`flex h-14 min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring ${plan===option?'border-primary bg-primary/5':'border-border bg-card hover:bg-muted/40'}`}>
                 <input type="radio" name="service_plan_choice" value={option} checked={plan===option}
                   onChange={()=>{setPlan(option);clearError('service_plan');}}
                   className="size-4 shrink-0 accent-[#1b5e20]"/>
@@ -1251,13 +1252,13 @@ function ContractDialog({
           </fieldset>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Quy mô học sinh *">
-            <Input aria-label="Quy mô học sinh" data-field="student_count" aria-invalid={!!errors.student_count} type="number" min={1} max={100000}
+            <Input aria-label="Quy mô học sinh" className="h-11 rounded-xl px-3" data-field="student_count" aria-invalid={!!errors.student_count} type="number" min={1} max={100000}
               value={studentCount} onChange={e=>{setStudentCount(e.target.value);clearError("student_count");}}
               placeholder="Ví dụ: 450"/>
             {errors.student_count && <p role="alert" className="text-xs text-red-700">{errors.student_count}</p>}
           </Field>
           <Field label="Số phân hiệu triển khai">
-            <Input aria-label="Số phân hiệu triển khai" data-field="branch_count" aria-invalid={!!errors.branch_count} type="number" inputMode="numeric" min={0} max={100000}
+            <Input aria-label="Số phân hiệu triển khai" className="h-11 rounded-xl px-3" data-field="branch_count" aria-invalid={!!errors.branch_count} type="number" inputMode="numeric" min={0} max={100000}
               value={branchCount} onChange={e=>{setBranchCount(e.target.value);setBranchCountTouched(true);clearError("branch_count");}}/>
             {errors.branch_count && <p role="alert" className="text-xs text-red-700">{errors.branch_count}</p>}
           </Field>
@@ -1283,52 +1284,46 @@ function ContractDialog({
           <h3 id="contract-fee-heading" className="text-sm font-semibold text-foreground">3. Chi phí hợp đồng</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={plan==='MONTHLY_9'?'Phí duy trì mỗi tháng (VNĐ) *':'Phí duy trì 9 tháng (VNĐ) *'}>
-            <AppCurrencyInput aria-label="Phí duy trì" data-field="maintenance_fee" aria-invalid={!!errors.maintenance_fee}
+            <AppCurrencyInput aria-label="Phí duy trì" className="h-11 rounded-xl px-3" data-field="maintenance_fee" aria-invalid={!!errors.maintenance_fee}
               value={maintenanceFee} onValueChange={v=>{setMaintenanceFee(v);clearError("maintenance_fee");clearError("total_value");}} placeholder="Ví dụ: 1.000.000"/>
             {errors.maintenance_fee && <p role="alert" className="text-xs text-red-700">{errors.maintenance_fee}</p>}
           </Field>
           <Field label="Phí khởi tạo (VNĐ) *">
-            <AppCurrencyInput aria-label="Phí khởi tạo" data-field="setup_fee" aria-invalid={!!errors.setup_fee}
+            <AppCurrencyInput aria-label="Phí khởi tạo" className="h-11 rounded-xl px-3" data-field="setup_fee" aria-invalid={!!errors.setup_fee}
               value={setupFee} onValueChange={v=>{setSetupFee(v);clearError("setup_fee");clearError("total_value");}} placeholder="Ví dụ: 2.000.000"/>
             {errors.setup_fee && <p role="alert" className="text-xs text-red-700">{errors.setup_fee}</p>}
           </Field>
         </div>
-        <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
-          <h3 className="font-semibold">Chi phí theo hợp đồng</h3>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span>Phí duy trì theo hợp đồng</span>
-            <span className="tabular-nums">{Number.isSafeInteger(maintenance*multiplier) && maintenanceFee ? formatVnd(maintenance*multiplier) : '—'}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span>Phí khởi tạo (một lần)</span>
-            <span className="tabular-nums">{setupFee && Number.isSafeInteger(setup) ? formatVnd(setup) : '—'}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3 border-t pt-3">
-            <strong>Tổng giá trị hợp đồng</strong>
-            <strong className="text-lg tabular-nums text-emerald-700 dark:text-emerald-300">
-              {total===null ? '—' : formatVnd(total)}
+        <div className="space-y-1 border-t border-border/70 pt-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <strong className="text-sm">Tổng giá trị hợp đồng</strong>
+            <strong className="text-lg font-bold tabular-nums text-primary">
+              {total===null ? '— VNĐ' : formatVnd(total)}
             </strong>
           </div>
-          {errors.total_value && <p role="alert" className="text-xs text-red-700">{errors.total_value}</p>}
+          <p className="text-xs text-muted-foreground">Tự động tính từ các khoản phí đã nhập, theo gói dịch vụ đã chọn.</p>
+          {errors.total_value && <p role="alert" className="text-xs text-destructive">{errors.total_value}</p>}
         </div>
         </section>
         <section aria-labelledby="contract-attachment-heading" className="space-y-3 border-t border-border pt-5">
           <h3 id="contract-attachment-heading" className="text-sm font-semibold text-foreground">4. Hồ sơ đính kèm</h3>
+        <label className="relative flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/10 px-3 py-4 text-center transition-colors hover:border-primary/70 hover:bg-primary/5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+          <UploadCloud aria-hidden="true" className="size-5 text-muted-foreground"/>
+          <span className="max-w-full break-all text-sm font-semibold">{file ? file.name : 'Tải hợp đồng đã ký *'}</span>
+          <span className="text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB</span>
+          <Input name="contract_file" data-field="contract_file" type="file"
+            aria-label="Tải hợp đồng đã ký" aria-invalid={!!errors.contract_file}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            accept=".pdf,image/jpeg,image/png,image/webp" onChange={e=>{setFile(e.target.files?.[0] ?? null);clearError('contract_file');}}/>
+        </label>
+        {errors.contract_file && <p role="alert" className="text-xs text-destructive">{errors.contract_file}</p>}
         <Field label="Ghi chú hợp đồng (không bắt buộc)">
           <textarea name="contract_note" data-field="contract_note" aria-label="Ghi chú hợp đồng"
-            aria-invalid={!!errors.contract_note} value={note} onChange={e=>{setNote(e.target.value);clearError("contract_note");}}
-            maxLength={4000} rows={3} className={textareaClass}
-            placeholder="Nhập thông tin cần xác minh thêm (nếu có)..."/>
-          {errors.contract_note && <p role="alert" className="text-xs text-red-700">{errors.contract_note}</p>}
+            aria-invalid={!!errors.contract_note} value={note} onChange={e=>{setNote(e.target.value);clearError('contract_note');}}
+            maxLength={4000} rows={2} className={textareaClass}
+            placeholder="Thông tin cần xác minh thêm (nếu có)..."/>
+          {errors.contract_note && <p role="alert" className="text-xs text-destructive">{errors.contract_note}</p>}
         </Field>
-        <div>
-          <Field label="File hợp đồng đã ký *">
-            <Input name="contract_file" data-field="contract_file" aria-invalid={!!errors.contract_file} type="file"
-              accept=".pdf,image/jpeg,image/png,image/webp" onChange={e=>{setFile(e.target.files?.[0] ?? null);clearError("contract_file");}}/>
-            {errors.contract_file && <p role="alert" className="text-xs text-red-700">{errors.contract_file}</p>}
-          </Field>
-          <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, WEBP · Tối đa 5 MB.</p>
-        </div>
         </section>
       </div>
     </form>

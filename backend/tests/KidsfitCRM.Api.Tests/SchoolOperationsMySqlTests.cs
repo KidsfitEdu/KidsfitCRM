@@ -35,9 +35,6 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open();
         var org = new Organization { Code = "T-" + Key(), Name = "Tổ chức kiểm thử", OrganizationType = "PARTNER", CommissionRateCeiling = 15 };
         db.Organizations.Add(org); await db.SaveChangesAsync();
-        db.CommissionPolicyVersions.Add(new CommissionPolicyVersion { OrganizationId = org.Id, Code = "TC-" + Key(), Name = "Chính sách kiểm thử",
-            RatePercent = 10, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(-1), CreatedByUserId = await User("admin@kidsfit.vn") });
-        await db.SaveChangesAsync();
         var manager = await AddMember(org.Id, "SALES_MANAGER", "SALES_MANAGER");
         var seller = await AddMember(org.Id, "SALES", "COLLABORATOR", manager.UserId);
         var peer = await AddMember(org.Id, "SALES", "COLLABORATOR", manager.UserId);
@@ -1716,7 +1713,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var unsigned = await a.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct);
         await a.RecordRevenueReceipt(contractId, new(Key(), null, 1_000_000, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
-        var ledgerBefore = await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync();
+        var ledgerBefore = await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync();
         var request = new CompleteSchoolHandoverRequest(Key(), "Ngưng hợp tác", "Đã bàn giao lịch demo và các cam kết; hồ sơ hợp đồng giữ nguyên.", false);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.CompleteSchoolHandover(s.Seller.MembershipId, request with { SuspendAccount = true }, s.Manager.UserId, Http(), Ct));
         Assert.Equal("ACTIVE", await db.ApproachRegistrations.Where(x => x.Id == unsigned).Select(x => x.Status).SingleAsync());
@@ -1725,7 +1722,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(1, (await db.SchoolHandovers.FindAsync(id))!.RevokedRegistrations);
         Assert.Equal("REVOKED", await db.ApproachRegistrations.Where(x => x.Id == unsigned).Select(x => x.Status).SingleAsync());
         Assert.True(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE"));
-        Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync());
+        Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync());
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct));
         var payout = await a.CreatePayout(new(Key(), s.OrgId, s.Seller.UserId, ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow), 0, null), admin, Http(), Ct);
         await a.ApprovePayout(payout, admin, Http(), Ct);
@@ -1784,7 +1781,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var actions = new ChannelSalesActions(db);
         await actions.RecordRevenueReceipt(contract, new(Key(), null, 500_000m, null,
             "RC-" + Key(), "BANK_TRANSFER"), admin, Http(admin), Ct);
-        var before = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract)
+        var before = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract && x.BeneficiaryRole == "SALES")
             .Select(x => new { x.BeneficiaryUserId, x.RatePercent, x.Amount }).SingleAsync(Ct);
         await actions.CompleteSchoolHandover(s.Seller.MembershipId,
             new(Key(), "Nghỉ việc", "Tiếp tục đối soát hợp đồng", false),
@@ -1792,7 +1789,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var access = await ChannelSalesAccess.Load(db, s.Manager.UserId, Ct);
         Assert.True(await access.Contracts(db).AnyAsync(x => x.Id == contract, Ct));
         Assert.True(await access.Commissions(db).AnyAsync(x => x.ContractId == contract, Ct));
-        var after = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract)
+        var after = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract && x.BeneficiaryRole == "SALES")
             .Select(x => new { x.BeneficiaryUserId, x.RatePercent, x.Amount }).SingleAsync(Ct);
         Assert.Equal(before, after);
         Assert.Equal(s.Seller.UserId, after.BeneficiaryUserId);
@@ -1938,7 +1935,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Single(await Task.WhenAll(Refund(), Refund()), x => x.HasValue);
         await using var check = fixture.Open(); var a = new ChannelSalesActions(check);
         Assert.Equal(1_000_000, await check.RevenueReceipts.Where(x => x.Id == receipt).Select(x => x.Amount).SingleAsync());
-        Assert.Equal(100_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync());
+        Assert.Equal(250_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES")
+            .Select(x => x.Amount).SingleAsync());
+        Assert.Equal(50_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "MANAGER")
+            .Select(x => x.Amount).SingleAsync());
         // Aggregate organizational receipts are available to the authorized finance Admin, not a Sales-only view.
         var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), check, null, Ct));
         // The dashboard is organization-scoped, so its aggregate must match the complete
@@ -1967,7 +1967,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal("CANCELLED", await check.SalesContracts.Where(x => x.Id == contractId).Select(x => x.Status).SingleAsync());
         Assert.False(await check.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE"));
         Assert.Single(await check.RevenueRefunds.Where(x => x.ContractId == contractId).ToArrayAsync());
-        Assert.Single(await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).ToArrayAsync());
+        Assert.Equal(2, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).CountAsync());
+        Assert.Contains(await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).ToArrayAsync(),
+            entry => entry.BeneficiaryRole == "MANAGER");
     }
 
     [MySqlFact] public async Task DisputeDecisionCannotTakeCurrentOwnersRightsOrCreateOldOwnersCommission()
@@ -2082,49 +2084,30 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var id = await a.RecordRevenueRefund(receipt, request, admin, Http(), Ct);
         Assert.Equal(id, await a.RecordRevenueRefund(receipt, request, admin, Http(), Ct));
         Assert.Equal(600_000, await db.RevenueSchedules.Where(x => x.ContractId == contract).Select(x => x.AmountReceived).SingleAsync());
-        Assert.Equal(100_000, await db.CommissionLedgerEntries.Where(x => x.ContractId == contract).Select(x => x.Amount).SingleAsync());
+        Assert.Equal(250_000, await db.CommissionLedgerEntries.Where(x => x.ContractId == contract && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync());
     }
 
-    [MySqlFact] public async Task CommissionPoliciesCanTargetPersonnelWithoutChangingContractGroupAfterHrChange()
+    [MySqlFact] public async Task SalesCommissionKeepsBeneficiaryAfterMembershipTypeChanges()
     {
-        var s = await Arrange(); var admin = await User("admin@kidsfit.vn");
-        var collaboratorContract = await ActiveContract(s);
-        var employee = await AddMember(s.OrgId, "SALES", "SALES", s.Manager.UserId);
-        var employeeContract = await ActiveContract(s with { Seller = employee, SchoolId = s.OtherSchoolId, CustomerId = s.OtherCustomerId });
-        await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
-        var specific = new CommissionPolicyVersion { OrganizationId = s.OrgId, Code = "TCTV-" + Key(), Name = "CTV kiểm thử", PersonnelType = "COLLABORATOR",
-            RatePercent = 12m, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(-1), CreatedByUserId = admin };
-        db.CommissionPolicyVersions.Add(specific); await db.SaveChangesAsync();
-        await db.OrganizationMemberships.Where(x => x.Id == s.Seller.MembershipId).ExecuteUpdateAsync(v => v.SetProperty(x => x.MembershipType, "SALES"));
-        await a.RecordRevenueReceipt(collaboratorContract, new(Key(), null, 1_000_000m, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
-        await a.RecordRevenueReceipt(employeeContract, new(Key(), null, 1_000_000m, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
-        Assert.Equal("COLLABORATOR", await db.SalesContracts.Where(x => x.Id == collaboratorContract).Select(x => x.OwnerPersonnelType).SingleAsync());
-        Assert.Equal("SALES", await db.SalesContracts.Where(x => x.Id == employeeContract).Select(x => x.OwnerPersonnelType).SingleAsync());
-        var collaboratorEntry = await db.CommissionLedgerEntries.SingleAsync(x => x.ContractId == collaboratorContract);
-        Assert.Equal(specific.Id, collaboratorEntry.PolicyVersionId); Assert.Equal(120_000m, collaboratorEntry.Amount);
-        Assert.Equal(100_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == employeeContract).Select(x => x.Amount).SingleAsync());
-        var future = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1);
-        var nextPolicy = await a.CreateCommissionPolicy(new(s.OrgId, "NEXT-" + Key(), "Phiên bản CTV tiếp theo", 11m, future, null, "SALES"), admin, Http(), Ct);
-        Assert.Equal("SALES", (await db.CommissionPolicyVersions.FindAsync(nextPolicy))!.PersonnelType);
-        await Assert.ThrowsAsync<ApiValidationException>(() => a.CreateCommissionPolicy(new(s.OrgId, "BAD-" + Key(), "Nhóm không hợp lệ", 10m, future, null, "UNKNOWN"), admin, Http(), Ct));
-    }
-
-    [MySqlFact] public async Task LegacyContractSnapshotsInactiveOwnersGroupOnNextReceiptWithoutRewritingOldLedger()
-    {
-        var s = await Arrange(); var contract = await ActiveContract(s); var admin = await User("admin@kidsfit.vn");
-        await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
-        await a.RecordRevenueReceipt(contract, new(Key(), null, 500_000m, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
-        var original = await db.CommissionLedgerEntries.AsNoTracking().SingleAsync(x => x.ContractId == contract);
-        await db.SalesContracts.Where(x => x.Id == contract).ExecuteUpdateAsync(v => v.SetProperty(x => x.OwnerPersonnelType, (string?)null));
-        db.CommissionPolicyVersions.Add(new CommissionPolicyVersion { OrganizationId = s.OrgId, Code = "LEG-" + Key(), Name = "CTV kiểm thử", PersonnelType = "COLLABORATOR",
-            RatePercent = 12m, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(-1), CreatedByUserId = admin });
-        await db.SaveChangesAsync(); db.ChangeTracker.Clear();
-        await a.CompleteSchoolHandover(s.Seller.MembershipId, new(Key(), "Ngưng hợp tác", "Giữ quyền hợp đồng và đối soát hoa hồng còn lại", false), s.Manager.UserId, Http(), Ct);
-        await a.RecordRevenueReceipt(contract, new(Key(), null, 500_000m, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
-        Assert.Equal("COLLABORATOR", await db.SalesContracts.Where(x => x.Id == contract).Select(x => x.OwnerPersonnelType).SingleAsync());
-        var entries = await db.CommissionLedgerEntries.AsNoTracking().Where(x => x.ContractId == contract).OrderBy(x => x.Id).ToArrayAsync();
-        Assert.Equal(50_000m, entries[0].Amount); Assert.Equal(original.PolicyVersionId, entries[0].PolicyVersionId);
-        Assert.Equal(60_000m, entries[1].Amount); Assert.Equal(s.Seller.UserId, entries[1].BeneficiaryUserId);
+        var s=await Arrange(); var admin=await User("admin@kidsfit.vn");
+        var contractId=await ActiveContract(s);
+        await using var db=fixture.Open();
+        var actions=new ChannelSalesActions(db);
+        var firstId=await actions.RecordRevenueReceipt(contractId,
+            new(Key(),null,500_000m,null,"RC-"+Key(),"BANK_TRANSFER"),admin,Http(),Ct);
+        var first=await db.CommissionLedgerEntries.AsNoTracking()
+            .SingleAsync(x=>x.RevenueReceiptId==firstId&&x.BeneficiaryRole=="SALES");
+        Assert.Equal(125_000m,first.Amount);
+        await db.OrganizationMemberships.Where(x=>x.Id==s.Seller.MembershipId)
+            .ExecuteUpdateAsync(x=>x.SetProperty(m=>m.MembershipType,"SALES"));
+        db.ChangeTracker.Clear();
+        var secondId=await actions.RecordRevenueReceipt(contractId,
+            new(Key(),null,500_000m,null,"RC-"+Key(),"BANK_TRANSFER"),admin,Http(),Ct);
+        var second=await db.CommissionLedgerEntries.AsNoTracking()
+            .SingleAsync(x=>x.RevenueReceiptId==secondId&&x.BeneficiaryRole=="SALES");
+        Assert.Equal(first.RatePercent,second.RatePercent);
+        Assert.Equal(first.BeneficiaryUserId,second.BeneficiaryUserId);
+        Assert.Equal(first.BoardPolicyVersionId,second.BoardPolicyVersionId);
     }
 
     [MySqlFact] public async Task DeferralNeverReservesSchoolAndEmployeeSalesAlsoHonorsCapacity()

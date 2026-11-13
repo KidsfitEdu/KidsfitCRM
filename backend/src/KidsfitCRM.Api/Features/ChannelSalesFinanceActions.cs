@@ -18,9 +18,11 @@ public sealed partial class ChannelSalesActions
         // the beneficiary's unrelated contracts from the same period.
         if (request.ContractId.HasValue
             && !await access.Contracts(db).AnyAsync(c => c.Id == request.ContractId.Value
-                && c.OwnerOrganizationId == request.OrganizationId
-                && c.OwnerUserId == request.BeneficiaryUserId, ct))
+                && c.OwnerOrganizationId == request.OrganizationId, ct))
             throw new KeyNotFoundException();
+        var beneficiaryRole = (request.BeneficiaryRole ?? "SALES").Trim().ToUpperInvariant();
+        if (beneficiaryRole is not ("SALES" or "MANAGER"))
+            throw ApiValidationException.For("beneficiary_role", "Loại người hưởng phải là Sales hoặc Quản lý.");
         var key = Validation.Required(request.IdempotencyKey, "idempotency_key", "Thiếu khóa yêu cầu.", 120);
         var hash = ChannelSalesValidation.Fingerprint(request);
         ChannelSalesValidation.WholeDong(request.WithholdingAmount, "withholding_amount", false);
@@ -34,7 +36,7 @@ public sealed partial class ChannelSalesActions
             var replay = await db.Payouts.AsNoTracking().SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
             if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.CreatedByUserId, actorId, replay.RequestFingerprint, hash);
             var entries = await db.CommissionLedgerEntries.Where(x => x.BeneficiaryOrganizationId == request.OrganizationId
-                && x.BeneficiaryUserId == request.BeneficiaryUserId && x.Period == period
+                && x.BeneficiaryUserId == request.BeneficiaryUserId && x.BeneficiaryRole == beneficiaryRole && x.Period == period
                 && (!request.ContractId.HasValue || x.ContractId == request.ContractId.Value)
                 && !db.PayoutItems.Any(item => item.CommissionLedgerEntryId == x.Id))
                 .OrderBy(x => x.Id).ToListAsync(ct);
@@ -47,6 +49,7 @@ public sealed partial class ChannelSalesActions
             {
                 OrganizationId = request.OrganizationId,
                 BeneficiaryUserId = request.BeneficiaryUserId,
+                BeneficiaryRole = beneficiaryRole,
                 Code = "PO-" + Guid.NewGuid().ToString("N").ToUpperInvariant(),
                 Period = period,
                 GrossAmount = gross,
@@ -141,48 +144,6 @@ public sealed partial class ChannelSalesActions
         }
     }
 
-    public async Task<long> CreateCommissionPolicy(CreateCommissionPolicyRequest request, long actorId, HttpContext http, CancellationToken ct)
-    {
-        var access = await RequirePermission(actorId, Permissions.ChannelSalesPolicyManage, ct);
-        if (!access.CanManageOrganization(request.OrganizationId)) throw new KeyNotFoundException();
-        var today = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
-        if (request.EffectiveFrom <= today) throw ApiValidationException.For("effective_from", "Chính sách mới có hiệu lực sớm nhất từ ngày mai để tránh áp hồi tố.");
-        if (request.EffectiveUntil < request.EffectiveFrom) throw ApiValidationException.For("effective_until", "Ngày kết thúc phải từ ngày bắt đầu trở đi.");
-        var code = Validation.Required(request.Code, "code", "Vui lòng nhập mã phiên bản.", 48).ToUpperInvariant();
-        var personnelType = CommissionPersonnelTypes.Normalize(CleanOptional(request.PersonnelType, 32));
-        if (personnelType is not null && !CommissionPersonnelTypes.Specific.Contains(personnelType))
-            throw ApiValidationException.For("personnel_type", "Nhóm nhân sự áp dụng không hợp lệ.");
-        var name = Validation.Required(request.Name, "name", "Vui lòng nhập tên chính sách.", 190);
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        var organization = await db.Organizations.FromSqlInterpolated($"SELECT * FROM organizations WHERE id = {request.OrganizationId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (request.RatePercent < 0 || request.RatePercent > organization.CommissionRateCeiling || decimal.Round(request.RatePercent, 4) != request.RatePercent)
-            throw ApiValidationException.For("rate_percent", $"Tỷ lệ phải nằm trong hạn mức {organization.CommissionRateCeiling}% của tổ chức.");
-        if (await db.CommissionPolicyVersions.AnyAsync(x => x.OrganizationId == organization.Id && x.EffectiveFrom >= request.EffectiveFrom, ct))
-            throw new ApiConflictException("Phiên bản mới phải có ngày hiệu lực sau phiên bản mới nhất.");
-        var policy = new CommissionPolicyVersion
-        {
-            OrganizationId = organization.Id,
-            Code = code,
-            Name = name,
-            RatePercent = request.RatePercent,
-            PersonnelType = personnelType,
-            EffectiveFrom = request.EffectiveFrom,
-            EffectiveUntil = request.EffectiveUntil,
-            Status = "ACTIVE",
-            CreatedByUserId = actorId,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        };
-        db.CommissionPolicyVersions.Add(policy);
-        try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateException) { throw new ApiConflictException("Mã phiên bản chính sách đã tồn tại."); }
-        Audit.Add(db, actorId, "CREATE_COMMISSION_POLICY", nameof(CommissionPolicyVersion), policy.Id, null,
-            new { policy.Code, policy.OrganizationId, policy.PersonnelType, policy.RatePercent, policy.EffectiveFrom, policy.EffectiveUntil }, http);
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return policy.Id;
-    }
-
     public async Task<long> AdjustCommission(long entryId, AdjustCommissionRequest request, long actorId, HttpContext http, CancellationToken ct)
     {
         var access = await RequirePermission(actorId, Permissions.ChannelSalesCommissionAdjust, ct);
@@ -205,7 +166,9 @@ public sealed partial class ChannelSalesActions
         var entry = new CommissionLedgerEntry
         {
             ContractId = original.ContractId,
-            PolicyVersionId = original.PolicyVersionId,
+            BoardPolicyVersionId = original.BoardPolicyVersionId,
+            PolicySource = original.PolicySource, LegacyPolicyCode = original.LegacyPolicyCode,
+            BeneficiaryRole = original.BeneficiaryRole,
             RelatedEntryId = original.Id,
             BeneficiaryUserId = original.BeneficiaryUserId,
             BeneficiaryOrganizationId = original.BeneficiaryOrganizationId,

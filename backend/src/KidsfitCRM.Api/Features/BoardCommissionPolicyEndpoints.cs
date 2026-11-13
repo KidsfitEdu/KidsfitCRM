@@ -13,7 +13,7 @@ public sealed record SaveBoardCommissionRequest(
 public sealed record ResetBoardCommissionRequest(long ExpectedVersionId);
 
 /// <summary>
-/// Director-owned configuration, isolated from financial commission policy and payout ledger.
+/// Director-owned configuration; receipts resolve the latest applicable version at their effective timestamp.
 /// Every write appends a version with server timestamp and an audit record.
 /// </summary>
 public static class BoardCommissionPolicyEndpoints
@@ -75,6 +75,18 @@ public static class BoardCommissionPolicyEndpoints
         var system = Latest(rules, "SYSTEM");
         if (system?.Status == "ACTIVE") return (system.SalesPercent, system.ManagerPercent, "SYSTEM", system.Id);
         return (DefaultSales, DefaultManager, "SYSTEM_DEFAULT", null);
+    }
+
+    /// <summary>
+    /// Freeze the policy that existed when the cash was received. A subsequent
+    /// Director edit never recalculates previously accrued commission.
+    /// </summary>
+    internal static (decimal Sales, decimal Manager, string Source, long? VersionId) ResolveAt(
+        IEnumerable<BoardCommissionPolicyVersion> policies,
+        long organizationId, long? managerUserId, long salesUserId, DateTime receivedAt)
+    {
+        var eligible = policies.Where(p => p.CreatedAt <= receivedAt);
+        return Resolve(eligible, organizationId, managerUserId, salesUserId);
     }
 
     private static async Task<IResult> List(HttpContext http, KidsfitDbContext db, CancellationToken ct)

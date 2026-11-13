@@ -63,9 +63,9 @@ No routine Admin or Director gate before CHECKEE; no 5-year protection on manage
 
 1. Accountant establishes contract schedule and records each verified receipt with unique transaction reference, amount, date and method.
 2. System computes amount collected, refunds, receivable and outstanding independently of contract face value; never invents collection from signature.
-3. Commission ledger records eligible earnings under an **authorized active, versioned policy**, and separate adjustments and payout states.
+3. Resolve BGĐ board policy (Sales > Manager > System) at receipt time and create separate Sales/Manager accruals from eligible cash received. Freeze policy version, rate and beneficiary in the ledger.
 4. Sales sees own amount entitled/approved/paid; others see only permitted scope.
-5. **30% is provisional**, and its calculation base and trigger remain OPEN; a code path must not silently apply it to real transactions.
+5. BGĐ default 25% Sales + 5% Manager applies to new qualifying receipts, unless overridden. Each beneficiary gets an independent payout. Missing Manager is flagged for review rather than silently reassigned.
 6. Refund/contract termination does not overwrite original receipt or paid entries. Adjustment policy requires approval.
 
 ## WF-05 Sales departure, inactive schools and disputes

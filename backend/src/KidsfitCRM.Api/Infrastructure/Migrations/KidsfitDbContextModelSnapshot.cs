@@ -401,9 +401,20 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("varchar(7)")
                         .HasColumnName("period");
 
-                    b.Property<long>("PolicyVersionId")
+                    b.Property<long?>("BoardPolicyVersionId")
                         .HasColumnType("bigint")
-                        .HasColumnName("policy_version_id");
+                        .HasColumnName("board_policy_version_id");
+                    b.Property<string>("PolicySource")
+                        .IsRequired().HasMaxLength(24)
+                        .HasColumnType("varchar(24)").HasColumnName("policy_source")
+                        .UseCollation("utf8mb4_bin");
+                    b.Property<string>("LegacyPolicyCode")
+                        .HasMaxLength(48)
+                        .HasColumnType("varchar(48)").HasColumnName("legacy_policy_code");
+                    b.Property<string>("BeneficiaryRole")
+                        .IsRequired().HasMaxLength(16)
+                        .HasColumnType("varchar(16)").HasColumnName("beneficiary_role")
+                        .UseCollation("utf8mb4_bin");
 
                     b.Property<decimal>("RatePercent")
                         .HasPrecision(9, 4)
@@ -450,11 +461,11 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
 
-                    b.HasIndex("PolicyVersionId");
+                    b.HasIndex("BoardPolicyVersionId");
 
                     b.HasIndex("RelatedEntryId");
 
-                    b.HasIndex("RevenueReceiptId")
+                    b.HasIndex("RevenueReceiptId", "BeneficiaryRole")
                         .IsUnique();
 
                     b.HasIndex("BeneficiaryUserId", "Period", "Status");
@@ -523,80 +534,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasDatabaseName("IX_board_commission_policy_versions_lookup");
 
                     b.ToTable("board_commission_policy_versions");
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.CommissionPolicyVersion", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(48)
-                        .HasColumnType("varchar(48)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("CreatedByUserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("created_by_user_id");
-
-                    b.Property<DateTime>("EffectiveFrom")
-                        .HasColumnType("date")
-                        .HasColumnName("effective_from");
-
-                    b.Property<DateTime?>("EffectiveUntil")
-                        .HasColumnType("date")
-                        .HasColumnName("effective_until");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(190)
-                        .HasColumnType("varchar(190)")
-                        .HasColumnName("name");
-
-                    b.Property<long?>("OrganizationId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("organization_id");
-
-                    b.Property<string>("PersonnelType")
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("personnel_type")
-                        .UseCollation("utf8mb4_bin");
-
-                    b.Property<decimal>("RatePercent")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("decimal(9,4)")
-                        .HasColumnName("rate_percent");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("varchar(24)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("OrganizationId", "Status", "EffectiveFrom");
-
-                    b.HasIndex("OrganizationId", "PersonnelType", "Status", "EffectiveFrom");
-
-                    b.ToTable("commission_policy_versions");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.ContractCancellation", b =>
@@ -1340,6 +1277,10 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("beneficiary_user_id");
 
+                    b.Property<string>("BeneficiaryRole")
+                        .IsRequired().HasMaxLength(16)
+                        .HasColumnType("varchar(16)").HasColumnName("beneficiary_role")
+                        .UseCollation("utf8mb4_bin");
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(48)
@@ -3664,11 +3605,10 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("KidsfitCRM.Api.Domain.CommissionPolicyVersion", null)
+                    b.HasOne("KidsfitCRM.Api.Domain.BoardCommissionPolicyVersion", null)
                         .WithMany()
-                        .HasForeignKey("PolicyVersionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("BoardPolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("KidsfitCRM.Api.Domain.CommissionLedgerEntry", null)
                         .WithMany()
@@ -3678,20 +3618,6 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasOne("KidsfitCRM.Api.Domain.RevenueReceipt", null)
                         .WithMany()
                         .HasForeignKey("RevenueReceiptId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.CommissionPolicyVersion", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

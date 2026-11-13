@@ -879,57 +879,26 @@ function FinancePanel({
           pageSizeOptions={[10,20,50,100]} onPageSizeChange={n=>{setPayoutSize(n);setPayoutPage(1);}}/>}
       </section>
       <section className="rounded-2xl border bg-card p-5">
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <div>
-            <h3 className="font-semibold">Phiên bản chính sách</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Phiên bản mới chỉ áp dụng từ ngày hiệu lực; lịch sử đã tính giữ
-              nguyên.
-            </p>
-          </div>
-          {can('channel_sales.policy.manage') && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                showModal(
-                  <PolicyForm
-                    data={data}
-                    onSubmit={async (body) => {
-                      await run({ path: '/commission-policies', body });
-                      closeModal();
-                    }}
-                  />,
-                )
-              }
-            >
-              <Plus /> Phiên bản mới
-            </Button>
-          )}
+        <div className="mb-4">
+          <h3 className="font-semibold">Chính sách hoa hồng do BGĐ cấu hình</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Chỉ Ban Giám đốc được điều chỉnh. Tỷ lệ đã ghi nhận trong bút toán không thay đổi.
+          </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          {data.policies.map((policy) => (
-            <div key={policy.id} className="rounded-xl bg-muted/50 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-medium">{policy.name}</p>
-                <span className="font-bold text-primary">
-                  {policy.rate_percent}%
-                </span>
-              </div>
-              <p className="mt-1 text-xs font-medium text-violet-600">
-                {policy.personnel_type
-                  ? (personnelCopy[policy.personnel_type] ??
-                    policy.personnel_type)
-                  : 'Áp dụng chung trong phạm vi chính sách'}
-              </p>
+          {data.policies.map(policy=>(
+            <div key={policy.id} className="rounded-xl border bg-muted/30 p-4">
+              <p className="font-medium">{policy.scope==='SYSTEM'?'Toàn hệ thống'
+                :policy.scope==='MANAGER'?'Theo Quản lý':'Theo Sales'}</p>
+              <p className="mt-1 text-sm tabular-nums">Sales {policy.sales_percent}% · Quản lý {policy.manager_percent}%</p>
               <p className="mt-2 text-xs text-muted-foreground">
-                {policy.code} · Từ {channelDate(policy.effective_from)}
-                {policy.effective_until
-                  ? ` đến ${channelDate(policy.effective_until)}`
-                  : ''}
+                {policy.status} · {channelDate(policy.created_at)}
               </p>
             </div>
           ))}
+          {data.policies.length===0&&<p className="text-sm text-muted-foreground">
+            Chưa cấu hình riêng: mặc định Sales 25% và Quản lý 5%.
+          </p>}
         </div>
       </section>
     </div>
@@ -1009,6 +978,7 @@ function AdjustmentForm({
 const payoutSchema = z.object({
   organization_id: z.coerce.number<number>().positive(),
   beneficiary_user_id: z.coerce.number<number>().positive(),
+  beneficiary_role: z.enum(['SALES','MANAGER']),
   withholding_amount: z.coerce.number<number>().min(0).int(),
   withholding_reason: z.string(),
 });
@@ -1020,14 +990,12 @@ function PayoutForm({
   onSubmit: (input: unknown) => Promise<void>;
 }) {
   const eligible = data.ledger.filter(
-    (entry) =>
-      entry.payout_status === 'ACCRUED' &&
-      entry.reconciliation_status === 'CONFIRMED',
+    (entry) => entry.payout_status === 'ACCRUED',
   );
   const candidates = Array.from(
     new Map(
       eligible.map((entry) => [
-        `${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}`,
+        `${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}-${entry.beneficiary_role}`,
         entry,
       ]),
     ).values(),
@@ -1041,6 +1009,7 @@ function PayoutForm({
     defaultValues: {
       organization_id: candidate?.beneficiary_organization_id ?? 0,
       beneficiary_user_id: candidate?.beneficiary_user_id ?? 0,
+      beneficiary_role: candidate?.beneficiary_role ?? 'SALES',
       withholding_amount: 0,
       withholding_reason: '',
     },
@@ -1064,20 +1033,20 @@ function PayoutForm({
     >
       <DialogTitle>Lập phiếu chi hoa hồng</DialogTitle>
       <DialogDescription>
-        Chỉ tập hợp bút toán đã đối soát và chưa nằm trong phiếu chi khác. Kỳ{' '}
+        Chỉ tập hợp bút toán chưa phân bổ, phân biệt Sales và Quản lý. Kỳ{' '}
         {data.period}.
       </DialogDescription>
       <Label text="Nhân sự nhận hoa hồng">
         <Select
           value={
             candidate
-              ? `${candidate.beneficiary_organization_id}-${candidate.beneficiary_user_id}`
+              ? `${candidate.beneficiary_organization_id}-${candidate.beneficiary_user_id}-${candidate.beneficiary_role}`
               : ''
           }
           onChange={(event) => {
             const selected = candidates.find(
               (entry) =>
-                `${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}` ===
+                `${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}-${entry.beneficiary_role}` ===
                 event.target.value,
             );
             setCandidate(selected);
@@ -1090,22 +1059,23 @@ function PayoutForm({
                 'beneficiary_user_id',
                 selected.beneficiary_user_id,
               );
+              form.setValue('beneficiary_role', selected.beneficiary_role);
             }
           }}
         >
           {candidates.map((entry) => (
             <option
-              key={`${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}`}
-              value={`${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}`}
+              key={`${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}-${entry.beneficiary_role}`}
+              value={`${entry.beneficiary_organization_id}-${entry.beneficiary_user_id}-${entry.beneficiary_role}`}
             >
-              {entry.beneficiary_name}
+              {entry.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {entry.beneficiary_name}
             </option>
           ))}
         </Select>
       </Label>
       {!candidates.length && (
         <p className="text-sm text-amber-700">
-          Chưa có bút toán đủ điều kiện. Hoàn tất đối soát CHECKEE trước.
+          Chưa có bút toán hoa hồng chưa phân bổ trong kỳ đã chọn.
         </p>
       )}
       <Label text="Khấu trừ (đồng)">
@@ -1125,98 +1095,6 @@ function PayoutForm({
         className="w-full"
       >
         {form.formState.isSubmitting ? 'Đang lập…' : 'Lập phiếu chờ duyệt'}
-      </Button>
-    </form>
-  );
-}
-
-const policySchema = z.object({
-  organization_id: z.coerce.number<number>().positive(),
-  code: z.string().trim().min(2).max(48),
-  name: z.string().trim().min(2).max(190),
-  rate_percent: z.coerce.number<number>().min(0).max(100),
-  effective_from: z.string().min(10),
-  personnel_type: z.string(),
-});
-function PolicyForm({
-  data,
-  onSubmit,
-}: {
-  data: FinanceWorkspace;
-  onSubmit: (input: unknown) => Promise<void>;
-}) {
-  const form = useForm({
-    resolver: zodResolver(policySchema),
-    defaultValues: {
-      organization_id: data.organizations[0]?.id ?? 0,
-      code: '',
-      name: '',
-      rate_percent: 0,
-      effective_from: '',
-      personnel_type: '',
-    },
-  });
-  const [error, setError] = useState('');
-  return (
-    <form
-      className="space-y-4"
-      onSubmit={form.handleSubmit(async (input) => {
-        try {
-          setError('');
-          await onSubmit(input);
-        } catch (cause) {
-          setError(errorMessage(cause));
-        }
-      })}
-    >
-      <DialogTitle>Phiên bản chính sách mới</DialogTitle>
-      <DialogDescription>
-        Ngày hiệu lực sớm nhất từ ngày mai; tỷ lệ không vượt hạn mức được giao.
-      </DialogDescription>
-      <Label text="Nhóm nhân sự áp dụng">
-        <Select {...form.register('personnel_type')}>
-          <option value="">Chính sách chung</option>
-          {data.personnel_types?.map((code) => (
-            <option key={code} value={code}>
-              {personnelCopy[code] ?? code}
-            </option>
-          ))}
-        </Select>
-      </Label>
-      <Label text="Tổ chức">
-        <Select {...form.register('organization_id', { valueAsNumber: true })}>
-          {data.organizations.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name} · tối đa {item.commission_rate_ceiling}%
-            </option>
-          ))}
-        </Select>
-      </Label>
-      <div className="grid grid-cols-2 gap-3">
-        <Label text="Mã phiên bản">
-          <Input {...form.register('code')} placeholder="PARTNER-2026-V2" />
-        </Label>
-        <Label text="Tỷ lệ (%)">
-          <Input
-            type="number"
-            step="0.0001"
-            {...form.register('rate_percent', { valueAsNumber: true })}
-          />
-        </Label>
-      </div>
-      <Label text="Tên chính sách">
-        <Input {...form.register('name')} />
-      </Label>
-      <Label text="Ngày bắt đầu hiệu lực">
-        <Input type="date" {...form.register('effective_from')} />
-      </Label>
-      <FormErrors error={error} errors={form.formState.errors} />
-      <Button
-        type="submit"
-        disabled={form.formState.isSubmitting}
-        className="w-full"
-      >
-        Tạo phiên bản
       </Button>
     </form>
   );
@@ -1501,12 +1379,6 @@ const stateCopy: Record<string, string> = {
   APPROVED: 'Đã duyệt',
   PAID: 'Đã chi',
   ACCRUED: 'Phát sinh',
-};
-const personnelCopy: Record<string, string> = {
-  SALES: 'Nhân viên bán hàng',
-  COLLABORATOR: 'Cộng tác viên',
-  SALES_MANAGER: 'Quản lý bán hàng',
-  PARTNER_ADMIN: 'Quản lý đối tác',
 };
 const eventCopy: Record<string, string> = {
   OPENED: 'Mở đối soát',

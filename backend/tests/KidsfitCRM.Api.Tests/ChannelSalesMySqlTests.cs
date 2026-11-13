@@ -54,17 +54,11 @@ public sealed class ChannelMySqlFixture : IAsyncLifetime
         await using var scope = provider.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<KidsfitDbContext>().Database.MigrateAsync();
         await DatabaseSeeder.SeedAsync(scope.ServiceProvider);
-        // Seed never activates a provisional business commission policy on real demo data.
+        // Both finance and demo use BGĐ policy resolver; the unconfigured
+        // system fallback is 25% Sales / 5% Quản lý.
         var testDb = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
-        Assert.All(await testDb.CommissionPolicyVersions.AsNoTracking().ToListAsync(),
-            policy => { Assert.Equal("DRAFT", policy.Status); Assert.Equal(0m, policy.RatePercent); });
-        // Legacy integration expectations use an explicitly local TEST policy; production seed stays DRAFT.
-        await testDb.Organizations.Where(x => x.Code == "KIDSFIT").ExecuteUpdateAsync(x => x.SetProperty(o => o.CommissionRateCeiling, 20m));
-        await testDb.Organizations.Where(x => x.Code == "PARTNER_AN_PHAT").ExecuteUpdateAsync(x => x.SetProperty(o => o.CommissionRateCeiling, 15m));
-        await testDb.CommissionPolicyVersions.Where(x => x.Code == "KIDSFIT-2026-V1")
-            .ExecuteUpdateAsync(x => x.SetProperty(p => p.RatePercent, 10m).SetProperty(p => p.Status, "ACTIVE"));
-        await testDb.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1")
-            .ExecuteUpdateAsync(x => x.SetProperty(p => p.RatePercent, 12m).SetProperty(p => p.Status, "ACTIVE"));
+        Assert.False(await testDb.BoardCommissionPolicyVersions
+            .AnyAsync(x => x.Scope == "SYSTEM" && x.Status == "ACTIVE"));
         // A second run verifies additive seed behavior on a populated database.
         await DatabaseSeeder.SeedAsync(scope.ServiceProvider);
     }
@@ -774,8 +768,8 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         db.ChangeTracker.Clear();
         var paid = await db.Payouts.FindAsync(payoutId);
         Assert.Equal("PAID", paid!.Status);
-        Assert.Equal(50_000m, paid.GrossAmount);
-        Assert.Equal(45_000m, paid.NetAmount);
+        Assert.Equal(125_000m, paid.GrossAmount);
+        Assert.Equal(120_000m, paid.NetAmount);
         Assert.Equal(3, await db.PayoutEvents.CountAsync(x => x.PayoutId == payoutId));
         Assert.Equal("ACCRUED", (await db.CommissionLedgerEntries.FindAsync(entry.Id))!.Status);
         Assert.Equal(1, await db.PayoutItems.CountAsync(x => x.CommissionLedgerEntryId == entry.Id));
@@ -783,18 +777,78 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
-    public async Task Partner_cannot_raise_policy_above_delegated_ceiling_or_backdate()
+    public async Task Sales_and_manager_receive_distinct_accruals_and_payouts_for_same_receipt()
     {
-        var partnerId = await UserId("partner@kidsfit.vn");
+        var seller = await Seller();
+        var manager = await UserId("manager@kidsfit.vn");
+        var accountant = await UserId("accountant@kidsfit.vn");
+        var (_, contractId) = await Contract(seller);
         await using var db = fixture.Open();
-        var organizationId = await db.OrganizationMemberships.Where(x => x.UserId == partnerId && x.IsPrimary).Select(x => x.OrganizationId).SingleAsync();
+        var member = await db.OrganizationMemberships.SingleAsync(x => x.UserId == seller);
+        member.ManagerUserId = manager;
+        await db.SaveChangesAsync();
         var actions = new ChannelSalesActions(db);
-        var request = new CreateCommissionPolicyRequest(organizationId, "POL-" + Key(), "Phiên bản mới", 99m, ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddDays(1), null);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateCommissionPolicy(request, partnerId, Http(), Ct));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => actions.CreateCommissionPolicy(request with { RatePercent = 10m, EffectiveFrom = ChannelSalesValidation.BusinessDate(DateTime.UtcNow) }, partnerId, Http(), Ct));
-        // Commission policy approval is restricted to an authorized central actor, not delegated partner Sales managers.
-        Assert.Equal(12m, await db.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1").Select(x => x.RatePercent).SingleAsync());
-        Assert.Equal(12m, await db.CommissionPolicyVersions.Where(x => x.Code == "PARTNER-2026-V1").Select(x => x.RatePercent).SingleAsync());
+        var request = new RecordRevenueReceiptRequest(Key(), null, 500_000m, DateTime.UtcNow,
+            "RC-" + Key(), "BANK_TRANSFER");
+        var receiptId = await actions.RecordRevenueReceipt(contractId, request, accountant, Http(), Ct);
+        Assert.Equal(receiptId, await actions.RecordRevenueReceipt(contractId, request, accountant, Http(), Ct));
+        db.ChangeTracker.Clear();
+        var entries = await db.CommissionLedgerEntries.AsNoTracking()
+            .Where(x => x.RevenueReceiptId == receiptId).OrderBy(x => x.BeneficiaryRole).ToListAsync();
+        Assert.Equal(2, entries.Count);
+        var managerEntry = Assert.Single(entries, x => x.BeneficiaryRole == "MANAGER");
+        var salesEntry = Assert.Single(entries, x => x.BeneficiaryRole == "SALES");
+        Assert.Equal(manager, managerEntry.BeneficiaryUserId);
+        Assert.Equal(seller, salesEntry.BeneficiaryUserId);
+        Assert.Equal(25m, salesEntry.RatePercent);
+        Assert.Equal(5m, managerEntry.RatePercent);
+        Assert.Equal(125_000m, salesEntry.Amount);
+        Assert.Equal(25_000m, managerEntry.Amount);
+        var salesPayoutId = await actions.CreatePayout(
+            new(Key(), salesEntry.BeneficiaryOrganizationId, seller, salesEntry.Period, 0, null,
+                contractId, "SALES"), accountant, Http(), Ct);
+        var managerPayoutId = await actions.CreatePayout(
+            new(Key(), managerEntry.BeneficiaryOrganizationId, manager, managerEntry.Period, 0, null,
+                contractId, "MANAGER"), accountant, Http(), Ct);
+        Assert.NotEqual(salesPayoutId, managerPayoutId);
+        Assert.Equal(2, await db.PayoutItems.CountAsync(x =>
+            x.PayoutId == salesPayoutId || x.PayoutId == managerPayoutId));
+        await Assert.ThrowsAsync<ApiConflictException>(() => actions.CreatePayout(
+            new(Key(), managerEntry.BeneficiaryOrganizationId, manager, managerEntry.Period, 0, null,
+                contractId, "MANAGER"), accountant, Http(), Ct));
+    }
+
+    [MySqlFact]
+    public async Task Historical_receipt_requires_explicit_confirmation_and_never_backfills_twice()
+    {
+        var seller = await Seller();
+        var accountant = await UserId("accountant@kidsfit.vn");
+        var (_, contractId) = await Contract(seller);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var receipt = await actions.RecordRevenueReceipt(contractId,
+            new(Key(), null, 400_000m, DateTime.UtcNow, "RC-" + Key(), "BANK_TRANSFER"),
+            accountant, Http(), Ct);
+        // Simulate a receipt recorded before the BGĐ policy integration.
+        var legacy = await db.CommissionLedgerEntries
+            .Where(x => x.RevenueReceiptId == receipt).ExecuteDeleteAsync(Ct);
+        Assert.True(legacy >= 1);
+        db.ChangeTracker.Clear();
+        var preview = await actions.PreviewReceiptCommissionBackfill(receipt, accountant, Ct);
+        Assert.IsAssignableFrom<Microsoft.AspNetCore.Http.IValueHttpResult>(preview);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.BackfillReceiptCommission(receipt,
+                new(false, "Kiểm tra thu cũ"), accountant, Http(), Ct));
+        await actions.BackfillReceiptCommission(receipt,
+            new(true, "Đã đối chiếu chứng từ và lịch sử khoản thu", false), accountant, Http(), Ct);
+        Assert.Equal(1, await db.CommissionLedgerEntries.CountAsync(x =>
+            x.RevenueReceiptId == receipt && x.BeneficiaryRole == "SALES"));
+        Assert.False(await db.CommissionLedgerEntries.AnyAsync(x =>
+            x.RevenueReceiptId == receipt && x.BeneficiaryRole == "MANAGER"));
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.BackfillReceiptCommission(receipt,
+                new(true, "Gửi lại yêu cầu", false), accountant, Http(), Ct));
+        Assert.Single(await db.CommissionLedgerEntries.Where(x => x.RevenueReceiptId == receipt).ToArrayAsync());
     }
 
     [MySqlFact]
@@ -817,7 +871,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.Single(results, x => x);
         await using var verification = fixture.Open();
         Assert.Equal(750_000m, await verification.RevenueReceipts.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount));
-        Assert.Equal(75_000m, await verification.CommissionLedgerEntries.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount));
+        Assert.Equal(187_500m, await verification.CommissionLedgerEntries.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount));
     }
 
     [MySqlFact]
@@ -833,9 +887,9 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var correction = new AdjustCommissionRequest(Key(), -10_000m, original.Period, "Điều chỉnh theo chứng từ");
         var id = await actions.AdjustCommission(original.Id, correction, accountant, Http(), Ct);
         Assert.Equal(id, await actions.AdjustCommission(original.Id, correction, accountant, Http(), Ct));
-        await Assert.ThrowsAsync<ApiValidationException>(() => actions.AdjustCommission(original.Id, correction with { IdempotencyKey = Key(), Amount = -50_000m }, accountant, Http(), Ct));
-        Assert.Equal(50_000m, original.Amount);
-        Assert.Equal(40_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount));
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.AdjustCommission(original.Id, correction with { IdempotencyKey = Key(), Amount = -150_000m }, accountant, Http(), Ct));
+        Assert.Equal(125_000m, original.Amount);
+        Assert.Equal(115_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount));
         Assert.Equal(2, await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId));
     }
 

@@ -270,38 +270,7 @@ internal static class CrmReviewSeeder
                 CreatedAt = now, UpdatedAt = now });
         await db.SaveChangesAsync();
 
-        // 30% is specifically requested for this review profile and is calculated from
-        // collected cash net of refunds. Do not make this a production policy default.
-        var policy = await db.CommissionPolicyVersions.SingleOrDefaultAsync(x => x.Code == "REVIEW-CASH-30-2026");
-        if (policy is null)
-        {
-            policy = new CommissionPolicyVersion {
-                OrganizationId = kidsfit.Id, Code = "REVIEW-CASH-30-2026",
-                Name = "Hoa hồng 30% trên tiền đã thu ròng - dữ liệu review",
-                PersonnelType = "SALES", RatePercent = 30m,
-                EffectiveFrom = new DateOnly(2026, 1, 1),
-                Status = "ACTIVE", CreatedByUserId = admin.Id, CreatedAt = now, UpdatedAt = now };
-            db.CommissionPolicyVersions.Add(policy);
-            await db.SaveChangesAsync();
-        }
-        // A separate partner scoped policy allows the CTV to have the same rate,
-        // without inadvertently applying an internal-sales policy to other organizations.
-        var partnerPolicy = await db.CommissionPolicyVersions.SingleOrDefaultAsync(x => x.Code == "REVIEW-CTV-CASH-30-2026");
-        if (partnerPolicy is null)
-        {
-            partnerPolicy = new CommissionPolicyVersion {
-                OrganizationId = partner.Id, Code = "REVIEW-CTV-CASH-30-2026",
-                Name = "Hoa hồng CTV 30% trên tiền đã thu ròng - dữ liệu review",
-                PersonnelType = "COLLABORATOR", RatePercent = 30m,
-                EffectiveFrom = new DateOnly(2026, 1, 1),
-                Status = "ACTIVE", CreatedByUserId = admin.Id, CreatedAt = now, UpdatedAt = now };
-            db.CommissionPolicyVersions.Add(partnerPolicy);
-            await db.SaveChangesAsync();
-        }
-        if (kidsfit.CommissionRateCeiling < 30m) kidsfit.CommissionRateCeiling = 30m;
-        if (partner.CommissionRateCeiling < 30m) partner.CommissionRateCeiling = 30m;
-        await db.SaveChangesAsync();
-
+        // BGĐ system fallback controls synthetic review commission rates (25% / 5%).
         var schoolKeys = new Dictionary<string, (long DirectoryId, long CustomerId)>();
         foreach (var sample in fixture.Schools)
         {
@@ -511,15 +480,14 @@ internal static class CrmReviewSeeder
                 }
                 // Commission follows cash actually retained after any fictional refund.
                 // We only populate the ledger once; refunds are modeled as an explicit negative adjustment.
-                var selectedPolicy = school.Owner == "CTV" ? partnerPolicy : policy;
                 var accrualKey = "review-commission-" + school.Code;
                 if (!await db.CommissionLedgerEntries.AnyAsync(x => x.IdempotencyKey == accrualKey))
                     db.CommissionLedgerEntries.Add(new CommissionLedgerEntry {
                         ContractId = contract.Id, RevenueReceiptId = receipt.Id,
-                        PolicyVersionId = selectedPolicy.Id, BeneficiaryUserId = owner.Id,
+                        BoardPolicyVersionId = null, PolicySource = "SYSTEM_DEFAULT", BeneficiaryRole = "SALES", BeneficiaryUserId = owner.Id,
                         BeneficiaryOrganizationId = org.Id, EntryType = "ACCRUAL",
-                        CalculationBase = school.ReceivedAmount, RatePercent = 30m,
-                        Amount = school.ReceivedAmount * 0.30m, Status = "ACCRUED",
+                        CalculationBase = school.ReceivedAmount, RatePercent = 25m,
+                        Amount = decimal.Round(school.ReceivedAmount * 0.25m, 0, MidpointRounding.AwayFromZero), Status = "ACCRUED",
                         Period = now.ToString("yyyy-MM"), OccurredAt = now.AddDays(-5),
                         CreatedByUserId = accountant.Id, IdempotencyKey = accrualKey,
                         CreatedAt = now, UpdatedAt = now });
@@ -536,10 +504,10 @@ internal static class CrmReviewSeeder
                     !await db.CommissionLedgerEntries.AnyAsync(x => x.IdempotencyKey == "review-commission-refund-" + school.Code))
                     db.CommissionLedgerEntries.Add(new CommissionLedgerEntry {
                         ContractId = contract.Id, RevenueReceiptId = null,
-                        PolicyVersionId = selectedPolicy.Id, BeneficiaryUserId = owner.Id,
+                        BoardPolicyVersionId = null, PolicySource = "SYSTEM_DEFAULT", BeneficiaryRole = "SALES", BeneficiaryUserId = owner.Id,
                         BeneficiaryOrganizationId = org.Id, EntryType = "ADJUSTMENT",
-                        CalculationBase = school.RefundAmount, RatePercent = 30m,
-                        Amount = -(school.RefundAmount * 0.30m), Status = "ACCRUED",
+                        CalculationBase = school.RefundAmount, RatePercent = 25m,
+                        Amount = -decimal.Round(school.RefundAmount * 0.25m, 0, MidpointRounding.AwayFromZero), Status = "ACCRUED",
                         Period = now.ToString("yyyy-MM"), OccurredAt = now.AddDays(-2),
                         Reason = "Điều chỉnh khoản hoa hồng sau hoàn tiền giả lập",
                         CreatedByUserId = accountant.Id,

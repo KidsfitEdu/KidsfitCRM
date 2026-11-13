@@ -182,24 +182,14 @@ public sealed class RevenueReceipt : EntityBase
     public long RecordedByUserId { get; set; }
 }
 
-public sealed class CommissionPolicyVersion : EntityBase
-{
-    public string? PersonnelType { get; set; }
-    public long? OrganizationId { get; set; }
-    public string Code { get; set; } = "";
-    public string Name { get; set; } = "";
-    public decimal RatePercent { get; set; }
-    public DateOnly EffectiveFrom { get; set; }
-    public DateOnly? EffectiveUntil { get; set; }
-    public string Status { get; set; } = "ACTIVE";
-    public long CreatedByUserId { get; set; }
-}
-
 public sealed class CommissionLedgerEntry : EntityBase
 {
     public long ContractId { get; set; }
     public long? RevenueReceiptId { get; set; }
-    public long PolicyVersionId { get; set; }
+    public long? BoardPolicyVersionId { get; set; }
+    public string PolicySource { get; set; } = "SYSTEM_DEFAULT";
+    public string? LegacyPolicyCode { get; set; }
+    public string BeneficiaryRole { get; set; } = "SALES";
     public long BeneficiaryUserId { get; set; }
     public long BeneficiaryOrganizationId { get; set; }
     public string EntryType { get; set; } = "ACCRUAL";
@@ -219,6 +209,7 @@ public sealed class CommissionLedgerEntry : EntityBase
 public sealed class Payout : EntityBase
 {
     public long OrganizationId { get; set; }
+    public string BeneficiaryRole { get; set; } = "SALES";
     public long? BeneficiaryUserId { get; set; }
     public string Code { get; set; } = "";
     public string Period { get; set; } = "";

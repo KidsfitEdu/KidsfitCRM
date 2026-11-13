@@ -24,7 +24,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<CustomerProtection> CustomerProtections => Set<CustomerProtection>();
     public DbSet<RevenueSchedule> RevenueSchedules => Set<RevenueSchedule>();
     public DbSet<RevenueReceipt> RevenueReceipts => Set<RevenueReceipt>();
-    public DbSet<CommissionPolicyVersion> CommissionPolicyVersions => Set<CommissionPolicyVersion>();
     public DbSet<BoardCommissionPolicyVersion> BoardCommissionPolicyVersions => Set<BoardCommissionPolicyVersion>();
     public DbSet<CommissionLedgerEntry> CommissionLedgerEntries => Set<CommissionLedgerEntry>();
     public DbSet<Payout> Payouts => Set<Payout>();
@@ -138,7 +137,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         UniqueCode<Organization>(b, 40);
         UniqueCode<ChannelCustomer>(b, 32);
         UniqueCode<CheckeeProductPackage>(b, 40);
-        UniqueCode<CommissionPolicyVersion>(b, 48);
         UniqueCode<Payout>(b, 48);
 
         b.Entity<Organization>().Property(x => x.Name).HasMaxLength(190);
@@ -234,16 +232,10 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<RevenueReceipt>().Property(x => x.RequestFingerprint).HasMaxLength(64).UseCollation("utf8mb4_bin");
         b.Entity<RevenueReceipt>().HasIndex(x => new { x.ContractId, x.ReceivedAt });
 
-        b.Entity<CommissionPolicyVersion>().Property(x => x.Name).HasMaxLength(190);
-        b.Entity<CommissionPolicyVersion>().Property(x => x.PersonnelType).HasMaxLength(32).UseCollation("utf8mb4_bin");
-        b.Entity<CommissionPolicyVersion>().HasIndex(x => new { x.OrganizationId, x.PersonnelType, x.Status, x.EffectiveFrom });
-        b.Entity<CommissionPolicyVersion>().Property(x => x.RatePercent).HasPrecision(9, 4);
-        b.Entity<CommissionPolicyVersion>().Property(x => x.Status).HasMaxLength(24);
-        DateOnlyProperty(b.Entity<CommissionPolicyVersion>().Property(x => x.EffectiveFrom));
-        DateOnlyProperty(b.Entity<CommissionPolicyVersion>().Property(x => x.EffectiveUntil));
-        b.Entity<CommissionPolicyVersion>().HasIndex(x => new { x.OrganizationId, x.Status, x.EffectiveFrom });
-
         b.Entity<CommissionLedgerEntry>().Property(x => x.EntryType).HasMaxLength(24);
+        b.Entity<CommissionLedgerEntry>().Property(x => x.BeneficiaryRole).HasMaxLength(16).UseCollation("utf8mb4_bin");
+        b.Entity<CommissionLedgerEntry>().Property(x => x.PolicySource).HasMaxLength(24).UseCollation("utf8mb4_bin");
+        b.Entity<CommissionLedgerEntry>().Property(x => x.LegacyPolicyCode).HasMaxLength(48);
         b.Entity<CommissionLedgerEntry>().Property(x => x.Status).HasMaxLength(24);
         b.Entity<CommissionLedgerEntry>().Property(x => x.Period).HasMaxLength(7);
         b.Entity<CommissionLedgerEntry>().Property(x => x.Reason).HasMaxLength(1000);
@@ -253,10 +245,11 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<CommissionLedgerEntry>().Property(x => x.RatePercent).HasPrecision(9, 4);
         Money<CommissionLedgerEntry>(b, x => x.CalculationBase);
         Money<CommissionLedgerEntry>(b, x => x.Amount);
-        b.Entity<CommissionLedgerEntry>().HasIndex(x => x.RevenueReceiptId).IsUnique();
+        b.Entity<CommissionLedgerEntry>().HasIndex(x => new { x.RevenueReceiptId, x.BeneficiaryRole }).IsUnique();
         b.Entity<CommissionLedgerEntry>().HasIndex(x => new { x.BeneficiaryUserId, x.Period, x.Status });
 
         b.Entity<Payout>().Property(x => x.Period).HasMaxLength(7);
+        b.Entity<Payout>().Property(x => x.BeneficiaryRole).HasMaxLength(16).UseCollation("utf8mb4_bin");
         b.Entity<Payout>().Property(x => x.Status).HasMaxLength(24);
         b.Entity<Payout>().Property(x => x.IdempotencyKey).HasMaxLength(120).UseCollation("utf8mb4_bin");
         b.Entity<Payout>().Property(x => x.RequestFingerprint).HasMaxLength(64).UseCollation("utf8mb4_bin");
@@ -313,8 +306,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<CustomerProtection, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerProtection, User>(x => x.OwnerUserId); Restrict<CustomerProtection, Organization>(x => x.OwnerOrganizationId); Restrict<CustomerProtection, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerProtection, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, SalesContract>(x => x.ContractId);
         Restrict<RevenueReceipt, SalesContract>(x => x.ContractId); Restrict<RevenueReceipt, RevenueSchedule>(x => x.RevenueScheduleId); Restrict<RevenueReceipt, User>(x => x.RecordedByUserId);
-        Restrict<CommissionPolicyVersion, Organization>(x => x.OrganizationId); Restrict<CommissionPolicyVersion, User>(x => x.CreatedByUserId);
-        Restrict<CommissionLedgerEntry, SalesContract>(x => x.ContractId); Restrict<CommissionLedgerEntry, RevenueReceipt>(x => x.RevenueReceiptId); Restrict<CommissionLedgerEntry, CommissionPolicyVersion>(x => x.PolicyVersionId); Restrict<CommissionLedgerEntry, User>(x => x.BeneficiaryUserId); Restrict<CommissionLedgerEntry, Organization>(x => x.BeneficiaryOrganizationId); Restrict<CommissionLedgerEntry, User>(x => x.CreatedByUserId);
+        Restrict<CommissionLedgerEntry, SalesContract>(x => x.ContractId); Restrict<CommissionLedgerEntry, RevenueReceipt>(x => x.RevenueReceiptId); Restrict<CommissionLedgerEntry, BoardCommissionPolicyVersion>(x => x.BoardPolicyVersionId); Restrict<CommissionLedgerEntry, User>(x => x.BeneficiaryUserId); Restrict<CommissionLedgerEntry, Organization>(x => x.BeneficiaryOrganizationId); Restrict<CommissionLedgerEntry, User>(x => x.CreatedByUserId);
         Restrict<CommissionLedgerEntry, CommissionLedgerEntry>(x => x.RelatedEntryId);
         Restrict<Payout, Organization>(x => x.OrganizationId); Restrict<Payout, User>(x => x.CreatedByUserId); Restrict<PayoutItem, Payout>(x => x.PayoutId); Restrict<PayoutItem, CommissionLedgerEntry>(x => x.CommissionLedgerEntryId);
         Restrict<Payout, User>(x => x.BeneficiaryUserId); Restrict<Payout, User>(x => x.ApprovedByUserId); Restrict<Payout, User>(x => x.PaidByUserId);

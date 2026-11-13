@@ -85,6 +85,21 @@ public sealed class BoardCommissionPolicyTests
 
 
     [Fact]
+    public void Policy_snapshot_is_frozen_at_receipt_time()
+    {
+        var original = Policy("SYSTEM", 25m, 5m, version: 1);
+        var later = Policy("SYSTEM", 20m, 10m, version: 2);
+        var atFirst = BoardCommissionPolicyEndpoints.ResolveAt(
+            [original, later], 10, 20, 30, original.CreatedAt.AddSeconds(1));
+        var atSecond = BoardCommissionPolicyEndpoints.ResolveAt(
+            [original, later], 10, 20, 30, later.CreatedAt.AddSeconds(1));
+        Assert.Equal(25m, atFirst.Sales);
+        Assert.Equal(5m, atFirst.Manager);
+        Assert.Equal(20m, atSecond.Sales);
+        Assert.Equal(10m, atSecond.Manager);
+    }
+
+    [Fact]
     public void Snake_case_request_binds_25_and_5()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)

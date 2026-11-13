@@ -26,6 +26,15 @@ public static class ChannelSalesOperationsEndpoints
         group.MapGet("/customers/{id:long}/work-logs", CustomerWorkLogEndpoints.List).RequireAuthorization(Permissions.ChannelSalesView);
         group.MapPost("/customers/{id:long}/support-activities", async (long id, AddCustomerActivityRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
             Results.Created($"/api/channel-sales/customers/{id}", new { data = new { id = await actions.RecordSupportActivity(id, request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesActivity);
+        group.MapGet("/revenue-receipts/{receiptId:long}/commission-backfill-preview",
+            async (long receiptId, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+                await actions.PreviewReceiptCommissionBackfill(receiptId, http.UserId(), ct))
+            .RequireAuthorization(Permissions.ChannelSalesCommissionAdjust);
+        group.MapPost("/revenue-receipts/{receiptId:long}/commission-backfill",
+            async (long receiptId, ConfirmReceiptCommissionBackfillRequest request,
+                HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
+                await actions.BackfillReceiptCommission(receiptId, request, http.UserId(), http, ct))
+            .RequireAuthorization(Permissions.ChannelSalesCommissionAdjust);
         group.MapPost("/commissions/{id:long}/adjustments", async (long id, AdjustCommissionRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
             Results.Created("/api/channel-sales/commissions", new { data = new { id = await actions.AdjustCommission(id, request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesCommissionAdjust);
         group.MapPost("/payouts", async (CreatePayoutRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
@@ -41,8 +50,6 @@ public static class ChannelSalesOperationsEndpoints
             await actions.CompletePayout(id, request, http.UserId(), http, ct);
             return Results.Ok(new { message = "Đã ghi nhận chi hoa hồng." });
         }).RequireAuthorization(Permissions.ChannelSalesPayoutComplete);
-        group.MapPost("/commission-policies", async (CreateCommissionPolicyRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
-            Results.Created("/api/channel-sales/commission-policies", new { data = new { id = await actions.CreateCommissionPolicy(request, http.UserId(), http, ct) } })).RequireAuthorization(Permissions.ChannelSalesPolicyManage);
         group.MapPost("/team", async (CreateSalesAccountRequest request, HttpContext http, ChannelSalesActions actions, IPasswordHasher<User> hasher, CancellationToken ct) =>
             Results.Created("/api/channel-sales/team", new { data = new { id = await actions.CreateSalesAccount(request, http.UserId(), hasher, http, ct) } })).RequireAuthorization(Permissions.ChannelSalesTeamManage);
         group.MapPatch("/team/{id:long}/status", async (long id, ChangeMembershipStatusRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken ct) =>
@@ -106,7 +113,6 @@ public static class ChannelSalesOperationsEndpoints
         var ledgerQuery = from entry in entries
                           join user in db.Users on entry.BeneficiaryUserId equals user.Id
                           join contract in db.SalesContracts on entry.ContractId equals contract.Id
-                          join policy in db.CommissionPolicyVersions on entry.PolicyVersionId equals policy.Id
                           orderby entry.OccurredAt descending, entry.Id descending
                           select new
                           {
@@ -121,7 +127,9 @@ public static class ChannelSalesOperationsEndpoints
                               entry.Amount,
                               entry.CalculationBase,
                               entry.RatePercent,
-                              policy_code = policy.Code,
+                              beneficiary_role = entry.BeneficiaryRole,
+                              policy_code = entry.LegacyPolicyCode ?? entry.PolicySource,
+                              board_policy_version_id = entry.BoardPolicyVersionId,
                               entry.OccurredAt,
                               entry.Reason,
                               entry.RelatedEntryId,
@@ -140,6 +148,7 @@ public static class ChannelSalesOperationsEndpoints
                           beneficiary_name = user.Name,
                           payout.Code,
                           payout.Period,
+                          beneficiary_role = payout.BeneficiaryRole,
                           payout.GrossAmount,
                           payout.WithholdingAmount,
                           payout.NetAmount,
@@ -154,7 +163,9 @@ public static class ChannelSalesOperationsEndpoints
         var contracts = access.Contracts(db).Select(x => x.Id);
         var eligible = entries.Where(x => !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id)
             && db.ReconciliationCases.Any(r => r.ContractId == x.ContractId && r.Status == "CONFIRMED"));
-        var policies = db.CommissionPolicyVersions.AsNoTracking().Where(x => access.All || (x.OrganizationId.HasValue && access.OrganizationIds.Contains(x.OrganizationId.Value)));
+        var policies = db.BoardCommissionPolicyVersions.AsNoTracking()
+            .Where(x => access.All || x.Scope == "SYSTEM"
+                || (x.OrganizationId.HasValue && access.OrganizationIds.Contains(x.OrganizationId.Value)));
         var organizations = db.Organizations.AsNoTracking().Where(x => x.Status == "ACTIVE" && (access.All || access.OrganizationIds.Contains(x.Id)));
         return Results.Ok(new
         {
@@ -175,7 +186,9 @@ public static class ChannelSalesOperationsEndpoints
             ledger = await ledgerQuery.Take(200).ToArrayAsync(ct),
             ledger_total = await entries.CountAsync(ct),
             payouts = await payouts.Take(100).ToArrayAsync(ct),
-            policies = await policies.OrderByDescending(x => x.EffectiveFrom).Take(100).Select(x => new { x.Id, x.OrganizationId, x.Code, x.Name, x.PersonnelType, x.RatePercent, x.EffectiveFrom, x.EffectiveUntil, x.Status }).ToArrayAsync(ct),
+            policies = await policies.OrderByDescending(x => x.CreatedAt).Take(100).Select(x => new {
+                x.Id, x.Scope, x.OrganizationId, x.ManagerUserId, x.SalesUserId,
+                x.SalesPercent, x.ManagerPercent, x.CreatedAt, x.Status }).ToArrayAsync(ct),
             personnel_types = CommissionPersonnelTypes.Specific,
             organizations = await organizations.Select(x => new { x.Id, x.Code, x.Name, x.CommissionRateCeiling }).ToArrayAsync(ct),
         });

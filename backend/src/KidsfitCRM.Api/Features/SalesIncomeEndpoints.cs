@@ -108,11 +108,13 @@ public static class SalesIncomeEndpoints
             select new { contract_code = c.ContractCode, school_name = school.DisplayName,
                 contract_value = c.TotalValue, contract_status = c.Status }).SingleAsync(ct);
         var entries = await (from entry in ledger
-            join policy in db.CommissionPolicyVersions.AsNoTracking() on entry.PolicyVersionId equals policy.Id
             orderby entry.OccurredAt descending, entry.Id descending
             select new { id = entry.Id, entry_type = entry.EntryType, amount = entry.Amount,
                 calculation_base = entry.CalculationBase, rate_percent = entry.RatePercent,
-                policy_code = policy.Code, period = entry.Period,
+                policy_code = entry.LegacyPolicyCode ?? entry.PolicySource,
+                beneficiary_role = entry.BeneficiaryRole,
+                board_policy_version_id = entry.BoardPolicyVersionId,
+                period = entry.Period,
                 occurred_at = entry.OccurredAt, reason = entry.Reason, receipt_id = entry.RevenueReceiptId
             }).ToArrayAsync(ct);
         var entryIds = entries.Select(e => e.id).ToArray();

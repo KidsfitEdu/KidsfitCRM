@@ -21,7 +21,6 @@ public static class AccountingScenarioSeeder
         var ctv = await db.Users.SingleAsync(x => x.Email == "ctv@kidsfit.vn");
         var accountant = await db.Users.SingleAsync(x => x.Email == "accountant@kidsfit.vn");
         var manager = await db.Users.SingleAsync(x => x.Email == "manager@kidsfit.vn");
-        var package = await db.CheckeeProductPackages.SingleAsync(x => x.Code == "CHECKEE_GROWTH");
         var proofBytes = Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0d8AAAAASUVORK5CYII=");
         var sha = Convert.ToHexString(SHA256.HashData(proofBytes));
@@ -109,7 +108,7 @@ public static class AccountingScenarioSeeder
             await db.SaveChangesAsync();
             db.SalesContractItems.Add(new SalesContractItem
             {
-                ContractId = contract.Id, ProductPackageId = package.Id,
+                ContractId = contract.Id,
                 Description = "Gói KIDSFIT demo theo hợp đồng đã ký",
                 Quantity = 1, UnitPrice = scenario.Total, Amount = scenario.Total,
                 CreatedAt = now, UpdatedAt = now,

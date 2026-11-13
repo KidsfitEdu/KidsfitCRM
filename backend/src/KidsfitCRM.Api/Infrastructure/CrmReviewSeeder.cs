@@ -250,7 +250,6 @@ internal static class CrmReviewSeeder
         var kidsfit = await db.Organizations.SingleAsync(x => x.Code == "KIDSFIT");
         var partner = await db.Organizations.SingleAsync(x => x.Code == "PARTNER_AN_PHAT");
         var checkee = await db.Organizations.SingleAsync(x => x.Code == "CHECKEE");
-        var package = await db.CheckeeProductPackages.SingleAsync(x => x.Code == "CHECKEE_GROWTH");
         var careRole = await db.Roles.SingleAsync(x => x.Code == "CUSTOMER_SERVICE");
         var care2 = await db.Users.SingleOrDefaultAsync(x => x.Code == "CARE002");
         if (care2 is null)
@@ -412,8 +411,8 @@ internal static class CrmReviewSeeder
                 db.SalesContracts.Add(contract);
                 await db.SaveChangesAsync();
                 db.SalesContractItems.Add(new SalesContractItem {
-                    ContractId = contract.Id, ProductPackageId = package.Id,
-                    Description = package.Name, Quantity = 1, UnitPrice = school.ContractValue,
+                    ContractId = contract.Id,
+                    Description = "Phí dịch vụ theo hợp đồng", Quantity = 1, UnitPrice = school.ContractValue,
                     Amount = school.ContractValue, CreatedAt = now, UpdatedAt = now });
             }
             if (school.ContractStatus == "ACTIVE" &&

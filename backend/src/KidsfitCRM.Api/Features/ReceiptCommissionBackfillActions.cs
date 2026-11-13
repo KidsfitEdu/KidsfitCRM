@@ -21,6 +21,7 @@ public sealed partial class ChannelSalesActions
             eligible_cash = EligibleCash, sales_user_id = Contract.OwnerUserId,
             manager_user_id = ManagerValid ? ManagerId : null,
             manager_review_required = ManagerRate > 0 && !ManagerValid,
+            requires_manager_verification = ManagerRate > 0 && ManagerValid,
             sales_percent = SalesRate, manager_percent = ManagerRate,
             sales_amount = decimal.Round(EligibleCash * SalesRate / 100m, 0, MidpointRounding.AwayFromZero),
             manager_amount = ManagerValid
@@ -102,23 +103,24 @@ public sealed partial class ChannelSalesActions
                 assessment.Receipt.ReceivedAt, now, assessment.EligibleCash,
                 "SALES", assessment.Contract.OwnerUserId, assessment.SalesRate,
                 assessment.PolicySource, assessment.PolicyVersionId));
-        if (assessment.ManagerRate > 0 && assessment.ManagerValid && assessment.ManagerId.HasValue)
+        if (assessment.ManagerRate > 0 && assessment.ManagerValid && assessment.ManagerId.HasValue
+            && request.ManagerVerified)
             db.CommissionLedgerEntries.Add(NewCommissionAccrual(
                 assessment.Contract, assessment.Receipt, actorId,
                 assessment.Receipt.ReceivedAt, now, assessment.EligibleCash,
                 "MANAGER", assessment.ManagerId.Value, assessment.ManagerRate,
                 assessment.PolicySource, assessment.PolicyVersionId));
-        if (assessment.ManagerRate > 0 && !assessment.ManagerValid)
+        if (assessment.ManagerRate > 0 && (!assessment.ManagerValid || !request.ManagerVerified))
             Audit.Add(db, actorId, "COMMISSION_MANAGER_REVIEW_REQUIRED",
                 nameof(RevenueReceipt), receiptId, null,
                 new { assessment.Contract.OwnerUserId, assessment.ManagerId,
-                    assessment.ManagerRate, backfill = true }, http);
+                    assessment.ManagerRate, request.ManagerVerified, backfill = true }, http);
         Audit.Add(db, actorId, "BACKFILL_RECEIPT_COMMISSION",
             nameof(RevenueReceipt), receiptId, null,
             new { reason, assessment.EligibleCash, assessment.SalesRate,
                 assessment.ManagerRate, assessment.PolicyVersionId,
                 assessment.PolicySource, manager_review_required =
-                    assessment.ManagerRate > 0 && !assessment.ManagerValid }, http);
+                    assessment.ManagerRate > 0 && (!assessment.ManagerValid || !request.ManagerVerified) }, http);
         try
         {
             await db.SaveChangesAsync(ct);

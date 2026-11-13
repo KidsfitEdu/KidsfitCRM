@@ -2,7 +2,7 @@
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
-import { useCallback, useEffect, useState, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, Plus, RotateCcw, Search, UserRound } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -86,6 +86,7 @@ type Detail = {
     service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;
     protection_until:string|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
+  refunded_total: number;
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; reason: string | null; occurred_at: string;
     period: string; beneficiary_user_id: number; beneficiary_organization_id: number; assigned_to_payout: boolean }[];
@@ -112,6 +113,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
   const [payoutPeriod, setPayoutPeriod] = useState('');
+  const [payoutDialogOpen,setPayoutDialogOpen] = useState(false);
+  const [payoutWithholding,setPayoutWithholding] = useState('0');
+  const [payoutWithholdingReason,setPayoutWithholdingReason] = useState('');
+  const [payoutError,setPayoutError] = useState('');
+  const payoutKey = useRef<string|null>(null);
+  const [selectedScheduleId,setSelectedScheduleId] = useState<number|null>(null);
+  const [selectedPayoutId,setSelectedPayoutId] = useState<number|null>(null);
+  const receiptAttempt = useRef<{signature:string; key:string; evidenceId:number|null}|null>(null);
   const [entryMode, setEntryMode] = useState<'receipt' | 'payout' | null>(null);
   const [amountInput, setAmountInput] = useState('');
   const [preview, setPreview] = useState<{url:string; name:string; mime:string}|null>(null);
@@ -212,6 +221,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
   const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
   const canApprovePayout = abilities.includes('channel_sales.payout.approve') || abilities.includes('*');
+  const openReceipt = () => {
+    setFieldErrors({});setAmountInput('');
+    const next = detail?.schedules.find(x=>x.amount_received<x.amount_due);
+    setSelectedScheduleId(next?.id??null);
+    setSelectedPayoutId(null);receiptAttempt.current=null;setEntryMode('receipt');
+  };
+  const openPayoutPayment = (payoutId?:number) => {
+    const next = detail?.payouts.find(x=>x.id===payoutId&&x.status==='APPROVED')
+      ?? detail?.payouts.find(x=>x.status==='APPROVED');
+    if(!next)return;
+    setFieldErrors({});
+    setSelectedPayoutId(next.id);setSelectedScheduleId(null);
+    setAmountInput(String(next.net_amount));receiptAttempt.current=null;setEntryMode('payout');
+  };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (selected === null || !detail || !entryMode) return;
@@ -237,57 +260,91 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     else if (proof.size > 5 * 1024 * 1024) validation.proof = 'Ảnh chứng từ không được vượt quá 5 MB.';
     else if (!['image/jpeg', 'image/png', 'image/webp'].includes(proof.type))
       validation.proof = 'Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.';
-    if (entryMode === 'receipt' && !Number(form.get('schedule_id'))) validation.schedule_id = 'Vui lòng chọn đợt thanh toán.';
-    if (entryMode === 'payout' && !Number(form.get('payout_id'))) validation.payout_id = 'Vui lòng chọn phiếu chi đã duyệt.';
+    const scheduleId = selectedScheduleId;
+    const payoutId = selectedPayoutId;
+    const schedule = detail.schedules.find(x=>x.id===scheduleId);
+    const payout = detail.payouts.find(x=>x.id===payoutId&&x.status==='APPROVED');
+    if (entryMode === 'receipt' && !schedule) validation.schedule_id = 'Vui lòng chọn đợt thanh toán.';
+    if (entryMode === 'receipt' && schedule && amount>schedule.amount_due-schedule.amount_received)
+      validation.amount = 'Số tiền vượt số tiền còn phải thu của đợt đã chọn.';
+    if (entryMode === 'payout' && !payout) validation.payout_id = 'Vui lòng chọn phiếu chi đã duyệt.';
+    if (entryMode === 'payout' && payout && amount!==payout.net_amount)
+      validation.amount = 'Số tiền phải khớp với phiếu chi đã duyệt.';
     if (Object.keys(validation).length) { setFieldErrors(validation); return; }
     if (!(proof instanceof File)) return;
     setFieldErrors({});
     setSaving(true);
+    let attemptedEvidenceId:number|null=null;
     try {
-      const attachment = new FormData();
-      attachment.set('kind', entryMode === 'receipt' ? 'RECEIPT' : 'PAYOUT');
-      attachment.set('file', proof);
-      const payoutId = Number(form.get('payout_id'));
-      if (entryMode === 'receipt') attachment.set('contract_id', String(selected));
-      else attachment.set('payout_id', String(payoutId));
-      const uploaded = await channelRequest<{data:{id:number}}>(apiBase, token, '/evidence', { method: 'POST', body: attachment });
       const timestamp = accountingTransactionTimestamp(date);
-      if (entryMode === 'receipt') {
-        await channelRequest(apiBase, token, `/contracts/${selected}/revenue-receipts`, {
-          method: 'POST', body: JSON.stringify({
-            idempotency_key: crypto.randomUUID(), revenue_schedule_id: Number(form.get('schedule_id')),
-            received_at: timestamp, amount,
-            reference_code: reference,
-            payment_method: 'BANK_TRANSFER', evidence_id: uploaded.data.id,
+      const signature = JSON.stringify({
+        entryMode, selected, scheduleId, payoutId, date:timestamp, amount, reference:reference.toUpperCase(),
+        proof:[proof.name,proof.size,proof.lastModified],
+      });
+      if(receiptAttempt.current?.signature!==signature){
+        receiptAttempt.current={signature,key:crypto.randomUUID(),evidenceId:null};
+      }
+      const attempt = receiptAttempt.current!;
+      if(attempt.evidenceId===null){
+        const attachment=new FormData();
+        attachment.set('kind',entryMode==='receipt'?'RECEIPT':'PAYOUT');
+        attachment.set('file',proof);
+        if(entryMode==='receipt')attachment.set('contract_id',String(selected));
+        else attachment.set('payout_id',String(payoutId));
+        const uploaded=await channelRequest<{data:{id:number}}>(apiBase,token,'/evidence',{
+          method:'POST',body:attachment
+        });
+        attempt.evidenceId=uploaded.data.id;
+      }
+      attemptedEvidenceId=attempt.evidenceId;
+      if(entryMode==='receipt'){
+        await channelRequest(apiBase,token,`/contracts/${selected}/revenue-receipts`,{
+          method:'POST',body:JSON.stringify({
+            idempotency_key:attempt.key,revenue_schedule_id:scheduleId,
+            received_at:timestamp,amount,reference_code:reference,
+            payment_method:'BANK_TRANSFER',evidence_id:attempt.evidenceId,
           }),
         });
-      } else {
-        await channelRequest(apiBase, token, `/payouts/${payoutId}/complete`, {
-          method: 'POST', body: JSON.stringify({
-            paid_at: timestamp, payment_reference: reference,
-            evidence_id: uploaded.data.id,
-            amount,
+      }else{
+        await channelRequest(apiBase,token,`/payouts/${payoutId}/complete`,{
+          method:'POST',body:JSON.stringify({
+            paid_at:timestamp,payment_reference:reference,
+            evidence_id:attempt.evidenceId,amount,
           }),
         });
       }
+      receiptAttempt.current=null;
       setEntryMode(null);
-      setDetailRevision(v => v + 1);
-      appNotice.success(entryMode === 'receipt' ? 'Đã ghi nhận khoản thu.' : 'Đã ghi nhận khoản chi hoa hồng.');
+      setDetailRevision(v=>v+1);
+      appNotice.success(entryMode==='receipt'?'Đã ghi nhận khoản thu.':'Đã ghi nhận khoản chi hoa hồng.');
       await load();
-    } catch (cause) {
-      if (cause instanceof ChannelRequestError && cause.status === 422 && Object.keys(cause.errors).length) {
-        const next: FieldErrors = {};
-        for (const [key, messages] of Object.entries(cause.errors)) {
-          if (key in {transaction_date: true, received_at: true, paid_at: true, amount: true, reference_code: true, proof: true, schedule_id: true, revenue_schedule_id: true, payout_id: true}) {
-            const target = key === 'received_at' || key === 'paid_at' ? 'transaction_date'
-              : key === 'revenue_schedule_id' ? 'schedule_id' : key as keyof FieldErrors;
-            next[target] = messages[0];
+    }catch(cause){
+      if(cause instanceof ChannelRequestError && cause.status===422 && Object.keys(cause.errors).length){
+        const next:FieldErrors={};
+        for(const [key,messages] of Object.entries(cause.errors)){
+          if(key in {transaction_date:true,received_at:true,paid_at:true,amount:true,
+            reference_code:true,proof:true,schedule_id:true,revenue_schedule_id:true,payout_id:true}){
+            const target=key==='received_at'||key==='paid_at'?'transaction_date'
+              :key==='revenue_schedule_id'?'schedule_id':key as keyof FieldErrors;
+            next[target]=messages[0];
           }
         }
-        if (Object.keys(next).length) setFieldErrors(next);
-        else appNotice.error('Không thể lưu giao dịch.', cause.message);
-      } else {
-        appNotice.error('Không thể lưu giao dịch.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
+        if(Object.keys(next).length)setFieldErrors(next);
+        else appNotice.error('Không thể lưu giao dịch.',cause.message);
+      }else{
+        appNotice.error('Không thể lưu giao dịch.',cause instanceof Error?cause.message:'Vui lòng thử lại.');
+      }
+      // A confirmed validation/conflict response means no new financial record was
+      // committed. Clean only a still-unattached proof owned by the actor.
+      // Never discard on a timeout/unknown 5xx: the operation may have succeeded.
+      if(attemptedEvidenceId!==null && cause instanceof ChannelRequestError &&
+        [400,404,409,422].includes(cause.status)){
+        try{
+          await channelRequest(apiBase,token,`/evidence/${attemptedEvidenceId}`,{method:'DELETE'});
+          receiptAttempt.current=null;
+        }catch{
+          // A concurrent successful write may already have attached the proof.
+        }
       }
     } finally {
       setSaving(false);
@@ -303,19 +360,31 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const eligiblePeriods = [...eligibleByPeriod.entries()].filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
   const chosenPeriod = eligiblePeriods.includes(payoutPeriod) ? payoutPeriod : (eligiblePeriods[0] ?? '');
   const createPayout = async () => {
-    if (!detail || !chosenPeriod) return;
-    setSaving(true);
-    try {
-      await channelRequest(apiBase, token, '/payouts', {method:'POST',body:JSON.stringify({
-        idempotency_key: crypto.randomUUID(), organization_id: detail.data.owner_organization_id,
-        beneficiary_user_id: detail.data.owner_user_id, period: chosenPeriod,
-        contract_id: detail.data.id, withholding_amount: 0,
+    if(!detail||!chosenPeriod)return;
+    const gross=eligibleByPeriod.get(chosenPeriod)??0;
+    const withholding=parseMoneyInput(payoutWithholding);
+    if(!Number.isSafeInteger(withholding)||withholding<0||withholding>gross){
+      setPayoutError('Khấu trừ phải từ 0 đ đến tổng hoa hồng hợp lệ.');return;
+    }
+    if(withholding>0&&!payoutWithholdingReason.trim()){
+      setPayoutError('Vui lòng nêu lý do cho khoản khấu trừ.');return;
+    }
+    setPayoutError('');setSaving(true);
+    try{
+      payoutKey.current??=crypto.randomUUID();
+      await channelRequest(apiBase,token,'/payouts',{method:'POST',body:JSON.stringify({
+        idempotency_key:payoutKey.current,organization_id:detail.data.owner_organization_id,
+        beneficiary_user_id:detail.data.owner_user_id,period:chosenPeriod,
+        contract_id:detail.data.id,withholding_amount:withholding,
+        withholding_reason:withholding>0?payoutWithholdingReason.trim():null,
       })});
-      setDetailRevision(v => v+1);
-      appNotice.success('Đã lập phiếu chi hoa hồng.');
+      payoutKey.current=null;setPayoutDialogOpen(false);setDetailRevision(v=>v+1);
+      appNotice.success('Đã lập phiếu chi hoa hồng ở trạng thái Nháp.');
       await load();
-    } catch (cause) { appNotice.error('Không tạo được phiếu chi.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); }
-    finally { setSaving(false); }
+    }catch(cause){
+      const message=cause instanceof Error?cause.message:'Vui lòng thử lại.';
+      setPayoutError(message);appNotice.error('Không tạo được phiếu chi.',message);
+    }finally{setSaving(false);}
   };
   const approvePayout = async (id: number) => {
     setSaving(true);
@@ -464,7 +533,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Metric label="Giá trị hợp đồng gốc" value={channelMoney(detail.data.total_value)}/>
-          <Metric label="Thực thu" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0))}/>
+          <Metric label="Thực thu" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0)-(detail.refunded_total??0))}/>
           <Metric label="Hoa hồng ghi nhận" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
           <Metric label="Hoa hồng đã chi" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
         </div>
@@ -568,7 +637,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
-              onClick={()=>{setFieldErrors({});setAmountInput('');setEntryMode('receipt');}}><Plus className="size-4"/> Thêm khoản thu</Button>}
+              onClick={openReceipt}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[520px] text-left text-sm">
@@ -604,18 +673,18 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Hoa hồng Sales</h3>
             {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') && <Button size="sm" variant="outline" disabled={saving}
-              onClick={()=>{setFieldErrors({});setAmountInput(String(detail.payouts.find(x=>x.status==='APPROVED')?.net_amount??''));setEntryMode('payout');}}><Plus className="size-4"/> Thêm khoản chi</Button>}
-            {!detail.payouts.some(x=>x.status==='APPROVED') && canCreatePayout && <div className="flex flex-wrap items-center gap-2">
+              onClick={()=>openPayoutPayment()}><Plus className="size-4"/> Thêm khoản chi</Button>}
+            {canCreatePayout && <div className="flex flex-wrap items-center gap-2">
               {eligiblePeriods.length>0 && <select aria-label="Kỳ hoa hồng để lập phiếu chi" value={chosenPeriod}
                 onChange={event=>setPayoutPeriod(event.target.value)}
                 className="h-9 rounded-lg border border-input bg-background px-2 text-sm">
                 {eligiblePeriods.map(period=><option key={period} value={period}>Kỳ {period} · {channelMoney(eligibleByPeriod.get(period) ?? 0)}</option>)}
               </select>}
               <Button size="sm" variant="outline" disabled={saving || !chosenPeriod}
-                onClick={()=>void createPayout()}><Plus className="size-4"/> Lập phiếu chi</Button>
+                onClick={()=>{setPayoutWithholding('0');setPayoutWithholdingReason('');setPayoutError('');payoutKey.current=null;setPayoutDialogOpen(true);}}><Plus className="size-4"/> Lập phiếu chi</Button>
             </div>}
           </div>
-          {canCreatePayout && eligiblePeriods.length===0 && !detail.payouts.some(x=>x.status==='APPROVED') && <p className="text-xs text-muted-foreground">
+          {canCreatePayout && eligiblePeriods.length===0 && <p className="text-xs text-muted-foreground">
             {detail.ledger.length===0 ? (detail.receipts.length > 0 ? 'Khoản thu đã ghi nhận nhưng chưa có bút toán hoa hồng. Vui lòng kiểm tra chính sách hoa hồng áp dụng tại ngày thu.' : 'Chưa có khoản thu để phát sinh hoa hồng cho hợp đồng này.')
               : detail.ledger.every(x=>x.assigned_to_payout) ? 'Hoa hồng đã được đưa vào phiếu chi. Xem trạng thái phiếu chi bên dưới.'
               : 'Chưa có khoản hoa hồng dương đủ điều kiện lập phiếu chi cho Sales và kỳ đã chọn.'}
@@ -671,6 +740,45 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </section>
       </div>}
     </AppDrawer>
+    <AppDialog open={Boolean(detail&&payoutDialogOpen)}
+      onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open)payoutKey.current=null;}}}
+      busy={saving} title="Lập phiếu chi hoa hồng"
+      description="Xem lại người nhận, kỳ hoa hồng và số tiền trước khi tạo phiếu Nháp.">
+      {detail&&payoutDialogOpen&&<form className="space-y-4" onSubmit={event=>{event.preventDefault();void createPayout();}}>
+        <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+          <p className="text-sm text-muted-foreground">Người nhận hoa hồng</p>
+          <p className="font-semibold">{detail.data.owner_name}</p>
+          <p className="text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ {chosenPeriod}</p>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span>Hoa hồng đủ điều kiện</span>
+          <strong className="tabular-nums">{channelMoney(eligibleByPeriod.get(chosenPeriod)??0)}</strong>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="payout-withholding">Số tiền khấu trừ (VNĐ)</label>
+          <AppCurrencyInput id="payout-withholding" value={payoutWithholding}
+            onValueChange={value=>{setPayoutWithholding(value);payoutKey.current=null;setPayoutError('');}}/>
+        </div>
+        {parseMoneyInput(payoutWithholding)>0&&<div className="space-y-1">
+          <label htmlFor="payout-withholding-reason">Lý do khấu trừ *</label>
+          <Input id="payout-withholding-reason" value={payoutWithholdingReason}
+            onChange={event=>{setPayoutWithholdingReason(event.target.value);payoutKey.current=null;setPayoutError('');}}
+            maxLength={1000} required/>
+        </div>}
+        <div className="flex items-center justify-between rounded-xl bg-muted/40 p-4">
+          <span className="font-semibold">Dự kiến thực chi</span>
+          <strong className="text-lg tabular-nums">
+            {channelMoney(Math.max(0,(eligibleByPeriod.get(chosenPeriod)??0)-parseMoneyInput(payoutWithholding)))}
+          </strong>
+        </div>
+        <p className="text-xs text-muted-foreground">Phiếu mới ở trạng thái Nháp; chưa ghi nhận đã chuyển tiền. Giá trị thực tế do Backend xác nhận.</p>
+        {payoutError&&<p role="alert" className="text-sm text-destructive">{payoutError}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" disabled={saving} onClick={()=>setPayoutDialogOpen(false)}>Hủy</Button>
+          <Button type="submit" disabled={saving||!chosenPeriod}>{saving?'Đang tạo...':'Xác nhận lập phiếu'}</Button>
+        </div>
+      </form>}
+    </AppDialog>
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving)setEntryMode(null);}}
       busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
@@ -685,11 +793,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         });
       }} onSubmit={event=>void sendRecord(event)}>
         {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
-          <select name="schedule_id" required className="w-full rounded-lg border bg-background p-2">
+          <select name="schedule_id" required value={selectedScheduleId??''}
+            onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);receiptAttempt.current=null;setFieldErrors({});}}
+            className="w-full rounded-lg border bg-background p-2">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
               {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
-          </select>{fieldErrors.schedule_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.schedule_id}</span>}</label> : <label className="block space-y-1"><span>Phiếu chi đã duyệt *</span>
-          <select name="payout_id" required className="w-full rounded-lg border bg-background p-2">
+          </select>{selectedScheduleId!==null&&<p className="text-xs text-muted-foreground">
+              Còn phải thu: {channelMoney(detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_due!-(detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_received??0))}
+            </p>}{fieldErrors.schedule_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.schedule_id}</span>}</label> : <label className="block space-y-1"><span>Phiếu chi đã duyệt *</span>
+          <select name="payout_id" required value={selectedPayoutId??''}
+            onChange={e=>{
+              const id=Number(e.target.value);
+              setSelectedPayoutId(id);receiptAttempt.current=null;setFieldErrors({});
+              setAmountInput(String(detail.payouts.find(x=>x.id===id)?.net_amount??''));
+            }} className="w-full rounded-lg border bg-background p-2">
             {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
           </select>{fieldErrors.payout_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.payout_id}</span>}</label>}
         <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
@@ -712,7 +829,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
         <div className="flex flex-wrap justify-end gap-2 pt-2">
           <Button type="button" variant="outline" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</Button>
-          <Button type="submit" disabled={saving}>{saving?'Đang lưu...':'Lưu giao dịch'}</Button>
+          <Button type="submit" disabled={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</Button>
         </div>
       </form>}
     </AppDialog>

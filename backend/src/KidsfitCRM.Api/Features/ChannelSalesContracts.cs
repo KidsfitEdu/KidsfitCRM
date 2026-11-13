@@ -59,7 +59,11 @@ public sealed record RecordRevenueReceiptRequest(
 public sealed record ReconcileContractRequest(string? Reason);
 /// <summary>Explicit, individually approved financial reconciliation for a legacy receipt.</summary>
 public sealed record ConfirmReceiptCommissionBackfillRequest(bool Confirm, string? Reason, bool ManagerVerified = false);
-public sealed record CreatePayoutRequest(string? IdempotencyKey, long OrganizationId, long BeneficiaryUserId, string? Period, decimal WithholdingAmount, string? WithholdingReason, long? ContractId = null, string? BeneficiaryRole = "SALES");
+public sealed record CreatePayoutRequest(string? IdempotencyKey, long OrganizationId, long BeneficiaryUserId, string? Period, decimal WithholdingAmount, string? WithholdingReason, long? ContractId = null, string? BeneficiaryRole = "SALES",
+    decimal? RequestedRatePercent = null, decimal? RequestedAmount = null, string? AdjustmentReason = null);
+public sealed record UpdatePayoutDraftRequest(decimal RequestedRatePercent, decimal RequestedAmount,
+    string? AdjustmentReason, decimal WithholdingAmount = 0, string? WithholdingReason = null);
+public sealed record ReturnPayoutRequest(string? Reason);
 public sealed record CompletePayoutRequest(string? PaymentReference, string? Reason, long? EvidenceId = null, DateTime? PaidAt = null, decimal? Amount = null);
 public sealed record CreateSalesAccountRequest(long OrganizationId, string? Name, string? Email, string? Password, string? RoleCode, long? ManagerUserId = null);
 public sealed record ChangeMembershipStatusRequest(string? Status, string? Reason = null, string? Summary = null, string? IdempotencyKey = null);

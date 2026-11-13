@@ -217,7 +217,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         Assert.True(board.GetProperty("total").GetInt32() >= 3);
         Assert.Contains(board.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("display_name").GetString() == "PARTNER TEAM");
-        var scopedBoard = await ForBoard(partnerOrg);
+        var scopedBoard = await ForBoard(partnerOrg, partnerSales);
         Assert.Single(scopedBoard.GetProperty("data").EnumerateArray());
         Assert.Equal("PARTNER TEAM", scopedBoard.GetProperty("data")[0].GetProperty("display_name").GetString());
         var teamA = await ForManager(managerA);

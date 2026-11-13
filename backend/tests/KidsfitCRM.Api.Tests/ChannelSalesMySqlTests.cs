@@ -628,7 +628,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var correction = new AdjustCommissionRequest(Key(), -10_000m, original.Period, "Điều chỉnh theo chứng từ");
         var id = await actions.AdjustCommission(original.Id, correction, accountant, Http(), Ct);
         Assert.Equal(id, await actions.AdjustCommission(original.Id, correction, accountant, Http(), Ct));
-        await Assert.ThrowsAsync<ApiValidationException>(() => actions.AdjustCommission(original.Id, correction with { IdempotencyKey = Key(), Amount = -50_000m }, accountant, Http(), Ct));
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.AdjustCommission(original.Id, correction with { IdempotencyKey = Key(), Amount = -150_000m }, accountant, Http(), Ct));
         Assert.Equal(125_000m, original.Amount);
         Assert.Equal(115_000m, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount));
         Assert.Equal(2, await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId));

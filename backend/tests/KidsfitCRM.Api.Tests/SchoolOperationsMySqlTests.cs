@@ -1713,7 +1713,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var unsigned = await a.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct);
         await a.RecordRevenueReceipt(contractId, new(Key(), null, 1_000_000, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
-        var ledgerBefore = await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync();
+        var ledgerBefore = await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync();
         var request = new CompleteSchoolHandoverRequest(Key(), "Ngưng hợp tác", "Đã bàn giao lịch demo và các cam kết; hồ sơ hợp đồng giữ nguyên.", false);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.CompleteSchoolHandover(s.Seller.MembershipId, request with { SuspendAccount = true }, s.Manager.UserId, Http(), Ct));
         Assert.Equal("ACTIVE", await db.ApproachRegistrations.Where(x => x.Id == unsigned).Select(x => x.Status).SingleAsync());
@@ -1722,7 +1722,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(1, (await db.SchoolHandovers.FindAsync(id))!.RevokedRegistrations);
         Assert.Equal("REVOKED", await db.ApproachRegistrations.Where(x => x.Id == unsigned).Select(x => x.Status).SingleAsync());
         Assert.True(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE"));
-        Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync());
+        Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync());
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct));
         var payout = await a.CreatePayout(new(Key(), s.OrgId, s.Seller.UserId, ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow), 0, null), admin, Http(), Ct);
         await a.ApprovePayout(payout, admin, Http(), Ct);
@@ -1781,7 +1781,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var actions = new ChannelSalesActions(db);
         await actions.RecordRevenueReceipt(contract, new(Key(), null, 500_000m, null,
             "RC-" + Key(), "BANK_TRANSFER"), admin, Http(admin), Ct);
-        var before = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract)
+        var before = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract && x.BeneficiaryRole == "SALES")
             .Select(x => new { x.BeneficiaryUserId, x.RatePercent, x.Amount }).SingleAsync(Ct);
         await actions.CompleteSchoolHandover(s.Seller.MembershipId,
             new(Key(), "Nghỉ việc", "Tiếp tục đối soát hợp đồng", false),
@@ -1789,7 +1789,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var access = await ChannelSalesAccess.Load(db, s.Manager.UserId, Ct);
         Assert.True(await access.Contracts(db).AnyAsync(x => x.Id == contract, Ct));
         Assert.True(await access.Commissions(db).AnyAsync(x => x.ContractId == contract, Ct));
-        var after = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract)
+        var after = await db.CommissionLedgerEntries.Where(x => x.ContractId == contract && x.BeneficiaryRole == "SALES")
             .Select(x => new { x.BeneficiaryUserId, x.RatePercent, x.Amount }).SingleAsync(Ct);
         Assert.Equal(before, after);
         Assert.Equal(s.Seller.UserId, after.BeneficiaryUserId);
@@ -1935,7 +1935,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Single(await Task.WhenAll(Refund(), Refund()), x => x.HasValue);
         await using var check = fixture.Open(); var a = new ChannelSalesActions(check);
         Assert.Equal(1_000_000, await check.RevenueReceipts.Where(x => x.Id == receipt).Select(x => x.Amount).SingleAsync());
-        Assert.Equal(100_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).Select(x => x.Amount).SingleAsync());
+        Assert.Equal(250_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES")
+            .Select(x => x.Amount).SingleAsync());
+        Assert.Equal(50_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "MANAGER")
+            .Select(x => x.Amount).SingleAsync());
         // Aggregate organizational receipts are available to the authorized finance Admin, not a Sales-only view.
         var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), check, null, Ct));
         // The dashboard is organization-scoped, so its aggregate must match the complete
@@ -1964,7 +1967,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal("CANCELLED", await check.SalesContracts.Where(x => x.Id == contractId).Select(x => x.Status).SingleAsync());
         Assert.False(await check.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE"));
         Assert.Single(await check.RevenueRefunds.Where(x => x.ContractId == contractId).ToArrayAsync());
-        Assert.Single(await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).ToArrayAsync());
+        Assert.Equal(2, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).CountAsync());
+        Assert.Contains(await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).ToArrayAsync(),
+            entry => entry.BeneficiaryRole == "MANAGER");
     }
 
     [MySqlFact] public async Task DisputeDecisionCannotTakeCurrentOwnersRightsOrCreateOldOwnersCommission()
@@ -2079,7 +2084,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var id = await a.RecordRevenueRefund(receipt, request, admin, Http(), Ct);
         Assert.Equal(id, await a.RecordRevenueRefund(receipt, request, admin, Http(), Ct));
         Assert.Equal(600_000, await db.RevenueSchedules.Where(x => x.ContractId == contract).Select(x => x.AmountReceived).SingleAsync());
-        Assert.Equal(100_000, await db.CommissionLedgerEntries.Where(x => x.ContractId == contract).Select(x => x.Amount).SingleAsync());
+        Assert.Equal(250_000, await db.CommissionLedgerEntries.Where(x => x.ContractId == contract && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync());
     }
 
     [MySqlFact] public async Task SalesCommissionKeepsBeneficiaryAfterMembershipTypeChanges()

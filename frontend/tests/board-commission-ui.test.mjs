@@ -95,3 +95,16 @@ test('manager form loads existing scoped override, reset inheritance and new man
   assert.deepEqual(resolveManagerCommissionForm(versions,defaults,1,30),{salesPercent:'25',managerPercent:'5',expectedVersionId:12});
   assert.deepEqual(resolveManagerCommissionForm(versions,defaults,1,40),{salesPercent:'25',managerPercent:'5',expectedVersionId:null});
 });
+
+test('Sales filter displays only names while retaining record IDs and table emails',()=>{
+  assert.match(page,/options=\{\[\{value:'ALL',label:'Tất cả Sales'\},\.\.\.filteredSales\.map\(s=>\(\{value:String\(s\.userId\),label:s\.name\}\)\)\]\}/);
+  assert.doesNotMatch(page,/label:s\.name\+' · '\+s\.email/);
+  assert.match(page,/\{p\.email\|\|'Chưa có email'\}/);
+});
+
+test('Sales table hides record-range summary but retains page size and navigation',()=>{
+  assert.match(page,/<AppPagination page=\{page\} pageSize=\{pageSize\} total=\{visible\.length\} showSummary=\{false\}/);
+  assert.match(page,/pageSizeOptions=\{\[10,20,50\]\}/);
+  assert.match(page,/onPageChange=\{setPage\}/);
+  assert.match(page,/onPageSizeChange=\{n=>\{setPageSize\(n\);setPage\(1\);\}\}/);
+});

@@ -240,7 +240,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
             options={[{value:'ALL',label:'Tất cả Quản lý'},...filteredManagers.map(m=>({value:String(m.id),label:m.name}))]}
             onValueChange={v=>{setManager(v);setSales('ALL');setPage(1);}}/>
           <AppSelect ariaLabel="Lọc Sales" className="w-full sm:w-44" value={sales}
-            options={[{value:'ALL',label:'Tất cả Sales'},...filteredSales.map(s=>({value:String(s.userId),label:s.name+' · '+s.email}))]}
+            options={[{value:'ALL',label:'Tất cả Sales'},...filteredSales.map(s=>({value:String(s.userId),label:s.name}))]}
             onValueChange={v=>{setSales(v);setPage(1);}}/>
         </div>}/>
       <div className="overflow-x-auto">
@@ -281,7 +281,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
         {loading&&<p className="p-6 text-center text-sm text-muted-foreground">Đang tải danh sách nhân sự...</p>}
         {!loading&&pageRows.length===0&&<p className="p-6 text-center text-sm text-muted-foreground">Không có Sales phù hợp.</p>}
       </div>
-      <AppPagination page={page} pageSize={pageSize} total={visible.length} onPageChange={setPage}
+      <AppPagination page={page} pageSize={pageSize} total={visible.length} showSummary={false} onPageChange={setPage}
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} disabled={loading}/>
     </AdminListPanel>
 

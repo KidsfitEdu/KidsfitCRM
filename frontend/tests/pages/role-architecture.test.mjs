@@ -16,7 +16,7 @@ const profileSections = {
   Checkee: ['Dashboard','Verification','Support'],
 };
 
-test('All 33 canonical role pages exist and are compiled from src/screens', () => {
+test('All 34 canonical role pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
@@ -29,14 +29,14 @@ test('All 33 canonical role pages exist and are compiled from src/screens', () =
       total += 1;
     }
   }
-  assert.equal(total, 33);
+  assert.equal(total, 34);
 });
 
 test('Active navigation targets match role page registry and preserve aliases', () => {
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
-  assert.equal(known.length, 41, 'Expected 41 active role navigation entries');
+  assert.equal(known.length, 42, 'Expected 42 registered navigation entries including aliases');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;

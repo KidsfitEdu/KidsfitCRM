@@ -40,10 +40,6 @@ import {
   type SchoolOperationsWorkspace,
   type SchoolOperationsReport,
 } from '@/lib/school-operations';
-import {
-  schoolOperationsPreview,
-  schoolOperationsReportPreview,
-} from '@/lib/school-operations-preview';
 import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-editor';
@@ -117,9 +113,8 @@ export function SchoolOperations({
     name: string;
   } | null>(null);
   const client = useQueryClient();
-  const preview = !apiBase;
   const has = (code: string) => abilities.includes(code);
-  const can = (code: string) => !preview && has(code);
+  const can = (code: string) => has(code);
   const all = has('channel_sales.scope.all');
   const sales = has('channel_sales.approach.register');
   const manager = has('channel_sales.school.allocation.manage');
@@ -136,9 +131,7 @@ export function SchoolOperations({
   const workspace = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-operations', page, searchTerm, proposalStatus, embeddedSalesTable ? salesPageSize : 100, embeddedSalesTable && tab === 'invitations' && pendingOnly],
     queryFn: () =>
-      preview
-        ? Promise.resolve(schoolOperationsPreview(abilities))
-        : api<SchoolOperationsWorkspace>(
+      api<SchoolOperationsWorkspace>(
             '/school-operations?page=' +
               page +
               (embeddedSalesTable ? '&page_size=' + salesPageSize : '') +
@@ -147,8 +140,8 @@ export function SchoolOperations({
               encodeURIComponent(searchTerm) +
               (proposalStatus === 'ALL' ? '' : '&status=' + encodeURIComponent(proposalStatus)),
           ),
-    enabled: preview || !!token,
-    refetchInterval: preview ? false : 30000,
+    enabled: !!token,
+    refetchInterval: 30000,
     placeholderData: (previous) => previous,
   });
   const tabs = [
@@ -205,12 +198,10 @@ export function SchoolOperations({
   const report = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-operation-report', period],
     queryFn: () =>
-      preview
-        ? Promise.resolve(schoolOperationsReportPreview())
-        : api<SchoolOperationsReport>(
+      api<SchoolOperationsReport>(
             '/school-operations/report?period=' + period,
           ),
-    enabled: reportAccess && active === 'report' && (preview || !!token),
+    enabled: reportAccess && active === 'report' && (!!token),
   });
   const proposalDetail = useQuery({
     queryKey: [...channelQueryKeys.all, 'proposal-units', selectedProposal?.id],
@@ -220,13 +211,13 @@ export function SchoolOperations({
         contact_name:string|null;contact_position:string|null;contact_phone:string|null;
         school_phone:string|null;email:string|null;note:string|null}[]
     }}>(`/school-proposals/${selectedProposal!.id}/draft-detail`),
-    enabled: !preview && selectedProposal !== null && !!selectedProposal.proposal_mode
+    enabled: selectedProposal !== null && !!selectedProposal.proposal_mode
       && selectedProposal.proposal_mode !== 'LEGACY',
   });
   // Reuse the same read-only school profile as "Trường của tôi" and the directory.
   // Legacy proposals have no child-unit records; their original fields are the fallback.
   const proposalProfileUnits: SchoolProfileUnit[] = selectedProposal
-    ? selectedProposal.proposal_mode && selectedProposal.proposal_mode !== 'LEGACY' && !preview
+    ? selectedProposal.proposal_mode && selectedProposal.proposal_mode !== 'LEGACY'
       ? [
           ...(proposalDetail.data?.data.target
             ? [{
@@ -274,15 +265,14 @@ export function SchoolOperations({
       }>(
         '/school-operations/' + history!.kind + '/' + history!.id + '/history',
       ),
-    enabled: !preview && history !== null,
+    enabled: history !== null,
   });
   const save = async (command: {
     path: string;
     method?: string;
     body: Record<string, unknown>;
   }) => {
-    if (preview) throw new Error('Thao tác ghi nhận dùng bản CRM của tổ chức.');
-    await api(command.path, {
+        await api(command.path, {
       method: command.method ?? 'POST',
       body: JSON.stringify(command.body),
     });
@@ -296,20 +286,9 @@ export function SchoolOperations({
       appNotice.warning('Đã lưu, nhưng chưa tải lại được danh sách.', 'Vui lòng làm mới trang để xem dữ liệu mới nhất.');
   };
   const data = workspace.data;
-  const matches = (...values: (string | null)[]) => {
-    if (!preview) return true;
-    const normalize = (v: string) =>
-      v
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd')
-        .toLocaleLowerCase('vi');
-    return normalize(values.filter(Boolean).join(' ')).includes(
-      normalize(search),
-    );
-  };
+  const matches = (..._values: (string | null)[]) => true;
   const historyButton = (kind: string, id: number, name: string) =>
-    !preview && (
+    (
       <Button
         variant={embeddedSalesTable ? 'outline' : 'ghost'}
         size={embeddedSalesTable ? 'icon' : 'sm'}
@@ -531,12 +510,6 @@ export function SchoolOperations({
           <Button onClick={openProposal}><Plus className="size-4"/> Đề xuất trường</Button>
         </div>
       )}
-      {preview && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          Các tình huống dưới đây dùng dữ liệu minh họa, chỉ đọc. Để ghi nhận hồ
-          sơ và bảo vệ quyền, dùng bản CRM của tổ chức.
-        </p>
-      )}
       {!hideTabs && <nav
         aria-label="Nhóm công việc vận hành"
         className="flex gap-1 overflow-x-auto rounded-2xl border bg-card p-1.5"
@@ -607,7 +580,7 @@ export function SchoolOperations({
       )}
       {embeddedSalesTable && active === 'invitations' && <SalesInvitationList
         invitations={data.invitations} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isPending} preview={preview} pendingOnly={pendingOnly}
+        loading={workspace.isPending} pendingOnly={pendingOnly}
         onPageChange={setPage}
         onPageSizeChange={size => { setSalesPageSize(size); setPage(1); }}
         onSearch={term => {setSearch(term);setPage(1);}}
@@ -627,7 +600,7 @@ export function SchoolOperations({
       />}
       {embeddedSalesTable && active === 'proposals' && <SalesProposalTable
         proposals={data.proposals} page={page} total={total} pageSize={pageSize}
-        loading={workspace.isPending} preview={preview}
+        loading={workspace.isPending}
         onPageChange={setPage} onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}
         onSearch={term => {setSearch(term);setPage(1);}}
         onStatusChange={value=>{setProposalStatus(value);setPage(1);}}
@@ -670,7 +643,7 @@ export function SchoolOperations({
                   <p className="rounded-lg bg-muted p-3">{x.decision_reason}</p>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  {x.can_manager_review && !preview && (
+                  {x.can_manager_review && (
                     <>
                       <Button
                         size="sm"
@@ -711,7 +684,7 @@ export function SchoolOperations({
                       </Button>
                     </>
                   )}
-                  {x.can_admin_review && !preview && (
+                  {x.can_admin_review && (
                     <>
                       <Button
                         size="sm"
@@ -761,7 +734,7 @@ export function SchoolOperations({
                       </Button>
                     </>
                   )}
-                  {x.can_edit_draft && !preview && <>
+                  {x.can_edit_draft && <>
                     <AppButton size="sm" tone="outline" onClick={() => editProposalDraft(x)}>Sửa</AppButton>
                     <AppButton size="sm" tone="outline" onClick={() => {setDraftError('');setDraftDecision({kind:'delete',proposal:x});}}>Xóa nháp</AppButton>
                     <AppButton size="sm" onClick={() => {setDraftError('');setDraftDecision({kind:'submit',proposal:x});}}>Gửi phê duyệt</AppButton>
@@ -794,7 +767,7 @@ export function SchoolOperations({
                     </p>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    {x.can_respond && !preview && (
+                    {x.can_respond && (
                       <>
                         <Button
                           size={embeddedSalesTable ? 'icon' : 'sm'}
@@ -835,7 +808,7 @@ export function SchoolOperations({
                         </Button>
                       </>
                     )}
-                    {x.can_cancel && !preview && (
+                    {x.can_cancel && (
                       <Button
                         size={embeddedSalesTable ? 'icon' : 'sm'}
                         variant="outline"
@@ -879,7 +852,7 @@ export function SchoolOperations({
                   <p className="text-xs text-muted-foreground">
                     Lịch rà soát không giữ quyền tiếp cận.
                   </p>
-                  {x.can_complete && !preview && (
+                  {x.can_complete && (
                     <Button
                       size={embeddedSalesTable ? 'icon' : 'sm'}
                       variant="outline"
@@ -944,7 +917,7 @@ export function SchoolOperations({
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  {x.can_review && !preview && (
+                  {x.can_review && (
                     <>
                       {!x.is_expired && (
                         <Button
@@ -1023,7 +996,7 @@ export function SchoolOperations({
                 )}
                 {x.decision_reason && <p>{x.decision_reason}</p>}
                 <div className="flex gap-2">
-                  {x.can_resolve && !preview && (
+                  {x.can_resolve && (
                     <Button
                       size="sm"
                       onClick={() =>
@@ -1129,7 +1102,7 @@ export function SchoolOperations({
                     </p>
                   )}
                   <div className="flex gap-2">
-                    {x.can_update && !preview && (
+                    {x.can_update && (
                       <Button
                         size="sm"
                         onClick={() =>
@@ -1193,7 +1166,7 @@ export function SchoolOperations({
                         '. Có thể bàn giao khi thay nhân sự.'
                       : 'Chưa phân công người chăm sóc.'}
                   </p>
-                  {!preview && (
+                  {(
                     <Button
                       size="sm"
                       variant="outline"
@@ -1268,7 +1241,7 @@ export function SchoolOperations({
                       ? 'Thu hồi quyền chưa ký khi ngưng hoạt động; giữ hợp đồng và hoa hồng hợp lệ.'
                       : 'Khôi phục truy cập không khôi phục các quyền tiếp cận đã thu hồi.'}
                   </p>
-                  {!preview && m.status === 'ACTIVE' && (
+                  {m.status === 'ACTIVE' && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1306,7 +1279,7 @@ export function SchoolOperations({
                       Bàn giao nhân sự
                     </Button>
                   )}
-                  {!preview && m.can_reactivate && (
+                  {m.can_reactivate && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1373,7 +1346,7 @@ export function SchoolOperations({
                   subtitle={c.contract_code}
                   status={c.status}
                 >
-                  {c.can_cancel && !preview && (
+                  {c.can_cancel && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1560,12 +1533,12 @@ export function SchoolOperations({
         </div>
       )}
       {!(embeddedSalesTable && (active === 'proposals' || active === 'invitations')) &&
-        (preview ? embeddedSalesTable : !!data.pagination) &&
+        (!!data.pagination) &&
         active !== 'report' &&
         active !== 'policies' && (
           embeddedSalesTable
-            ? <AppPagination page={preview ? 1 : page} pageSize={pageSize} total={preview ? visibleCounts[active] : total}
-                itemLabel="hồ sơ" showSummary={false} fixedPageSize disabled={preview || workspace.isFetching}
+            ? <AppPagination page={page} pageSize={pageSize} total={total}
+                itemLabel="hồ sơ" showSummary={false} fixedPageSize disabled={workspace.isFetching}
                 onPageChange={setPage}/>
             : <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
                 <p className="text-xs text-muted-foreground">
@@ -1683,13 +1656,13 @@ export function SchoolOperations({
         wide
       >
         {selectedProposal && <div className="space-y-5">
-          {proposalDetail.isPending && selectedProposal.proposal_mode !== 'LEGACY' && !preview &&
+          {proposalDetail.isPending && selectedProposal.proposal_mode !== 'LEGACY' &&
             <p className="text-sm text-muted-foreground">Đang tải thông tin trường chính và phân hiệu...</p>}
           {proposalDetail.isError && <p role="alert" className="text-sm text-destructive">
             Không tải được thông tin trường chính và phân hiệu. Vui lòng thử lại.
           </p>}
           {(!selectedProposal.proposal_mode || selectedProposal.proposal_mode === 'LEGACY'
-            || preview || proposalDetail.isSuccess) &&
+            || proposalDetail.isSuccess) &&
             <SchoolProfileDetails units={proposalProfileUnits}/>}
           <section className="space-y-2 border-t pt-4 text-sm">
             <h3 className="font-semibold">Thông tin đề xuất</h3>

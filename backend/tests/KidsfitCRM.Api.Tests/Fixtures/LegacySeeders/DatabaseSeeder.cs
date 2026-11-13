@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using KidsfitCRM.Api.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -278,24 +280,7 @@ public static class DatabaseSeeder
         await EnsureMembership(partner, partnerUser, "SALES_MANAGER", true);
         await EnsureMembership(partner, collaborator, "COLLABORATOR", true, partnerUser.Id);
 
-        var packageSeeds = new (string Code, string Name, string Description, decimal Price)[]
-        {
-            ("CHECKEE_START", "CHECKEE Start", "Gói khởi động cho đơn vị quy mô nhỏ", 12_000_000m),
-            ("CHECKEE_GROWTH", "CHECKEE Growth", "Gói vận hành và mở rộng đội ngũ", 30_000_000m),
-            ("CHECKEE_ENTERPRISE", "CHECKEE Enterprise", "Gói tùy chỉnh cho chuỗi và doanh nghiệp", 60_000_000m),
-        };
-        var packageCodes = await db.CheckeeProductPackages.Select(x => x.Code).ToArrayAsync();
-        db.CheckeeProductPackages.AddRange(packageSeeds.Where(x => !packageCodes.Contains(x.Code)).Select(x => new CheckeeProductPackage
-        {
-            Code = x.Code,
-            Name = x.Name,
-            Description = x.Description,
-            ListPrice = x.Price,
-            Status = "ACTIVE",
-            CreatedAt = now,
-            UpdatedAt = now,
-        }));
-        await db.SaveChangesAsync();
+        // CHECKEE catalog removed: test contracts use their signed fee details.
 
         // BGĐ policy is authoritative. Synthetic fixtures use system fallback 25/5.
         // Legacy synthetic customers are excluded when a cohesive 10-school review is selected.
@@ -344,7 +329,6 @@ public static class DatabaseSeeder
 
         if (!await db.ChannelCustomers.AnyAsync(x => x.Code == "CUS-DEMO-CONTRACT"))
         {
-            var package = await db.CheckeeProductPackages.SingleAsync(x => x.Code == "CHECKEE_GROWTH");
             var customer = new ChannelCustomer
             {
                 Code = "CUS-DEMO-CONTRACT", CustomerType = "ORGANIZATION", DisplayName = "Trường Mầm non Happy House",
@@ -374,7 +358,7 @@ public static class DatabaseSeeder
             };
             db.SalesContracts.Add(contract);
             await db.SaveChangesAsync();
-            db.SalesContractItems.Add(new SalesContractItem { ContractId = contract.Id, ProductPackageId = package.Id, Description = package.Name, Quantity = 1, UnitPrice = 30_000_000m, Amount = 30_000_000m, CreatedAt = contract.CreatedAt, UpdatedAt = now });
+            db.SalesContractItems.Add(new SalesContractItem { ContractId = contract.Id, Description = "Phí dịch vụ theo hợp đồng", Quantity = 1, UnitPrice = 30_000_000m, Amount = 30_000_000m, CreatedAt = contract.CreatedAt, UpdatedAt = now });
             db.CustomerProtections.Add(new CustomerProtection { CustomerId = customer.Id, OwnerUserId = sales.Id, OwnerOrganizationId = kidsfit.Id, ContractId = contract.Id, SourceType = "CONTRACT", Status = "ACTIVE", EffectiveFrom = protectionStart, EffectiveUntil = protectionStart.AddYears(5), CreatedAt = contract.CreatedAt, UpdatedAt = now });
             var schedule = new RevenueSchedule { ContractId = contract.Id, AmountDue = 30_000_000m, AmountReceived = 15_000_000m, DueOn = signedOn.AddDays(30), Status = "PARTIAL", CreatedAt = contract.CreatedAt, UpdatedAt = now };
             db.RevenueSchedules.Add(schedule);

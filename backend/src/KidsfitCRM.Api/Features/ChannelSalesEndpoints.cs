@@ -48,7 +48,6 @@ public static class ChannelSalesEndpoints
         channel.MapGet("/evidence/{id:long}", FinancialEvidenceEndpoints.Download).RequireAuthorization(Permissions.ChannelSalesView);
         ManagerProgressEndpoints.MapManagerProgress(channel);
         channel.MapGet("/workspace", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
-        channel.MapGet("/customers/search", Workspace).RequireAuthorization(Permissions.ChannelSalesView);
         channel.MapPost("/approach-registrations", async (RegisterApproachRequest request, HttpContext http, ChannelSalesActions actions, CancellationToken cancellationToken) =>
         {
             var id = await actions.RegisterCustomerApproach(request, http.UserId(), http, cancellationToken);
@@ -200,8 +199,6 @@ public static class ChannelSalesEndpoints
             collected_revenue = data.Sum(x => x.CollectedRevenue),
             commission_accrued = data.Sum(x => x.CommissionAccrued),
         };
-        var packages = await db.CheckeeProductPackages.AsNoTracking().Where(x => x.Status == "ACTIVE")
-            .OrderBy(x => x.ListPrice).Select(x => new { x.Id, x.Code, x.Name, x.Description, x.ListPrice }).ToListAsync(cancellationToken);
         var pendingReconciliations = await db.ReconciliationCases.AsNoTracking()
             .Where(x => visibleContractIds.Contains(x.ContractId) && (x.Status == "PENDING" || x.Status == "DISPUTED" || x.Status == "REVIEW_REQUIRED"))
             .OrderByDescending(x => x.OpenedAt)
@@ -211,7 +208,6 @@ public static class ChannelSalesEndpoints
         {
             data,
             metrics,
-            packages,
             pending_reconciliations = pendingReconciliations,
             server_time = now,
             capabilities = new { view_revenue = canSeeRevenue, view_commission = canSeeCommission }

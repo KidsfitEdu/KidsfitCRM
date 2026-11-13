@@ -134,8 +134,6 @@ internal static class CrmScenarioSeeder
         long checkeeOrganizationId, long managerId, long salesId, DateTime now)
     {
         // Synthetic-only data. Never copy imported school contacts or production documents into demo seed.
-        var package = await db.CheckeeProductPackages.Where(x => x.Status == "ACTIVE")
-            .OrderBy(x => x.Id).FirstAsync();
         var checkeeUserId = await db.Users.Where(u => u.Code == "CHECKEE001").Select(u => u.Id).SingleAsync();
         var scenarios = new[]
         {
@@ -208,7 +206,7 @@ internal static class CrmScenarioSeeder
             }
             if (!await db.SalesContractItems.AnyAsync(x => x.ContractId == contract.Id))
                 db.SalesContractItems.Add(new SalesContractItem { ContractId = contract.Id,
-                    ProductPackageId = package.Id, Description = package.Name, Quantity = 1,
+                    Description = "Phí dịch vụ theo hợp đồng", Quantity = 1,
                     UnitPrice = contract.TotalValue, Amount = contract.TotalValue, CreatedAt = now, UpdatedAt = now });
             if (!await db.RevenueSchedules.AnyAsync(x => x.ContractId == contract.Id))
                 db.RevenueSchedules.Add(new RevenueSchedule { ContractId = contract.Id,

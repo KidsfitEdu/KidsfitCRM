@@ -1,59 +1,33 @@
-# KidsfitCRM — live source map and safety notes
+# KIDSFIT CRM — Current source map (Real API Only)
 
-**Baseline:** `develop` commit `8a14a9436a24a6edadbccaf7c04f43b7508af1c0`, static read 2026-10-30. **Refresh from checkout HEAD before each coding phase.** This map is accurate to source paths at inspection time; it does not assert feature completeness.
+Feature branch: `refactor/cleanup-legacy-crm-20261113` · PR #128. Verify the final HEAD when using this map after merge.
 
-## Application layout
+| Layer | Canonical source | Runtime behavior |
+|---|---|---|
+| Backend | `backend/src/KidsfitCRM.Api/Program.cs` | ASP.NET Core .NET 10, JWT/RBAC, EF migration startup |
+| Database / migrations | `backend/src/KidsfitCRM.Api/Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | MySQL 8.4; new `RemoveLegacyCheckeePackages` migration retires catalog and product_package_id |
+| Initial system data | `backend/src/KidsfitCRM.Api/Infrastructure/InitialCrmSeeder.cs` | Explicit Development-only `--migrate --seed-initial` bootstrap with opt-in flags |
+| Tests / synthetic fixtures | `backend/tests/KidsfitCRM.Api.Tests/`, `Fixtures/LegacySeeders/` | Only disposable test MySQL; not linked to production API bootstrap |
+| Production frontend entrypoint | `frontend/src/app/page.tsx` → `src/components/crm/crm-app.tsx` | Single real API login and runtime; `NEXT_PUBLIC_API_URL` required |
+| Deep-link routing | `frontend/src/app/crm/[view]/page.tsx`, `src/config/routes.ts` | Canonical routes retain appropriate legacy aliases |
+| Role screens | `frontend/src/screens/{Admin,SalesManager,SalesStaff,Board,Accounting,CustomerCare,Checkee,Auth}/` | Seven business roles; Sales employees and CTV share SalesStaff UI |
+| API/UI services | `frontend/src/services/`, `frontend/src/lib/channel-operations.ts` | JWT-authorized Backend calls; no mock response fallback |
+| School operations | `frontend/src/components/crm/school-directory.tsx`, `school-operations.tsx`, `src/components/roles/ManagerWorklists.tsx` | Server data; real Excel import *preview and commit* remains supported |
+| Shared UI and styles | `frontend/src/components/common/`, `components/layout/`, `src/app/globals.css` | Unified common UI; no demo entrypoint |
+| Frontend validation | `frontend/tests/`, `.github/workflows/frontend-refactor.yml` | Unit, route tests, lint, TS, build, Windows route checks; real API only boundary assertions |
 
-| Area | Current location | Notes |
-| --- | --- | --- |
-| API startup/config | `backend/src/KidsfitCRM.Api/Program.cs` | JWT, authorization, DI; `--migrate` flag and optional `--seed-demo` |
-| Web API actions/endpoints | `backend/src/KidsfitCRM.Api/Features/` | Modular monolith; school actions already exist |
-| Domain entities | `backend/src/KidsfitCRM.Api/Domain/` | ChannelSales and education-center contexts coexist |
-| EF Core DbContext/config | `backend/src/KidsfitCRM.Api/Infrastructure/KidsfitDbContext.cs`, `SchoolModelConfiguration.cs`, `SchoolOperationsModelConfiguration.cs` | MySQL 8.4, EF Core 10; inspect schema before changes |
-| Applied migration sources | `backend/src/KidsfitCRM.Api/Infrastructure/Migrations/` | Never modify/delete already-applied migration files |
-| Seed/demo fixtures | `backend/src/KidsfitCRM.Api/Infrastructure/DatabaseSeeder.cs`, `CrmScenarioSeeder.cs` | Synthetic data only in disposable local/demo DB |
-| Backend tests | `backend/tests/KidsfitCRM.Api.Tests/`, `backend/test-mysql.ps1`, `backend/KidsfitCRM.slnx` | Tests with isolated MySQL instance |
-| Vinext routes | `frontend/src/app/` (not `frontend/app/`) | `src/app/crm/[view]/page.tsx` |
-| UI role screens | `frontend/src/screens/{Admin,SalesManager,SalesStaff,Collaborator,Checkee,Board,Accounting,CustomerCare,Auth}/` | Seven business roles but legacy page groups remain until reviewed migration |
-| UI shell/nav | `frontend/src/components/crm/crm-app.tsx`, `frontend/src/components/layout/{AppShell,Header,Sidebar}.tsx` | Preserve session and deep-link handling |
-| Reusable components | `frontend/src/components/common/`, `frontend/src/components/ui/` | Reuse before adding duplicates |
-| Page registry/routing | `frontend/src/config/navigation.ts`, `role-pages.ts`, `routes.ts` | View IDs and UI page groups are not database roles |
-| API transport | `frontend/src/services/api.client.ts` + domain services | Keep JWT/error contract |
-| Theme/tokens | `frontend/src/app/globals.css` | Tailwind CSS 4, KIDSFIT palette, dark mode |
-| Frontend tests | `frontend/tests/` and `.github/workflows/frontend-refactor.yml` | Includes demo, pages, CI browser smoke |
+## Retired artifacts
 
-## Backend business hotspots
+`frontend/demo/`, `frontend/vite.pages.config.ts`, `frontend/src/lib/demo-auth.ts`, `frontend/src/components/crm/demo-access.tsx`, demo-mode environment switch, static GitHub Pages demo workflow, public fake accounts and web fixture fallbacks have been deleted. Do not restore them as substitutes for unavailable Backend data.
 
-- Proposal chain: `Features/SchoolProposalActions.cs` (Sales → assigned manager → Admin; proposal revisions).
-- Capacity: `Features/SchoolActions.cs` (`IsCollaborator`, `CheckSchoolCapacity`, `ChangeSchoolCapacity`): currently restricts only collaborators; target all Sales.
-- Allocation/extension: `Features/SchoolAllocationActions.cs` (`InviteSchoolCollaborator`, `RespondSchoolInvitation`, `RequestSchoolExtension`, `ReviewSchoolExtension`).
-- Contracts/protection: `Features/SchoolActions.cs` (`ReviewSchoolContract`, `GrantSchoolProtection`) and `Features/SchoolEndpoints.cs`; CHECKEE reconciliation handlers in `Features/ChannelSales*`.
-- Role permissions and seed: `Infrastructure/DatabaseSeeder.cs`, `Features/ChannelSalesAccess.cs`, `Features/AuthFeatures.cs`.
-- Account, commission and payout: `Features/ChannelSalesFinanceActions.cs`, `SchoolFinanceActions.cs`, `SchoolCareActions.cs`, `Infrastructure/KidsfitDbContext.cs`.
+## Runtime safety
 
-## Frontend current paths — avoid old locations
+- If `NEXT_PUBLIC_API_URL` is absent, show configuration error. For failed Backend requests, show error/retry, never fake data.
+- Keep audit, signed contract fees, historical receipts, commissions, payouts and protection history unchanged.
+- On a non-disposable DB, back up and audit legacy CHECKEE catalog data before applying migration `20261113230000_RemoveLegacyCheckeePackages`; no production DB was changed by this PR.
+- `start-local.ps1` provisions an isolated local MySQL server on port 3307 for development. **Review its development-only credentials** before use. It runs migrations without demo seeding.
+- `compose.yaml` runs an API migration job with `Seed__DemoEnabled=false` (legacy compatibility setting, no functional demo seeder in production).
+- Tests may generate isolated synthetic fixtures to exercise operations, but do not seed them into live CRM.
+- Historical migration files must not be edited after application.
 
-| Historical path in older skill/docs | Current file |
-| --- | --- |
-| `frontend/app/globals.css` | `frontend/src/app/globals.css` |
-| `frontend/components/crm/crm-app.tsx` | `frontend/src/components/crm/crm-app.tsx` |
-| `frontend/components/common/admin-list-ui.tsx` / `frontend/components/crm/admin/admin-list-ui.tsx` | `frontend/src/components/common/admin-list-ui.tsx` |
-| `frontend/components/common/app-page-header.tsx` | `frontend/src/components/common/app-page-header.tsx` |
-| `frontend/components/crm/admin/admin-workspace.tsx` | `frontend/src/screens/Admin/Proposals/ProposalsPage.tsx` (proposal screen); `frontend/src/screens/Admin/AdminWorkspace.tsx` (role workspace) |
-| `frontend/components/layout/Sidebar.tsx` | `frontend/src/components/layout/Sidebar.tsx` |
-| `frontend/lib/demo-auth.ts` | `frontend/src/lib/demo-auth.ts` |
-| `frontend/services/api.client.ts` | `frontend/src/services/api.client.ts` |
-
-The public Pages demo remains separate: `frontend/demo/`, `frontend/vite.pages.config.ts`, `frontend/public/`. Do not confuse static demo behavior with authenticated real API and role scopes.
-
-## Local/test data and scripts
-
-- `start-local.ps1` provisions **local MySQL** at `.runtime/mysql-data-net10` (expected port **3307**) and invokes `dotnet run --project src/KidsfitCRM.Api --no-launch-profile -- --migrate --seed-demo`. It also includes **demo-only hardcoded MySQL credentials** and can modify the local root/user configuration; **inspect before running and never point it at shared/prod MySQL**.
-- `compose.yaml` uses MySQL 8.4 and an `api-migrate` job, with `Seed__DemoEnabled` configured for demo. Treat it as local/demo-only until reviewed and hardened.
-- `backend/README.md` documents `--migrate` and opt-in `--seed-demo`; `Program.cs` calls `Database.MigrateAsync` in migrate mode. **Migration ≠ seed ≠ dump**.
-- `backend/test-mysql.ps1` reads `KIDSFIT_TEST_MYSQL_ADMIN` and runs `dotnet test`; integration tests must use a dedicated instance/database and must never be given a production admin DSN.
-- For **mysqldump backup**, identify and approve source first; do not expose credentials to logs or Git. Verify restore into a *new*, isolated DB. No production dump should be placed in the repository.
-
-## Code preservation and change control
-
-Preserve functioning modules even when no longer part of the immediate Sales CRM task (parents, students, classes, enrollment, billing). Preserve existing migrations, `role_user`, contracts, payouts, customer ownership, audits and commission ledger. Refactor using adapters/permissions under tests, not destructive renames. Business target: 7 roles, Sales can self-register and be allocated, default 10 active schools, 5 days initial + 7 days × 3 extension, Manager KIDSFIT/partner → CHECKEE, Director overseeing rather than per-contract approving, 30% **provisional**, no referrer/split. See [business rules](../requirements/BUSINESS_RULES.md) and [gap matrix](../requirements/CODEBASE_GAP_ANALYSIS.md).
+See [cleanup dependency manifest](CLEANUP_DEPENDENCY_MANIFEST.md) and [Frontend Real API guide](../../frontend/README.md).

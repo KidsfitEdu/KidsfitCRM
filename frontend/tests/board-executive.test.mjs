@@ -6,15 +6,16 @@ import test from 'node:test';
 const read = path => readFileSync(resolve(import.meta.dirname, '..', 'src', path), 'utf8');
 
 test('Board role sections use dedicated executive pages and preserve existing navigation', () => {
-  const routes = ['Dashboard','Oversight','Overdue','Disputes','Policies'];
+  const routes = ['Dashboard','Overdue','Disputes','Policies'];
   for (const section of routes) {
     const page = read(`screens/Board/${section}/${section === 'Dashboard' ? 'Dashboard' : section}Page.tsx`);
-    assert.match(page, new RegExp(`Board(?:Dashboard|Reports|Overdue|Disputes|Policies)Page`));
+    assert.match(page, new RegExp(`Board(?:Dashboard|Overdue|Disputes|Policies)Page`));
     assert.doesNotMatch(page, /RoleOperationsPage/);
   }
   const source = read('screens/Board/BoardWorkspace.tsx');
-  for (const section of ['dashboard','oversight','overdue','disputes','policies'])
+  for (const section of ['dashboard','overdue','disputes','policies'])
     assert.match(source, new RegExp(section + ':'));
+  assert.match(source, /oversight: DashboardPage/);
 });
 
 test('Board data uses existing authorized APIs and avoids unapproved rates', () => {

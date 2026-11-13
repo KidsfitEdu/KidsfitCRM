@@ -39,7 +39,7 @@ test('Authenticated evidence preview has no brand header and offers magnifier, s
   assert.doesNotMatch(page, /<AppDialog open=\{preview!==null\}/);
   assert.match(viewer, /DialogContent showCloseButton=\{false\}/);
   assert.doesNotMatch(viewer, /bg-\[#1b5e20\]/);
-  for(const label of ['Thu nhỏ ảnh', 'Phóng to ảnh', 'Đặt lại kích thước ảnh', 'Đóng xem chứng từ']) {
+  for(const label of ['Thu nhỏ ảnh', 'Phóng to ảnh', 'Vừa khung hình', 'Đóng xem chứng từ']) {
     assert.ok(viewer.includes(label), label);
   }
   assert.match(viewer, /application\/pdf/);
@@ -68,7 +68,7 @@ test('Accounting payout table includes approved and draft records instead of onl
 
 test('Evidence image viewer is dark edge to edge with scroll zoom and drag', () => {
   const viewer = read('src/components/common/evidence-preview-dialog.tsx');
-  assert.match(viewer, /bg-\[#111318\]/);
+  assert.match(viewer, /bg-\[#191d22\]/);
   assert.match(viewer, /onWheel=\{onWheelZoom\}/);
   assert.match(viewer, /onPointerDown=\{beginDrag\}/);
   assert.match(viewer, /onPointerMove=\{moveDrag\}/);

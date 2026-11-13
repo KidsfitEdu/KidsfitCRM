@@ -131,7 +131,7 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(dashboard.includes('aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}'));
   assert.ok(operations.includes('Nhận trường ${x.school_name}'));
   assert.ok(operations.includes('Từ chối gia hạn ${x.school_name}'));
-  assert.ok(operations.includes('<AppPagination page={preview ? 1 : page}'));
+  assert.ok(operations.includes('<AppPagination page={page}'));
   assert.ok(operations.includes('onPageSizeChange={size => {setSalesPageSize(size);setPage(1);}}'));
   assert.ok(finance.includes('total={data.ledger.length}'));
   assert.ok(finance.includes('total={data.payouts.length}'));
@@ -165,7 +165,7 @@ test('Income simplification and Sales page-size selection stay consistent', () =
   const shared = read('src/components/common/sales-list.tsx');
   assert.doesNotMatch(income, /Kỳ hoa hồng|Lịch sử phiếu chi của tôi|Chưa nhận có thể gồm/);
   assert.match(income, /Tổng hoa hồng/);
-  assert.match(income, /CHI TIẾT HOA HỒNG/);
+  assert.match(income, /Chi tiết hoa hồng/);
   assert.doesNotMatch(focus, /Đề xuất mới chỉ được thêm vào danh bạ/);
   assert.match(operations, /const pageSize = embeddedSalesTable \? salesPageSize/);
   assert.match(operations, /setTab\(initialTab\)/);
@@ -318,9 +318,10 @@ test('Contract reporting and revisions share one validator and retain existing s
   assert.match(editor, /existingEvidence: detail\.evidence\.length > 0/);
 });
 
-test('Sales proposal list keeps school codes searchable but hides them from table rows', () => {
+test('Sales proposal list delegates search to Backend and hides internal school codes from rows', () => {
   const source = read('src/components/roles/SalesProposalTable.tsx');
-  assert.match(source, /normalize\(\[x\.name,x\.school_code,x\.submitted_by,x\.province,x\.ward\]/);
+  assert.match(source, /onSearch\(term\.trim\(\)\)/);
+  assert.doesNotMatch(source, /demo|preview/);
   assert.doesNotMatch(source, /title=\{item\.school_code\}|\{item\.school_code\}<\/p>/);
   assert.match(source, /placeholder="Tên trường, khu vực, người đề xuất\.\.\."/);
   assert.match(source, /centerColumns=\{\[3\]\}/);

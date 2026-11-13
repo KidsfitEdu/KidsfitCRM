@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { readSchoolDemo } from '@/lib/school-demo';
 import {
   Building2,
   Eye,
@@ -108,7 +107,6 @@ type Detail = {
   can_request_extension?: boolean;
   can_allocate?: boolean;
   can_dispute?: boolean;
-  packages: { id: number; name: string; list_price: number }[];
   units: {
     id: number;
     version: number;
@@ -191,15 +189,11 @@ export function SchoolDirectory({
   const [importOpen, setImportOpen] = useState(false);
   const [capacity, setCapacity] = useState<Capacity | null>(null);
   const client = useQueryClient();
-  const demo = !apiBase;
-  const can = (code: string) => !demo && (abilities.includes('*') || abilities.includes(code));
+  const can = (code: string) => (abilities.includes('*') || abilities.includes(code));
   const canAdminManage = adminMode && can('channel_sales.school.directory.manage');
   // Only Sales/CTV directory browsers use the availability and area picker.
   const salesDirectory = !adminMode && salesDirectoryMode;
-  const api = <T,>(path: string, options?: RequestInit) =>
-    demo
-      ? readSchoolDemo<T>(path)
-      : channelRequest<T>(apiBase, token, path, options);
+  const api = <T,>(path: string, options?: RequestInit) => channelRequest<T>(apiBase, token, path, options);
   const areas = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-areas', apiBase],
     queryFn: () => api<{ data: { province: string; ward: string }[] }>('/schools/areas'),
@@ -348,11 +342,6 @@ export function SchoolDirectory({
   const visibleSchools = schools.data?.data ?? [];
   return (
     <div className="space-y-5">
-      {demo && (
-        <aside className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          Chế độ xem thử — dữ liệu mẫu chỉ đọc. Để quản lý trường thật, hãy đăng nhập hệ thống đã kết nối API.
-        </aside>
-      )}
       {adminMode
         ? <AppPageHeader eyebrow="Quản trị / Trường học" title="Quản lý trường học"
             description="Quản lý trường chính, phân hiệu và quyền bảo vệ khách hàng"

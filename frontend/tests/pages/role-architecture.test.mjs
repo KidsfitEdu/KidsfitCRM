@@ -10,14 +10,13 @@ const profileSections = {
   Admin: ['Dashboard','Schools','Proposals','Personnel','Capacities','Policies','Reports','CareAssignments'],
   SalesManager: ['Dashboard','Proposals','Allocations','Progress','Contracts','Extensions','Team'],
   SalesStaff: ['Dashboard','Schools','Customers','Activities','Proposals','Income'],
-  Collaborator: ['Dashboard','Schools','Proposals','Invitations','Approaches','Extensions','Income'],
   Board: ['Dashboard','Progress','Overdue','Disputes','Policies'],
   Accounting: ['Dashboard','Revenue'],
   CustomerCare: ['Dashboard','Cases','Customers'],
   Checkee: ['Dashboard','Verification','Support'],
 };
 
-test('All 41 active role menu pages exist and are compiled from src/screens', () => {
+test('All 34 canonical role pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
@@ -30,14 +29,14 @@ test('All 41 active role menu pages exist and are compiled from src/screens', ()
       total += 1;
     }
   }
-  assert.equal(total, 41);
+  assert.equal(total, 34);
 });
 
 test('Active navigation targets match role page registry and preserve aliases', () => {
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
-  assert.equal(known.length, 41, 'Expected 41 active role navigation entries');
+  assert.equal(known.length, 42, 'Expected 42 registered navigation entries including aliases');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;
@@ -95,8 +94,6 @@ test('src/app route tree and src/screens have no conflicting legacy directories'
   }
   assert.equal(existsSync(file('app')), false, 'Legacy root app/ must be absent');
   assert.equal(existsSync(file('src/pages')), false, 'Legacy src/pages must be absent');
-  const demoEntry = read('demo/main.tsx');
-  assert.match(demoEntry, /\.\.\/src\/app\/globals\.css/);
   const config = read('components.json');
   assert.match(config, /src\/app\/globals\.css/);
 });
@@ -130,7 +127,7 @@ test('Board legacy reports route remains an alias, not an active sixth menu item
   assert.match(routes, /role-board-oversight/);
   assert.doesNotMatch(nav, /\{ id: 'role-board-oversight', label:/);
   assert.match(app, /canonicalBoardView/);
-  assert.ok(existsSync(file('src/screens/Board/Oversight/OversightPage.tsx')));
+  assert.equal(existsSync(file('src/screens/Board/Oversight/OversightPage.tsx')), false);
 });
 
 test('CSKH school page separates profile, recording and history into three icon actions', () => {

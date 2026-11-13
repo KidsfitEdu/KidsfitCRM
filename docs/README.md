@@ -1,7 +1,3 @@
-## One-run demo implementation
-
-For a single coding-agent execution that includes justified removal of obsolete demo code and unified synthetic credentials, use the [one-shot implementation skill](../.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md) and [Master CRM Prompt](prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md). The separate [credential/seed reference](../.agents/skills/kidsfit-crm-one-shot-implementation/references/demo-data-and-credentials.md) requires a local **environment secret** for the chosen demo password. Do not publish the credential in docs/source or mistake database dumps for synthetic seed files.
-
 # KidsfitCRM — Document index
 
 > **Current business baseline (2026-10-30):** [requirements/CRM_FUNCTIONAL_SPECIFICATION.md](requirements/CRM_FUNCTIONAL_SPECIFICATION.md).
@@ -21,7 +17,7 @@ For a single coding-agent execution that includes justified removal of obsolete 
 | What is currently implemented? | [Codebase gaps](requirements/CODEBASE_GAP_ANALYSIS.md) | [Implementation records](implementation/), code and tests |
 | Frontend design / responsive / UI review | [KIDSFIT design system](design/FRONTEND_DESIGN_SYSTEM.md) | [Frontend skill](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md), current components and screenshots |
 | Engineering conventions | [Repository AGENTS](../AGENTS.md) | [Skill](../.agents/skills/kidsfit-crm-development/SKILL.md) |
-| Testing, demo and operations | [Testing](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md) | [Demo deployment](operations/DEMO_DEPLOYMENT.md) |
+| Testing and operations | [Testing](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md) | [Frontend Real API guide](../frontend/README.md) |
 
 ## Document authority
 

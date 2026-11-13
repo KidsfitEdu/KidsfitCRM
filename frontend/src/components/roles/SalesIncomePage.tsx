@@ -148,7 +148,7 @@ export function SalesIncomePage({apiBase,token,abilities}:{
           </div>
         </section>
         {detailError&&<p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-destructive">{detailError}</p>}
-        {!detail&&!detailError&&<p role="status" className="rounded-xl border border-border p-4 text-muted-foreground">Đang tải chi tiết hoa hồng…</p>}
+        {!detail&&!detailError&&<p  className="rounded-xl border border-border p-4 text-muted-foreground">Đang tải chi tiết hoa hồng…</p>}
         {detail&&<>
           <section aria-labelledby="sales-income-contract" className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

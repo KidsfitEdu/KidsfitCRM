@@ -57,8 +57,7 @@ Cors__Origins__0=http://localhost:3000
 # Không tự seed khi chạy migrate.
 Seed__DemoEnabled=false
 Seed__DisposableDatabase=false
-# Chỉ khai báo riêng tư khi seed database DEMO đã xác minh an toàn:
-# Seed__DemoPassword=<demo_password>
+# Initial bootstrap is opt-in in Development; configure Seed__AdminPassword, Seed__BoardPassword, Seed__CheckeePassword privately.
 ```
 
 `ConnectionStrings__MySql`, `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key` và `Cors__Origins__0` được ánh xạ sang ASP.NET Core configuration. JWT key cần tối thiểu **32 UTF-8 byte**. Biến môi trường của tiến trình/command line được ưu tiên hơn file `.env`. Ứng dụng chỉ tự đọc `.env` khi chạy ở **Development**; không dùng cơ chế này cho Production.
@@ -82,7 +81,7 @@ dotnet run --project src/KidsfitCRM.Api
 
 Địa chỉ mặc định theo `Properties/launchSettings.json`: `http://localhost:8000`. Kiểm tra kết nối database bằng `http://localhost:8000/health`. API bắt đầu tại `/api`; endpoint `/health` nằm ngoài nhóm này.
 
-**Phân biệt:** chạy `--migrate` sẽ cập nhật schema và thoát. Seeder chỉ được gọi trong nhánh `--migrate` khi có thêm `--seed-demo` hoặc cấu hình `Seed__DemoEnabled=true`. Lệnh chạy API thông thường không tự migrate/seed. Không sửa/xóa các migration đã áp dụng để “làm sạch” dữ liệu.
+**Phân biệt:** chạy `--migrate` sẽ cập nhật schema và thoát. Seeder hệ thống `InitialCrmSeeder` chỉ được gọi khi kết hợp `--migrate --seed-initial` trong Development với cờ và mật khẩu hợp lệ; `--seed-demo` hiện bị vô hiệu hóa. Lệnh chạy API thông thường không tự migrate/seed. Không sửa/xóa các migration đã áp dụng để “làm sạch” dữ liệu.
 
 ### Chạy toàn hệ thống theo script hoặc Docker (tùy chọn)
 
@@ -90,32 +89,13 @@ Từ thư mục gốc, `.\start-local.ps1` là script hỗ trợ Windows, dùng 
 
 `compose.yaml` dùng Docker với MySQL 8.4 và một volume bền vững; job `api-migrate` chạy migration trước API. File hiện đặt `ASPNETCORE_ENVIRONMENT=Production` và `Seed__DemoEnabled=false` nên **không seed demo**, ngay cả khi sử dụng credential mẫu trong Compose. Thay credential mặc định và cấu hình triển khai phù hợp trước khi public; **không dùng Compose ví dụ như cấu hình production an toàn**.
 
-## 5. Seed dữ liệu mẫu, mật khẩu và dữ liệu cũ
+## 5. Dữ liệu ban đầu và dữ liệu kiểm thử
 
-**Quyết định hiện tại:** giữ database đang sử dụng, bổ sung tình huống CRM còn thiếu. Điều này **không cho phép** reset/xóa hàng loạt dữ liệu cũ; trước khi thao tác cần xác minh quyền sở hữu database, sao lưu và bản chất từng bản ghi. Nếu database có dữ liệu thật/không rõ nguồn gốc, **không bật demo seed trên database đó**.
+Production API **không có demo seeder** và không tự tạo tài khoản giả. `--migrate` chỉ cập nhật schema. Với một database Development được xác nhận là disposable, `--migrate --seed-initial` có thể tạo vai trò, tổ chức, tài khoản hệ thống và chính sách bản nháp thông qua `InitialCrmSeeder`. Yêu cầu `Seed__DisposableDatabase=true` và các biến `Seed__AdminPassword`, `Seed__BoardPassword`, `Seed__CheckeePassword` hợp lệ; không ghi mật khẩu vào Git.
 
-Seeder Backend: `Infrastructure/DatabaseSeeder.cs` và `CrmScenarioSeeder.cs`. Seed có tài khoản tương thích legacy và một số tình huống đề xuất, gia hạn, CSKH; **chưa bao phủ mọi tình huống**. Seed lại thường chỉ bổ sung dữ liệu còn thiếu, **không xóa bản ghi cũ**. Dữ liệu mẫu CRM giáo dục vẫn có thể tồn tại trên database cũ.
+Các lớp tạo tình huống giả cũ được chuyển đến `backend/tests/KidsfitCRM.Api.Tests/Fixtures/LegacySeeders/` để chỉ phục vụ unit/integration tests trên MySQL cô lập. Chúng không còn nằm trong API runtime. Không dùng dữ liệu kiểm thử làm seed production.
 
-Chỉ trên **database Development/demo dùng riêng đã kiểm chứng disposable**, cung cấp bí mật trong `.env` hoặc secret store:
-
-```dotenv
-Seed__DemoEnabled=false
-Seed__DisposableDatabase=true
-Seed__DemoPassword=<private_password>
-```
-
-Sau đó có thể chạy tường minh:
-
-```powershell
-dotnet run --project src/KidsfitCRM.Api -- --migrate --seed-demo
-```
-
-- Cùng một `Seed__DemoPassword` dùng cho các tài khoản Backend demo được định danh; mỗi account được hash **riêng**. Không lưu mật khẩu vào Git hoặc SQL dump.
-- Seeder từ chối thiếu password, thiếu cờ `Seed__DisposableDatabase=true` hoặc chạy trong `Production`. Cờ disposable **không tự chứng minh database an toàn**.
-- Mật khẩu database, JWT key và mật khẩu demo phải độc lập. Demo tĩnh Frontend có cơ chế đăng nhập riêng, không dùng JWT Backend.
-- **Migration ≠ seed ≠ dump/backup**. Không commit dump có PII, hash mật khẩu, hợp đồng hay dữ liệu tài chính.
-
-Xem [danh mục tình huống seed và các phần chưa có](../docs/testing/CRM_SYNTHETIC_SEED_SCENARIOS.md). Không dùng script xóa `leads`, `students`, `invoices`, `sales_contracts`, `commission_ledger` hoặc audit nếu chưa có danh mục bản ghi demo đã kiểm chứng và kế hoạch khôi phục.
+**Migration ≠ seed ≠ dump/backup.** Không tự xóa khách hàng, trường, hợp đồng, hoa hồng, doanh thu, chứng từ hoặc audit đã có. Trước khi áp migration xóa bảng gói CHECKEE lên database đã có dữ liệu, cần sao lưu và rà soát tham chiếu lịch sử.
 
 ## 6. Nghiệp vụ và 7 vai trò mục tiêu
 
@@ -193,9 +173,9 @@ Fixture tạo và xóa schema thử nghiệm tự sinh; **không cung cấp kế
 | JWT key không hợp lệ | Có `Jwt__Key` riêng, đủ 32 UTF-8 byte; không dùng placeholder |
 | MySQL connection refused | Port 3306/3307, server, database, tài khoản, firewall và connection string |
 | `/health` trả 503 | Backend chưa kết nối được MySQL; kiểm tra trạng thái server và quyền tài khoản |
-| Seed báo thiếu mật khẩu / môi trường | `Seed__DemoPassword`, `Seed__DisposableDatabase`, `ASPNETCORE_ENVIRONMENT` |
-| Không xuất hiện tình huống demo mới | Kiểm tra phiên bản branch, seeder đang được gọi, dữ liệu đã tồn tại, scope tài khoản và API/UI |
-| Frontend thấy dữ liệu cũ | Kiểm tra [chế độ API thật và demo tĩnh](../frontend/README.md); migrate/seed không tự loại bỏ dữ liệu cũ |
+| Seed ban đầu báo thiếu mật khẩu / môi trường | `Seed__AdminPassword`, `Seed__BoardPassword`, `Seed__CheckeePassword`, `Seed__DisposableDatabase`, `ASPNETCORE_ENVIRONMENT` |
+| Chưa có tài khoản nền tảng | Kiểm tra cờ `--seed-initial` trong Development và quyền/credential bootstrap |
+| Frontend thấy dữ liệu cũ | Kiểm tra [cấu hình Real API Only](../frontend/README.md); migrate/seed không tự loại bỏ dữ liệu cũ |
 | `dotnet build` lỗi | Đọc lỗi compiler theo file/dòng; đồng bộ branch trước khi kiểm thử |
 
 ## 10. Tài liệu liên quan

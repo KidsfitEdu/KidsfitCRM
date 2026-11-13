@@ -209,12 +209,11 @@ public static class SchoolEndpoints
             .Select(x => new { x.ActivityType, x.Content, x.OccurredAt, x.ContactName, x.ContactPosition, x.Feedback, x.Commitment, x.NextFollowUpAt, x.CreatedAt }).ToArrayAsync(ct) : [];
         var available = !await db.CustomerProtections.AnyAsync(x => x.CustomerId == school.CustomerId && x.Status == "ACTIVE" && x.EffectiveUntil > now, ct);
         var canEdit = access.All && access.Has(Permissions.SchoolDirectoryManage) && await db.Organizations.AnyAsync(x => x.Code == "KIDSFIT" && access.OrganizationIds.Contains(x.Id), ct);
-        var packages = await db.CheckeeProductPackages.AsNoTracking().Where(x => x.Status == "ACTIVE").Select(x => new { x.Id, x.Name, x.ListPrice }).ToArrayAsync(ct);
         return Results.Ok(new { school.Id, school.SchoolCode, school.CustomerId, school.IsDeleted, customer.DisplayName,
             registration_id = canWork ? current!.Id : (long?)null, protected_until = current?.ProtectedUntil,
             registration_organization_id = canWork ? current!.OwnerOrganizationId : (long?)null,
             can_report_contract = canWork && access.Has(Permissions.ChannelSalesReportContract) && !contracts.Any(c => c.ApproachRegistrationId == current!.Id),
-            can_activity = canWork && access.Has(Permissions.ChannelSalesActivity), activities, packages,
+            can_activity = canWork && access.Has(Permissions.ChannelSalesActivity), activities,
             can_request_extension = current is not null && current.OwnerUserId == access.UserId && access.Has(Permissions.ChannelSalesRegister)
                 && !await db.SchoolExtensionRequests.AnyAsync(x => x.ApproachRegistrationId == current.Id && x.Status == "PENDING", ct),
             can_allocate = !school.IsDeleted && available && access.Has(Permissions.SchoolAllocationManage),

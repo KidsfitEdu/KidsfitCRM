@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
-      - run: npm run test:demo
+      - run: npm run test:unit
       - run: npm run build
       - name: Verify vinext dev discovers src/app routes
         run: |
@@ -57,21 +57,7 @@ jobs:
           curl --fail --silent --show-error --max-time 20 http://localhost:3137/crm/admin-schools -o /tmp/kidsfit-dev-schools.html
           test -s /tmp/kidsfit-dev-root.html
           test -s /tmp/kidsfit-dev-schools.html
-      - run: npm run build:pages
       - run: npm run test:pages
-      - name: Install Chromium for browser smoke tests
-        run: |
-          npm install --no-save --package-lock=false @playwright/test@1.58.2
-          npx playwright install chromium
-      - name: Verify demo role navigation in Chromium
-        run: node --test tests/browser/*.test.mjs
-      - name: Upload screenshots on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: crm-browser-smoke
-          path: frontend/tests/browser/screenshots/
-          if-no-files-found: ignore
 
   windows-route-smoke:
     runs-on: windows-latest

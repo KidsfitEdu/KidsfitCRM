@@ -28,7 +28,6 @@ public sealed record ReportSalesContractRequest(
     string? ContractCode,
     DateOnly? SignedOn,
     DateOnly? EffectiveOn,
-    long? ProductPackageId,
     decimal TotalValue,
     DateOnly? FirstPaymentDueOn,
     string? EvidenceReference,

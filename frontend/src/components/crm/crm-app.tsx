@@ -9,17 +9,15 @@ import { Header } from '@/components/layout/Header';
 import { LoginPage } from '@/screens/Auth/Login/LoginPage';
 import { MascotLoadingState } from '@/components/common/mascot-loading-state';
 import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
-import { DemoAccess } from '@/components/crm/demo-access';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
 import { nav, type View } from '@/config/navigation';
 import { canonicalSalesView, legacySalesWorkflowTab, salesMenuIds } from '@/config/sales-navigation';
 import { canonicalCheckeeView, viewToPath, pathToView } from '@/config/routes';
 import { canonicalBoardView, canonicalCareView } from '@/config/routes';
 import { createApiClient, ApiRequestError, isBackendUnavailable } from '@/services/api.client';
-import { demoChannelSalesWorkspace, type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
-import { presentDemoWorkspace, type DemoAccount } from '@/lib/demo-auth';
+import { type ChannelCustomer, type ChannelSalesWorkspace, type CustomerActivityInput, type RegisterApproachInput, type ReportContractInput, type RevenueReceiptInput } from '@/lib/channel-sales';
 
-const apiBase = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? '' : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '');
+const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? '';
 const request = createApiClient(apiBase);
 // /health is mounted at the Backend origin, not under the /api prefix.
 const healthRequest = createApiClient(apiBase ? new URL(apiBase).origin : '');
@@ -29,20 +27,19 @@ const BoardWorkspace = lazy(() => import('@/screens/Board/BoardWorkspace').then(
 const AccountingWorkspace = lazy(() => import('@/screens/Accounting/AccountingWorkspace').then(m => ({ default: m.AccountingWorkspace })));
 const CustomerCareWorkspace = lazy(() => import('@/screens/CustomerCare/CustomerCareWorkspace').then(m => ({ default: m.CustomerCareWorkspace })));
 const SalesStaffWorkspace = lazy(() => import('@/screens/SalesStaff/SalesStaffWorkspace').then(m => ({ default: m.SalesStaffWorkspace })));
-const CollaboratorWorkspace = lazy(() => import('@/screens/Collaborator/CollaboratorWorkspace').then(m => ({ default: m.CollaboratorWorkspace })));
 const CheckeeWorkspace = lazy(() => import('@/screens/Checkee/CheckeeWorkspace').then(m => ({ default: m.CheckeeWorkspace })));
 const ChannelOperations = lazy(() => import('@/components/crm/channel-operations').then(m => ({ default: m.ChannelOperations })));
 
 export function CrmApp({ initialView }: { initialView?: View } = {}) {
-  if (apiBase) return <CrmWorkspace initialView={initialView} />;
-  return <DemoAccess>{(account, logout) => <CrmWorkspace key={account.id} initialView={initialView} demoAccount={account} onDemoLogout={logout} />}</DemoAccess>;
+  if (!apiBase) return <p role="alert">Thiếu NEXT_PUBLIC_API_URL. Hãy cấu hình kết nối Backend để sử dụng dữ liệu CRM thật.</p>;
+  return <CrmWorkspace initialView={initialView} />;
 }
 
-function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?: View; demoAccount?: DemoAccount; onDemoLogout?: () => void }) {
+function CrmWorkspace({ initialView }: { initialView?: View }) {
   const [view, setView] = useState<View>(canonicalCareView(canonicalBoardView(canonicalCheckeeView(canonicalSalesView(initialView ?? 'dashboard')))));
   const [salesWorkflow, setSalesWorkflow] = useState<'invitations' | 'extensions' | undefined>(() => legacySalesWorkflowTab(initialView ?? 'dashboard'));
   const [token, setToken] = useState('');
-  const [ready, setReady] = useState(!apiBase);
+  const [ready, setReady] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<'idle'|'checking'|'active'|'offline'|'error'>('idle');
   const [retryIndex, setRetryIndex] = useState(0);
   const [healthRetryIndex, setHealthRetryIndex] = useState(0);
@@ -50,12 +47,12 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   const [healthError, setHealthError] = useState('');
   const [connectionMessage, setConnectionMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userName, setUserName] = useState(demoAccount?.name ?? 'CRM');
+  const [userName, setUserName] = useState('CRM');
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [membershipType, setMembershipType] = useState<string | null>(null);
-  const [abilities, setAbilities] = useState<string[]>(demoAccount?.abilities ?? []);
-  const [workspace, setWorkspace] = useState<ChannelSalesWorkspace>(demoAccount ? presentDemoWorkspace(demoChannelSalesWorkspace, demoAccount) : {
-    data: [], metrics: { available: 0, approaching: 0, contracted: 0, expiring_soon: 0, contract_value: 0, collected_revenue: 0, commission_accrued: 0 }, packages: [], pending_reconciliations: [], server_time: new Date(0).toISOString()
+  const [abilities, setAbilities] = useState<string[]>([]);
+  const [workspace, setWorkspace] = useState<ChannelSalesWorkspace>({
+    data: [], metrics: { available: 0, approaching: 0, contracted: 0, expiring_soon: 0, contract_value: 0, collected_revenue: 0, commission_accrued: 0 }, pending_reconciliations: [], server_time: new Date(0).toISOString()
   });
   const [search, setSearch] = useState('');
   const [dark, setDark] = useState(false);
@@ -137,7 +134,6 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   };
 
   const logout = async () => {
-    if (onDemoLogout) { onDemoLogout(); return; }
     if (token) await request('/logout', token, { method: 'POST' }).catch(() => undefined);
     sessionStorage.removeItem('kidsfit_token');
     setAbilities([]);
@@ -150,7 +146,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
   };
 
   const mutation = async (path: string, body: unknown) => {
-    if (!apiBase || !token) throw new Error('Bản xem trước chỉ đọc. Kết nối Backend để cập nhật CRM.');
+    if (!apiBase || !token) throw new Error('Vui lòng đăng nhập hệ thống CRM để thực hiện thao tác.');
     await request(path, token, { method: 'POST', body: JSON.stringify(body) });
     await refresh();
   };
@@ -170,11 +166,11 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
 
   const isAdmin = has('channel_sales.school.directory.manage') && has('channel_sales.scope.all');
   const isManager = !isAdmin && has('channel_sales.school.allocation.manage');
-  const isDirector = !isAdmin && !isManager && (membershipType === 'DIRECTOR' || membershipType === 'BOARD' || demoAccount?.id === 'board');
-  const isAccountant = !isAdmin && !isManager && !isDirector && (membershipType === 'ACCOUNTANT' || demoAccount?.id === 'accountant');
-  const isCare = !isAdmin && !isManager && !isDirector && !isAccountant && (membershipType === 'CUSTOMER_SERVICE' || demoAccount?.id === 'care');
-  const isCheckee = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && (membershipType === 'CHECKEE' || demoAccount?.id === 'checkee');
-  const isSales = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && !isCheckee && (['SALES','COLLABORATOR','PARTNER_COLLABORATOR'].includes(membershipType ?? '') || demoAccount?.id === 'sales' || demoAccount?.id === 'ctv');
+  const isDirector = !isAdmin && !isManager && (membershipType === 'DIRECTOR' || membershipType === 'BOARD');
+  const isAccountant = !isAdmin && !isManager && !isDirector && (membershipType === 'ACCOUNTANT');
+  const isCare = !isAdmin && !isManager && !isDirector && !isAccountant && (membershipType === 'CUSTOMER_SERVICE');
+  const isCheckee = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && (membershipType === 'CHECKEE');
+  const isSales = !isAdmin && !isManager && !isDirector && !isAccountant && !isCare && !isCheckee && (['SALES','COLLABORATOR','PARTNER_COLLABORATOR'].includes(membershipType ?? ''));
 
   // One Sales menu for both employee and collaborator. The legacy screen entrypoints
   // are only adapters until their page bodies are consolidated.
@@ -206,7 +202,7 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
     if (!visibleNav.some(item=>item.id===next)) return;
     setView(next);
     setSalesWorkflow(undefined);
-    if (apiBase) window.history.pushState(null,'',viewToPath(next));
+    window.history.pushState(null,'',viewToPath(next));
   };
 
   const roleProps = { apiBase, token, abilities, workspace, onChanged: refresh, search, setSearch, onRegister, onAddActivity, onReportContract, onRecordRevenue, salesWorkflow, onSalesNavigate: navigate };
@@ -226,13 +222,12 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
       onRetry={() => { setHealthError(''); setHealthRetryIndex(index => index + 1); }}/>;
   if (apiBase && !token) return <LoginPage loading={loading} onLogin={login} />;
 
-  return <AppProviders key={demoAccount?.id ?? token}>
+  return <AppProviders key={token}>
     <AppShell>
-      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} demoAccount={demoAccount} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
+      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
       <div className="pb-20 lg:pl-[248px] lg:pb-0">
         <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
-          {demoAccount && <p className="rounded-xl border border-amber-300 p-3 text-sm">Bản xem trước tĩnh, chỉ đọc. Hãy kết nối Backend để thay đổi dữ liệu thực.</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div key={currentView} className="crm-page-enter">
           <Suspense fallback={<PageLoading label="Đang chuẩn bị màn hình..." />}>
@@ -242,7 +237,6 @@ function CrmWorkspace({ initialView, demoAccount, onDemoLogout }: { initialView?
             {currentView.startsWith('role-accounting-') && <AccountingWorkspace section={currentView.slice('role-accounting-'.length) as import('@/screens/Accounting/AccountingWorkspace').RoleSection} {...roleProps}/>}
             {currentView.startsWith('role-customer-care-') && <CustomerCareWorkspace section={currentView.slice('role-customer-care-'.length) as import('@/screens/CustomerCare/CustomerCareWorkspace').RoleSection} {...roleProps}/>}
             {currentView.startsWith('role-sales-staff-') && <SalesStaffWorkspace section={currentView.slice('role-sales-staff-'.length) as import('@/screens/SalesStaff/SalesStaffWorkspace').RoleSection} {...roleProps}/>}
-            {currentView.startsWith('role-collaborator-') && <CollaboratorWorkspace section={currentView.slice('role-collaborator-'.length) as import('@/screens/Collaborator/CollaboratorWorkspace').RoleSection} {...roleProps}/>}
             {currentView.startsWith('role-checkee-') && <CheckeeWorkspace section={currentView.slice('role-checkee-'.length) as import('@/screens/Checkee/CheckeeWorkspace').RoleSection} {...roleProps}/>}
             {currentView === 'channel-sales' && <ChannelOperations apiBase={apiBase} token={token} abilities={abilities} onChanged={refresh}
               customerView={(onOpenCustomer) => <ChannelSalesView onOpenCustomer={onOpenCustomer} workspace={workspace} search={search} setSearch={setSearch}

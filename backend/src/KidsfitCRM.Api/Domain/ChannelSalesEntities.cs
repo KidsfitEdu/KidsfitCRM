@@ -88,15 +88,6 @@ public sealed class CustomerActivity : EntityBase
     public DateTime? NextFollowUpAt { get; set; }
 }
 
-public sealed class CheckeeProductPackage : EntityBase
-{
-    public string Code { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string? Description { get; set; }
-    public decimal ListPrice { get; set; }
-    public string Status { get; set; } = "ACTIVE";
-}
-
 public sealed class SalesContract : EntityBase
 {
     public string? OwnerPersonnelType { get; set; }
@@ -139,7 +130,6 @@ public sealed class SalesContract : EntityBase
 public sealed class SalesContractItem : EntityBase
 {
     public long ContractId { get; set; }
-    public long? ProductPackageId { get; set; }
     public string Description { get; set; } = "";
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }

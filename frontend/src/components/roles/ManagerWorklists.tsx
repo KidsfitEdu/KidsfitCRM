@@ -76,8 +76,7 @@ const datePending = (date: string | null | undefined) => !!date && new Date(date
 const statusLabel = (code: string) => workflowLabels[code] ?? ({ AVAILABLE: 'Chưa đăng ký', APPROACHING: 'Đang tiếp cận', CONTRACTED: 'Đã ký hợp đồng' } as Record<string,string>)[code] ?? code;
 
 export function ManagerWorklists({ section, apiBase, token, abilities, onChanged }: ManagerPageProps & { section: ManagerWorklistSection }) {
-  const preview = !apiBase;
-  const can = (p: string) => !preview && (abilities.includes('*') || abilities.includes(p));
+  const can = (p: string) => abilities.includes('*') || abilities.includes(p);
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
@@ -103,67 +102,52 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const serverStatus = section === 'proposals' && filter !== 'ALL' ? '&status=' + encodeURIComponent(filter) : '';
   const operations = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-lists', section, serverPage, search, serverStatus],
-    queryFn: () => preview
-      ? import('../../../demo/school-operations-fixture').then(({ schoolOperationsPreview }) => schoolOperationsPreview(abilities))
-      : api<SchoolOperationsWorkspace>('/school-operations?page=' + serverPage + '&search=' + encodeURIComponent(search) + serverStatus),
-    enabled: section !== 'progress' && (preview || !!token),
+    queryFn: () => api<SchoolOperationsWorkspace>('/school-operations?page=' + serverPage + '&search=' + encodeURIComponent(search) + serverStatus),
+    enabled: section !== 'progress' && (!!token),
     placeholderData: previous => previous,
   });
   const customers = useQuery<ProgressResult>({
     queryKey: [...channelQueryKeys.all, 'manager-progress-schools', page, pageSize, search, filter, staffFilter],
     queryFn: async () => {
-      if (preview) {
-        const { demoChannelSalesWorkspace } = await import('../../../demo/channel-sales-fixture');
-        const data = demoChannelSalesWorkspace.data.filter(c =>
-          (filter === 'ALL' || c.visible_status === filter) &&
-          (staffFilter === 'ALL' || c.owner_user_name === staffFilter) &&
-          [c.display_name, c.owner_user_name ?? '', c.code].join(' ').toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')));
-        return Promise.resolve({data:data.slice((page-1)*pageSize,page*pageSize).map(c=>({...c,owner_user_id:0})),
-          total:data.length,page,page_size:pageSize,
-          staff:[...new Set(demoChannelSalesWorkspace.data.map(c=>c.owner_user_name).filter((name):name is string=>!!name))]
-            .map(name=>({id:0,name}))});
-      }
       const params=new URLSearchParams({page:String(page),page_size:String(pageSize),status:filter});
       if(search.trim())params.set('search',search.trim());
       if(staffFilter!=='ALL')params.set('owner_user_id',staffFilter);
       return api<ProgressResult>('/manager/progress-schools?'+params);
     },
-    enabled: section === 'progress' && (preview || !!token),
+    enabled: section === 'progress' && (!!token),
     placeholderData: previous=>previous,
   });
   const availableSchools = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-available-schools'],
     queryFn: () => loadAllocationSchools<School>((page, pageSize) =>
       api<SchoolList>('/schools?page=' + page + '&pageSize=' + pageSize + '&status=AVAILABLE')),
-    enabled: section === 'allocations' && !preview && !!token,
+    enabled: section === 'allocations' && !!token,
   });
   const released = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-released-schools'],
     queryFn: () => api<ReleasedResult>('/manager/released-schools?page=1&page_size=20'),
-    enabled: section === 'allocations' && !preview && !!token,
+    enabled: section === 'allocations' && !!token,
   });
   const capacities = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-capacities'],
     queryFn: () => api<{ data: Capacity[] }>('/school-capacities'),
-    enabled: section === 'allocations' && !preview && !!token,
+    enabled: section === 'allocations' && !!token,
   });
   const selectedProposal = selection?.kind === 'proposal' ? selection.item : null;
   const proposalDetailQuery = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-proposal-detail', selectedProposal?.id],
     queryFn: () => api<{ data: ProposalDetail }>(`/school-proposals/${selectedProposal!.id}/draft-detail`),
-    enabled: !preview && !!token && selectedProposal !== null,
+    enabled: !!token && selectedProposal !== null,
   });
   const proposalDetail = proposalDetailQuery.data?.data;
   // Use the existing scoped school endpoint: it redacts contact details the manager may not see.
   const targetSchoolQuery = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-proposal-target-school', proposalDetail?.target_directory_school_id],
     queryFn: () => api<OfficialSchoolDetail>(`/schools/${proposalDetail!.target_directory_school_id}`),
-    enabled: !preview && !!token && selectedProposal !== null &&
+    enabled: !!token && selectedProposal !== null &&
       proposalDetail?.proposal_mode === 'ADD_BRANCHES' && !!proposalDetail.target_directory_school_id,
   });
-  const proposalUnits: SchoolProfileUnit[] = selectedProposal === null ? [] : preview
-    ? [legacyProposalUnit(selectedProposal)]
-    : proposalDetail?.proposal_mode === 'LEGACY'
+  const proposalUnits: SchoolProfileUnit[] = selectedProposal === null ? [] : proposalDetail?.proposal_mode === 'LEGACY'
       ? [legacyProposalUnit(selectedProposal)]
       : [
           ...(proposalDetail?.proposal_mode === 'ADD_BRANCHES'
@@ -181,7 +165,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const historyQuery = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-operation-history', history?.kind, history?.id],
     queryFn: () => api<HistoryResult>('/school-operations/' + history!.kind + '/' + history!.id + '/history'),
-    enabled: !!token && !preview && history !== null,
+    enabled: !!token && history !== null,
   });
   const refresh = async () => {
     await client.invalidateQueries({ queryKey: channelQueryKeys.all });
@@ -215,7 +199,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     }
   }, [capacities.error, section]);
   const save = async (command: { path: string; method?: string; body: Record<string, unknown> }) => {
-    if (preview) throw new Error('Chế độ demo chỉ đọc; cần kết nối Backend để thao tác.');
     await api(command.path, { method: command.method ?? 'POST', body: JSON.stringify(command.body) });
     setAction(null);
     const extensionDecision = command.path.includes('/school-extensions/') && command.path.endsWith('/review');
@@ -249,7 +232,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     });
   };
   const invite = (suggestedSchoolId?:number) => {
-    if (preview) { appNotice.info('Bản xem trước chỉ đọc', 'Đăng nhập Backend để phân bổ trường.'); return; }
     if (!can('channel_sales.school.allocation.manage')) {
       appNotice.error('Không có quyền phân bổ', 'Tài khoản chưa được cấp quyền phân bổ trường.');
       return;
@@ -315,8 +297,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
         {section === 'allocations' && <AppButton tone="green" premium leadingIcon={<Plus className="size-4"/>}
           onClick={()=>invite()}>Phân bổ trường</AppButton>}
       </div>}/>
-    {preview && <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Dữ liệu minh họa chỉ đọc. Đăng nhập hệ thống kết nối API để phê duyệt và phân bổ.</p>}
-    {section==='allocations'&&!preview&&<section className="rounded-2xl border bg-card p-4 sm:p-5">
+    {section==='allocations'&&<section className="rounded-2xl border bg-card p-4 sm:p-5">
       <h2 className="font-semibold text-foreground">Trường cần phân bổ lại sau bàn giao</h2>
       <p className="mt-1 text-xs text-muted-foreground">Trường được thu hồi trong 30 ngày gần đây và hiện không còn quyền bảo vệ đang hoạt động. Sales mới vẫn phải nhận lời mời hợp lệ.</p>
       {released.isLoading&&<p className="mt-3 text-sm text-muted-foreground">Đang tải trường vừa thu hồi…</p>}
@@ -340,7 +321,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
           {section === 'progress' && <AppSelect ariaLabel="Lọc nhân viên Sales/CTV" className="w-[210px]" value={staffFilter}
             options={[{value:'ALL',label:'Tất cả Sales/CTV'},
               ...(customers.data?.staff??[]).map(member=>({
-                value:preview?member.name:String(member.id),label:member.name}))]}
+                value:String(member.id),label:member.name}))]}
             onValueChange={next=>{setStaffFilter(next);setPage(1);}}/>}
           <AppSelect ariaLabel="Lọc trạng thái" className="w-[192px]" value={filter}
             options={[{value:'ALL',label:'Tất cả trạng thái'},
@@ -382,7 +363,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
                     <AdminIconAction icon={Check} label={'Chuyển Admin: ' + p.name} tone="green" onClick={() => { setConfirmationError(''); setConfirmProposal({ id: p.id, name: p.name }); }}/>
                     <AdminIconAction icon={X} label={'Từ chối ' + p.name} tone="red" onClick={() => decide('proposal',p.id,false)}/>
                   </>}
-                  {!preview && <AdminIconAction icon={History} tone="neutral" label={'Lịch sử đề xuất ' + p.name} onClick={() => setHistory({kind:'proposal',id:p.id,name:p.name})}/>}
+                  {<AdminIconAction icon={History} tone="neutral" label={'Lịch sử đề xuất ' + p.name} onClick={() => setHistory({kind:'proposal',id:p.id,name:p.name})}/>}
                 </div></td>
               </tr>;
             })}
@@ -396,7 +377,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
                 <td className={adminTableCellClass}><div className="flex justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem lời mời ' + i.school_name} onClick={() => setSelection({kind:'invitation',item:i})}/>
                   {i.can_cancel && can('channel_sales.school.allocation.manage') && <AdminIconAction icon={Ban} tone="red" label={'Hủy lời mời ' + i.school_name} onClick={() => setAction({title:'Hủy lời mời phân bổ',description:'Nhập lý do trước khi trả trường về danh sách có thể phân bổ.',path:'/school-invitations/'+i.id+'/cancel',fields:[reason],danger:true})}/>}
-                  {!preview && <AdminIconAction icon={History} tone="neutral" label={'Lịch sử phân bổ ' + i.school_name} onClick={() => setHistory({kind:'invitation',id:i.id,name:i.school_name})}/>}
+                  {<AdminIconAction icon={History} tone="neutral" label={'Lịch sử phân bổ ' + i.school_name} onClick={() => setHistory({kind:'invitation',id:i.id,name:i.school_name})}/>}
                 </div></td>
               </tr>;
             })}
@@ -412,13 +393,12 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
                   <AdminIconAction icon={Eye} label={'Xem bằng chứng ' + e.school_name} onClick={() => setSelection({kind:'extension',item:e})}/>
                   {e.can_review && can('channel_sales.school.extension.review') && !expired && <AdminIconAction icon={Check} label={'Duyệt gia hạn ' + e.school_name} tone="green" onClick={() => { setExtensionConfirmationError(''); setConfirmExtension({ id: e.id, schoolName: e.school_name }); }}/>}
                   {e.can_review && can('channel_sales.school.extension.review') && <AdminIconAction icon={X} label={'Từ chối gia hạn ' + e.school_name} tone="red" onClick={() => decide('extension',e.id,false)}/>}
-                  {!preview && <AdminIconAction icon={History} tone="neutral" label={'Lịch sử gia hạn ' + e.school_name} onClick={() => setHistory({kind:'extension',id:e.id,name:e.school_name})}/>}
+                  {<AdminIconAction icon={History} tone="neutral" label={'Lịch sử gia hạn ' + e.school_name} onClick={() => setHistory({kind:'extension',id:e.id,name:e.school_name})}/>}
                 </div></td>
               </tr>;
             })}
             {section === 'progress' && <ProgressTableRows rows={progressPage}
-              onJournal={c=>preview ? setSelection({kind:'progress',item:c})
-                : setWorkLog({customerId:c.id,schoolName:c.display_name})}/>}
+              onJournal={c=>setWorkLog({customerId:c.id,schoolName:c.display_name})}/>}
           </tbody>
         </table>
         {!busy && failed && <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
@@ -490,12 +470,12 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
               <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{nice(selectedProposal.review_due_at)}</p></div>
             </div>
           </section>
-          {proposalDetailQuery.isPending && !preview && <output>Đang tải thông tin trường chính và phân hiệu…</output>}
+          {proposalDetailQuery.isPending && <output>Đang tải thông tin trường chính và phân hiệu…</output>}
           {proposalDetailQuery.error && <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 p-3">
             <p>Không thể tải chi tiết trường: {proposalDetailQuery.error.message}</p>
             <AppButton tone="neutral" type="button" onClick={() => void proposalDetailQuery.refetch()}>Thử lại</AppButton>
           </div>}
-          {(preview || proposalDetail) && <>
+          {proposalDetail && <>
             {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.isPending &&
               <output>Đang tải trường chính hiện hữu…</output>}
             {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.error &&
@@ -526,10 +506,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
           {selection.item.approved_until && <p>Đã duyệt đến: {nice(selection.item.approved_until)}</p>}
           {selection.item.decision_reason && <p>Quyết định: {selection.item.decision_reason}</p>}
           {selection.item.is_expired && <p className="rounded-xl bg-amber-50 p-3 text-amber-800">Quyền cũ đã hết hạn. Hồ sơ chờ duyệt không tự giữ suất tiếp cận.</p>}
-        </div>}
-        {selection?.kind==='progress' && preview && <div className="space-y-2 text-sm">
-          <p className="font-semibold">{selection.item.display_name}</p>
-          <p className="text-muted-foreground">Nhật ký làm việc được tải từ API khi đăng nhập vào hệ thống.</p>
         </div>}
     </AppDrawer>
     <SchoolWorkLogDrawer key={workLog?.customerId ?? "closed"} open={workLog!==null} onOpenChange={v=>{if(!v)setWorkLog(null);}}

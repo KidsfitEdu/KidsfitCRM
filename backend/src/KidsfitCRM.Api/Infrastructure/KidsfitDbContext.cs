@@ -66,7 +66,8 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         boardCommission.Property(x => x.Status).HasMaxLength(24).UseCollation("utf8mb4_bin");
         boardCommission.Property(x => x.SalesPercent).HasPrecision(9, 4);
         boardCommission.Property(x => x.ManagerPercent).HasPrecision(9, 4);
-        boardCommission.HasIndex(x => new { x.Scope, x.OrganizationId, x.ManagerUserId, x.SalesUserId, x.CreatedAt });
+        boardCommission.HasIndex(x => new { x.Scope, x.OrganizationId, x.ManagerUserId, x.SalesUserId, x.CreatedAt })
+            .HasDatabaseName("IX_board_commission_policy_versions_lookup");
         ConfigureChannelSales(modelBuilder);
         modelBuilder.Entity<SalesContract>().Property(x => x.ServicePlan).HasMaxLength(32);
         modelBuilder.Entity<SalesContract>().Property(x => x.ContractNote).HasMaxLength(4000);

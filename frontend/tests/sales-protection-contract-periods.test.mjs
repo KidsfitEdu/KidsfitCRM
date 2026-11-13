@@ -16,7 +16,14 @@ test('period history belongs inside the current protection drawer, not a new tab
 });
 
 test('contract file shows only inline preview and download icons',()=>{
-  assert.match(component,/EvidencePreviewDialog/);
+  assert.doesNotMatch(component,/EvidencePreviewDialog/);
+  assert.match(component,/window\.open\('', '_blank'\)/);
+  assert.match(component,/tab\.location\.replace\(url\)/);
+  assert.match(component,/tab\.opener = null/);
+  assert.match(component,/!tab\)/);
+  assert.match(component,/!response\.ok/);
+  assert.match(component,/link\.download = item\.file_name/);
+  assert.match(component,/if \(tab && !tab\.closed\) tab\.close\(\)/);
   assert.match(component,/aria-label=\{'Xem file '/);
   assert.match(component,/aria-label=\{'Tải xuống '/);
   assert.match(component,/<Eye className="size-4"\/>/);

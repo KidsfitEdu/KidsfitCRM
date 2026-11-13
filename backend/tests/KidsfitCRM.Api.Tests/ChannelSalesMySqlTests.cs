@@ -781,6 +781,56 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Accounting_edits_draft_and_board_returns_then_approves_same_payout()
+    {
+        var seller = await Seller();
+        var (_, contractId) = await Contract(seller);
+        var accountant = await UserId("accountant@kidsfit.vn");
+        var director = await UserId("board@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        await actions.RecordRevenueReceipt(contractId,
+            new(Key(), null, 500_000m, DateTime.UtcNow, "RC-" + Key(), "BANK_TRANSFER"),
+            accountant, Http(), Ct);
+        var entry = await db.CommissionLedgerEntries.AsNoTracking()
+            .SingleAsync(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES");
+        var payoutId = await actions.CreatePayout(new(Key(), entry.BeneficiaryOrganizationId,
+            seller, entry.Period, 0, null, contractId, "SALES"), accountant, Http(), Ct);
+        await actions.UpdatePayoutDraft(payoutId, new(20m, 100_000m, null), accountant, Http(), Ct);
+        Assert.Equal("DRAFT", (await db.Payouts.FindAsync(payoutId))!.Status);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            actions.SubmitPayout(payoutId, accountant, Http(), Ct));
+        await actions.UpdatePayoutDraft(payoutId,
+            new(20m, 100_000m, "Kế toán đã đối chiếu và điều chỉnh hoa hồng"), accountant, Http(), Ct);
+        await actions.SubmitPayout(payoutId, accountant, Http(), Ct);
+        Assert.Equal("PENDING_APPROVAL", (await db.Payouts.FindAsync(payoutId))!.Status);
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.UpdatePayoutDraft(payoutId, new(15m, 75_000m, "Sửa trái trạng thái"), accountant, Http(), Ct));
+        await actions.ReturnPayout(payoutId, new("Cần bổ sung căn cứ hợp đồng"),
+            director, Http(), Ct);
+        Assert.Equal("CHANGES_REQUESTED", (await db.Payouts.FindAsync(payoutId))!.Status);
+        await actions.UpdatePayoutDraft(payoutId,
+            new(20m, 100_000m, "Đã bổ sung căn cứ hợp đồng"), accountant, Http(), Ct);
+        await actions.SubmitPayout(payoutId, accountant, Http(), Ct);
+        await actions.ApprovePayout(payoutId, director, Http(), Ct);
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
+            actions.UpdatePayoutDraft(payoutId, new(25m, 125_000m, null), accountant, Http(), Ct));
+        db.ChangeTracker.Clear();
+        var payout = await db.Payouts.AsNoTracking().SingleAsync(x => x.Id == payoutId);
+        Assert.Equal("APPROVED", payout.Status);
+        Assert.Equal(125_000m, payout.SuggestedAmount);
+        Assert.Equal(100_000m, payout.RequestedAmount);
+        Assert.Equal(20m, payout.RequestedRatePercent);
+        Assert.Equal(100_000m, payout.NetAmount);
+        Assert.Equal(125_000m, (await db.CommissionLedgerEntries.AsNoTracking()
+            .SingleAsync(x => x.Id == entry.Id)).Amount);
+        Assert.Equal(2, await db.PayoutEvents.CountAsync(x => x.PayoutId == payoutId
+            && x.EventType == "SUBMITTED"));
+        Assert.Equal(1, await db.PayoutEvents.CountAsync(x => x.PayoutId == payoutId
+            && x.EventType == "CHANGES_REQUESTED"));
+    }
+
+    [MySqlFact]
     public async Task Sales_and_manager_receive_distinct_accruals_and_payouts_for_same_receipt()
     {
         var seller = await Seller();

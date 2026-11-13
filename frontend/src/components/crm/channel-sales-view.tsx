@@ -1298,13 +1298,6 @@ function ContractDialog({
           </div>
           {errors.total_value && <p role="alert" className="text-xs text-red-700">{errors.total_value}</p>}
         </div>
-        <Field label="Ghi chú hợp đồng (không bắt buộc)">
-          <textarea name="contract_note" data-field="contract_note" aria-label="Ghi chú hợp đồng"
-            aria-invalid={!!errors.contract_note} value={note} onChange={e=>{setNote(e.target.value);clearError("contract_note");}}
-            maxLength={4000} rows={3} className={textareaClass}
-            placeholder="Nhập thông tin cần xác minh thêm (nếu có)..."/>
-          {errors.contract_note && <p role="alert" className="text-xs text-red-700">{errors.contract_note}</p>}
-        </Field>
         <div className="space-y-2">
           <label className="relative flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/10 px-3 py-4 text-center transition-colors hover:border-primary/70 hover:bg-primary/5 focus-within:ring-2 focus-within:ring-ring">
             <UploadCloud className="size-5 text-muted-foreground" aria-hidden="true"/>
@@ -1317,6 +1310,13 @@ function ContractDialog({
           </label>
           {errors.contract_file && <p role="alert" className="text-xs text-destructive">{errors.contract_file}</p>}
         </div>
+        <Field label="Ghi chú hợp đồng (không bắt buộc)">
+          <textarea name="contract_note" data-field="contract_note" aria-label="Ghi chú hợp đồng"
+            aria-invalid={!!errors.contract_note} value={note} onChange={e=>{setNote(e.target.value);clearError("contract_note");}}
+            maxLength={4000} rows={3} className={textareaClass}
+            placeholder="Nhập thông tin cần xác minh thêm (nếu có)..."/>
+          {errors.contract_note && <p role="alert" className="text-xs text-red-700">{errors.contract_note}</p>}
+        </Field>
       </div>
       <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi Quản lý duyệt"/>
     </form>

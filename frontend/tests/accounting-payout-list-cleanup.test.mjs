@@ -45,3 +45,17 @@ test('Payout tracking is UI-only and contract detail workflow remains available'
   assert.match(part,/title=\{p.code\}/);
   assert.match(part,/channelMoney\(p.net_amount\)/);
 });
+
+test('Accounting tabs use the same underline navigation visual language as Sales',()=>{
+  const sales=readFileSync(resolve(import.meta.dirname,'../src/components/roles/SalesFocusPage.tsx'),'utf8');
+  for (const className of ['-mb-px','border-b-2','px-1 py-3','border-[#1b5e20]','text-muted-foreground']) {
+    assert.ok(page.includes(className), 'Accounting missing '+className);
+    assert.ok(sales.includes(className), 'Sales reference missing '+className);
+  }
+  assert.match(page,/role="tablist" aria-label="Nghiệp vụ Kế toán"/);
+  assert.match(page,/role="tab" key=\{item\.key\}/);
+  assert.match(page,/aria-selected=\{accountingTab===item\.key\}/);
+  assert.match(page,/onClick=\{\(\)=>setAccountingTab\(item\.key\)\}/);
+  assert.match(page,/overflow-x-auto border-b border-border bg-transparent/);
+  assert.doesNotMatch(page,/rounded-lg px-4 py-2 text-sm font-semibold transition-colors/);
+});

@@ -55,3 +55,18 @@ test('Accounting separates contracts and role-specific payout overview',()=>{
   assert.match(accounting,/role="tab"/);
   assert.match(accounting,/financeOverview\?\.payouts/);
 });
+
+test('Legacy receipt requires explicit verified backfill and never silently reassigns manager share',()=>{
+  const handler=read('../backend/src/KidsfitCRM.Api/Features/ReceiptCommissionBackfillActions.cs');
+  const dto=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesContracts.cs');
+  assert.match(handler,/PreviewReceiptCommissionBackfill/);
+  assert.match(handler,/BackfillReceiptCommission/);
+  assert.match(handler,/assessment.LedgerCount != 0/);
+  assert.match(handler,/request.ManagerVerified/);
+  assert.match(handler,/COMMISSION_MANAGER_REVIEW_REQUIRED/);
+  assert.match(handler,/BACKFILL_RECEIPT_COMMISSION/);
+  assert.match(dto,/ManagerVerified = false/);
+  assert.match(accounting,/Đối soát hoa hồng khoản thu cũ/);
+  assert.match(accounting,/manager_verified:backfillManagerVerified/);
+  assert.match(accounting,/!detail.ledger.some\(entry=>entry.revenue_receipt_id===receipt.id\)/);
+});

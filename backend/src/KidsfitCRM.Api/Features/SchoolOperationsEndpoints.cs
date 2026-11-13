@@ -460,8 +460,10 @@ public static class SchoolOperationsEndpoints
         {
             for (var offset = 5; offset >= 0; offset--)
             {
-                var monthStart = start.AddMonths(-offset);
-                var monthEnd = monthStart.AddMonths(1);
+                // Shift months on the first local day, not the UTC day before it.
+                // Otherwise February/March boundaries can drift to the 28th/30th.
+                var monthStart = DateTime.SpecifyKind(start.AddHours(7).AddMonths(-offset).AddHours(-7), DateTimeKind.Utc);
+                var monthEnd = DateTime.SpecifyKind(start.AddHours(7).AddMonths(1 - offset).AddHours(-7), DateTimeKind.Utc);
                 var gross = await db.RevenueReceipts.AsNoTracking()
                     .Where(x => contractIds.Contains(x.ContractId) && x.Status == "COMPLETED"
                         && x.ReceivedAt >= monthStart && x.ReceivedAt < monthEnd)

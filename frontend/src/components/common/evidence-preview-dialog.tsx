@@ -78,7 +78,7 @@ export function EvidencePreviewDialog({ preview, onClose }: {
 
   return <Dialog open={preview!==null} onOpenChange={open=>{if(!open)onClose();}}>
     <DialogContent showCloseButton={false}
-      className="flex h-[100dvh] w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-[#191d22] p-0 shadow-2xl sm:h-[min(94dvh,1100px)] sm:w-[min(94vw,1500px)] sm:rounded-2xl">
+      className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-[#191d22] p-0 shadow-2xl sm:h-[min(94dvh,1100px)] sm:w-[min(94vw,1500px)] sm:max-w-none sm:rounded-2xl">
       <DialogTitle className="sr-only">{preview?.name??'Xem chứng từ'}</DialogTitle>
       <DialogDescription className="sr-only">Xem chứng từ được bảo vệ theo quyền truy cập.</DialogDescription>
       {preview&&<>

@@ -1380,12 +1380,6 @@ const stateCopy: Record<string, string> = {
   PAID: 'Đã chi',
   ACCRUED: 'Phát sinh',
 };
-const personnelCopy: Record<string, string> = {
-  SALES: 'Nhân viên bán hàng',
-  COLLABORATOR: 'Cộng tác viên',
-  SALES_MANAGER: 'Quản lý bán hàng',
-  PARTNER_ADMIN: 'Quản lý đối tác',
-};
 const eventCopy: Record<string, string> = {
   OPENED: 'Mở đối soát',
   DISPUTED: 'Ghi nhận tranh chấp',

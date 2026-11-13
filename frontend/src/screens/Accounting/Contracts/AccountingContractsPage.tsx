@@ -1081,15 +1081,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <span className="text-xs tabular-nums text-muted-foreground">{detail.payouts.length} phiếu</span>
             </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
-            <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+            <table className="w-full min-w-[1000px] table-fixed text-left text-sm">
               <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
                 <tr>
-                  <th scope="col" className="w-[23%] px-3 py-3">Mã phiếu</th>
-                  <th scope="col" className="w-[21%] px-3 py-3">Người hưởng</th>
-                  <th scope="col" className="w-[16%] px-3 py-3">Ngày chuyển</th>
-                  <th scope="col" className="w-[14%] px-3 py-3 text-right">Số tiền</th>
-                  <th scope="col" className="w-[15%] px-3 py-3">Trạng thái</th>
-                  <th scope="col" className="w-[11%] px-3 py-3 text-center">Thao tác</th>
+                  <th scope="col" className="w-[22%] px-3 py-3">Mã phiếu</th>
+                  <th scope="col" className="w-[20%] px-3 py-3">Người hưởng</th>
+                  <th scope="col" className="w-[14%] px-3 py-3">Ngày chuyển</th>
+                  <th scope="col" className="w-[13%] px-3 py-3 text-right">Số tiền</th>
+                  <th scope="col" className="w-[14%] px-3 py-3">Trạng thái</th>
+                  <th scope="col" className="w-[17%] px-3 py-3 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">

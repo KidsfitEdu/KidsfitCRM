@@ -35,6 +35,12 @@ public static class SalesProtectionOverviewEndpoints
             .OrderBy(c => c.SignedOn).ThenBy(c => c.Id)
             .ToArrayAsync(ct);
         if (contracts.Length == 0) throw new KeyNotFoundException();
+        // Match the overview list: never expose a historical owner's file history
+        // when another Sales currently holds the active protection.
+        var otherCurrentOwner = await db.CustomerProtections.AsNoTracking().AnyAsync(p =>
+            p.CustomerId == customerId && p.Status == "ACTIVE" && p.EffectiveUntil > DateTime.UtcNow
+            && p.OwnerUserId != access.UserId, ct);
+        if (otherCurrentOwner) throw new KeyNotFoundException();
 
         var ids = contracts.Select(c => c.Id).ToArray();
         var renewals = await db.ContractRenewals.AsNoTracking()

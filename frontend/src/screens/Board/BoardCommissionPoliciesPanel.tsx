@@ -48,6 +48,8 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
   const [dialog,setDialog]=useState<CommissionFormValues|null>(null);
   const [detail,setDetail]=useState<SalesRow|null>(null);
   const [confirmReset,setConfirmReset]=useState<SalesRow|null>(null);
+  const [managerListOpen,setManagerListOpen]=useState(false);
+  const [managerReset,setManagerReset]=useState<PolicyVersion|null>(null);
   const [org,setOrg]=useState('ALL');
   const [manager,setManager]=useState('ALL');
   const [sales,setSales]=useState('ALL');
@@ -119,6 +121,28 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     }catch(e){setError(e instanceof Error?e.message:'Không khôi phục được chính sách.');}
     finally{setBusy(false);}
   };
+  const activeManagerRules=history.filter(h=>h.scope==='MANAGER'&&h.managerUserId!==null)
+    .filter(h=>!history.some(other=>other.id!==h.id&&other.scope==='MANAGER'
+      &&other.organizationId===h.organizationId&&other.managerUserId===h.managerUserId
+      &&(other.createdAt>h.createdAt||(other.createdAt===h.createdAt&&other.id>h.id))))
+    .filter(h=>h.status==='ACTIVE');
+  const startManagerRule=(p:PolicyVersion)=>{
+    setManagerListOpen(false);setFormError('');
+    setDialog({scope:'MANAGER',organizationId:p.organizationId,managerUserId:p.managerUserId,
+      salesUserId:null,salesPercent:String(p.salesPercent),managerPercent:String(p.managerPercent),
+      expectedVersionId:p.id});
+  };
+  const resetManager=async()=>{
+    if(!managerReset)return;
+    setBusy(true);setError('');setNotice('');
+    try{
+      await channelRequest(apiBase,token,'/board-commission/'+managerReset.id+'/reset',{
+        method:'POST',body:JSON.stringify({expectedVersionId:managerReset.id})
+      });
+      setManagerReset(null);setNotice('Đã khôi phục cấu hình Quản lý về mặc định.');await load();
+    }catch(e){setError(e instanceof Error?e.message:'Không khôi phục được cấu hình Quản lý.');}
+    finally{setBusy(false);}
+  };
   const revisions=detail?history.filter(h=>h.scope==='SALES'&&
     h.organizationId===detail.organizationId&&h.salesUserId===detail.userId):[];
   if(!can)return <p role="alert" className="rounded-xl border p-4 text-sm text-destructive">
@@ -148,7 +172,7 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
     <section className="flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-lg font-bold">Danh sách hoa hồng theo Sales</h3>
         <p className="mt-1 text-sm text-muted-foreground">Cùng một Quản lý có thể có tỷ lệ khác nhau theo từng Sales.</p></div>
-      <AppButton leadingIcon={<UsersRound className="size-4"/>} onClick={()=>{setFormError('');setDialog(initial('MANAGER'));}}>
+      <AppButton leadingIcon={<UsersRound className="size-4"/>} onClick={()=>setManagerListOpen(true)}>
         Cấu hình theo Quản lý
       </AppButton>
     </section>
@@ -214,8 +238,25 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
         pageSizeOptions={[10,20,50]} onPageSizeChange={n=>{setPageSize(n);setPage(1);}} disabled={loading}/>
     </AdminListPanel>
 
+    <AppDrawer open={managerListOpen} onOpenChange={setManagerListOpen}
+      title="Cấu hình theo Quản lý" description="BGĐ quản lý ngoại lệ cho đội Sales trực thuộc"
+      footer={<><AppButton tone="neutral" onClick={()=>setManagerListOpen(false)}>Đóng</AppButton>
+        <AppButton onClick={()=>{setManagerListOpen(false);setFormError('');setDialog(initial('MANAGER'));}}>Thêm điều chỉnh</AppButton></>}>
+      <div className="space-y-3">
+        {activeManagerRules.map(p=><div key={p.id} className="rounded-xl border border-border p-4">
+          <p className="font-semibold">{managers.find(m=>m.id===p.managerUserId)?.name??'Quản lý'}</p>
+          <p className="text-xs text-muted-foreground">{orgs.find(o=>o.id===p.organizationId)?.name??'Tổ chức'}</p>
+          <p className="mt-2 text-sm">Sales {p.salesPercent}% · Quản lý {p.managerPercent}%</p>
+          <div className="mt-3 flex justify-end gap-2">
+            <AdminIconAction icon={Pencil} tone="blue" label="Điều chỉnh cấu hình Quản lý" onClick={()=>startManagerRule(p)}/>
+            <AdminIconAction icon={RotateCcw} tone="neutral" label="Khôi phục cấu hình Quản lý" onClick={()=>{setManagerListOpen(false);setManagerReset(p);}}/>
+          </div>
+        </div>)}
+        {activeManagerRules.length===0&&<p className="text-sm text-muted-foreground">Chưa có cấu hình riêng cho Quản lý.</p>}
+      </div>
+    </AppDrawer>
     <BoardCommissionDialog initial={dialog} organizations={orgs} managers={managers} sales={people}
-      error={formError} busy={busy} lockTarget={dialog?.scope==='SYSTEM'||(dialog?.scope==='SALES'&&dialog.salesUserId!==null)} onClose={()=>{if(!busy){setDialog(null);setFormError('');}}}
+      error={formError} busy={busy} lockTarget={dialog?.scope==='SYSTEM'||(dialog?.scope==='SALES'&&dialog.salesUserId!==null)||dialog?.expectedVersionId!==null} onClose={()=>{if(!busy){setDialog(null);setFormError('');}}}
       onSave={form=>void save(form)}/>
     <AppDrawer open={detail!==null} onOpenChange={v=>{if(!v)setDetail(null)}}
       title="Chi tiết hoa hồng Sales" description="Tỷ lệ áp dụng và lịch sử thay đổi">
@@ -236,6 +277,10 @@ export function BoardCommissionPoliciesPanel({apiBase,token,abilities}:RolePageP
         {revisions.length===0&&<p className="text-muted-foreground">Chưa có điều chỉnh riêng, đang kế thừa chính sách.</p>}
       </div>}
     </AppDrawer>
+    <ConfirmDialog open={managerReset!==null} onOpenChange={v=>{if(!v&&!busy)setManagerReset(null)}}
+      title="Khôi phục chính sách Quản lý" busy={busy}
+      description="Đội Sales sẽ kế thừa tỷ lệ hệ thống, trừ các Sales đã được BGĐ điều chỉnh riêng."
+      confirmLabel="Khôi phục" onConfirm={()=>void resetManager()}/>
     <ConfirmDialog open={confirmReset!==null} onOpenChange={v=>{if(!v&&!busy)setConfirmReset(null)}}
       title="Khôi phục tỷ lệ kế thừa" busy={busy}
       description={'Sales '+(confirmReset?.name??'')+' sẽ quay về chính sách của Quản lý phụ trách hoặc mặc định hệ thống. Lịch sử cũ vẫn được giữ.'}

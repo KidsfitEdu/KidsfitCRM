@@ -48,6 +48,7 @@ public static class ContractRenewalEndpoints
         channel.MapGet("/renewals/eligible", Eligible).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapGet("/renewals/mine", MineList).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapGet("/renewals/mine/schools", MineSchools).RequireAuthorization(Permissions.ContractRenewalSubmit);
+        channel.MapGet("/renewals/mine/{id:long}", MineDetail).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapGet("/contracts/{contractId:long}/renewals", Mine).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/contracts/{contractId:long}/renewals", Submit).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/renewals/{id:long}/resubmit", Resubmit).RequireAuthorization(Permissions.ContractRenewalSubmit);
@@ -280,6 +281,38 @@ public static class ContractRenewalEndpoints
             visible.Add(item);
         }
         return Results.Ok(new { data = visible });
+    }
+
+    /// <summary>
+    /// Sales-only detail. Reuses the list's ownership + submitter scope, and returns
+    /// attachment metadata only; actual bytes require the existing evidence permission check.
+    /// </summary>
+    public static async Task<IResult> MineDetail(long id, HttpContext http,
+        KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ContractRenewalSubmit)) return Results.Forbid();
+        var record = await (from renewal in db.ContractRenewals.AsNoTracking()
+            join contract in access.Contracts(db).AsNoTracking() on renewal.ContractId equals contract.Id
+            join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+            where renewal.Id == id && renewal.SubmittedByUserId == access.UserId
+                && contract.OwnerUserId == access.UserId
+            select new {
+                renewal.Id, renewal.ContractId, contract_code = contract.ContractCode,
+                school_name = school.DisplayName, renewal.RenewalNo,
+                renewal.SignedOn, renewal.ServiceStartOn, renewal.ServiceEndOn,
+                renewal.PaymentCycle, renewal.TotalValue, renewal.Status,
+                renewal.GapReason, renewal.DecisionReason, renewal.SubmittedAt,
+                renewal.ReviewedAt
+            }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        var evidence = await db.FinancialEvidences.AsNoTracking()
+            .Where(x => x.Kind == "RENEWAL" && x.ContractRenewalId == id
+                && x.UploadedByUserId == access.UserId && x.AttachedAt != null)
+            .OrderByDescending(x => x.AttachedAt).ThenByDescending(x => x.Id)
+            .Select(x => new { id = x.Id, file_name = x.FileName,
+                mime_type = x.MimeType, uploaded_at = x.CreatedAt })
+            .ToArrayAsync(ct);
+        return Results.Ok(new { data = record, evidence });
     }
 
     /// <summary>All historical renewal submissions of the logged-in Sales, independently of current eligibility.</summary>

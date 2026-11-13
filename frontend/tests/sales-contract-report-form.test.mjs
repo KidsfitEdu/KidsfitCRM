@@ -14,15 +14,17 @@ test('plan labels are concise and underlying billing semantics remain unchanged'
   assert.equal(getServicePlanLabel('UNKNOWN'),'Chưa xác định');
 });
 
-test('contract report uses common dialog with fixed manager review submission action',()=>{
-  assert.match(screen,/return <AppDialog open onOpenChange=\{open=>\{if\(!open&&!saving\)onClose\(\);\}\}/);
-  assert.match(screen,/form="sales-contract-report-form"/);
-  assert.match(screen,/id="sales-contract-report-form"/);
+test('contract report keeps original layout and manager-first submission copy',()=>{
+  assert.match(screen,/return <SalesFormDialog title="Báo cáo hợp đồng"/);
   assert.match(screen,/Gửi Quản lý duyệt/);
-  assert.match(screen,/Quản lý bán hàng xem xét, phê duyệt trước khi chuyển CHECKEE xác minh/);
+  assert.match(screen,/Quản lý bán hàng duyệt trước khi chuyển CHECKEE xác minh/);
   assert.match(screen,/getServicePlanLabel\(option\)/);
   assert.doesNotMatch(screen,/Gói năm học \(9 tháng, tặng 3 tháng hè\)/);
   assert.doesNotMatch(screen,/Gói hàng tháng \(9 tháng\)/);
+  const form=screen.slice(screen.indexOf('function ContractDialog'),screen.indexOf('function ReceiptDialog'));
+  assert.doesNotMatch(form,/1\. Thông tin hợp đồng|2\. Gói dịch vụ và quy mô|3\. Chi phí hợp đồng|4\. Hồ sơ đính kèm/);
+  assert.match(form,/Chi phí theo hợp đồng/);
+  assert.match(form,/CustomerHighlight customer=\{customer\}/);
 });
 
 test('contract submission still uses evidence, idempotency and existing amounts',()=>{
@@ -34,16 +36,14 @@ test('contract submission still uses evidence, idempotency and existing amounts'
   assert.match(screen,/const multiplier = plan === 'MONTHLY_9' \? 9 : 1/);
 });
 
-test('compact reference form keeps 44px fields and a small package selector',()=>{
-  assert.match(screen,/contentClassName="sm:max-w-\[680px\]"/);
-  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="signed_on"/);
-  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="service_start_on"/);
-  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="service_end_on"/);
-  assert.match(screen,/className="h-11 rounded-xl px-3" data-field="maintenance_fee"/);
-  assert.match(screen,/flex h-14 min-w-0 cursor-pointer/);
-  assert.match(screen,/className="grid gap-2 grid-cols-2"/);
-  assert.match(screen,/Tổng giá trị hợp đồng/);
-  assert.match(screen,/border-dashed/);
-  assert.match(screen,/UploadCloud/);
-  assert.match(screen,/accept="\.pdf,image\/jpeg,image\/png,image\/webp"/);
+test('only scoped report inputs, package choice and upload change',()=>{
+  const form=screen.slice(screen.indexOf('function ContractDialog'),screen.indexOf('function ReceiptDialog'));
+  assert.match(form,/\[&_input:not\(\[type=radio\]\):not\(\[type=checkbox\]\):not\(\[type=file\]\)\]:h-11/);
+  assert.match(form,/min-h-\[52px\]/);
+  assert.match(form,/grid grid-cols-2 gap-2/);
+  assert.match(form,/border-dashed/);
+  assert.match(form,/UploadCloud/);
+  assert.match(form,/file \? file\.name/);
+  assert.match(form,/accept="\.pdf,image\/jpeg,image\/png,image\/webp"/);
+  assert.match(form,/label="Gửi Quản lý duyệt"/);
 });

@@ -9,9 +9,9 @@ export const paymentCycleForPlan = (plan: ContractServicePlan): ContractPaymentC
 export const getServicePlanLabel = (servicePlan: string | null | undefined): string => {
   switch (servicePlan) {
     case 'SCHOOL_YEAR':
-      return 'Gói năm học (9 tháng, tặng 3 tháng hè)';
+      return 'Gói theo năm';
     case 'MONTHLY_9':
-      return 'Gói hàng tháng (9 tháng)';
+      return 'Gói hàng tháng';
     default:
       return 'Chưa xác định';
   }

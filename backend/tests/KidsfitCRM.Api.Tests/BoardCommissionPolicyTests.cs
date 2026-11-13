@@ -1,3 +1,4 @@
+using System.Text.Json;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Features;
 
@@ -80,6 +81,37 @@ public sealed class BoardCommissionPolicyTests
         var result = BoardCommissionPolicyEndpoints.Resolve([old,newer],10,20,30);
         Assert.Equal(24m,result.Sales);
         Assert.Equal(6m,result.Manager);
+    }
+
+
+    [Fact]
+    public void Snake_case_request_binds_25_and_5()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        };
+        var input = """
+            {"scope":"SYSTEM","sales_percent":25,"manager_percent":5,"expected_version_id":1}
+            """;
+        var request = JsonSerializer.Deserialize<SaveBoardCommissionRequest>(input, options);
+        Assert.NotNull(request);
+        Assert.Equal(25m, request.SalesPercent);
+        Assert.Equal(5m, request.ManagerPercent);
+        Assert.Equal(1L, request.ExpectedVersionId);
+    }
+
+    [Fact]
+    public void Missing_rates_remain_null_instead_of_silently_becoming_zero()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        };
+        var request = JsonSerializer.Deserialize<SaveBoardCommissionRequest>("""{"scope":"SYSTEM"}""", options);
+        Assert.NotNull(request);
+        Assert.Null(request.SalesPercent);
+        Assert.Null(request.ManagerPercent);
     }
 
     [Theory]

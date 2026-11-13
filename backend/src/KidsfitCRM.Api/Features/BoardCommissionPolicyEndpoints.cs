@@ -8,7 +8,7 @@ namespace KidsfitCRM.Api.Features;
 
 public sealed record SaveBoardCommissionRequest(
     string Scope, long? OrganizationId, long? ManagerUserId, long? SalesUserId,
-    decimal SalesPercent, decimal ManagerPercent, long? ExpectedVersionId);
+    decimal? SalesPercent, decimal? ManagerPercent, long? ExpectedVersionId);
 
 public sealed record ResetBoardCommissionRequest(long ExpectedVersionId);
 
@@ -131,7 +131,11 @@ public static class BoardCommissionPolicyEndpoints
         var scope = request.Scope?.Trim().ToUpperInvariant();
         if (scope is not ("SYSTEM" or "MANAGER" or "SALES"))
             throw ApiValidationException.For("scope", "Phạm vi phải là SYSTEM, MANAGER hoặc SALES.");
-        if (!ValidRates(request.SalesPercent, request.ManagerPercent))
+        if (!request.SalesPercent.HasValue)
+            throw ApiValidationException.For("sales_percent", "Bắt buộc nhập tỷ lệ hoa hồng Sales.");
+        if (!request.ManagerPercent.HasValue)
+            throw ApiValidationException.For("manager_percent", "Bắt buộc nhập tỷ lệ hoa hồng Quản lý.");
+        if (!ValidRates(request.SalesPercent.Value, request.ManagerPercent.Value))
             throw ApiValidationException.For("sales_percent", "Tỷ lệ phải từ 0 đến 100%, tổng tối đa 100%, tối đa 4 chữ số thập phân.");
         if (scope == "SYSTEM" && (request.OrganizationId.HasValue ||
             request.ManagerUserId.HasValue || request.SalesUserId.HasValue))
@@ -172,7 +176,7 @@ public static class BoardCommissionPolicyEndpoints
             Scope = scope!, OrganizationId = scope == "SYSTEM" ? null : request.OrganizationId,
             ManagerUserId = scope == "MANAGER" ? request.ManagerUserId : null,
             SalesUserId = scope == "SALES" ? request.SalesUserId : null,
-            SalesPercent = request.SalesPercent, ManagerPercent = request.ManagerPercent,
+            SalesPercent = request.SalesPercent.Value, ManagerPercent = request.ManagerPercent.Value,
             Status = "ACTIVE", CreatedByUserId = http.UserId(), CreatedAt = now, UpdatedAt = now
         };
         await Append(db, http, previous, record, ct);

@@ -65,6 +65,6 @@ test('Sales protection detail distinguishes rights, service, renewal, and GI-01 
   assert.match(ui,/historyLoading&&/);
   assert.match(ui,/role="alert"/);
   assert.match(ui,/Tái ký phần mềm hằng năm không tự cộng thêm 5 năm/);
-  assert.match(ui,/Đạt mốc gián đoạn 12 tháng không đồng nghĩa tự động giải phóng quyền bảo vệ/);
+  assert.match(ui,/Mốc gián đoạn 12 tháng được theo dõi độc lập với thời hạn bảo vệ 5 năm/);
   assert.doesNotMatch(ui,/Đang chờ Kế toán: \{selected\.has_pending_renewal/);
 });

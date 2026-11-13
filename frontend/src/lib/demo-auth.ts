@@ -69,6 +69,8 @@ const schoolAbilitiesByProfile: Record<string, string[]> = {
   board: [
     'channel_sales.school.dispute.resolve',
     'channel_sales.school.escalation.resolve',
+    // Static BGĐ preview follows the same policy-screen authorization as the live role.
+    'channel_sales.policy.manage',
   ],
   accountant: ['channel_sales.contract.cancel', 'channel_sales.revenue.refund'],
   manager: schoolManagerAbilities,

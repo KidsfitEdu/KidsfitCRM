@@ -21,7 +21,7 @@ test('Accounting has one workspace table, eight columns, one detail Drawer and n
 });
 test('Renewal confirmation remains scoped and uses existing KC-02 APIs in the main Drawer',()=>{
  const inline=read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
- assert.match(inline,/\/accounting\/contracts\/.*\/renewals/);
+ assert.match(inline,/\/accounting\/contracts\/.*\/periods/);
  assert.match(inline,/\/accounting\/renewals\//);
  assert.match(inline,/channel_sales\.renewal\.review/);
  assert.match(inline,/channel_sales\.renewal\.confirm/);

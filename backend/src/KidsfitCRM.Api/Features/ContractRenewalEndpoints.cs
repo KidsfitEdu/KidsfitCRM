@@ -52,6 +52,7 @@ public static class ContractRenewalEndpoints
         channel.MapGet("/contracts/{contractId:long}/renewals", Mine).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/contracts/{contractId:long}/renewals", Submit).RequireAuthorization(Permissions.ContractRenewalSubmit);
         channel.MapPost("/renewals/{id:long}/resubmit", Resubmit).RequireAuthorization(Permissions.ContractRenewalSubmit);
+        channel.MapGet("/accounting/contracts/{contractId:long}/periods", AccountingPeriods).RequireAuthorization(Permissions.ContractRenewalReview);
         channel.MapGet("/accounting/renewals", Queue).RequireAuthorization(Permissions.ContractRenewalReview);
         channel.MapGet("/accounting/renewals/{id:long}", Detail).RequireAuthorization(Permissions.ContractRenewalReview);
         channel.MapPost("/accounting/renewals/{id:long}/request-info", RequestInfo).RequireAuthorization(Permissions.ContractRenewalReview);
@@ -388,6 +389,66 @@ public static class ContractRenewalEndpoints
             .Select(x => new { x.Id, x.RenewalNo, x.SignedOn, x.ServiceStartOn, x.ServiceEndOn,
                 x.PaymentCycle, x.TotalValue, x.GapReason, x.Status, x.DecisionReason, x.SubmittedAt }).ToArrayAsync(ct);
         return Results.Ok(new { data = rows });
+    }
+
+    /// <summary>
+    /// Accounting-only period history. Includes the verified source contract and all
+    /// renewal decisions, but never implies that a pending renewal extends service.
+    /// File metadata is scoped by the source contract; byte reads retain evidence ACL.
+    /// </summary>
+    public static async Task<IResult> AccountingPeriods(long contractId, HttpContext http,
+        KidsfitDbContext db, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ContractRenewalReview)) return Results.Forbid();
+        var contract = await access.Contracts(db).AsNoTracking()
+            .Where(c => c.Id == contractId && c.VerifiedAt != null)
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        if (!access.CanManageOrganization(contract.OwnerOrganizationId))
+            throw new KeyNotFoundException();
+        var renewals = await db.ContractRenewals.AsNoTracking()
+            .Where(r => r.ContractId == contractId)
+            .OrderBy(r => r.RenewalNo).ThenBy(r => r.Id).ToArrayAsync(ct);
+        var renewalIds = renewals.Select(r => r.Id).ToArray();
+        var evidence = await db.FinancialEvidences.AsNoTracking()
+            .Where(e => e.AttachedAt != null &&
+                ((e.Kind == "CONTRACT" && e.ContractId == contractId) ||
+                 (e.Kind == "RENEWAL" && e.ContractRenewalId.HasValue &&
+                  renewalIds.Contains(e.ContractRenewalId.Value))))
+            .OrderByDescending(e => e.AttachedAt).ThenByDescending(e => e.Id)
+            .Select(e => new { e.Id, e.Kind, e.ContractId, e.ContractRenewalId,
+                e.FileName, e.MimeType }).ToArrayAsync(ct);
+        var result = new List<object>();
+        var originalProof = evidence.FirstOrDefault(e => e.Kind == "CONTRACT" && e.ContractId == contractId);
+        result.Add(new {
+            type = "ORIGINAL", id = contract.Id, contract_id = contract.Id,
+            contract_code = contract.ContractCode, renewal_no = (int?)null,
+            signed_on = contract.SignedOn, service_start_on = contract.ServiceStartOn,
+            service_end_on = contract.ServiceEndOn, payment_cycle = contract.PaymentCycle,
+            total_value = contract.TotalValue, status = contract.Status,
+            service_confirmed = true,
+            evidence = originalProof is null ? null : (object)new {
+                id = originalProof.Id, file_name = originalProof.FileName, mime_type = originalProof.MimeType
+            }
+        });
+        foreach (var renewal in renewals)
+        {
+            var proof = evidence.FirstOrDefault(e => e.Kind == "RENEWAL" && e.ContractRenewalId == renewal.Id);
+            result.Add(new {
+                type = "RENEWAL", id = renewal.Id, contract_id = contract.Id,
+                contract_code = contract.ContractCode, renewal_no = (int?)renewal.RenewalNo,
+                signed_on = (DateOnly?)renewal.SignedOn,
+                service_start_on = (DateOnly?)renewal.ServiceStartOn,
+                service_end_on = (DateOnly?)renewal.ServiceEndOn,
+                payment_cycle = renewal.PaymentCycle,
+                total_value = renewal.TotalValue, status = renewal.Status,
+                service_confirmed = renewal.Status == "CONFIRMED",
+                evidence = proof is null ? null : (object)new {
+                    id = proof.Id, file_name = proof.FileName, mime_type = proof.MimeType
+                }
+            });
+        }
+        return Results.Ok(new { data = result });
     }
 
     private static IQueryable<ContractRenewal> ScopedAccounting(KidsfitDbContext db, ChannelSalesAccess access)

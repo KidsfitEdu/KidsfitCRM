@@ -227,19 +227,49 @@ public static class SchoolEndpoints
                 can_grant = x.Status == "PENDING_KIDSFIT" && access.Has(Permissions.SchoolProtectionGrant) }) });
     }
 
-    private static async Task<IResult> Capacities(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    internal static async Task<IResult> Capacities(HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var query = db.OrganizationMemberships.AsNoTracking().Where(x => (x.MembershipType == "SALES" || x.MembershipType == "CHANNEL_SALES" || x.MembershipType == "COLLABORATOR" || x.MembershipType == "PARTNER_COLLABORATOR")
             && (access.All || (access.OrganizationIds.Contains(x.OrganizationId) && (access.Has(Permissions.ChannelSalesManage) || x.UserId == access.UserId))));
-        var now = DateTime.UtcNow;
-        return Results.Ok(new { data = await (from membership in query
+        var memberships = await (from membership in query
             join user in db.Users on membership.UserId equals user.Id
             join org in db.Organizations on membership.OrganizationId equals org.Id
             orderby user.Name
-            select new { membership.Id, user.Name, organization_name = org.Name, membership.SchoolApproachLimit,
-                active = db.ApproachRegistrations.Where(r => r.OwnerUserId == membership.UserId && r.OwnerOrganizationId == membership.OrganizationId && r.Status == "ACTIVE" && r.ProtectedUntil > now && db.DirectorySchools.Any(s => s.CustomerId == r.CustomerId)).Select(x => x.CustomerId).Distinct().Count(),
-                history = db.SchoolCapacityChanges.Where(x => x.MembershipId == membership.Id).OrderByDescending(x => x.CreatedAt).Take(10).Select(x => new { x.PreviousLimit, x.NewLimit, x.Reason, x.CreatedAt }).ToArray()
-            }).Take(100).ToArrayAsync(ct) });
+            select new { membership.Id, user.Name, organization_name = org.Name, membership.UserId,
+                membership.OrganizationId, membership.SchoolApproachLimit }).Take(100).ToArrayAsync(ct);
+
+        // Query the selected memberships' statistics in batches. DISTINCT inside a
+        // correlated projection creates a derived table that cannot see outer aliases
+        // with MySql.EntityFrameworkCore on MySQL 8.4.
+        var userIds = memberships.Select(x => x.UserId).Distinct().ToArray();
+        var organizationIds = memberships.Select(x => x.OrganizationId).Distinct().ToArray();
+        var membershipIds = memberships.Select(x => x.Id).ToArray();
+        var now = DateTime.UtcNow;
+        var activeSchools = await db.ApproachRegistrations.AsNoTracking()
+            .Where(r => userIds.Contains(r.OwnerUserId) && organizationIds.Contains(r.OwnerOrganizationId)
+                && r.Status == "ACTIVE" && r.ProtectedUntil > now
+                && db.DirectorySchools.Any(s => s.CustomerId == r.CustomerId))
+            .Select(r => new { r.OwnerUserId, r.OwnerOrganizationId, r.CustomerId })
+            .Distinct().ToArrayAsync(ct);
+        var counts = activeSchools.GroupBy(x => (x.OwnerUserId, x.OwnerOrganizationId))
+            .ToDictionary(g => g.Key, g => g.Count());
+        var capacityChanges = await db.SchoolCapacityChanges.AsNoTracking()
+            .Where(x => membershipIds.Contains(x.MembershipId))
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Select(x => new { x.MembershipId, x.PreviousLimit, x.NewLimit, x.Reason, x.CreatedAt })
+            .ToArrayAsync(ct);
+        var historyByMembership = capacityChanges.GroupBy(x => x.MembershipId)
+            .ToDictionary(g => g.Key, g => g.Take(10).Select(x => new {
+                x.PreviousLimit, x.NewLimit, x.Reason, x.CreatedAt
+            }).ToArray());
+
+        var data = memberships.Select(m => new {
+            m.Id, m.Name, m.organization_name, m.SchoolApproachLimit,
+            active = counts.GetValueOrDefault((m.UserId, m.OrganizationId)),
+            history = historyByMembership.GetValueOrDefault(m.Id) ?? []
+        }).ToArray();
+        return Results.Ok(new { data });
     }
 }

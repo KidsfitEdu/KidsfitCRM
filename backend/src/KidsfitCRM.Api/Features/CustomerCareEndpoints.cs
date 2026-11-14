@@ -247,8 +247,12 @@ public static class CustomerCareEndpoints
                 partner = db.Organizations.Where(o => o.Id == c.OwnerOrganizationId).Select(o => o.Name).First(),
                 open_tickets = db.CustomerSupportCases.Count(t => t.ContractId == c.Id && t.Status != "RESOLVED"),
             }).ToArrayAsync(ct);
-        var users = await (from m in db.OrganizationMemberships join o in db.Organizations on m.OrganizationId equals o.Id
-            join u in db.Users on m.UserId equals u.Id
+        // Materialize eligible users before computing workload aggregates. MySQL 8.4 cannot
+        // resolve outer aliases inside the derived-table DISTINCT emitted by EF Core
+        // for a correlated Select(...).Distinct().Count() projection.
+        var eligibleUsers = await (from m in db.OrganizationMemberships.AsNoTracking()
+            join o in db.Organizations.AsNoTracking() on m.OrganizationId equals o.Id
+            join u in db.Users.AsNoTracking() on m.UserId equals u.Id
             where m.Status == "ACTIVE" && m.MembershipType == "CUSTOMER_SERVICE"
                 && u.Status == "ACTIVE" && o.Code == "KIDSFIT" && o.Status == "ACTIVE"
                 // Never offer an Admin as caretaker, even if they also have a CSKH membership.
@@ -256,12 +260,27 @@ public static class CustomerCareEndpoints
                 && db.UserRoles.Any(ur => ur.UserId == u.Id
                     && db.PermissionRoles.Any(pr => pr.RoleId == ur.RoleId && db.Permissions.Any(pe =>
                         pe.Id == pr.PermissionId && pe.Code == Permissions.SchoolSupportManage)))
-            orderby u.Name select new { id = u.Id, name = u.Name, email = u.Email, organization_id = o.Id,
-                membership_type = m.MembershipType,
-                schools = db.SalesContracts.Where(c => c.CareUserId == u.Id && c.Status == "ACTIVE")
-                    .Select(c => c.CustomerId).Distinct().Count(),
-                open_tickets = db.CustomerSupportCases.Count(t => t.AssignedUserId == u.Id && t.Status != "RESOLVED")
-            }).ToArrayAsync(ct);
+            orderby u.Name
+            select new { id = u.Id, name = u.Name, email = u.Email, organization_id = o.Id,
+                membership_type = m.MembershipType }).ToArrayAsync(ct);
+
+        var careUserIds = eligibleUsers.Select(u => u.id).Distinct().ToArray();
+        var distinctSchools = await db.SalesContracts.AsNoTracking()
+            .Where(c => c.CareUserId.HasValue && careUserIds.Contains(c.CareUserId.Value) && c.Status == "ACTIVE")
+            .Select(c => new { care_user_id = c.CareUserId!.Value, c.CustomerId })
+            .Distinct().ToArrayAsync(ct);
+        var schoolsByUser = distinctSchools.GroupBy(x => x.care_user_id)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var ticketCounts = await db.CustomerSupportCases.AsNoTracking()
+            .Where(t => careUserIds.Contains(t.AssignedUserId) && t.Status != "RESOLVED")
+            .GroupBy(t => t.AssignedUserId)
+            .Select(g => new { user_id = g.Key, count = g.Count() }).ToArrayAsync(ct);
+        var ticketsByUser = ticketCounts.ToDictionary(x => x.user_id, x => x.count);
+        var users = eligibleUsers.Select(u => new {
+            u.id, u.name, u.email, u.organization_id, u.membership_type,
+            schools = schoolsByUser.GetValueOrDefault(u.id),
+            open_tickets = ticketsByUser.GetValueOrDefault(u.id)
+        }).ToArray();
         return Results.Ok(new { data = contracts, users, total, page = p, page_size = size });
     }
 }

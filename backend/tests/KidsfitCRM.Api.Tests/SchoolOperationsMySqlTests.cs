@@ -2254,4 +2254,88 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(1, await db.SalesContracts.CountAsync(x => x.ApproachRegistrationId == registration, Ct));
     }
 
+    [MySqlFact] public async Task CapacityListingHandlesEmptyHistoryActiveCountExpiryAndOrganizationScopeOnMySql84()
+    {
+        var first = await Arrange();
+        var otherOrganization = await Arrange();
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var initial = Json(await SchoolEndpoints.Capacities(Http(first.Manager.UserId), db, Ct));
+        var initialRows = initial.GetProperty("data").EnumerateArray().ToArray();
+        Assert.Contains(initialRows, x => x.GetProperty("id").GetInt64() == first.Seller.MembershipId);
+        Assert.DoesNotContain(initialRows, x => x.GetProperty("id").GetInt64() == otherOrganization.Seller.MembershipId);
+        var seller = initialRows.Single(x => x.GetProperty("id").GetInt64() == first.Seller.MembershipId);
+        Assert.Equal(0, seller.GetProperty("active").GetInt32());
+        Assert.Empty(seller.GetProperty("history").EnumerateArray());
+
+        var actions = new ChannelSalesActions(db);
+        await actions.ChangeSchoolCapacity(first.Seller.MembershipId, new(7, "Rà soát hạn mức kiểm thử"),
+            admin, Http(admin), Ct);
+        var registration = await actions.RegisterCustomerApproach(Claim(first.CustomerId),
+            first.Seller.UserId, Http(first.Seller.UserId), Ct);
+        var after = Json(await SchoolEndpoints.Capacities(Http(first.Manager.UserId), db, Ct));
+        seller = after.GetProperty("data").EnumerateArray()
+            .Single(x => x.GetProperty("id").GetInt64() == first.Seller.MembershipId);
+        Assert.Equal(7, seller.GetProperty("school_approach_limit").GetInt32());
+        Assert.Equal(1, seller.GetProperty("active").GetInt32());
+        var history = seller.GetProperty("history").EnumerateArray().ToArray();
+        Assert.Single(history);
+        Assert.Equal(10, history[0].GetProperty("previous_limit").GetInt32());
+        Assert.Equal(7, history[0].GetProperty("new_limit").GetInt32());
+
+        var stored = await db.ApproachRegistrations.FindAsync(registration);
+        stored!.ProtectedUntil = DateTime.UtcNow.AddMinutes(-2);
+        await db.SaveChangesAsync(Ct);
+        var expired = Json(await SchoolEndpoints.Capacities(Http(first.Manager.UserId), db, Ct));
+        Assert.Equal(0, expired.GetProperty("data").EnumerateArray()
+            .Single(x => x.GetProperty("id").GetInt64() == first.Seller.MembershipId)
+            .GetProperty("active").GetInt32());
+    }
+
+    [MySqlFact] public async Task CareAssignmentListsDistinctSchoolsForMultipleActiveContractsAndZeroWorkloadOnMySql84()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var admin = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var kidsfit = await db.Organizations.Where(o => o.Code == "KIDSFIT")
+            .Select(o => o.Id).SingleAsync(Ct);
+        var caretaker = await AddMember(kidsfit, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
+        var empty = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, Ct));
+        var care = empty.GetProperty("users").EnumerateArray()
+            .Single(x => x.GetProperty("id").GetInt64() == caretaker.UserId);
+        Assert.Equal(0, care.GetProperty("schools").GetInt32());
+        Assert.Equal(0, care.GetProperty("open_tickets").GetInt32());
+
+        var original = await db.SalesContracts.SingleAsync(c => c.Id == contractId, Ct);
+        original.CareUserId = caretaker.UserId;
+        original.CareOrganizationId = kidsfit;
+        var extraRegistration = new ApproachRegistration {
+            CustomerId = scenario.CustomerId, OwnerUserId = scenario.Peer.UserId,
+            OwnerOrganizationId = scenario.OrgId, CreatedByUserId = scenario.Peer.UserId,
+            RegisteredAt = DateTime.UtcNow.AddDays(-8),
+            ProtectedUntil = DateTime.UtcNow.AddDays(-3),
+            ExpiredAt = DateTime.UtcNow.AddDays(-3), Status = "EXPIRED", IdempotencyKey = Key()
+        };
+        db.ApproachRegistrations.Add(extraRegistration);
+        await db.SaveChangesAsync(Ct);
+        db.SalesContracts.Add(new SalesContract {
+            CustomerId = scenario.CustomerId, ApproachRegistrationId = extraRegistration.Id,
+            OwnerUserId = scenario.Peer.UserId, OwnerOrganizationId = scenario.OrgId,
+            ReportedByUserId = scenario.Peer.UserId, CareUserId = caretaker.UserId,
+            CareOrganizationId = kidsfit, ContractCode = "CARE-" + Key(),
+            SignedOn = ChannelSalesValidation.BusinessDate(DateTime.UtcNow),
+            Status = "ACTIVE", VerifiedAt = DateTime.UtcNow,
+            ProtectionStartsAt = DateTime.UtcNow, ProtectionUntil = DateTime.UtcNow.AddYears(5),
+            TotalValue = 1_000_000m, IdempotencyKey = Key()
+        });
+        await db.SaveChangesAsync(Ct);
+
+        var result = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, Ct));
+        care = result.GetProperty("users").EnumerateArray()
+            .Single(x => x.GetProperty("id").GetInt64() == caretaker.UserId);
+        Assert.Equal(1, care.GetProperty("schools").GetInt32());
+        Assert.Equal(0, care.GetProperty("open_tickets").GetInt32());
+    }
+
 }

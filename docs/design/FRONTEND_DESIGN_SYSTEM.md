@@ -1,6 +1,6 @@
 # KIDSFIT CRM — Frontend Design System
 
-**Version:** 2026-10-30. **Purpose:** one consistent presentation language for the seven-role school-sales CRM, while respecting existing frontend code, legacy role compatibility and business rules. **Reference screen:** user-provided Admin → Quản lý đề xuất trường image dated 30/10/2026. That image is **not committed**; inspect the source and, when available, render the live UI to compare.
+**Baseline:** 2026-10-30; **visual-reference supplement:** 2026-11-16. **Purpose:** one consistent presentation language for the seven-role school-sales CRM, while respecting existing frontend code, legacy role compatibility and business rules. **Reference screenshots:** Admin → Quản lý đề xuất trường (30/10/2026), plus Nhân sự & đối tác list, Quản lý trường học list/toast, Thông tin nhân sự detail drawer, and Mời Sales/CTV nhận trường form modal (16/11/2026). The screenshots were supplied in chat, **not committed**; inspect live source and render UI to verify implementation.
 
 ## Source architecture as of 2026-10-30
 
@@ -26,6 +26,26 @@ Deep-green fixed sidebar \`#0e2a1a\` (desktop width 248px), bright near-white wo
 - States: loading, no data, no match, forbidden, error, success, disabled and preview/demo have distinct presentation.
 - Dark mode: use \`.dark\` token variants; verify contrast and focus, not just background colors.
 - Responsive: existing shell uses fixed left sidebar at \`lg\` and bottom navigation below \`lg\`; aim for usable layouts at 375 / 768 / 1024 / 1440 px and 200% zoom.
+
+## Approved visual contract for future CRM screens (2026-11-16)
+
+This supplement documents the four new user-provided visual references; it does **not** mean these screens have been modified in this documentation-only change. Follow established KIDSFIT components and CSS semantic tokens; design quality means legibility, visual coherence, interaction clarity and accessibility, not decorative additions.
+
+| UI surface | Reference appearance | Mandatory behavior / reuse |
+|---|---|---|
+| App shell / page | Deep-green sidebar with soft highlighted selection; white topbar for search, theme, notifications, avatar; light workspace; green breadcrumb eyebrow, bold heading, description and contextual action | Keep current AppShell/nav and `AppPageHeader`; no new shell |
+| List panel / table | Large rounded white card, soft shadow/border, consistent filter toolbar; strong green table head, balanced neutral rows and contained pagination | Reuse `AdminListPanel`, `AdminListToolbar`, `AppPagination`; separate Search, Reset and Refresh; preserve backend filters |
+| Row action icons | Uniform subtly outlined circular/rounded buttons, color by action meaning | View green, Edit blue, Delete red, Archive amber, Download cyan, Restore violet; tooltip, `aria-label`, keyboard focus; confirmation for deletion |
+| Status badges | Small softly tinted rounded chips with legible labels, optional semantic icons | Valid/verified green; in-progress blue; waiting amber; error/rejected red; not-started neutral gray; renewal/restoration violet. Reuse badge mapper; state vs urgency vs required action remain separate |
+| Detail Drawer | Right-side panel; green header/close, dimmed backdrop; summary card and rounded grouped sections with small green icons, label-over-value fields; footer | Prefer shared Drawer/Sheet; ~480–560px desktop when sensible, narrow/full-width mobile, scroll content internally; Escape/focus return, loading/error/permission states |
+| Modal Form | Green branded title/close, white spacious form, paired select fields, clear labels and required indicators, roomy textarea, neutral Cancel and green Submit in footer | Reuse Dialog/input/select/textarea/form validation, 2 columns where readable and 1 column on mobile; field-level error and pending/disabled protections |
+| Toast notification | Top-right floating white card with icon, title, brief support text, dismiss control and optional thin duration indicator | Reuse `app-toast-provider.tsx`; green success/red error/amber warning/blue info; deduplicate; standard feedback ~4–5s where appropriate; no false success |
+
+**Color intent:** each **different action category** has its semantic color; each **meaningfully different state family** has a stable badge color. Avoid assigning random hues to each raw backend status or per-row action. Use accessible text/contrast and light/dark tokens—not hardcoded color literals in individual page code. A derived **Quá hạn** warning is not a mutation of a pending backend status.
+
+**Design scope and reuse:** This is a cross-screen visual guideline, not permission to change unrequested pages, statuses, permissions, forms, API responses or business rules. Before any UI implementation, inspect the actual shared components, current page and frontend skill references; if a required reusable primitive is absent, document that gap before adding the smallest justified shared abstraction.
+
+**Visual QA:** Compare rendered screens to the referenced screenshots at 375, 768, 1024 and 1440px, light/dark themes, 200% zoom, keyboard/focus and mobile overlays. Report exactly what was *actually* tested; no screenshot-fidelity claim based on documentation alone.
 
 ## Seven business roles (target UI)
 

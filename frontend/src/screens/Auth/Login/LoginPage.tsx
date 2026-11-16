@@ -76,7 +76,7 @@ export function LoginPage({
 
   if (connectionIssue)
     return <div>
-      <AppRequestErrorState title="Không thể kết nối máy chủ"
+      <AppRequestErrorState fullScreen title="Không thể kết nối máy chủ"
         detail="Không thể kết nối máy chủ KIDSFIT CRM để đăng nhập. Vui lòng thử lại."
         onRetry={() => { void attemptLogin(); }}/>
       <button type="button" onClick={() => { setConnectionIssue(null); setServerError(''); }}

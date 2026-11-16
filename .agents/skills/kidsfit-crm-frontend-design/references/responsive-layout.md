@@ -29,6 +29,16 @@ These are **test viewports**, not new breakpoint definitions. Use project Tailwi
 - Forms: auto layout fields from 2 columns to 1; keep keyboard input and select labels visible; dialogs \`max-h\` with inner scroll.
 - Date/amount: \`tabular-nums\`; keep expiry and overdue readable, avoid ambiguous two-digit years on cramped screens.
 
+## Responsive contracts for the approved list, drawer, modal and toast examples
+
+- **List toolbar:** at ≥1024px aim for one balanced row with a flexible search field, status dropdown, Search and Reset actions; when width is insufficient, wrap logically without squashing input labels or hiding the primary button. Below 768px stack fields/actions in usable order, keeping icon-only Reset labeled accessibly.
+- **Table and row actions:** preserve strong green header and semantic column headings. Desktop rows have stable widths and neutral separators. Small screens scroll *inside the panel* or use a deliberately reviewed card presentation; keep actions, status, important dates and pagination reachable. Icons remain recognizably distinct by action type even when text is hidden.
+- **Drawer/Sheet:** right-side at roughly 480–560px where space allows; on small screens use almost/full available width with no page-wide overflow. Branded header and dismiss affordance stay visible; body has its own vertical scroll; anchored footer, if present, is not covered by bottom navigation, viewport safe area or virtual keyboard.
+- **Form/dialog:** use a two-column grid on roomy desktop only if each control remains legible; collapse to one column for narrow widths. Limit overall height to the visible viewport and scroll the content, not the entire page. Header/close and Cancel/Submit must remain usable when textarea is long or mobile keyboard is open.
+- **Toast:** top-right desktop with adequate inset, not covering key page actions for extended periods; on mobile cap its width to viewport, use safe-area spacing and avoid the bottom navigation and modal footer. Cap simultaneously visible notifications and handle long Vietnamese messages without clipping.
+- **Focus and modal interaction:** manage focus trap/return, Escape close where allowed, background inertness, scroll lock and readable field errors. Verify touch, keyboard-only and 200% zoom for all four patterns.
+- **Color at different widths/themes:** distinguish semantic action-icon tones and status badge categories by text/icon and contrast, not hue alone; ensure dark tokens exist rather than hardcoded light-only styles.
+
 ## Dark mode and zoom
 
 - Verify all table headers, badges, hover, inputs, selected navigation and focus states against \`.dark\` tokens. Existing \`AppButton\` and \`AdminIconAction\` provide dark variants; reuse before overriding.

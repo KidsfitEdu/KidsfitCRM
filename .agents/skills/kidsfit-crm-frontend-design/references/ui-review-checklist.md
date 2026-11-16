@@ -42,6 +42,38 @@ Use on each changed screen. Mark each item PASS/FAIL/NOT_TESTED with screenshot/
 - [ ] When behavior/permissions changed, related backend/API integration tests are added/run.
 - [ ] Report before/after screenshots only if actually captured. Clearly state any checks not run.
 
+## E. New 2026-11-16 screenshot-reference acceptance checklist
+
+Mark each item PASS/FAIL/NOT_TESTED against a **rendered** screen where possible. These are future UI implementation checks; adding them here does not claim that the application was visually redesigned.
+
+### App shell, list and toolbar
+- [ ] Active sidebar item, topbar controls, green page eyebrow, page heading, supporting description and contextual main action follow the same KIDSFIT hierarchy as the supplied **Nhân sự & đối tác** and **Quản lý trường học** screenshots.
+- [ ] A rounded neutral panel contains balanced search/status/select, orange Search, distinct Reset, green table header, clean rows, useful pagination and page-size selector where supported.
+- [ ] Search, filter, reset and refresh retain distinct working behavior; table labels, data and permission scopes remain unchanged except by authorized functional changes.
+- [ ] Small-width table scrolling stays inside the panel; action icons/status/pagination remain reachable.
+
+### Action buttons and semantic status
+- [ ] View green, Edit blue, Delete red, Archive amber, Download cyan, Restore violet across all relevant consumers; mapping is semantic and centralized, not random per row.
+- [ ] Icon buttons have consistent shape/size, hover/focus/disabled states, text alternatives and tooltips; destructive actions show confirmation.
+- [ ] Active/verified green, in-progress blue, waiting amber, rejected/error red, unstarted neutral, renewal/restoration violet where applicable; **each meaning remains consistent**, not necessarily each raw status a unique color.
+- [ ] Badge text, contrast and optional icon make the meaning usable without color; overdue urgency and required action stay separate from authoritative status.
+
+### Right-side detail and form modal
+- [ ] Detail Drawer follows **Thông tin nhân sự** reference: branded header/close, dimmed overlay, profile summary, titled rounded section cards, icon, label-over-value display and sensible missing data.
+- [ ] Drawer content scrolls within the panel, footer remains usable, focus and Escape behavior work, and the panel adapts to narrow viewports and 200% zoom.
+- [ ] Form modal follows **Mời Sales/CTV nhận trường**: green header/close, white spacious body, labeled required controls, matching radius/focus, desktop grouping and mobile single column.
+- [ ] Inline errors are connected to inputs, Cancel/primary green Submit are consistently ordered, pending/disabled and duplicate-submit protections work.
+
+### Toast / feedback
+- [ ] Toast follows the supplied success notification reference: top-right floating light card on desktop, semantic icon, title/details, close, optional subtle progress indicator and clear contrast.
+- [ ] Success/info/warning/error tones are consistent, feedback is linked to actual API outcome, repeated notifications are deduplicated and urgent errors remain readable.
+- [ ] Toast does not hide key actions, drawer footer or bottom navigation on phone, and announces updates to assistive technologies.
+
+### Review integrity
+- [ ] Components/tokens are reused rather than introducing overlapping Table, Dialog, Drawer, Button or Toast systems.
+- [ ] 375/768/1024/1440px, light/dark, keyboard, touch and 200% zoom are inspected when UI code changes; screenshots are compared only if browser rendering actually occurred.
+- [ ] Document which exact routes/roles were visually reviewed and mark unavailable tests as NOT_TESTED, not PASS.
+
 ## Screenshot 1 audit baseline (2026-10-30 user-provided image)
 
 Screen: Admin > Quản lý đề xuất trường. Visible: deep-green sidebar, light workspace, green table header, global search, page-level blue "Làm mới", table toolbar with orange "Tìm kiếm" plus icon reset, a proposed school marked "Chờ Admin", row action icons (edit/history/approve), pagination.

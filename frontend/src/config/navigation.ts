@@ -19,6 +19,7 @@ export type View =
   | 'manager-contracts'
   | 'manager-extensions'
   | 'manager-team'
+  | 'manager-income'
   | 'role-board-dashboard'
   | 'role-board-progress'
   | 'role-board-oversight'

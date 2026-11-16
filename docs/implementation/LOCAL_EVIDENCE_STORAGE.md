@@ -4,10 +4,23 @@ The CRM stores signed contracts, renewals, receipts and payout proof files on a 
 filesystem, with metadata in `financial_evidences` (MySQL). No public file URLs,
 no second upload service and no third-party object storage are required.
 
+## Development (local .NET)
+
+When `ASPNETCORE_ENVIRONMENT=Development` and no storage path is configured,
+the API automatically creates a private `Storage/` directory under the API
+content root, normally `backend/src/KidsfitCRM.Api/Storage/` when launching
+from that project. It creates category subfolders as files are uploaded.
+`backend/**/Storage/` is excluded from Git, so uploaded files and images cannot
+accidentally be committed. The folder is private; do not expose it through
+static-file middleware or put it in `wwwroot`.
+
 ## Production Windows Server
 
-Set `Storage__RootPath=D:\KidsfitCRM\Storage\Evidence` in the API process environment.
-If absent, the Windows default is `%ProgramData%\KidsfitCRM\Storage`.
+Without an override, the API automatically creates the persistent directory
+`%ProgramData%\\KidsfitCRM\\Storage` on Windows (outside the published app).
+To choose a different fixed disk, optionally set
+`Storage__RootPath=D:\\KidsfitCRM\\Storage\\Evidence` in the API process environment.
+Do not point Production storage into the application publish directory.
 The directory must be outside the deployed application, `wwwroot`, Git and the IIS static-file root.
 
 Grant the account running ASP.NET Core (or the IIS Application Pool identity)

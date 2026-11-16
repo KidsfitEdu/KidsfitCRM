@@ -27,12 +27,14 @@ public sealed class LocalFileStorageService : IFileStorageService
     };
     private readonly string root;
 
-    public LocalFileStorageService(IConfiguration configuration)
+    public LocalFileStorageService(IConfiguration configuration, IHostEnvironment environment)
     {
         var configured = configuration["Storage:RootPath"];
-        var fallback = OperatingSystem.IsWindows()
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "KidsfitCRM", "Storage")
-            : "/var/lib/kidsfit-crm/storage";
+        var fallback = environment.IsDevelopment()
+            ? Path.Combine(environment.ContentRootPath, "Storage")
+            : OperatingSystem.IsWindows()
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "KidsfitCRM", "Storage")
+                : "/var/lib/kidsfit-crm/storage";
         root = Path.GetFullPath(string.IsNullOrWhiteSpace(configured) ? fallback : configured);
         if (root.Contains(Path.DirectorySeparatorChar + "wwwroot" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(root).Equals("wwwroot", StringComparison.OrdinalIgnoreCase))

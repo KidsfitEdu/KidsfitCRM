@@ -28,7 +28,7 @@ Grant the account running ASP.NET Core (or the IIS Application Pool identity)
 Keep storage private and allow downloads only through authenticated
 `GET /api/channel-sales/evidence/{id}`. The application creates subfolders
 `contracts`, `renewals`, `receipts` and `payouts` as required.
-Server disk keys are opaque UUIDs, not user-supplied filenames.
+Server filenames are opaque UUIDs with extensions derived from validated file content (`.pdf`, `.jpg`, `.png`, `.webp`), never user-supplied names. Previously stored UUID-only filenames remain readable without renaming existing files.
 
 For direct .NET hosting, Docker is optional. The repository's `compose.yaml`
 retains a persistent named volume for Docker development so container recreation

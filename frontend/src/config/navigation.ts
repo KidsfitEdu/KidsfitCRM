@@ -168,6 +168,7 @@ export const viewCopy: Record<
   'manager-contracts': { eyebrow:'Quản lý bán hàng',title:'Hợp đồng & xác minh',description:'Kiểm tra hồ sơ do Sales báo cáo, chuyển CHECKEE xác minh và theo dõi kết quả.' },
   'manager-extensions': { eyebrow:'Quản lý bán hàng',title:'Duyệt gia hạn',description:'Xem tiến độ và bằng chứng, duyệt hoặc từ chối gia hạn.' },
   'manager-team': { eyebrow:'Quản lý bán hàng',title:'Đội ngũ bán hàng',description:'Quản lý nhân sự và kết quả phụ trách trường của đội ngũ.' },
+  'manager-income': { eyebrow:'Quản lý bán hàng',title:'Thu nhập',description:'Theo dõi hoa hồng cá nhân của Quản lý và lịch sử chi trả.' },
 
 };
 

@@ -82,11 +82,11 @@ test('Shared loading and error states replace owl with actionable retry', () => 
   assert.match(loading, /export function AppRequestErrorState/);
   assert.match(loading, /title = 'Không thể tải nội dung'/);
   assert.match(loading, /onRetry && <Button/);
-  assert.match(app, /<AppRequestErrorState title="Không thể kết nối máy chủ"/);
+  assert.match(app, /<AppRequestErrorState fullScreen title="Không thể kết nối máy chủ"/);
   assert.match(app, /setRetryIndex\(index => index \+ 1\)/);
   assert.match(app, /setHealthRetryIndex\(index => index \+ 1\)/);
   assert.match(login, /<PageLoading label="Đang kết nối và xác thực tài khoản/);
-  assert.match(login, /<AppRequestErrorState title="Không thể kết nối máy chủ"/);
+  assert.match(login, /<AppRequestErrorState fullScreen title="Không thể kết nối máy chủ"/);
   assert.match(login, /Quay lại đăng nhập/);
   assert.doesNotMatch(app, /MascotLoadingState/);
   assert.doesNotMatch(login, /MascotLoadingState/);

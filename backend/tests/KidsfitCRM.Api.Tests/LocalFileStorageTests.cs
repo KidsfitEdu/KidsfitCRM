@@ -115,8 +115,44 @@ public sealed class LocalFileStorageTests : IDisposable
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             storage.SaveAsync(new MemoryStream("%PDF-1.4\n"u8.ToArray()), "RECEIPT", CancellationToken.None));
         await Assert.ThrowsAsync<ApiValidationException>(() =>
-            storage.SaveAsync(new MemoryStream(new byte[LocalFileStorageService.MaxFileBytes + 1]), "CONTRACT", CancellationToken.None));
+            storage.SaveAsync(new MemoryStream(new byte[(int)storage.MaxFileBytes + 1]), "CONTRACT", CancellationToken.None));
         Assert.Empty(Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task Configured_limit_is_enforced_when_saving_and_defaults_to_five_megabytes()
+    {
+        Assert.Equal(5, StorageFileSizeLimit.ReadMB(new ConfigurationBuilder().Build()));
+        var settings = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root,
+                ["Storage:MaxFileSizeMB"] = "1"
+            }).Build();
+        var storage = new LocalFileStorageService(settings, new HostingEnvironment
+        {
+            EnvironmentName = Environments.Development,
+            ContentRootPath = root
+        });
+        Assert.Equal(1024L * 1024L, storage.MaxFileBytes);
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            storage.SaveAsync(new MemoryStream(new byte[1024 * 1024 + 1]), "CONTRACT", CancellationToken.None));
+        Assert.Empty(Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories));
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("101")]
+    [InlineData("abc")]
+    public void Rejects_invalid_upload_limit_configuration(string raw)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:MaxFileSizeMB"] = raw
+            }).Build();
+        Assert.Throws<InvalidOperationException>(() => StorageFileSizeLimit.ReadMB(config));
     }
 
     [Fact]

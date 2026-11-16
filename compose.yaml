@@ -59,3 +59,4 @@ services:
 
 volumes:
   kidsfit_mysql_net10:
+  kidsfit_evidence_files:

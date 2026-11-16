@@ -24,7 +24,7 @@ description: Professional full-stack development, requirements review, code revi
 - **Plan**: list targeted files, contracts/DTOs, migrations, expected table and Drawer content, status mapping, error/loading states, risk and tests. Prefer the smallest coherent change, not an opportunistic refactor.
 - **Implement**: honor ownership boundaries, reuse existing components/actions/services, preserve finance and audit records, and align UI with server authority.
 - **Verify**: checks must be run *on the exact commit or working state being reported*. Record `PASS`, `FAIL`, `NOT RUN`, `BLOCKED` honestly. No generic “CI passed” if only earlier SHA passed.
-- **Git**: use distinct purposeful Conventional Commits for independently reviewable units. **Do not force a single commit** and **do not produce dozens of tiny fixes**. After a commit is pushed, never rewrite it or force-push without explicit approval. See [Git & Delivery](references/git-and-delivery.md).
+- **Git**: use distinct purposeful Conventional Commits for independently reviewable units. **Do not force a single commit** and **do not produce dozens of tiny fixes**. After a commit is pushed, never rewrite it or force-push without explicit approval. **Before creating a branch, use `type/module/feature` naming (for example, `feat/sales/income-rates`); use lowercase English ASCII and kebab-case, omit dates and personal names, and check for name collisions. Do not rename an existing PR branch without explicit approval.** See [Git & Delivery](references/git-and-delivery.md).
 - **Handoff**: state exactly what was changed, where, branch/SHA/PR, tests and any unresolved risks. Never claim production deployment or visual QA without actual verification.
 
 ## 2. Engineering boundaries

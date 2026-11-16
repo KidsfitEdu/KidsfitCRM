@@ -66,7 +66,20 @@ public static class FinancialEvidenceEndpoints
         }
         catch
         {
-            storage.Delete(saved.StorageKey);
+            // A failed SaveChanges can have an ambiguous commit result. Never
+            // delete a file if the database might already reference it.
+            bool? absent = null;
+            try
+            {
+                absent = !await db.FinancialEvidences.AsNoTracking()
+                    .AnyAsync(x => x.StorageKey == saved.StorageKey, CancellationToken.None);
+            }
+            catch { /* Keep the private file when the database is unavailable. */ }
+            if (absent == true)
+            {
+                try { storage.Delete(saved.StorageKey); }
+                catch (IOException) { /* Orphan may be reconciled operationally. */ }
+            }
             throw;
         }
         return Results.Created($"/api/channel-sales/evidence/{proof.Id}",

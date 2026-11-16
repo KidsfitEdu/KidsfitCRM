@@ -1,3 +1,4 @@
+using KidsfitCRM.Api.Tests;
 using System.Security.Cryptography;
 using System.Text;
 using KidsfitCRM.Api.Domain;
@@ -217,7 +218,7 @@ internal static class CrmScenarioSeeder
                 {
                     Kind = "CONTRACT", ContractId = contract.Id, UploadedByUserId = salesId,
                     FileName = example.Code + ".pdf", MimeType = "application/pdf",
-                    Bytes = pdfBytes, Sha256 = Convert.ToHexString(SHA256.HashData(pdfBytes)),
+                    StorageKey = FixtureEvidenceStorage.Save(pdfBytes, "CONTRACT").StorageKey, FileSize = pdfBytes.Length, Sha256 = Convert.ToHexString(SHA256.HashData(pdfBytes)),
                     AttachedAt = now.AddDays(-1), CreatedAt = now.AddDays(-1), UpdatedAt = now,
                 });
             var reconciliation = await db.ReconciliationCases.SingleOrDefaultAsync(x => x.ContractId == contract.Id);

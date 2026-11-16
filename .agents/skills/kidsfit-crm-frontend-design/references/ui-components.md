@@ -42,6 +42,35 @@ Refer to the actual implementation before modifying signatures or behavior. Path
 4. High-impact mutations: confirmation dialog with concise consequence, pending state, success toast only after confirmed response; no double submit.
 5. Make dialogs scroll within viewport, usable on mobile and with keyboard. Restore focus to originating action where possible.
 
+## Standard interaction contracts from the approved 2026-11-16 screenshots
+
+### List, toolbar, row actions and pagination
+
+- Keep `AdminListPanel` and `AdminListToolbar` as the first reuse candidates for the photographed Admin staff/organization and school tables: a single white rounded panel with consistent controls, brand-green table head, semantic status badges, circular/rounded icon buttons and footer page-size/page-navigation controls.
+- Search button is orange only where current app's toolbar uses the search accent; Reset only clears filter input and selected filter(s); Refresh refetches with the current query. Tooltips and accessible labels must distinguish them.
+- Use existing `AdminIconAction` or relevant shared primitive and its semantic variants: green Eye (view), blue Pencil (edit), destructive red Trash2 (delete), amber Archive (archive), cyan Download (download) and violet RotateCcw (restore). Check actual existing variants before extending; never create a separate role-specific icon-button system. Destructive operations demand a clear confirmation of effects; archive is **not** a synonym for delete.
+- Map backend statuses to stable *visual families* in the shared badge mapper: success green (active/verified), info blue (in-progress), warning amber (awaiting action), danger red (rejected/error), gray (unstarted), violet (renewal/restoration). Do not assign unique arbitrary colors to every raw code or infer server state from display wording; derived urgency is distinct from status. Status and "Cần xử lý" labels must be separately modeled.
+- Reuse `AppPagination` with real total/page size, disabled boundaries and a clear per-page selector where supported.
+
+### Right-side detail drawer / Sheet
+
+- Inspect existing Drawer/Sheet primitives and current consumers; reuse before making anything new. Visual reference: the screenshot of Admin **Thông tin nhân sự** — branded dark-green header with eyebrow/title and close affordance; neutral backdrop dim; summary area (avatar/title/subtitle/status), then separately bordered/rounded groups with small green icons and label-over-value fields; internal scrolling and anchored footer when needed.
+- Desktop width is typically about 480–560px **when content allows**, but must fit viewport; mobile approaches full viewport width. Keep padding around groups and prevent horizontal overflow.
+- Provide a meaningful title and optional description, focus trap, Escape close, focus restoration, scroll-lock and appropriate dialog semantics. Permissions still determine visible sections/actions. State loading, error, empty and "Chưa cập nhật" distinctly, without inventing values.
+
+### Branded modal form
+
+- Inspect existing shadcn Dialog, shared field controls and existing modal flows; update style through reuse, not a second form stack. Match screenshot **Mời Sales/CTV nhận trường**: branded green title bar with close icon, spacious white content, aligned labels and required markers, gently outlined rounded Select/Input/Textarea, consistent focus ring, two columns on desktop if legible and one on mobile.
+- Place the independent Cancel action before the green primary submit on the right side of a visually distinct footer. Preserve non-submitted values on server errors, show inline validation with `aria-invalid`/`aria-describedby`, prevent duplicate submits, confirm high-impact changes, and ensure footer stays usable with mobile keyboard.
+- Do not change validation, assignments, authorization or workflows merely to match screenshot field labels.
+
+### Toast notification
+
+- Use `frontend/src/components/common/app-toast-provider.tsx` as the first candidate. Do not add another provider/library unless it demonstrably cannot meet requirements.
+- Standard visual structure: floating top-right white surface on desktop, semantic circular icon, readable title and short optional supporting description, close action, soft shadow/border and optional subtle countdown/progress line. On small viewports keep toasts away from bottom nav, modal actions and accessible controls.
+- Success = green, error = red, warning = amber, info = blue; loading feedback stays pending until the API has completed. Ordinary success/info can dismiss in about 4–5 seconds; errors requiring attention should stay readable/dismissible. The indicator cannot be the only measure of urgency. De-duplicate repeated identical notifications, avoid a tall stack and never expose sensitive backend details.
+- Announce feedback appropriately (e.g. `role="status"` for non-urgent updates, `role="alert"` for urgent errors). Do not show success on request start or optimistic UI alone.
+
 ## Error, empty, disabled and preview semantics
 
 - Distinguish: empty dataset, no matching filter results, forbidden scope, server error, and preview-only data. Do not replace an API error with a fake empty or successful result.

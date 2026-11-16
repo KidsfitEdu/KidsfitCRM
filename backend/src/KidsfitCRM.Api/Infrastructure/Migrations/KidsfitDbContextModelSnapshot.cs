@@ -1021,10 +1021,9 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("attached_at");
 
-                    b.Property<byte[]>("Bytes")
-                        .IsRequired()
-                        .HasColumnType("longblob")
-                        .HasColumnName("bytes");
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size");
 
                     b.Property<long?>("ContractRenewalId")
                         .HasColumnType("bigint")
@@ -1069,6 +1068,13 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)")
                         .HasColumnName("sha256")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("storage_key")
                         .UseCollation("utf8mb4_bin");
 
                     b.Property<DateTime>("UpdatedAt")

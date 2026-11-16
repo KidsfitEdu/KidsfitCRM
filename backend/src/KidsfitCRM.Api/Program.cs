@@ -47,6 +47,13 @@ var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Jwt:Key is required.");
 if (Encoding.UTF8.GetByteCount(jwtKey) < 32) throw new InvalidOperationException("Jwt:Key must contain at least 32 UTF-8 bytes.");
 
+// Align ASP.NET Core multipart parsing with the same validated storage size limit.
+// The evidence endpoint also sets the per-request body size before reading the form.
+var maxEvidenceFileBytes = StorageFileSizeLimit.ReadBytes(builder.Configuration);
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = maxEvidenceFileBytes + StorageFileSizeLimit.MultipartOverheadBytes;
+});
 builder.Services.AddDbContext<KidsfitDbContext>(options => options.UseMySQL(connectionString));
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<JwtTokenService>();

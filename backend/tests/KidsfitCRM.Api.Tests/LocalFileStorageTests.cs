@@ -1,6 +1,8 @@
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Infrastructure;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 
 namespace KidsfitCRM.Api.Tests;
 
@@ -12,7 +14,26 @@ public sealed class LocalFileStorageTests : IDisposable
         var settings = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:RootPath"] = root })
             .Build();
-        return new LocalFileStorageService(settings);
+        return new LocalFileStorageService(settings, new HostingEnvironment
+        {
+            EnvironmentName = Environments.Development,
+            ContentRootPath = root
+        });
+    }
+
+    [Fact]
+    public void Development_without_override_creates_storage_under_project_root()
+    {
+        var projectRoot = Path.Combine(root, "backend", "src", "KidsfitCRM.Api");
+        var storage = new LocalFileStorageService(
+            new ConfigurationBuilder().Build(),
+            new HostingEnvironment
+            {
+                EnvironmentName = Environments.Development,
+                ContentRootPath = projectRoot
+            });
+        Assert.True(Directory.Exists(Path.Combine(projectRoot, "Storage")));
+        Assert.True(Directory.Exists(projectRoot));
     }
 
     [Fact]

@@ -381,7 +381,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\\nSynthetic document");
         var first = new FinancialEvidence {
             Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "initial.pdf",
-            MimeType = "application/pdf", Bytes = pdf, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
+            MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save(pdf).StorageKey, FileSize = pdf.Length, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
         };
         db.FinancialEvidences.Add(first);
         await db.SaveChangesAsync();
@@ -418,7 +418,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
 
         var replacement = new FinancialEvidence {
             Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "replacement.pdf",
-            MimeType = "application/pdf", Bytes = pdf, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
+            MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save(pdf).StorageKey, FileSize = pdf.Length, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
         };
         db.FinancialEvidences.Add(replacement);
         await db.SaveChangesAsync();
@@ -445,7 +445,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.Reconcile(caseId, true, new(null), checkee, Http(), Ct));
         var finalEvidence = new FinancialEvidence {
             Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "signed-supplement.pdf",
-            MimeType = "application/pdf", Bytes = pdf,
+            MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save(pdf).StorageKey, FileSize = pdf.Length,
             Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
         };
         db.FinancialEvidences.Add(finalEvidence);

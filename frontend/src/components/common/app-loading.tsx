@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { getPendingAppRequests, subscribeAppRequests } from '@/lib/loading-tracker';
 import { useIsFetching, useIsMutating } from '@tanstack/react-query';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function AppSkeleton({ className = '' }: { className?: string }) {
@@ -29,10 +29,36 @@ export function PageLoading({ label = 'Đang chuẩn bị dữ liệu...' }: { l
   </section>;
 }
 
+export function AppSpinner({ className = '' }: { className?: string }) {
+  return <span aria-hidden="true" className={`inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none ${className}`} />;
+}
+
 export function InlineLoading({ label = 'Đang tải...' }: { label?: string }) {
-  return <span role="status" className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-    <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" aria-hidden="true" />{label}
+  return <span role="status" aria-live="polite" className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+    <AppSpinner />{label}
   </span>;
+}
+
+/** Connection failures are different from authorization or content errors. */
+export function AppConnectionErrorState({
+  detail, onRetry, onBack, variant = 'offline',
+}: {
+  detail?: string;
+  onRetry: () => void;
+  onBack?: () => void;
+  variant?: 'offline' | 'error';
+}) {
+  return <section role="alert" className="flex min-h-screen items-center justify-center bg-background px-4 py-8 text-foreground">
+    <div className="w-full max-w-sm rounded-2xl border border-border bg-card px-6 py-8 text-center shadow-sm">
+      <WifiOff className="mx-auto mb-4 size-9 text-muted-foreground" aria-hidden="true" />
+      <h2 className="text-lg font-semibold">{variant === 'offline' ? 'Không thể kết nối đến máy chủ' : 'Máy chủ đang gặp sự cố'}</h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail || 'Không thể kết nối đến máy chủ KIDSFIT CRM. Vui lòng kiểm tra mạng và thử lại.'}</p>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        {onBack && <Button type="button" variant="outline" onClick={onBack}>Quay lại đăng nhập</Button>}
+        <Button type="button" onClick={onRetry}><RefreshCw className="mr-2 size-4" aria-hidden="true" />Thử kết nối lại</Button>
+      </div>
+    </div>
+  </section>;
 }
 
 /** Generic request errors must not be mistaken for a backend outage. */

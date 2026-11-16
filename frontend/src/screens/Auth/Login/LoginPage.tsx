@@ -9,7 +9,7 @@ import { FormError } from '@/components/common/form-error';
 import { Eye, EyeOff } from 'lucide-react';
 import { validateLogin, type LoginErrors, type LoginField } from '@/lib/login-validation';
 import { ApiRequestError, isBackendUnavailable } from '@/services/api.client';
-import { MascotLoadingState } from '@/components/common/mascot-loading-state';
+import { AppConnectionErrorState, AppSpinner } from '@/components/common/app-loading';
 
 export function LoginPage({
   loading,
@@ -44,7 +44,7 @@ export function LoginPage({
 
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (loading) return;
+    if (loading || retrying) return;
     setServerError('');
     const nextErrors = validateLogin(email, password);
     setErrors(nextErrors);
@@ -71,19 +71,11 @@ export function LoginPage({
     } finally { setRetrying(false); }
   };
 
-  if (loading || retrying)
-    return <MascotLoadingState state="loading" detail="Đang kết nối và xác thực tài khoản..." />;
-
   if (connectionIssue)
-    return <div>
-      <MascotLoadingState state={connectionIssue}
-        detail="Không thể kết nối máy chủ KIDSFIT CRM để đăng nhập. Vui lòng thử lại."
-        onRetry={() => { void attemptLogin(); }}/>
-      <button type="button" onClick={() => { setConnectionIssue(null); setServerError(''); }}
-        className="fixed bottom-5 left-1/2 -translate-x-1/2 rounded-xl border border-border bg-card px-5 py-2 text-sm text-foreground hover:bg-muted">
-        Quay lại đăng nhập
-      </button>
-    </div>;
+    return <AppConnectionErrorState variant={connectionIssue}
+      detail="Không thể kết nối máy chủ KIDSFIT CRM để đăng nhập. Vui lòng thử lại."
+      onRetry={() => { void attemptLogin(); }}
+      onBack={() => { setConnectionIssue(null); setServerError(''); }} />;
 
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#101a2b] p-5">
@@ -117,7 +109,7 @@ export function LoginPage({
                 placeholder="Nhập địa chỉ email"
                 maxLength={190}
                 required
-                disabled={loading}
+                disabled={loading || retrying}
                 className="h-11 rounded-xl"
               />
               <FormError id="crm-login-email-error">{errors.email}</FormError>
@@ -161,7 +153,7 @@ export function LoginPage({
               disabled={loading}
               className="h-11 w-full rounded-xl bg-[#1b5e20] font-semibold text-white hover:bg-[#124c17] hover:text-white focus-visible:ring-[#1b5e20]"
             >
-              {loading ? 'Đang kết nối…' : 'Đăng nhập'}
+              {loading || retrying ? <><AppSpinner className="mr-2" />Đang đăng nhập...</> : 'Đăng nhập'}
             </Button>
           </form>
         </CardContent>

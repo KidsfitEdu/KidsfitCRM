@@ -18,9 +18,10 @@ test('shared request tracker counts overlapping requests and cleans up exactly o
   assert.deepEqual(changes, [1, 2, 1, 0]);
 });
 
-test('CRM shell reserves the mascot for an offline connection', () => {
+test('CRM shell uses skeleton loading and a neutral connection error', () => {
   const shell = readFileSync(new URL('../src/components/crm/crm-app.tsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(shell, /MascotLoadingState state="loading"/);
+  assert.doesNotMatch(shell, /MascotLoadingState/);
+  assert.match(shell, /AppConnectionErrorState/);
   assert.match(shell, /sessionStatus === 'offline'/);
   assert.match(shell, /PageLoading label="Đang chuẩn bị màn hình/);
 });

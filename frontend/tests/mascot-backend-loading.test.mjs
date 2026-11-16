@@ -73,21 +73,20 @@ test('Login has retry and safe fallback to edit credentials', () => {
   assert.match(login, /validateLogin\(email, password\)/);
 });
 
-test('Mascot is shared, has retry and respects reduced motion', () => {
-  const mascot = source('components/common/mascot-loading-state.tsx');
+test('Connection errors use the shared neutral view and preserve retry', () => {
+  const loading = source('components/common/app-loading.tsx');
+  const shell = source('components/crm/crm-app.tsx');
+  const login = source('screens/Auth/Login/LoginPage.tsx');
   const styles = source('app/globals.css');
-  assert.match(mascot, /function KidsfitOwl/);
-  assert.match(mascot, /viewBox="0 0 180 146"/);
-  assert.match(mascot, /w-\[112px\] sm:w-\[124px\]/);
-  assert.match(mascot, /max-w-\[340px\]/);
-  assert.match(mascot, /sleeping=\{!loading\}/);
-  assert.match(mascot, /crm-owl-progress/);
-  assert.match(mascot, /aria-label="Đang tải dữ liệu/);
-  assert.match(mascot, /aria-live=/);
-  assert.match(mascot, /role=\{loading \? 'status' : 'alert'\}/);
-  assert.match(mascot, /Thử kết nối lại/);
-  assert.match(styles, /@keyframes crm-owl-blink/);
-  assert.match(styles, /@keyframes crm-owl-breathe/);
-  assert.match(styles, /@keyframes crm-owl-progress/);
+  assert.match(loading, /function AppConnectionErrorState/);
+  assert.match(loading, /Thử kết nối lại/);
+  assert.match(loading, /Quay lại đăng nhập/);
+  assert.match(shell, /AppConnectionErrorState detail=\{connectionMessage\}/);
+  assert.match(shell, /AppConnectionErrorState detail=\{healthError\}/);
+  assert.match(login, /AppConnectionErrorState variant=\{connectionIssue\}/);
+  assert.match(login, /AppSpinner className="mr-2"/);
+  assert.match(loading, /motion-reduce:animate-none/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(styles, /crm-owl-/);
+  assert.doesNotMatch(shell + login, /MascotLoadingState/);
 });

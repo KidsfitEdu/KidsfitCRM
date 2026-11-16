@@ -312,12 +312,6 @@ body { font-family: var(--font-brand); }
   .crm-workspace-content table:not(.crm-school-table) :where(th, td) { white-space: nowrap; }
 }
 
-/* Subtle, reduced-motion-friendly mascot startup animation. */
-@keyframes mascot-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
 /* Shared motion language: subtle, compositor-friendly, and accessible. */
 @keyframes crm-skeleton-shimmer {
   0% { background-position: 150% 0; }

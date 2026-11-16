@@ -26,10 +26,12 @@ public sealed class LocalFileStorageTests : IDisposable
         Assert.Equal("application/pdf", saved.MimeType);
         Assert.Equal(bytes.LongLength, saved.FileSize);
         Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)), saved.Sha256);
-        using var downloaded = Create().OpenRead(saved.StorageKey);
-        using var output = new MemoryStream();
-        await downloaded.CopyToAsync(output);
-        Assert.Equal(bytes, output.ToArray());
+        using (var downloaded = Create().OpenRead(saved.StorageKey))
+        {
+            using var output = new MemoryStream();
+            await downloaded.CopyToAsync(output);
+            Assert.Equal(bytes, output.ToArray());
+        }
         storage.Delete(saved.StorageKey);
         Assert.Throws<FileNotFoundException>(() => Create().OpenRead(saved.StorageKey));
     }

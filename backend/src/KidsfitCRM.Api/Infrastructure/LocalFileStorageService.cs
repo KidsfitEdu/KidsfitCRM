@@ -104,7 +104,7 @@ public sealed class LocalFileStorageService : IFileStorageService
     }
 
     public Stream OpenRead(string storageKey) =>
-        new FileStream(Resolve(storageKey), FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        new FileStream(Resolve(storageKey), FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
     public void Delete(string storageKey)
     {

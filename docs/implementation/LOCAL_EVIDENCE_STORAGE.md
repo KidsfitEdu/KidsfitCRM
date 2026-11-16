@@ -46,7 +46,7 @@ user explicitly approved discarding development uploads.
 
 ## Reliability and cleanup
 
-- Upload size maximum is 5 MiB. JPG/PNG/WEBP are accepted for all evidence kinds;
+- Upload size defaults to 5 MiB and is configurable via `Storage:MaxFileSizeMB`\n  (`Storage__MaxFileSizeMB` in environment variables), from 1 to 100 MiB.\n  The API request, multipart parser and file writer use the shared validated limit.\n  JPG/PNG/WEBP are accepted for all evidence kinds;
   PDF is accepted only for `CONTRACT` and `RENEWAL`.
 - Uploads stream to disk; MIME signatures and SHA-256 are checked/computed server-side.
 - Only the creator can discard an unattached proof. A periodic job removes temporary

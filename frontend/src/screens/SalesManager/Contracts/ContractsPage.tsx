@@ -2,7 +2,7 @@
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, FileCheck2, FileText, Send, Undo2, ExternalLink } from 'lucide-react';
+import { Eye, FileCheck2, FileText, Send, Undo2, ExternalLink, Building2, ClipboardList, Paperclip, MapPinned, CalendarDays } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass, adminTableCellClass } from '@/components/common/admin-list-ui';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -24,13 +24,12 @@ type Detail = {
  evidence:{id:number;file_name:string;mime_type:string;created_at:string}[];
  installments:{due_on:string;amount:number;status:string}[];
  school_units:{id:number;name:string}[];
- history:{event_type:string;reason:string|null;created_at:string;actor_name:string}[];
- audit_history?:{action:string;old_values:string|null;new_values:string|null;created_at:string;actor_name:string|null}[];
 };
 const statuses:Record<string,string>={
  PENDING_REVIEW:'Chờ Quản lý',MANAGER_REVIEWED:'Chờ CHECKEE',NEEDS_REVISION:'Cần bổ sung',
  PENDING_KIDSFIT:'Chờ KIDSFIT',ACTIVE:'Đã xác minh',CANCELLED:'Đã hủy',DISPUTED:'CHECKEE yêu cầu bổ sung'
 };
+const contractStatusLabel = (status:string) => statuses[status] ?? 'Trạng thái chưa xác định';
 const canReview=(abilities:string[])=>abilities.includes('*')||abilities.includes('channel_sales.school.contract.review');
 
 export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPageProps){
@@ -130,10 +129,10 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
            <td className={adminTableCellClass}>{row.sales_name}</td>
            <td className={adminTableCellClass}>{row.contract_code}</td>
            <td className={adminTableCellClass+' text-right tabular-nums'}>{channelMoney(row.total_value)}</td>
-           <td className={adminTableCellClass}><AdminStatusBadge status={row.status} label={statuses[row.status]??row.status}/></td>
+           <td className={adminTableCellClass}><AdminStatusBadge status={row.status} label={contractStatusLabel(row.status)}/></td>
            <td className={adminTableCellClass}>
              <div className="flex items-center justify-center gap-2">
-               <AdminIconAction icon={Eye} label={`Xem hợp đồng ${row.contract_code}`} onClick={()=>setSelected(row.id)}/>
+               <AdminIconAction icon={Eye} label={`Xem hợp đồng ${row.contract_code}`} onClick={()=>{setActionError('');setSelected(row.id);}}/>
                {row.can_review&&<AdminIconAction icon={FileCheck2} label={`Duyệt và gửi CHECKEE ${row.contract_code}`}
                  onClick={()=>{setActionError('');setConfirm(row.id);}}/>}
                {row.can_return&&<AdminIconAction icon={Undo2} tone="red" label={`Yêu cầu bổ sung ${row.contract_code}`}
@@ -150,76 +149,100 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
        itemLabel="hợp đồng" pageSizeOptions={[20,50,100]} onPageChange={setPage}
        onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
    </AdminListPanel>
-   <AppDrawer wide compactAccountingHeader open={selected!==null} onOpenChange={open=>{if(!open){setSelected(null);setFilePreview(null);}}}
-     title="KIDSFIT CRM - CHI TIẾT HỢP ĐỒNG" description="Chi tiết hợp đồng Quản lý bán hàng"
+   <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open){setSelected(null);setFilePreview(null);}}}
+     title="Chi tiết hợp đồng" description="Thông tin hợp đồng đang được Quản lý bán hàng xem xét"
+     bodyClassName="space-y-4 bg-muted/10"
      footer={<div className="flex flex-wrap justify-end gap-2">
        <AppButton tone="neutral" onClick={()=>setSelected(null)}>Đóng</AppButton>
        {detail?.data.can_return&&<AppButton tone="outline" leadingIcon={<Undo2 className="size-4"/>}
          onClick={()=>{setActionError('');setReason('');setRevision(detail.data.id);}}>Yêu cầu bổ sung</AppButton>}
        {detail?.data.can_review&&<AppButton leadingIcon={<Send className="size-4"/>}
-         onClick={()=>{setActionError('');setConfirm(detail.data.id);}}>Duyệt & gửi CHECKEE</AppButton>}
+         onClick={()=>{setActionError('');setConfirm(detail.data.id);}}>Duyệt và gửi CHECKEE</AppButton>}
      </div>}>
-     {!detail?<p className="text-sm text-muted-foreground">{detailError||'Đang tải chi tiết hợp đồng...'}</p>:
-       <div className="space-y-5 text-sm">
-         <div><p className="text-xs font-semibold text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
-           <h2 className="mt-1 text-xl font-bold">{detail.data.school_name}</h2>
-           <p className="mt-2 text-muted-foreground">{[detail.data.school_address,detail.data.school_province].filter(Boolean).join(', ')}</p>
-           <p className="mt-2">Sales phụ trách: <strong>{detail.data.sales_name}</strong></p>
-           <AdminStatusBadge status={detail.data.reconciliation_status==="DISPUTED"?"DISPUTED":detail.data.status}
-             label={statuses[detail.data.reconciliation_status==="DISPUTED"?"DISPUTED":detail.data.status]??detail.data.status}/>
-         </div>
-         <div className="grid gap-3 sm:grid-cols-2">
-           {[["Mã hợp đồng",detail.data.contract_code],["Ngày ký",channelDate(detail.data.signed_on)],
-             ["Giá trị",channelMoney(detail.data.total_value)],["Gói dịch vụ",getServicePlanLabel(detail.data.service_plan)],
-             ["Bắt đầu dịch vụ",detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
-             ["Kết thúc dịch vụ",detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
-             ["Chu kỳ thanh toán",detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],
-             ["Số học sinh",String(detail.data.student_count??'Chưa khai báo')]].map(([label,value])=>
-             <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold">{value}</p></div>)}
-         </div>
-         <section className="space-y-2 border-t pt-4"><h3 className="font-bold">File hợp đồng đã ký</h3>
-           {detail.evidence.length?detail.evidence.map(file=><button key={file.id} type="button" title="Mở hợp đồng trong tab mới"
-             className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted"
-             onClick={()=>void viewFile(file)}>
-             <span className="flex items-center gap-2"><FileText className="size-4"/>{file.file_name}</span>
-             <ExternalLink className="size-4" aria-hidden="true"/>
-           </button>):<p className="text-muted-foreground">Chưa có file đính kèm. {detail.data.evidence_reference??''}</p>}
+     {!detail?<p role={detailError?'alert':'status'} className="text-sm text-muted-foreground">{detailError||'Đang tải chi tiết hợp đồng...'}</p>:
+       <>
+         <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+           <div className="flex items-start gap-3">
+             <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200">
+               <Building2 className="size-6" aria-hidden="true"/>
+             </div>
+             <div className="min-w-0 flex-1 space-y-1.5">
+               <p className="text-xs font-medium text-muted-foreground">Hợp đồng · {detail.data.contract_code}</p>
+               <h2 className="break-words text-lg font-bold text-foreground">{detail.data.school_name}</h2>
+               <p className="text-xs text-muted-foreground">{[detail.data.school_address,detail.data.school_province].filter(Boolean).join(', ')||'Chưa cập nhật địa chỉ'}</p>
+               <div className="flex flex-wrap items-center gap-2">
+                 <AdminStatusBadge status={detail.data.reconciliation_status==="DISPUTED"?"DISPUTED":detail.data.status}
+                   label={contractStatusLabel(detail.data.reconciliation_status==="DISPUTED"?"DISPUTED":detail.data.status)}/>
+               </div>
+             </div>
+           </div>
+           <p className="border-t border-border pt-3 text-sm text-foreground">Sales phụ trách: <strong>{detail.data.sales_name||'Chưa cập nhật'}</strong></p>
          </section>
-         <section className="space-y-2 border-t pt-4">
-           <h3 className="font-bold">Trường điểm / Phân hiệu triển khai</h3>
-           {detail.school_units.length > 0
-             ? <ul className="list-inside list-disc space-y-1">{detail.school_units.map(unit=><li key={unit.id}>{unit.name}</li>)}</ul>
-             : <p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
+
+         <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
+           <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+             <ClipboardList className="size-4 text-primary" aria-hidden="true"/>Thông tin hợp đồng
+           </h3>
+           <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+             {([
+               ['Mã hợp đồng',detail.data.contract_code],
+               ['Ngày ký',detail.data.signed_on?channelDate(detail.data.signed_on):'Chưa cập nhật'],
+               ['Giá trị hợp đồng',channelMoney(detail.data.total_value)],
+               ['Gói dịch vụ',getServicePlanLabel(detail.data.service_plan)],
+               ['Bắt đầu dịch vụ',detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa cập nhật'],
+               ['Kết thúc dịch vụ',detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa cập nhật'],
+               ['Chu kỳ thanh toán',detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa cập nhật'],
+               ['Số học sinh',detail.data.student_count==null?'Chưa cập nhật':String(detail.data.student_count)],
+             ] as [string,string][]).map(([label,value])=>
+               <div key={label} className="min-w-0 space-y-1">
+                 <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+                 <dd className="break-words text-sm font-semibold text-foreground">{value}</dd>
+               </div>)}
+           </dl>
          </section>
-         <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Lịch thanh toán</h3>
-           {detail.installments.map((item,i)=><div key={i} className="flex justify-between gap-3 border-b py-2">
-             <span>{channelDate(item.due_on)}</span><span>{channelMoney(item.amount)}</span></div>)}
-           {!detail.installments.length&&<p className="text-muted-foreground">Chưa khai báo lịch thanh toán.</p>}
+
+         <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+           <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+             <Paperclip className="size-4 text-primary" aria-hidden="true"/>File hợp đồng đã ký
+           </h3>
+           {detail.evidence[0] ? <button key={detail.evidence[0].id} type="button"
+             title="Mở file hợp đồng mới nhất trong tab mới"
+             aria-label={`Xem file hợp đồng mới nhất: ${detail.evidence[0].file_name}`}
+             className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-background p-3 text-left transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+             onClick={()=>void viewFile(detail.evidence[0])}>
+             <span className="flex min-w-0 items-center gap-2">
+               <FileText className="size-5 shrink-0 text-sky-700 dark:text-sky-300" aria-hidden="true"/>
+               <span className="min-w-0 space-y-1">
+                 <span className="block truncate font-medium text-foreground">{detail.evidence[0].file_name}</span>
+                 <span className="block text-xs text-muted-foreground">Bản bổ sung gần nhất</span>
+               </span>
+             </span>
+             <ExternalLink className="size-4 shrink-0 text-primary" aria-hidden="true"/>
+           </button> : <p className="text-sm text-muted-foreground">Chưa có file hợp đồng đính kèm.</p>}
          </section>
-         {!!detail.audit_history?.length && <section className="space-y-2 border-t pt-4">
-           <h3 className="font-bold">Lịch sử chỉnh sửa hợp đồng</h3>
-           {detail.audit_history.map((entry,i)=><div key={i} className="border-l-2 border-amber-600 py-2 pl-3">
-             <p className="font-medium">{({
-               REQUEST_SCHOOL_CONTRACT_REVISION:'Quản lý yêu cầu bổ sung',
-               EDIT_SCHOOL_CONTRACT_REVISION:'Sales chỉnh sửa hợp đồng',
-               RESUBMIT_SCHOOL_CONTRACT:'Sales gửi lại Quản lý',
-             } as Record<string,string>)[entry.action]??entry.action}</p>
-             <p className="text-xs text-muted-foreground">{channelDate(entry.created_at)} · {entry.actor_name??'Hệ thống'}</p>
-             {(entry.old_values||entry.new_values)&&<details className="mt-2 text-xs">
-               <summary className="cursor-pointer text-primary">Xem dữ liệu thay đổi</summary>
-               {entry.old_values&&<pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-muted p-2">Trước: {entry.old_values}</pre>}
-               {entry.new_values&&<pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-muted p-2">Sau: {entry.new_values}</pre>}
-             </details>}
-           </div>)}
-         </section>}
-         <section className="space-y-2 border-t pt-4"><h3 className="font-bold">Lịch sử xử lý</h3>
-           {detail.history.map((entry,i)=><div key={i} className="border-l-2 border-green-700 py-2 pl-3">
-             <p className="font-medium">{entry.event_type} · {entry.actor_name}</p>
-             <p className="text-xs text-muted-foreground">{channelDate(entry.created_at)}{entry.reason?' · '+entry.reason:''}</p>
-           </div>)}
-           {!detail.history.length&&<p className="text-muted-foreground">Chưa có lịch sử xử lý.</p>}
+
+         <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+           <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+             <MapPinned className="size-4 text-primary" aria-hidden="true"/>Trường điểm / Phân hiệu triển khai
+           </h3>
+           {detail.school_units.length ? <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
+             {detail.school_units.map(unit=><li key={unit.id}>{unit.name}</li>)}
+           </ul> : <p className="text-sm text-muted-foreground">Chỉ có trường chính, chưa có trường điểm hoặc phân hiệu.</p>}
          </section>
-       </div>}
+
+         <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+           <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+             <CalendarDays className="size-4 text-primary" aria-hidden="true"/>Lịch thanh toán
+           </h3>
+           {detail.installments.length ? <dl className="divide-y divide-border">
+             {detail.installments.map((item,i)=><div key={i} className="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+               <dt className="text-sm text-muted-foreground">{channelDate(item.due_on)}</dt>
+               <dd className="text-sm font-semibold tabular-nums text-foreground">{channelMoney(item.amount)}</dd>
+             </div>)}
+           </dl> : <p className="text-sm text-muted-foreground">Chưa khai báo lịch thanh toán.</p>}
+         </section>
+         {actionError&&<p role="alert" className="text-sm text-destructive">{actionError}</p>}
+       </>}
    </AppDrawer>
    <ConfirmDialog open={confirm!==null} onOpenChange={open=>{if(!open&&!busy){setConfirm(null);setActionError('');}}}
      title="Xác nhận chuyển hợp đồng" confirmLabel="Xác nhận chuyển" busy={busy}

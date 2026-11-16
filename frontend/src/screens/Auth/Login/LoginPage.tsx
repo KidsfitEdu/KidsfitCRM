@@ -9,7 +9,7 @@ import { FormError } from '@/components/common/form-error';
 import { Eye, EyeOff } from 'lucide-react';
 import { validateLogin, type LoginErrors, type LoginField } from '@/lib/login-validation';
 import { ApiRequestError, isBackendUnavailable } from '@/services/api.client';
-import { MascotLoadingState } from '@/components/common/mascot-loading-state';
+import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
 
 export function LoginPage({
   loading,
@@ -72,11 +72,11 @@ export function LoginPage({
   };
 
   if (loading || retrying)
-    return <MascotLoadingState state="loading" detail="Đang kết nối và xác thực tài khoản..." />;
+    return <main className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label="Đang kết nối và xác thực tài khoản..."/></main>;
 
   if (connectionIssue)
     return <div>
-      <MascotLoadingState state={connectionIssue}
+      <AppRequestErrorState title="Không thể kết nối máy chủ"
         detail="Không thể kết nối máy chủ KIDSFIT CRM để đăng nhập. Vui lòng thử lại."
         onRetry={() => { void attemptLogin(); }}/>
       <button type="button" onClick={() => { setConnectionIssue(null); setServerError(''); }}

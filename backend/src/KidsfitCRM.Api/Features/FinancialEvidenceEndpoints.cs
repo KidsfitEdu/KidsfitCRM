@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Infrastructure;
@@ -9,9 +8,9 @@ namespace KidsfitCRM.Api.Features;
 /// <summary>Private evidence storage; authorization applies to uploads AND downloads.</summary>
 public static class FinancialEvidenceEndpoints
 {
-    private const int MaxBytes = 5 * 1024 * 1024;
+    private const int MaxBytes = LocalFileStorageService.MaxFileBytes;
 
-    public static async Task<IResult> Upload(HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    public static async Task<IResult> Upload(HttpContext http, KidsfitDbContext db, IFileStorageService storage, CancellationToken ct)
     {
         if (!http.Request.HasFormContentType) throw ApiValidationException.For("file", "Cần gửi form multipart có ảnh hoặc hợp đồng.");
         var form = await http.Request.ReadFormAsync(ct);
@@ -48,42 +47,37 @@ public static class FinancialEvidenceEndpoints
             payoutId = id;
         }
 
-        await using var stream = file.OpenReadStream();
-        await using var memory = new MemoryStream();
-        await stream.CopyToAsync(memory, ct);
-        var bytes = memory.ToArray();
-        var jpeg = bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF;
-        var png = bytes.Length >= 8 && bytes[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
-        var webp = bytes.Length >= 12 && System.Text.Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF"
-            && System.Text.Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP";
-        var pdf = bytes.Length >= 5 && System.Text.Encoding.ASCII.GetString(bytes, 0, 5) == "%PDF-";
-        if (!(jpeg || png || webp || ((kind == "CONTRACT" || kind == "RENEWAL") && pdf)))
-            throw ApiValidationException.For("file", kind is "CONTRACT" or "RENEWAL"
-                ? "Hợp đồng phải là PDF hoặc ảnh JPG/PNG/WEBP hợp lệ."
-                : "Chứng từ chuyển khoản phải là ảnh JPG/PNG/WEBP hợp lệ.");
-        var mime = jpeg ? "image/jpeg" : png ? "image/png" : webp ? "image/webp" : "application/pdf";
         var originalName = Path.GetFileName(file.FileName);
         var safeName = new string(originalName.Where(x => char.IsLetterOrDigit(x) || x is '.' or '-' or '_').Take(120).ToArray());
         if (string.IsNullOrWhiteSpace(safeName)) safeName = "evidence";
+        await using var source = file.OpenReadStream();
+        var saved = await storage.SaveAsync(source, kind, ct);
         var now = DateTime.UtcNow;
         var proof = new FinancialEvidence
         {
             Kind = kind, ContractId = contractId, PayoutId = payoutId, UploadedByUserId = userId,
-            FileName = safeName, MimeType = mime, Sha256 = Convert.ToHexString(SHA256.HashData(bytes)),
-            Bytes = bytes, CreatedAt = now, UpdatedAt = now,
+            FileName = safeName, MimeType = saved.MimeType, Sha256 = saved.Sha256,
+            StorageKey = saved.StorageKey, FileSize = saved.FileSize, CreatedAt = now, UpdatedAt = now,
         };
-        db.FinancialEvidences.Add(proof);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            db.FinancialEvidences.Add(proof);
+            await db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            storage.Delete(saved.StorageKey);
+            throw;
+        }
         return Results.Created($"/api/channel-sales/evidence/{proof.Id}",
             new { data = new { id = proof.Id, kind = proof.Kind, file_name = proof.FileName } });
     }
 
 
     /// <summary>
-    /// Discard only an unassigned temporary RECEIPT/PAYOUT upload made by this actor.
-    /// Never delete an attachment already linked to an audited financial record.
+    /// Discard an unassigned upload owned by the actor, without deleting linked financial evidence.
     /// </summary>
-    public static async Task<IResult> DiscardUnattached(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    public static async Task<IResult> DiscardUnattached(long id, HttpContext http, KidsfitDbContext db, IFileStorageService storage, CancellationToken ct)
     {
         var actorId = http.UserId();
         var proof = await db.FinancialEvidences.AsNoTracking()
@@ -92,6 +86,8 @@ public static class FinancialEvidenceEndpoints
         var access = await ChannelSalesAccess.Load(db, actorId, ct);
         var allowed = proof.Kind switch
         {
+            "CONTRACT" => access.Has(Permissions.ChannelSalesReportContract),
+            "RENEWAL" => access.Has(Permissions.ContractRenewalSubmit),
             "RECEIPT" when proof.ContractId.HasValue =>
                 access.Has(Permissions.ChannelSalesRecordRevenue)
                 && await access.Contracts(db).AnyAsync(x => x.Id == proof.ContractId.Value, ct),
@@ -105,14 +101,18 @@ public static class FinancialEvidenceEndpoints
         // receipt/paid-payout transaction that attached the file wins the race.
         var removed = await db.FinancialEvidences
             .Where(x => x.Id == id && x.UploadedByUserId == actorId
-                && x.AttachedAt == null && x.RevenueReceiptId == null)
+                && x.AttachedAt == null && x.RevenueReceiptId == null
+                && x.ContractRenewalId == null
+                && (x.Kind == "RECEIPT" || x.ContractId == null)
+                && (x.Kind == "PAYOUT" || x.PayoutId == null))
             .ExecuteDeleteAsync(ct);
         if (removed != 1)
             throw new ApiConflictException("Chứng từ đã được gắn với giao dịch, không thể xóa.");
+        storage.Delete(proof.StorageKey);
         return Results.NoContent();
     }
 
-    public static async Task<IResult> Download(long id, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    public static async Task<IResult> Download(long id, HttpContext http, KidsfitDbContext db, IFileStorageService storage, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         var proof = await db.FinancialEvidences.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
@@ -144,6 +144,13 @@ public static class FinancialEvidenceEndpoints
         if (!permitted) throw new KeyNotFoundException();
         http.Response.Headers["Cache-Control"] = "private, no-store";
         http.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        return Results.File(proof.Bytes, "application/octet-stream", proof.FileName);
+        try
+        {
+            return Results.File(storage.OpenRead(proof.StorageKey), "application/octet-stream", proof.FileName);
+        }
+        catch (FileNotFoundException)
+        {
+            throw new KeyNotFoundException();
+        }
     }
 }

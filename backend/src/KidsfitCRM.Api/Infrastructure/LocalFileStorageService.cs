@@ -46,8 +46,11 @@ public sealed class LocalFileStorageService : IFileStorageService
     {
         if (!Folders.TryGetValue(kind, out var folder))
             throw ApiValidationException.For("kind", "Loại chứng từ không hợp lệ.");
-        var storageKey = folder + "/" + Guid.NewGuid().ToString("N");
-        var path = Resolve(storageKey);
+        // Write to an opaque temporary filename first. The verified MIME type decides
+        // the final extension; never trust the user-supplied filename or Content-Type.
+        var temporaryKey = folder + "/" + Guid.NewGuid().ToString("N");
+        var path = Resolve(temporaryKey);
+        string? finalPath = null;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var buffer = ArrayPool<byte>.Shared.Rent(81920);
         try
@@ -82,11 +85,23 @@ public sealed class LocalFileStorageService : IFileStorageService
                 throw ApiValidationException.For("file", kind is "CONTRACT" or "RENEWAL"
                     ? "Hợp đồng phải là PDF hoặc ảnh JPG/PNG/WEBP hợp lệ."
                     : "Chứng từ chuyển khoản phải là ảnh JPG/PNG/WEBP hợp lệ.");
+            var extension = mime switch
+            {
+                "application/pdf" => ".pdf",
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/webp" => ".webp",
+                _ => throw new InvalidOperationException("Unsupported verified file type.")
+            };
+            var storageKey = temporaryKey + extension;
+            finalPath = Resolve(storageKey);
+            File.Move(path, finalPath);
             return new StoredFile(storageKey, length, Convert.ToHexString(hash.GetHashAndReset()), mime);
         }
         catch
         {
             File.Delete(path);
+            if (finalPath is not null) File.Delete(finalPath);
             throw;
         }
         finally
@@ -116,8 +131,16 @@ public sealed class LocalFileStorageService : IFileStorageService
     private string Resolve(string storageKey)
     {
         var segments = storageKey.Split('/');
-        if (segments.Length != 2 || !Folders.Values.Contains(segments[0], StringComparer.Ordinal)
-            || segments[1].Length != 32 || !Guid.TryParseExact(segments[1], "N", out _))
+        if (segments.Length != 2 || !Folders.Values.Contains(segments[0], StringComparer.Ordinal))
+            throw new InvalidOperationException("Invalid private storage key.");
+        // Accept pre-existing GUID-only keys so previously uploaded evidence
+        // remains readable; all new uploads use an extension validated from bytes.
+        var name = segments[1];
+        var dot = name.IndexOf('.');
+        var id = dot < 0 ? name : name[..dot];
+        var extension = dot < 0 ? "" : name[dot..];
+        if (id.Length != 32 || !Guid.TryParseExact(id, "N", out _)
+            || (extension.Length > 0 && extension is not (".pdf" or ".jpg" or ".png" or ".webp")))
             throw new InvalidOperationException("Invalid private storage key.");
         return Path.Combine(root, segments[0], segments[1]);
     }

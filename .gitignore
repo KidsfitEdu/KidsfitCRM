@@ -1,6 +1,8 @@
 backend/.env
 backend/**/bin/
 backend/**/obj/
+# Locally uploaded private evidence (Development); never commit documents or images.
+backend/**/Storage/
 frontend/.env.local
 frontend/.vinext/
 frontend/dist/

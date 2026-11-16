@@ -69,7 +69,7 @@ test('Login has retry and safe fallback to edit credentials', () => {
   assert.match(login, /if \(isBackendUnavailable\(cause\)\)/);
   assert.match(login, /setConnectionIssue/);
   assert.match(login, /void attemptLogin\(\)/);
-  assert.match(login, /Quay lại đăng nhập/);
+  assert.match(login, /onBack=\{\(\) =>/);
   assert.match(login, /validateLogin\(email, password\)/);
 });
 

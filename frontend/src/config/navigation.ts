@@ -100,6 +100,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'manager-contracts', label: 'Hợp đồng & xác minh', shortLabel: 'Hợp đồng', icon: FileCheck2 },
   { id: 'manager-extensions', label: 'Duyệt gia hạn', shortLabel: 'Gia hạn', icon: CalendarDays },
   { id: 'manager-team', label: 'Đội ngũ bán hàng', shortLabel: 'Đội ngũ', icon: ShieldCheck },
+  { id: 'manager-income', label: 'Thu nhập', shortLabel: 'Thu nhập', icon: WalletCards },
 ];
 
 export const viewCopy: Record<

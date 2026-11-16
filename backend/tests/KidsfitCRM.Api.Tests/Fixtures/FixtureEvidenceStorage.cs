@@ -1,0 +1,26 @@
+using KidsfitCRM.Api.Infrastructure;
+using Microsoft.Extensions.Configuration;
+
+namespace KidsfitCRM.Api.Tests;
+
+/// <summary>Isolated filesystem fixture for evidence metadata and download authorization tests.</summary>
+public static class FixtureEvidenceStorage
+{
+    private static readonly Lazy<IFileStorageService> Instance = new(() =>
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = Path.Combine(Path.GetTempPath(), "kidsfit-crm-tests", Guid.NewGuid().ToString("N"))
+            }).Build();
+        return new LocalFileStorageService(config);
+    });
+
+    public static IFileStorageService Service => Instance.Value;
+
+    public static StoredFile Save(byte[] bytes, string kind = "CONTRACT")
+    {
+        using var source = new MemoryStream(bytes);
+        return Service.SaveAsync(source, kind, CancellationToken.None).GetAwaiter().GetResult();
+    }
+}

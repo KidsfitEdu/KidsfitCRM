@@ -44,6 +44,7 @@ public sealed class LocalFileStorageTests : IDisposable
         await using var upload = new MemoryStream(bytes);
         var saved = await storage.SaveAsync(upload, "CONTRACT", CancellationToken.None);
         Assert.StartsWith("contracts/", saved.StorageKey);
+        Assert.EndsWith(".pdf", saved.StorageKey);
         Assert.Equal("application/pdf", saved.MimeType);
         Assert.Equal(bytes.LongLength, saved.FileSize);
         Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)), saved.Sha256);
@@ -66,9 +67,43 @@ public sealed class LocalFileStorageTests : IDisposable
         var two = await storage.SaveAsync(new MemoryStream(bytes), "RECEIPT", CancellationToken.None);
         Assert.NotEqual(one.StorageKey, two.StorageKey);
         Assert.Equal("image/jpeg", two.MimeType);
+        Assert.EndsWith(".jpg", two.StorageKey);
         storage.Delete(one.StorageKey);
         using var stillThere = storage.OpenRead(two.StorageKey);
         Assert.Equal(bytes, await ReadAsync(stillThere));
+    }
+
+    [Theory]
+    [InlineData("CONTRACT", "image/png", ".png")]
+    [InlineData("PAYOUT", "image/webp", ".webp")]
+    public async Task Stores_verified_image_extensions(string kind, string mime, string extension)
+    {
+        byte[] bytes = mime == "image/png"
+            ? new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 1 }
+            : "RIFF0000WEBP"u8.ToArray();
+        var storage = Create();
+        var saved = await storage.SaveAsync(new MemoryStream(bytes), kind, CancellationToken.None);
+        Assert.Equal(mime, saved.MimeType);
+        Assert.EndsWith(extension, saved.StorageKey);
+        using var input = storage.OpenRead(saved.StorageKey);
+        Assert.Equal(bytes, await ReadAsync(input));
+    }
+
+    [Fact]
+    public void Previously_saved_guid_only_storage_keys_are_still_accessible()
+    {
+        var storage = Create();
+        var key = "contracts/" + Guid.NewGuid().ToString("N");
+        var path = Path.Combine(root, "contracts", key.Split('/')[1]);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var bytes = "%PDF-1.4\\nLegacy test"u8.ToArray();
+        File.WriteAllBytes(path, bytes);
+        using (var input = storage.OpenRead(key))
+        {
+            Assert.Equal(bytes, ReadAsync(input).GetAwaiter().GetResult());
+        }
+        storage.Delete(key);
+        Assert.False(File.Exists(path));
     }
 
     [Fact]
@@ -90,6 +125,8 @@ public sealed class LocalFileStorageTests : IDisposable
         var storage = Create();
         Assert.Throws<InvalidOperationException>(() => storage.OpenRead("../private/secret"));
         Assert.Throws<InvalidOperationException>(() => storage.Delete("contracts/../../secrets"));
+        Assert.Throws<InvalidOperationException>(() => storage.OpenRead("contracts/" + Guid.NewGuid().ToString("N") + ".exe"));
+        Assert.Throws<InvalidOperationException>(() => storage.OpenRead("contracts/" + Guid.NewGuid().ToString("N") + ".pdf.exe"));
     }
 
     private static async Task<byte[]> ReadAsync(Stream stream)

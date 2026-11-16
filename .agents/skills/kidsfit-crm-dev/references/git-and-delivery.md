@@ -4,18 +4,26 @@
 
 Always inspect repo `develop` HEAD, existing worktree/staged state and current branch before creating a task branch. Do not assume default GitHub branch `main` is the integration target. For requested feature work, prefer PR target `develop`.
 
-**Branch convention:** `type/short-kebab-case`, lowercase, ASCII, no spaces/diacritics, generally 2–4 meaningful words; optional issue identifier only if the project tracks it. Do not create name collisions without checking.
+**Branch convention (required):** `type/module/feature`. Use a concise change type, a stable business/technical module, then the specific action or feature.
+
+- Lowercase English ASCII only; use `kebab-case` for multiword segments, with `/` separating the three segments.
+- No Vietnamese diacritics, spaces, personal names or date suffixes. Avoid generic names such as `update` or `fix-bugs`.
+- Check existing branches and open PRs before creating a name; reuse an existing approved PR branch when appropriate.
+- Do not rename an active/published PR branch or rewrite its history without explicit authorization.
+- Choose the module that owns the change, and keep the feature segment short and precise.
 
 | Type | Example |
 |---|---|
-| feat | `feat/school-import` |
-| fix | `fix/claim-expiry` |
-| refactor | `refactor/shared-table` |
-| db | `db/school-contacts` |
-| test | `test/claim-race` |
-| docs | `docs/crm-skill` |
-| ci | `ci/mysql-tests` |
-| chore | `chore/deps-update` |
+| feat | `feat/sales/income-rates` |
+| feat | `feat/manager/income` |
+| fix | `fix/accounting/payout-approval` |
+| refactor | `refactor/crm/shared-components` |
+| chore | `chore/database/initial-seed` |
+| test | `test/sales/commission-rates` |
+| docs | `docs/crm/branch-naming` |
+| ci | `ci/mysql/integration-tests` |
+
+The naming rule applies to **new** branches. Existing historical branches remain valid; avoid unnecessary renames.
 
 Use Conventional Commits: `feat(schools): validate Excel imports`, `fix(claims): prevent duplicate allocation`, `refactor(ui): reuse pagination`. Avoid `update`, `fix bugs`, or ambiguous branch names. One logical concern per commit; no secrets or real DB dumps.
 

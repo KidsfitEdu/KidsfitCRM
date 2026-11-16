@@ -150,7 +150,7 @@ export function LoginPage({
             {serverError && <p role="alert" className="text-sm text-destructive">{serverError}</p>}
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || retrying}
               className="h-11 w-full rounded-xl bg-[#1b5e20] font-semibold text-white hover:bg-[#124c17] hover:text-white focus-visible:ring-[#1b5e20]"
             >
               {loading || retrying ? <><AppSpinner className="mr-2" />Đang đăng nhập...</> : 'Đăng nhập'}

@@ -1,3 +1,4 @@
+using KidsfitCRM.Api.Tests;
 using System.Security.Cryptography;
 using System.Text.Json;
 using KidsfitCRM.Api.Domain;
@@ -133,7 +134,7 @@ public static class AccountingScenarioSeeder
                 Kind = "CONTRACT", ContractId = contract.Id,
                 UploadedByUserId = scenario.Owner.Id,
                 FileName = "DEMO-khong-phai-hop-dong-that.png",
-                MimeType = "image/png", Sha256 = sha, Bytes = proofBytes,
+                MimeType = "image/png", Sha256 = sha, StorageKey = FixtureEvidenceStorage.Save(proofBytes, "CONTRACT").StorageKey, FileSize = proofBytes.Length,
                 AttachedAt = now, CreatedAt = now, UpdatedAt = now,
             });
 
@@ -173,7 +174,7 @@ public static class AccountingScenarioSeeder
                     Kind = "RECEIPT", ContractId = contract.Id,
                     RevenueReceiptId = receipt.Id, UploadedByUserId = accountant.Id,
                     FileName = "DEMO-bien-lai-thu-khong-co-gia-tri.png",
-                    MimeType = "image/png", Sha256 = sha, Bytes = proofBytes,
+                    MimeType = "image/png", Sha256 = sha, StorageKey = FixtureEvidenceStorage.Save(proofBytes, "RECEIPT").StorageKey, FileSize = proofBytes.Length,
                     AttachedAt = now, CreatedAt = now, UpdatedAt = now,
                 });
                 var entry = new CommissionLedgerEntry
@@ -234,7 +235,7 @@ public static class AccountingScenarioSeeder
                     Kind = "PAYOUT", ContractId = contract.Id, PayoutId = payout.Id,
                     UploadedByUserId = accountant.Id,
                     FileName = "DEMO-chuyen-hoa-hong-khong-co-gia-tri.png",
-                    MimeType = "image/png", Sha256 = sha, Bytes = proofBytes,
+                    MimeType = "image/png", Sha256 = sha, StorageKey = FixtureEvidenceStorage.Save(proofBytes, "PAYOUT").StorageKey, FileSize = proofBytes.Length,
                     AttachedAt = now, CreatedAt = now, UpdatedAt = now,
                 });
             }

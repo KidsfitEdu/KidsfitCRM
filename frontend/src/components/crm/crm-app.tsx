@@ -209,7 +209,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   if (!ready || (apiBase && token && sessionStatus === 'checking'))
     return <div className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label={ready ? 'Đang xác thực tài khoản và tải dữ liệu...' : 'Đang khởi tạo CRM...'}/></div>;
   if (apiBase && token && sessionStatus === 'offline')
-    return <AppRequestErrorState title="Không thể kết nối máy chủ" detail={connectionMessage || 'Không thể kết nối tới máy chủ KIDSFIT CRM. Vui lòng kiểm tra mạng và thử lại.'}
+    return <AppRequestErrorState fullScreen title="Không thể kết nối máy chủ" detail={connectionMessage || 'Không thể kết nối tới máy chủ KIDSFIT CRM. Vui lòng kiểm tra mạng và thử lại.'}
       onRetry={() => { setConnectionMessage(''); setRetryIndex(index => index + 1); }}/>;
   if (apiBase && token && sessionStatus === 'error')
     return <AppRequestErrorState detail={connectionMessage}
@@ -217,7 +217,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   if (apiBase && !token && healthStatus === 'checking')
     return <div className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label="Đang kiểm tra kết nối đến máy chủ KIDSFIT CRM..."/></div>;
   if (apiBase && !token && healthStatus === 'offline')
-    return <AppRequestErrorState title="Không thể kết nối máy chủ" detail={healthError || 'Không thể kết nối tới máy chủ KIDSFIT CRM. Vui lòng kiểm tra mạng và thử lại.'}
+    return <AppRequestErrorState fullScreen title="Không thể kết nối máy chủ" detail={healthError || 'Không thể kết nối tới máy chủ KIDSFIT CRM. Vui lòng kiểm tra mạng và thử lại.'}
       onRetry={() => { setHealthError(''); setHealthRetryIndex(index => index + 1); }}/>;
   if (apiBase && !token) return <LoginPage loading={loading} onLogin={login} />;
 

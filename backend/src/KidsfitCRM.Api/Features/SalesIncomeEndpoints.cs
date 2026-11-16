@@ -70,7 +70,8 @@ public static class SalesIncomeEndpoints
             .ToDictionary(g => g.Key, g => Math.Round(g.Sum(x => x.Amount * x.NetAmount / x.GrossAmount), 0));
 
         var payouts = await db.Payouts.AsNoTracking()
-            .Where(x => x.BeneficiaryUserId == actor && (selected == null || x.Period == selected))
+            .Where(x => x.BeneficiaryUserId == actor && (selected == null || x.Period == selected)
+                && (selectedRole == null || x.BeneficiaryRole == selectedRole))
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new { id = x.Id, code = x.Code, period = x.Period,
                 amount = x.NetAmount, status = x.Status, paid_at = x.PaidAt,

@@ -56,6 +56,7 @@ export const managerPageSections = {
     contracts: {label:"Hợp đồng & xác minh",panel:"contracts",tab:""},
     extensions: {label:"Gia hạn",panel:"extensions",tab:""},
     team: {label:"Đội ngũ bán hàng",panel:"team",tab:""},
+    income: {label:"Thu nhập",panel:"income",tab:""},
   },
 } as const;
 

@@ -20,7 +20,12 @@ public static class FixtureEvidenceStorage
 
     public static StoredFile Save(byte[] bytes, string kind = "CONTRACT")
     {
-        using var source = new MemoryStream(bytes);
-        return Service.SaveAsync(source, kind, CancellationToken.None).GetAwaiter().GetResult();
+        // Fixtures are created inside asynchronous xUnit tests: run the async writer on
+        // the thread pool to avoid blocking a captured test synchronization context.
+        return Task.Run(async () =>
+        {
+            await using var source = new MemoryStream(bytes);
+            return await Service.SaveAsync(source, kind, CancellationToken.None);
+        }).GetAwaiter().GetResult();
     }
 }

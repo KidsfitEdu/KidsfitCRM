@@ -421,3 +421,43 @@ test('Sales commission detail endpoint remains tied to the authenticated benefic
   assert.match(detail, /payout\.BeneficiaryUserId == actor/);
   assert.match(detail, /allocated_amount = allocation/);
 });
+
+
+test('Sales and Manager use one personal income screen with actual historical commission-rate column', () => {
+  const component = read('src/components/roles/SalesIncomePage.tsx');
+  const manager = read('src/screens/SalesManager/Income/IncomePage.tsx');
+  const nav = read('src/config/navigation.ts');
+  const workspace = read('src/screens/SalesManager/SalesManagerWorkspace.tsx');
+  const app = read('src/components/crm/crm-app.tsx');
+  const sections = read('src/config/role-pages.ts');
+  assert.match(nav, /'manager-income'/);
+  assert.match(workspace, /'manager-income':IncomePage/);
+  assert.match(manager, /beneficiaryRole="MANAGER"/);
+  assert.match(app, /isManager \? item\.id\.startsWith\('manager-'\)/);
+  assert.match(sections, /income: \{label:"Thu nhập",panel:"income"/);
+  assert.match(component, /beneficiaryRole='SALES'/);
+  assert.match(component, /columns=\{\['Trường học','Tỷ lệ HH','Hoa hồng','Đã nhận','Thao tác'\]\}/);
+  assert.match(component, /row\.rate_is_mixed/);
+  assert.match(component, /Nhiều mức/);
+  assert.match(component, /row\.rate_percent==null/);
+  assert.match(component, /row\.rate_percent\}%/);
+  assert.match(component, /new URLSearchParams\(\{period,page:String\(page\),pageSize:String\(pageSize\),beneficiaryRole\}\)/);
+  assert.match(component, /new URLSearchParams\(\{period,beneficiaryRole\}\)/);
+  assert.doesNotMatch(component, /Tỷ lệ mặc định: 25%|Tỷ lệ mặc định: 5%/);
+});
+
+test('Personal income endpoint distinguishes Sales and Manager ledger roles without leaking team income', () => {
+  const endpoint = read('../backend/src/KidsfitCRM.Api/Features/SalesIncomeEndpoints.cs');
+  assert.match(endpoint, /x\.BeneficiaryUserId == actor/);
+  assert.match(endpoint, /x\.ContractId == contractId/);
+  assert.match(endpoint, /entry\.BeneficiaryUserId == actor/);
+  assert.match(endpoint, /payout\.BeneficiaryUserId == actor/);
+  assert.match(endpoint, /selectedRole != "SALES" && selectedRole != "MANAGER"/);
+  assert.match(endpoint, /x\.BeneficiaryRole == selectedRole/);
+  assert.match(endpoint, /entry\.BeneficiaryRole == selectedRole/);
+  assert.match(endpoint, /rate_is_mixed = g\.Min\(x => x\.RatePercent\) != g\.Max\(x => x\.RatePercent\)/);
+  assert.match(endpoint, /rate_percent = g\.Min\(x => x\.RatePercent\) == g\.Max\(x => x\.RatePercent\)/);
+  assert.match(endpoint, /x\.rate_percent, x\.rate_is_mixed/);
+  assert.match(endpoint, /payout\.Status == "PAID"/);
+  assert.match(endpoint, /x\.Amount \* x\.NetAmount \/ x\.GrossAmount/);
+});

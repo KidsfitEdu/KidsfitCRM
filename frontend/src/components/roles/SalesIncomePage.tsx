@@ -10,7 +10,8 @@ import { AppButton } from '@/components/common/buttons/app-button';
 import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
 
 type Row = { contract_id:number; contract_code:string; school_name:string;
-  commission:number; paid:number; unpaid:number; entries:number };
+  commission:number; paid:number; unpaid:number; entries:number;
+  rate_percent:number|null; rate_is_mixed:boolean };
 type Payout = {id:number;code:string;period:string;amount:number;status:string;paid_at:string|null;payment_reference:string|null};
 type Income = {period:string;page:number;page_size:number;total:number;
   summary:{accrued:number;paid:number;unpaid:number;contracts:number};
@@ -29,8 +30,8 @@ const statusLabel: Record<string,string> = {
   APPROVED:'Chờ chuyển', PAID:'Đã chuyển'
 };
 
-export function SalesIncomePage({apiBase,token,abilities}:{
-  apiBase:string;token:string;abilities:string[];
+export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'}:{
+  apiBase:string;token:string;abilities:string[];beneficiaryRole?:'SALES'|'MANAGER';
 }) {
   // The income screen now shows all periods, with no period filter.
   const period = 'ALL';
@@ -65,25 +66,25 @@ export function SalesIncomePage({apiBase,token,abilities}:{
     if(!apiBase || !token || !permitted)return;
     setLoading(true);setError('');
     try{
-      const qs=new URLSearchParams({period,page:String(page),pageSize:String(pageSize)});
+      const qs=new URLSearchParams({period,page:String(page),pageSize:String(pageSize),beneficiaryRole});
       if(term)qs.set('search',term);
       setData(await channelRequest<Income>(apiBase,token,`/income/me?${qs.toString()}`));
     }catch(e){setError(e instanceof Error?e.message:'Không tải được thu nhập.');setData(null);}
     finally{setLoading(false);}
-  },[apiBase,token,permitted,page,pageSize,period,term]);
+  },[apiBase,token,permitted,page,pageSize,period,term,beneficiaryRole]);
   useEffect(()=>{void load();},[load]);
   useEffect(()=>{
     if(!selected||!permitted||!apiBase||!token){setDetail(null);return;}
     let active=true;setDetail(null);setDetailError('');
-    const q=new URLSearchParams({period});
+    const q=new URLSearchParams({period,beneficiaryRole});
     void channelRequest<IncomeDetail>(apiBase,token,`/income/me/contracts/${selected.contract_id}?${q}`)
       .then(value=>{if(active)setDetail(value);})
       .catch(cause=>{if(active)setDetailError(cause instanceof Error?cause.message:'Không tải được chi tiết hoa hồng.');});
     return()=>{active=false;};
-  },[selected,permitted,apiBase,token,period]);
+  },[selected,permitted,apiBase,token,period,beneficiaryRole]);
   const rows=data?.data??[];
   return <div className="space-y-5">
-    <AppPageHeader eyebrow="BÁN HÀNG / KIDSFIT CRM" title="Thu nhập"
+    <AppPageHeader eyebrow={beneficiaryRole==='MANAGER'?"QUẢN LÝ BÁN HÀNG / KIDSFIT CRM":"BÁN HÀNG / KIDSFIT CRM"} title="Thu nhập"
       description="Theo dõi hoa hồng cá nhân theo hợp đồng và lịch sử chi trả."/>
     {!permitted && <p role="alert" className="rounded-lg border p-4 text-sm">Tài khoản chưa có quyền xem hoa hồng.</p>}
     {permitted && <>
@@ -100,9 +101,9 @@ export function SalesIncomePage({apiBase,token,abilities}:{
         </div>)}
       </div>
       <SalesListLayout
-        columns={['Trường học','Hoa hồng','Đã nhận','Thao tác']}
-        template="minmax(240px,2fr) minmax(150px,1fr) minmax(150px,1fr) minmax(100px,auto)"
-        minWidth={720} page={page} pageSize={pageSize} total={data?.total ?? 0}
+        columns={['Trường học','Tỷ lệ HH','Hoa hồng','Đã nhận','Thao tác']}
+        template="minmax(240px,2fr) minmax(105px,0.65fr) minmax(145px,1fr) minmax(145px,1fr) minmax(90px,auto)"
+        minWidth={860} page={page} pageSize={pageSize} total={data?.total ?? 0}
         loading={loading} onPageChange={setPage}
         onPageSizeChange={size => {setPageSize(size);setPage(1);}}
         empty="Chưa có hoa hồng phù hợp."
@@ -111,10 +112,15 @@ export function SalesIncomePage({apiBase,token,abilities}:{
           placeholder="Tên trường, mã hợp đồng..." onSearch={() => {setTerm(search.trim());setPage(1);}}
           onReset={() => {setTerm('');setSearch('');setPage(1);}}/>}>
         {rows.map(row => <SalesListRow key={row.contract_id}
-          template="minmax(240px,2fr) minmax(150px,1fr) minmax(150px,1fr) minmax(100px,auto)">
+          template="minmax(240px,2fr) minmax(105px,0.65fr) minmax(145px,1fr) minmax(145px,1fr) minmax(90px,auto)">
           <div className="min-w-0">
             <p className="font-semibold">{row.school_name}</p>
             <p className="mt-1 text-xs text-muted-foreground">{row.contract_code}</p>
+          </div>
+          <div className="tabular-nums">
+            {row.rate_is_mixed
+              ? <span title="Tỷ lệ khác nhau theo từng bút toán">Nhiều mức</span>
+              : row.rate_percent==null?'—':<span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">{row.rate_percent}%</span>}
           </div>
           <div className="tabular-nums">{channelMoney(row.commission)}</div>
           <div className="tabular-nums">{channelMoney(row.paid)}</div>

@@ -19,6 +19,7 @@ export type View =
   | 'manager-contracts'
   | 'manager-extensions'
   | 'manager-team'
+  | 'manager-income'
   | 'role-board-dashboard'
   | 'role-board-progress'
   | 'role-board-oversight'
@@ -99,6 +100,7 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'manager-contracts', label: 'Hợp đồng & xác minh', shortLabel: 'Hợp đồng', icon: FileCheck2 },
   { id: 'manager-extensions', label: 'Duyệt gia hạn', shortLabel: 'Gia hạn', icon: CalendarDays },
   { id: 'manager-team', label: 'Đội ngũ bán hàng', shortLabel: 'Đội ngũ', icon: ShieldCheck },
+  { id: 'manager-income', label: 'Thu nhập', shortLabel: 'Thu nhập', icon: WalletCards },
 ];
 
 export const viewCopy: Record<
@@ -166,6 +168,7 @@ export const viewCopy: Record<
   'manager-contracts': { eyebrow:'Quản lý bán hàng',title:'Hợp đồng & xác minh',description:'Kiểm tra hồ sơ do Sales báo cáo, chuyển CHECKEE xác minh và theo dõi kết quả.' },
   'manager-extensions': { eyebrow:'Quản lý bán hàng',title:'Duyệt gia hạn',description:'Xem tiến độ và bằng chứng, duyệt hoặc từ chối gia hạn.' },
   'manager-team': { eyebrow:'Quản lý bán hàng',title:'Đội ngũ bán hàng',description:'Quản lý nhân sự và kết quả phụ trách trường của đội ngũ.' },
+  'manager-income': { eyebrow:'Quản lý bán hàng',title:'Thu nhập',description:'Theo dõi hoa hồng cá nhân của Quản lý và lịch sử chi trả.' },
 
 };
 

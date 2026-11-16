@@ -7,7 +7,8 @@ import { ProgressPage } from './Progress/ProgressPage';
 import { ExtensionsPage } from './Extensions/ExtensionsPage';
 import { ContractsPage } from './Contracts/ContractsPage';
 import { TeamPage } from './Team/TeamPage';
-export type ManagerSection='manager-dashboard'|'manager-proposals'|'manager-allocations'|'manager-progress'|'manager-contracts'|'manager-extensions'|'manager-team';
+import { IncomePage } from './Income/IncomePage';
+export type ManagerSection='manager-dashboard'|'manager-proposals'|'manager-allocations'|'manager-progress'|'manager-contracts'|'manager-extensions'|'manager-team'|'manager-income';
 const pages={
  'manager-dashboard':DashboardPage,
  'manager-proposals':ProposalsPage,
@@ -16,6 +17,7 @@ const pages={
  'manager-contracts':ContractsPage,
  'manager-extensions':ExtensionsPage,
  'manager-team':TeamPage,
+ 'manager-income':IncomePage,
 };
 export function SalesManagerWorkspace({section,...props}:ManagerPageProps&{section:ManagerSection}){
  const Page=pages[section];

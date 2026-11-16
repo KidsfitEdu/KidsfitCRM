@@ -301,6 +301,8 @@ public sealed class FinancialEvidence : EntityBase
     public string FileName { get; set; } = "";
     public string MimeType { get; set; } = "";
     public string Sha256 { get; set; } = "";
-    public byte[] Bytes { get; set; } = [];
+    public string StorageKey { get; set; } = "";
+    public long FileSize { get; set; };
+
     public DateTime? AttachedAt { get; set; }
 }

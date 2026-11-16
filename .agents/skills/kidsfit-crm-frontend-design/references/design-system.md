@@ -46,6 +46,50 @@ These are **existing reference values**, not a license to repeat hardcoded hex c
 
 Status colors supplement labels; they are not data state transitions. An overdue indicator must not mutate \`PENDING_ADMIN\` or another canonical business state. Never compute overdue from a sample screenshot date; use parsed authoritative server time and the user's view timezone.
 
+## Approved visual references (2026-11-16): lists, actions and state
+
+Use the user-supplied Admin **Nhân sự & đối tác**, **Quản lý trường học**, **Thông tin nhân sự** drawer, and **Mời Sales/CTV nhận trường** modal screenshots as a *visual brief*, not proof that every component already matches. The earlier proposal page remains a relevant example for its route. Adopt the shared brand and spacing, not identical field layouts on unrelated role screens.
+
+### Visual hierarchy and proportions
+
+- Desktop shell: deep-green sidebar and active item with lighter green background plus a left accent; white topbar with global quick search, theme switch, notifications and account avatar. Light-neutral page canvas.
+- Page identity: short green uppercase role/breadcrumb eyebrow, strong headline, one-line muted description and a distinct right-aligned primary action. Tab underline follows the active section.
+- Data panels: large rounded white card, restrained border/shadow, toolbar inside its top section, dark green table header with white high-contrast labels, white/near-white rows, fine dividers, balanced column widths and coherent footer pagination.
+- Toolbar: long query field, status selector, orange search action, outlined icon reset; refresh remains **separate**. Prefer common heights, padding and radii. Do not force a one-row layout on small screens.
+- Typography uses existing Inter/Be Vietnam Pro stack; meaningful hierarchy, readable Vietnamese diacritics and measured whitespace; use semantic CSS tokens and existing variants, not per-screen hardcoded hex values.
+
+### Action icon color vocabulary
+
+| Function | Semantic tone | Example Lucide | Notes |
+|---|---|---|---|
+| View/details | Green | `Eye` | Quiet green outline or icon |
+| Edit | Blue | `Pencil` | Avoid confusing with info badge |
+| Delete | Red/destructive | `Trash2` | Confirm destructive consequences |
+| Archive | Amber/orange | `Archive` | Distinct from delete |
+| Download | Cyan/teal | `Download` | Explicit file action |
+| Restore | Violet | `RotateCcw` | Different from refresh/reset |
+
+Action colors identify *action categories*, not individual rows; the same action keeps the same color across screens. Reuse or extend semantic component variants where justified. Buttons retain a consistent shape/size, subtle outlines, readable hover/focus/disabled styles and `aria-label`/tooltip. A single button must not change color just because its current record status changes.
+
+### Status badge semantics
+
+| Semantic state family | Badge tone | Examples (illustrative, not new server codes) |
+|---|---|---|
+| Valid / completed | Success green | Hoạt động, Đã xác minh hợp đồng |
+| In progress | Informational blue | Đang tiếp cận, Đang xử lý |
+| Waiting for action | Warning amber | Chờ xác minh, Chờ duyệt |
+| Failed / rejected | Destructive red | Đã từ chối, Lỗi |
+| Not started / no registration | Muted neutral gray | Chưa đăng ký, Chưa bắt đầu |
+| Renewal / restoration | Violet | Tái ký, Khôi phục |
+
+A state with distinct urgency may need a separate warning accent (e.g. *Quá hạn*); it must be computed from real timestamps, not conflated with `REJECTED`. One status code does **not** need a unique arbitrary color if it shares a semantic meaning. **Current status** is different from **required action**; never relabel backend status to fit a design. Badges use a soft background, restrained border and legible text, with optional icon but never color alone. Verify contrast for both themes.
+
+### Detail panels, forms and toast treatment
+
+- **Right-side drawer:** green branded header, visible close button, gentle dimmed background, profile/record summary, separate softly bordered rounded information cards with small green section icons, label-over-value fields and meaningful missing-value text such as *Chưa cập nhật*. Scroll content inside; keep footer accessible.
+- **Form/modal:** similar green header, spacious white content, consistent large input/select/textarea, labels and required marks, clear two-column grouping on wide screens, single column on mobile, inline validation. Footer separates white neutral Cancel from green primary submit, with busy/disabled feedback.
+- **Toast:** floating white card near top-right on desktop, restrained elevation, close button, semantic status icon, clear title and short secondary message; optional subtle timer indicator. Success green, error red, warning amber, info blue. Avoid blocking primary controls and duplicate messages, do not reveal private API detail.
+
 ## Accessibility and motion
 
 - Aim for WCAG AA: 4.5:1 normal text contrast, 3:1 large text/meaningful nontext UI; verify actual computed colors and dark-mode contrast.

@@ -30,6 +30,7 @@ services:
       Jwt__Key: local-docker-key-change-before-production-2026
       Cors__Origins__0: http://localhost:3000
       Seed__DemoEnabled: "false"
+      Storage__RootPath: /var/lib/kidsfit-crm/storage
     depends_on:
       mysql:
         condition: service_healthy
@@ -39,6 +40,8 @@ services:
     build: ./backend
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - kidsfit_evidence_files:/var/lib/kidsfit-crm/storage
     ports:
       - "8000:8080"
     depends_on:
@@ -57,3 +60,4 @@ services:
 
 volumes:
   kidsfit_mysql_net10:
+  kidsfit_evidence_files:

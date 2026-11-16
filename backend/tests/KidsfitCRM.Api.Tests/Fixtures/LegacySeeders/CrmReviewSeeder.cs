@@ -1,3 +1,4 @@
+using KidsfitCRM.Api.Tests;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -186,7 +187,7 @@ internal static class CrmReviewSeeder
             {
                 ContractRenewalId = renewal.Id, Kind = "RENEWAL", UploadedByUserId = contract.OwnerUserId,
                 FileName = $"DEMO-{contract.ContractCode}-TAI-KY-{renewal.RenewalNo}.pdf",
-                MimeType = "application/pdf", Sha256 = checksum, Bytes = proof,
+                MimeType = "application/pdf", Sha256 = checksum, StorageKey = FixtureEvidenceStorage.Save(proof, "RENEWAL").StorageKey, FileSize = proof.Length,
                 AttachedAt = submittedAt, CreatedAt = submittedAt, UpdatedAt = submittedAt
             });
             db.ContractRenewalEvents.Add(new ContractRenewalEvent

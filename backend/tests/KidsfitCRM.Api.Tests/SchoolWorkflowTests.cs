@@ -381,7 +381,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\\nSynthetic document");
         var first = new FinancialEvidence {
             Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "initial.pdf",
-            MimeType = "application/pdf", Bytes = pdf, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
+            MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save(pdf).StorageKey, FileSize = pdf.Length, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
         };
         db.FinancialEvidences.Add(first);
         await db.SaveChangesAsync();
@@ -393,16 +393,16 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         var caseId = await db.ReconciliationCases.Where(r => r.ContractId == contractId).Select(r => r.Id).SingleAsync();
         Assert.Equal("AWAITING_MANAGER", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.Reconcile(caseId, true, new(null), checkee, Http(), Ct));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => FinancialEvidenceEndpoints.Download(first.Id, AsUser(checkee), db, Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => FinancialEvidenceEndpoints.Download(first.Id, AsUser(checkee), db, FixtureEvidenceStorage.Service, Ct));
 
         var list = Json(await ManagerContractEndpoints.List(AsUser(manager), db, null, "PENDING_REVIEW", 1, 20, Ct));
         Assert.Contains(list.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contractId);
         var details = Json(await ManagerContractEndpoints.Detail(contractId, AsUser(manager), db, Ct));
         Assert.Single(details.GetProperty("evidence").EnumerateArray());
         Assert.True(details.GetProperty("data").GetProperty("can_review").GetBoolean());
-        Assert.NotNull(await FinancialEvidenceEndpoints.Download(first.Id, AsUser(manager), db, Ct));
+        Assert.NotNull(await FinancialEvidenceEndpoints.Download(first.Id, AsUser(manager), db, FixtureEvidenceStorage.Service, Ct));
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            FinancialEvidenceEndpoints.Download(first.Id, AsUser(peer.UserId), db, Ct));
+            FinancialEvidenceEndpoints.Download(first.Id, AsUser(peer.UserId), db, FixtureEvidenceStorage.Service, Ct));
 
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             ManagerContractEndpoints.ReturnForRevision(contractId, new(""), AsUser(manager), db, Ct));
@@ -418,7 +418,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
 
         var replacement = new FinancialEvidence {
             Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "replacement.pdf",
-            MimeType = "application/pdf", Bytes = pdf, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
+            MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save(pdf).StorageKey, FileSize = pdf.Length, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
         };
         db.FinancialEvidences.Add(replacement);
         await db.SaveChangesAsync();
@@ -431,7 +431,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         await actions.ReviewSchoolContract(contractId, manager, Http(), Ct);
         Assert.Equal("MANAGER_REVIEWED", (await db.SalesContracts.FindAsync(contractId))!.Status);
         Assert.Equal("PENDING", (await db.ReconciliationCases.FindAsync(caseId))!.Status);
-        var permitted = await FinancialEvidenceEndpoints.Download(first.Id, AsUser(checkee), db, Ct);
+        var permitted = await FinancialEvidenceEndpoints.Download(first.Id, AsUser(checkee), db, FixtureEvidenceStorage.Service, Ct);
         Assert.NotNull(permitted);
 
         // CHECKEE can dispute a forwarded contract; Manager must be able to route it back to Sales.
@@ -445,7 +445,7 @@ public sealed class SchoolWorkflowMySqlTests(ChannelMySqlFixture fixture) : ICla
         await Assert.ThrowsAsync<ApiConflictException>(() => actions.Reconcile(caseId, true, new(null), checkee, Http(), Ct));
         var finalEvidence = new FinancialEvidence {
             Kind = "CONTRACT", UploadedByUserId = seller.UserId, FileName = "signed-supplement.pdf",
-            MimeType = "application/pdf", Bytes = pdf,
+            MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save(pdf).StorageKey, FileSize = pdf.Length,
             Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pdf))
         };
         db.FinancialEvidences.Add(finalEvidence);

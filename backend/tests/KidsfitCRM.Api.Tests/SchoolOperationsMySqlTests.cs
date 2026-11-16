@@ -563,7 +563,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var newStart = source.ServiceEndOn.Value.AddDays(1);
         var newEnd = newStart.AddYears(1).AddDays(-1);
         var evidence = new FinancialEvidence { Kind = "RENEWAL", UploadedByUserId = scenario.Seller.UserId,
-            FileName = "renewal.pdf", MimeType = "application/pdf", Bytes = [37,80,68,70,45],
+            FileName = "renewal.pdf", MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save("%PDF-"u8.ToArray(), "RENEWAL").StorageKey, FileSize = 5,
             Sha256 = new string('A', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.FinancialEvidences.Add(evidence);
         await db.SaveChangesAsync(Ct);
@@ -625,7 +625,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var next = source.ServiceEndOn.Value.AddDays(1);
         var last = next.AddYears(1).AddDays(-1);
         var proof = new FinancialEvidence { Kind = "RENEWAL", UploadedByUserId = s.Seller.UserId,
-            FileName = "renew1.pdf", MimeType = "application/pdf", Bytes = [37,80,68,70,45],
+            FileName = "renew1.pdf", MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save("%PDF-"u8.ToArray(), "RENEWAL").StorageKey, FileSize = 5,
             Sha256 = new string('B', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.FinancialEvidences.Add(proof);
         await db.SaveChangesAsync(Ct);
@@ -642,7 +642,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             Http(accountant), db, Ct);
         Assert.Equal("NEEDS_INFO", (await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == renewalId)).Status);
         var newProof = new FinancialEvidence { Kind = "RENEWAL", UploadedByUserId = s.Seller.UserId,
-            FileName = "renew1-signed.pdf", MimeType = "application/pdf", Bytes = [37,80,68,70,45],
+            FileName = "renew1-signed.pdf", MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save("%PDF-"u8.ToArray(), "RENEWAL").StorageKey, FileSize = 5,
             Sha256 = new string('C', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.FinancialEvidences.Add(newProof);
         await db.SaveChangesAsync(Ct);
@@ -707,7 +707,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var end = next.AddYears(1).AddDays(-1);
         var document = new FinancialEvidence {
             Kind = "RENEWAL", UploadedByUserId = scenario.Seller.UserId,
-            FileName = "signed.pdf", MimeType = "application/pdf", Bytes = [37, 80, 68, 70, 45],
+            FileName = "signed.pdf", MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save("%PDF-"u8.ToArray(), "RENEWAL").StorageKey, FileSize = 5,
             Sha256 = new string('D', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
         };
         db.FinancialEvidences.Add(document);
@@ -720,7 +720,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             Http(accountant), db, Ct);
         var replacement = new FinancialEvidence {
             Kind = "RENEWAL", UploadedByUserId = scenario.Seller.UserId,
-            FileName = "revised.pdf", MimeType = "application/pdf", Bytes = [37, 80, 68, 70, 45],
+            FileName = "revised.pdf", MimeType = "application/pdf", StorageKey = FixtureEvidenceStorage.Save("%PDF-"u8.ToArray(), "RENEWAL").StorageKey, FileSize = 5,
             Sha256 = new string('E', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
         };
         db.FinancialEvidences.Add(replacement);
@@ -2203,7 +2203,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         {
             Kind = "CONTRACT", UploadedByUserId = scenario.Seller.UserId,
             FileName = "signed-addendum.pdf", MimeType = "application/pdf",
-            Sha256 = Key() + Key(), Bytes = [37, 80, 68, 70]
+            Sha256 = Key() + Key(), StorageKey = FixtureEvidenceStorage.Save("%PDF-"u8.ToArray(), "CONTRACT").StorageKey, FileSize = 5
         };
         db.FinancialEvidences.Add(proof);
         await db.SaveChangesAsync(Ct);

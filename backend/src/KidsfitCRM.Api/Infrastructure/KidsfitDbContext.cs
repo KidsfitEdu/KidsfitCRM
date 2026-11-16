@@ -76,7 +76,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<FinancialEvidence>().Property(x => x.FileName).HasMaxLength(190);
         modelBuilder.Entity<FinancialEvidence>().Property(x => x.MimeType).HasMaxLength(48);
         modelBuilder.Entity<FinancialEvidence>().Property(x => x.Sha256).HasMaxLength(64).UseCollation("utf8mb4_bin");
-        modelBuilder.Entity<FinancialEvidence>().Property(x => x.Bytes).HasColumnType("longblob");
+        modelBuilder.Entity<FinancialEvidence>().Property(x => x.StorageKey).HasMaxLength(64).UseCollation("utf8mb4_bin");
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.RevenueReceiptId).IsUnique();
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.PayoutId);
         modelBuilder.Entity<FinancialEvidence>().HasIndex(x => x.ContractId);

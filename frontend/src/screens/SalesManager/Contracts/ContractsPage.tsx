@@ -157,7 +157,7 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
        {detail?.data.can_return&&<AppButton tone="outline" leadingIcon={<Undo2 className="size-4"/>}
          onClick={()=>{setActionError('');setReason('');setRevision(detail.data.id);}}>Yêu cầu bổ sung</AppButton>}
        {detail?.data.can_review&&<AppButton leadingIcon={<Send className="size-4"/>}
-         onClick={()=>{setActionError('');setConfirm(detail.data.id);}}>Duyệt và gửi CHECKEE</AppButton>}
+         onClick={()=>{setActionError('');setConfirm(detail.data.id);}}>Duyệt & gửi CHECKEE</AppButton>}
      </div>}>
      {!detail?<p role={detailError?'alert':'status'} className="text-sm text-muted-foreground">{detailError||'Đang tải chi tiết hợp đồng...'}</p>:
        <>
@@ -225,9 +225,9 @@ export function ContractsPage({apiBase,token,abilities,onChanged}:ManagerPagePro
            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
              <MapPinned className="size-4 text-primary" aria-hidden="true"/>Trường điểm / Phân hiệu triển khai
            </h3>
-           {detail.school_units.length ? <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
+           {detail.school_units.length > 0 ? <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
              {detail.school_units.map(unit=><li key={unit.id}>{unit.name}</li>)}
-           </ul> : <p className="text-sm text-muted-foreground">Chỉ có trường chính, chưa có trường điểm hoặc phân hiệu.</p>}
+           </ul> : <p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
          </section>
 
          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">

@@ -8,11 +8,16 @@ namespace KidsfitCRM.Api.Features;
 public static class SalesIncomeEndpoints
 {
     public static async Task<IResult> Mine(HttpContext http, KidsfitDbContext db, string? period,
-        CancellationToken ct, int page = 1, int pageSize = 20, string? search = null)
+        CancellationToken ct, int page = 1, int pageSize = 20, string? search = null, string? beneficiaryRole = null)
     {
         var actor = http.UserId();
         var access = await ChannelSalesAccess.Load(db, actor, ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
+        // Only the authenticated beneficiary's ledger is visible. Separate personal
+        // Sales and Manager entitlements, never return teammates' income.
+        var selectedRole = beneficiaryRole is null or "" ? null : beneficiaryRole.ToUpperInvariant();
+        if (selectedRole is not null && selectedRole != "SALES" && selectedRole != "MANAGER")
+            return Results.BadRequest(new { message = "Vai trò hưởng hoa hồng không hợp lệ." });
         var selected = string.IsNullOrWhiteSpace(period) || period == "ALL"
             ? null : ChannelSalesValidation.Period(period);
         page = Math.Clamp(page, 1, 100000);
@@ -23,6 +28,7 @@ public static class SalesIncomeEndpoints
         var ledger = db.CommissionLedgerEntries.AsNoTracking()
             .Where(x => x.BeneficiaryUserId == actor);
         if (selected is not null) ledger = ledger.Where(x => x.Period == selected);
+        if (selectedRole is not null) ledger = ledger.Where(x => x.BeneficiaryRole == selectedRole);
 
         var groups = from entry in ledger
                      join contract in db.SalesContracts.AsNoTracking() on entry.ContractId equals contract.Id
@@ -34,6 +40,9 @@ public static class SalesIncomeEndpoints
                          school_name = g.Key.DisplayName,
                          commission = g.Sum(x => x.Amount),
                          entries = g.Count(),
+                         rate_percent = g.Min(x => x.RatePercent) == g.Max(x => x.RatePercent)
+                             ? (decimal?)g.Min(x => x.RatePercent) : null,
+                         rate_is_mixed = g.Min(x => x.RatePercent) != g.Max(x => x.RatePercent),
                      };
         if (!string.IsNullOrWhiteSpace(search)) {
             var term = search.Trim();
@@ -53,6 +62,7 @@ public static class SalesIncomeEndpoints
             where entry.BeneficiaryUserId == actor && ids.Contains(entry.ContractId)
                 && payout.BeneficiaryUserId == actor
                 && (selected == null || entry.Period == selected)
+                && (selectedRole == null || entry.BeneficiaryRole == selectedRole)
                 && payout.Status == "PAID" && payout.GrossAmount > 0
             select new { entry.ContractId, item.Amount, payout.NetAmount, payout.GrossAmount }
         ).ToArrayAsync(ct);
@@ -82,6 +92,7 @@ public static class SalesIncomeEndpoints
             summary = new { accrued, paid, unpaid = accrued - paid, contracts = total },
             data = selectedRows.Select(x => new {
                 x.contract_id, x.contract_code, x.school_name, x.commission,
+                x.rate_percent, x.rate_is_mixed,
                 paid = paidPerContract.GetValueOrDefault(x.contract_id, 0m),
                 unpaid = x.commission - paidPerContract.GetValueOrDefault(x.contract_id, 0m),
                 x.entries
@@ -90,13 +101,17 @@ public static class SalesIncomeEndpoints
         });
     }
     public static async Task<IResult> Detail(long contractId, HttpContext http, KidsfitDbContext db,
-        string? period, CancellationToken ct)
+        string? period, CancellationToken ct, string? beneficiaryRole = null)
     {
         var actor = http.UserId();
         var access = await ChannelSalesAccess.Load(db, actor, ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
+        var selectedRole = beneficiaryRole is null or "" ? null : beneficiaryRole.ToUpperInvariant();
+        if (selectedRole is not null && selectedRole != "SALES" && selectedRole != "MANAGER")
+            return Results.BadRequest(new { message = "Vai trò hưởng hoa hồng không hợp lệ." });
         var ledger = db.CommissionLedgerEntries.AsNoTracking()
             .Where(x => x.BeneficiaryUserId == actor && x.ContractId == contractId);
+        if (selectedRole is not null) ledger = ledger.Where(x => x.BeneficiaryRole == selectedRole);
         if (!string.IsNullOrWhiteSpace(period) && period != "ALL") {
             var selected = ChannelSalesValidation.Period(period);
             ledger = ledger.Where(x => x.Period == selected);

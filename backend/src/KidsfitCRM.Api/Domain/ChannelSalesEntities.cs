@@ -302,7 +302,7 @@ public sealed class FinancialEvidence : EntityBase
     public string MimeType { get; set; } = "";
     public string Sha256 { get; set; } = "";
     public string StorageKey { get; set; } = "";
-    public long FileSize { get; set; };
+    public long FileSize { get; set; }
 
     public DateTime? AttachedAt { get; set; }
 }

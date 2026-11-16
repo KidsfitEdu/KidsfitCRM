@@ -39,6 +39,8 @@ services:
     build: ./backend
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - kidsfit_evidence_files:/var/lib/kidsfit-crm/storage
     ports:
       - "8000:8080"
     depends_on:

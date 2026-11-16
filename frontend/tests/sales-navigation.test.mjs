@@ -459,5 +459,5 @@ test('Personal income endpoint distinguishes Sales and Manager ledger roles with
   assert.match(endpoint, /rate_percent = g\.Min\(x => x\.RatePercent\) == g\.Max\(x => x\.RatePercent\)/);
   assert.match(endpoint, /x\.rate_percent, x\.rate_is_mixed/);
   assert.match(endpoint, /payout\.Status == "PAID"/);
-  assert.match(endpoint, /item\.Amount \* x\.NetAmount \/ x\.GrossAmount/);
+  assert.match(endpoint, /x\.Amount \* x\.NetAmount \/ x\.GrossAmount/);
 });

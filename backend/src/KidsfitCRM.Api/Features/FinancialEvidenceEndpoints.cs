@@ -161,7 +161,7 @@ public static class FinancialEvidenceEndpoints
         {
             return Results.File(storage.OpenRead(proof.StorageKey), "application/octet-stream", proof.FileName);
         }
-        catch (FileNotFoundException)
+        catch (IOException error) when (error is FileNotFoundException or DirectoryNotFoundException)
         {
             throw new KeyNotFoundException();
         }

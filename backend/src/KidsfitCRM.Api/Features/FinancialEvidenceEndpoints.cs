@@ -8,18 +8,19 @@ namespace KidsfitCRM.Api.Features;
 /// <summary>Private evidence storage; authorization applies to uploads AND downloads.</summary>
 public static class FinancialEvidenceEndpoints
 {
-    private const int MaxBytes = LocalFileStorageService.MaxFileBytes;
-
     public static async Task<IResult> Upload(HttpContext http, KidsfitDbContext db, IFileStorageService storage, CancellationToken ct)
     {
         if (!http.Request.HasFormContentType) throw ApiValidationException.For("file", "Cần gửi form multipart có ảnh hoặc hợp đồng.");
+        var requestSizeFeature = http.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+        if (requestSizeFeature is { IsReadOnly: false })
+            requestSizeFeature.MaxRequestBodySize = storage.MaxFileBytes + StorageFileSizeLimit.MultipartOverheadBytes;
         var form = await http.Request.ReadFormAsync(ct);
         var kind = form["kind"].ToString().Trim().ToUpperInvariant();
         if (kind is not ("RECEIPT" or "PAYOUT" or "CONTRACT" or "RENEWAL"))
             throw ApiValidationException.For("kind", "Loại chứng từ không hợp lệ.");
         var file = form.Files.GetFile("file") ?? throw ApiValidationException.For("file", "Thiếu tệp chứng từ.");
-        if (file.Length <= 0 || file.Length > MaxBytes)
-            throw ApiValidationException.For("file", "Tệp phải có dung lượng từ 1 byte đến 5 MB.");
+        if (file.Length <= 0 || file.Length > storage.MaxFileBytes)
+            throw ApiValidationException.For("file", $"Tệp phải có dung lượng từ 1 byte đến {storage.MaxFileBytes / (1024 * 1024)} MB.");
         var userId = http.UserId();
         var access = await ChannelSalesAccess.Load(db, userId, ct);
         long? contractId = null;

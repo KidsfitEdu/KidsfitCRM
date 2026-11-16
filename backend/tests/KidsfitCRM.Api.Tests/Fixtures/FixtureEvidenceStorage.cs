@@ -1,5 +1,7 @@
 using KidsfitCRM.Api.Infrastructure;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 
 namespace KidsfitCRM.Api.Tests;
 
@@ -13,7 +15,11 @@ public static class FixtureEvidenceStorage
             {
                 ["Storage:RootPath"] = Path.Combine(Path.GetTempPath(), "kidsfit-crm-tests", Guid.NewGuid().ToString("N"))
             }).Build();
-        return new LocalFileStorageService(config);
+        return new LocalFileStorageService(config, new HostingEnvironment
+        {
+            EnvironmentName = Environments.Development,
+            ContentRootPath = Path.GetTempPath()
+        });
     });
 
     public static IFileStorageService Service => Instance.Value;

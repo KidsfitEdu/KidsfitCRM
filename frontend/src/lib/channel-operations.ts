@@ -14,6 +14,13 @@ export type FinanceWorkspace = {
     net_collected_revenue: number;
   };
   ledger_total: number;
+  eligible_payout_total?: number;
+  eligible_payouts?: {
+    contract_id: number; contract_code: string; school_name: string;
+    organization_id: number; beneficiary_user_id: number;
+    beneficiary_name: string; beneficiary_role: 'SALES'|'MANAGER';
+    period: string; amount: number; entry_count: number;
+  }[];
   ledger: {
     id: number;
     contract_id: number;
@@ -44,6 +51,9 @@ export type FinanceWorkspace = {
     beneficiary_role: 'SALES'|'MANAGER';
     code: string;
     period: string;
+    contract_ids?: number[];
+    contract_codes?: string[];
+    school_names?: string[];
     gross_amount: number;
     suggested_rate_percent: number;
     requested_rate_percent: number;

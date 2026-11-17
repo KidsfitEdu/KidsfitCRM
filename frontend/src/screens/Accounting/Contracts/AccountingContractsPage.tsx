@@ -159,6 +159,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receiptSearch,setReceiptSearch]=useState('');
   const [receiptAppliedSearch,setReceiptAppliedSearch]=useState('');
   const [receiptYear,setReceiptYear]=useState('ALL');
+  const [receiptAppliedYear,setReceiptAppliedYear]=useState('ALL');
   const [receiptLoading,setReceiptLoading]=useState(false);
   const [receiptRevision,setReceiptRevision]=useState(0);
   const [receiptPreview,setReceiptPreview]=useState<ReceiptRow|null>(null);
@@ -273,13 +274,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setReceiptLoading(true);
     const params=new URLSearchParams({page:String(receiptPage),page_size:String(receiptPageSize)});
     if(receiptAppliedSearch)params.set('search',receiptAppliedSearch);
-    if(receiptYear!=='ALL')params.set('year',receiptYear);
+    if(receiptAppliedYear!=='ALL')params.set('year',receiptAppliedYear);
     void channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params)
       .then(res=>{if(active){setReceiptRows(res.data);setReceiptTotal(res.total);}})
       .catch(error=>{if(active)appNotice.error('Không tải được khoản thu.',error instanceof Error?error.message:'Thử lại sau.');})
       .finally(()=>{if(active)setReceiptLoading(false);});
     return()=>{active=false;};
-  },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,receiptAppliedSearch,receiptYear,receiptRevision]);
+  },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,receiptAppliedSearch,receiptAppliedYear,receiptRevision]);
 
   useEffect(()=>{
     if(!connected||!canRecordRevenue||accountingTab!=='RECEIPTS'||!receiptIntent)return;
@@ -887,7 +888,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Plus className="size-4" aria-hidden="true"/> Thêm mới</Button>}
       </div>
       <form className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-4 sm:px-6"
-        onSubmit={event=>{event.preventDefault();setReceiptAppliedSearch(receiptSearch.trim());setReceiptPage(1);}}>
+        onSubmit={event=>{event.preventDefault();setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptPage(1);}}>
         <div className="relative min-w-[210px] flex-[1_1_320px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
           <Input aria-label="Tìm khoản thu" className="h-10 w-full rounded-lg pl-10"
@@ -897,12 +898,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           Năm nhận tiền
           <Input id="accounting-receipt-year" type="number" min={2000} max={2100} className="h-10 w-32 rounded-lg"
             value={receiptYear==='ALL'?'':receiptYear} placeholder="Tất cả"
-            onChange={event=>{setReceiptYear(event.target.value||'ALL');setReceiptPage(1);}}/>
+            onChange={event=>setReceiptYear(event.target.value||'ALL')}/>
         </label>
         <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
         <AppButton type="button" tone="outline" size="icon-lg" className="h-10 w-10 min-w-10 rounded-lg p-0"
           aria-label="Đặt lại bộ lọc khoản thu" title="Đặt lại bộ lọc"
-          onClick={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptPage(1);}}>
+          onClick={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptPage(1);}}>
           <RotateCcw className="size-4" aria-hidden="true"/>
         </AppButton>
       </form>

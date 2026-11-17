@@ -214,6 +214,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Money<RevenueSchedule>(b, x => x.AmountReceived);
         b.Entity<RevenueSchedule>().Property(x => x.Status).HasMaxLength(24);
         b.Entity<RevenueSchedule>().HasIndex(x => new { x.ContractId, x.Status, x.DueOn });
+        b.Entity<RevenueSchedule>().HasIndex(x => new { x.ContractRenewalId, x.DueOn }).IsUnique();
         DateOnlyProperty(b.Entity<RevenueSchedule>().Property(x => x.DueOn));
 
         Money<RevenueReceipt>(b, x => x.Amount);
@@ -304,6 +305,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<ServiceInterruptionEvent, CustomerProtection>(x => x.ProtectionId);
         Restrict<CustomerProtection, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerProtection, User>(x => x.OwnerUserId); Restrict<CustomerProtection, Organization>(x => x.OwnerOrganizationId); Restrict<CustomerProtection, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerProtection, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, SalesContract>(x => x.ContractId);
+        Restrict<RevenueSchedule, ContractRenewal>(x => x.ContractRenewalId);
         Restrict<RevenueReceipt, SalesContract>(x => x.ContractId); Restrict<RevenueReceipt, RevenueSchedule>(x => x.RevenueScheduleId); Restrict<RevenueReceipt, User>(x => x.RecordedByUserId);
         Restrict<CommissionLedgerEntry, SalesContract>(x => x.ContractId); Restrict<CommissionLedgerEntry, RevenueReceipt>(x => x.RevenueReceiptId); Restrict<CommissionLedgerEntry, BoardCommissionPolicyVersion>(x => x.BoardPolicyVersionId); Restrict<CommissionLedgerEntry, User>(x => x.BeneficiaryUserId); Restrict<CommissionLedgerEntry, Organization>(x => x.BeneficiaryOrganizationId); Restrict<CommissionLedgerEntry, User>(x => x.CreatedByUserId);
         Restrict<CommissionLedgerEntry, CommissionLedgerEntry>(x => x.RelatedEntryId);

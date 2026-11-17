@@ -158,6 +158,44 @@ textarea {
   }
 }
 
+/* KIDSFIT scrollbars: compact, accessible and consistent across nested scroll areas. */
+:root {
+  --crm-scrollbar-thumb: color-mix(in srgb, var(--primary) 34%, var(--border));
+  --crm-scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 70%, var(--border));
+  --crm-scrollbar-track: transparent;
+}
+.dark {
+  --crm-scrollbar-thumb: color-mix(in srgb, var(--primary) 40%, var(--muted));
+  --crm-scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 75%, var(--muted));
+}
+/* Firefox and browsers implementing CSS Scrollbars. */
+:where(html, body, *):not(.crm-scrollbar-sidebar) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-scrollbar-thumb) var(--crm-scrollbar-track);
+}
+/* Chromium / Safari: keep the thumb easy to discover without overpowering content. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--crm-scrollbar-track); }
+::-webkit-scrollbar-thumb {
+  background: var(--crm-scrollbar-thumb);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--crm-scrollbar-thumb-hover); }
+::-webkit-scrollbar-corner { background: transparent; }
+/* The navigation rail sits on deep green and needs a lighter, low-contrast thumb. */
+.crm-scrollbar-sidebar {
+  --crm-scrollbar-thumb: rgb(165 214 167 / 48%);
+  --crm-scrollbar-thumb-hover: rgb(165 214 167 / 78%);
+  --crm-scrollbar-track: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-scrollbar-thumb) transparent;
+}
+@media (forced-colors: active) {
+  :where(html, body, *), .crm-scrollbar-sidebar { scrollbar-color: auto; }
+}
+
 /* CRM Toast V2: status glow, animated time indicator and accessible motion. */
 .crm-modern-toast {
   --crm-toast-color: #6366f1;

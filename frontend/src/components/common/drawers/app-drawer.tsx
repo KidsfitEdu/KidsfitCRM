@@ -49,7 +49,7 @@ export function AppDrawer({ open, onOpenChange, title, description, children, fo
           <X aria-hidden="true" className="size-5"/>
         </button>
       </header>
-      <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5',bodyClassName)}>
+      <div className={cn('crm-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5',bodyClassName)}>
         {children}
       </div>
       <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border bg-muted/30 px-5 py-3">

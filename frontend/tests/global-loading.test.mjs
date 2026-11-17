@@ -31,3 +31,16 @@ test('global motion obeys reduced-motion preferences', () => {
   assert.match(styles, /prefers-reduced-motion: reduce/);
   assert.match(styles, /\.crm-skeleton, \.crm-page-enter, \.crm-global-progress-bar/);
 });
+
+test('CRM scrollbar uses branded light/dark tokens and remains accessible', () => {
+  const css = readFileSync(new URL('../src/app/globals.css', import.meta.url), 'utf8');
+  const sidebar = readFileSync(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8');
+  const drawer = readFileSync(new URL('../src/components/common/drawers/app-drawer.tsx', import.meta.url), 'utf8');
+  assert.match(css, /--crm-scrollbar-thumb:/);
+  assert.match(css, /--crm-scrollbar-thumb-hover:/);
+  assert.match(css, /scrollbar-width: thin/);
+  assert.match(css, /::-webkit-scrollbar-thumb:hover/);
+  assert.match(css, /forced-colors: active/);
+  assert.match(sidebar, /crm-scrollbar-sidebar.*overflow-y-auto/);
+  assert.match(drawer, /crm-scrollbar min-h-0 flex-1 overflow-y-auto/);
+});

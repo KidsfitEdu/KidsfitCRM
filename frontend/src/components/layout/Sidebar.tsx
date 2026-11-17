@@ -9,7 +9,7 @@ export function Sidebar({visibleNav,currentView,onNavigate,userName,membershipTy
 return <>
       <aside className="crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white lg:flex">
         <div className="flex h-20 items-center px-5"><AppBrand inverted /></div>
-        <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Điều hướng chính">
+        <nav className="crm-scrollbar-sidebar mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Điều hướng chính">
           {visibleNav.map((item) => (
             <button
               key={item.id}

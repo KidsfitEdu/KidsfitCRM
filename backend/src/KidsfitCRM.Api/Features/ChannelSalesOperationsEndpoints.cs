@@ -307,6 +307,10 @@ public static class ChannelSalesOperationsEndpoints
                           payout.ApprovedAt,
                           payout.PaidAt,
                           payout.PaymentReference,
+                          proof_id = db.FinancialEvidences.Where(e => e.PayoutId == payout.Id && e.Kind == "PAYOUT" && e.AttachedAt != null)
+                              .OrderByDescending(e => e.Id).Select(e => (long?)e.Id).FirstOrDefault(),
+                          proof_file_name = db.FinancialEvidences.Where(e => e.PayoutId == payout.Id && e.Kind == "PAYOUT" && e.AttachedAt != null)
+                              .OrderByDescending(e => e.Id).Select(e => e.FileName).FirstOrDefault(),
                           // Payouts may span multiple contracts in older records.
                           contract_ids = (from item in db.PayoutItems
                                           join entry in scopedEntries on item.CommissionLedgerEntryId equals entry.Id

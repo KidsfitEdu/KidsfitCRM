@@ -86,7 +86,8 @@ public static class AccountingWorkspaceEndpoints
                 || x.contract.ContractCode.Contains(term) || x.school.DisplayName.Contains(term));
         if (year.HasValue)
         {
-            var beginning = new DateTime(year.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            // Vietnam business-year boundary is 00:00 Asia/Ho_Chi_Minh (UTC+07).
+            var beginning = new DateTime(year.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddHours(-7);
             query = query.Where(x => x.receipt.ReceivedAt >= beginning
                 && x.receipt.ReceivedAt < beginning.AddYears(1));
         }

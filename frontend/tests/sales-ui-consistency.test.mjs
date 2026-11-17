@@ -95,10 +95,12 @@ test('Sales school list has rounded panel and details use opt-in compact drawer 
   const source = read('src/components/crm/channel-sales-view.tsx');
   const drawer = read('src/components/common/drawers/app-drawer.tsx');
   assert.match(source, /embedded \? 'overflow-hidden rounded-2xl border-0 ring-0 bg-card shadow-sm'/);
-  assert.match(source, /title="Thông tin trường học" compactHeader/);
+  assert.match(source, /title="Thông tin trường học" compactHeader alignToViewportEdge/);
   assert.match(source, /\[&::-webkit-scrollbar\]:hidden/);
   assert.match(source, /\[scrollbar-width:none\]/);
   assert.match(drawer, /compactHeader\?: boolean/);
+  assert.match(drawer, /alignToViewportEdge\?: boolean/);
+  assert.match(drawer, /style=\{alignToViewportEdge \? \{ right: "calc\(100% - 100vw\)" \} : undefined\}/);
   assert.match(drawer, /compactHeader \? "py-3\.5" : "py-5"/);
   assert.match(drawer, /description && !compactHeader/);
   assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);

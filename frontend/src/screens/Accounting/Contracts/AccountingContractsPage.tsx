@@ -470,6 +470,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
     .reduce((sum,entry)=>sum+entry.calculation_base,0);
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
+  const orderedSchedules=(detail?.schedules??[]).slice().sort((a,b)=>
+    Number(a.amount_received>=a.amount_due)-Number(b.amount_received>=b.amount_due)||
+    b.due_on.localeCompare(a.due_on)||b.id-a.id);
   const receiptYears=[...new Set((detail?.receipts??[]).map(x=>x.received_at.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
   const filteredReceipts=(detail?.receipts??[]).filter(x=>receiptHistoryYear==='ALL'||x.received_at.startsWith(receiptHistoryYear+'-'))
     .slice().sort((a,b)=>b.received_at.localeCompare(a.received_at)||b.id-a.id);
@@ -895,7 +898,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>
           {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
           <div className="divide-y divide-border/70 rounded-lg border border-border/70">
-            {(showAllSchedules?detail.schedules:detail.schedules.slice(0,6)).map(x=>{
+            {(showAllSchedules?orderedSchedules:orderedSchedules.slice(0,6)).map(x=>{
               const paid = Math.max(0, Math.min(x.amount_due, x.amount_received));
               const percentage = x.amount_due > 0 ? Math.min(100, paid / x.amount_due * 100) : 0;
               const status = paymentScheduleLabel(x.status);

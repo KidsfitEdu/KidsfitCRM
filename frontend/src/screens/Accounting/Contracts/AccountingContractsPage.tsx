@@ -742,7 +742,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   aria-label={`Thanh toán của ${row.school_name}`}>
                   <div className="space-y-2">
                     <div>
-                      <p className="text-xs text-muted-foreground">Giá trị hợp đồng</p>
+                      <p className="text-xs text-muted-foreground">Giá trị HĐ gốc</p>
                       <p className="mt-1 font-semibold">{channelMoney(row.total_value)}</p>
                     </div>
                     <div>
@@ -845,8 +845,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     </AdminListPanel>}
     <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
-      description="Kế toán / Chi tiết hợp đồng">
+      description={drawerMode==="CONTRACT"?"Kế toán / Hồ sơ hợp đồng":"Kế toán / Xử lý tài chính"}>
       {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
+        <div role="group" aria-label="Chuyển chế độ chi tiết" className="flex flex-wrap gap-2 border-b border-border pb-3">
+          <Button type="button" size="sm" variant={drawerMode==='CONTRACT'?'default':'outline'} aria-pressed={drawerMode==='CONTRACT'} onClick={()=>setDrawerMode('CONTRACT')}><Eye className="size-4"/> Hồ sơ hợp đồng</Button>
+          <Button type="button" size="sm" variant={drawerMode==='FINANCE'?'default':'outline'} aria-pressed={drawerMode==='FINANCE'} onClick={()=>setDrawerMode('FINANCE')}><WalletCards className="size-4"/> Thanh toán & hoa hồng</Button>
+        </div>
+        {drawerMode==='CONTRACT'&&<>
         <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-4 sm:p-5">
           <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
           <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>
@@ -857,12 +862,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             Phụ trách: {detail.data.owner_name} · {detail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
           </p>
           <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Giá trị hợp đồng gốc" value={channelMoney(detail.data.total_value)}/>
-          <Metric label="Thực thu" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0)-(detail.refunded_total??0))}/>
-          <Metric label="Hoa hồng ghi nhận" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
-          <Metric label="Hoa hồng đã chi" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
         </div>
         {selected!==null&&<AccountingRenewalInline key={selected} apiBase={apiBase} token={token}
           contractId={selected} abilities={abilities}
@@ -922,6 +921,50 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </div>
           </details>
           </section>
+        </>}
+        {drawerMode==='FINANCE'&&<>
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+          <div className="flex items-center gap-3"><span className="rounded-lg bg-primary/10 p-2 text-primary"><WalletCards className="size-5"/></span>
+            <div className="min-w-0"><h2 className="text-lg font-bold">Thanh toán & hoa hồng</h2>
+              <p className="break-all text-xs text-muted-foreground">{detail.data.school_name} · {detail.data.contract_code}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="finance-contract-period" className="text-xs font-semibold">Kỳ hợp đồng đang xem</label>
+            <select id="finance-contract-period" value={financialPeriodId} onChange={e=>setFinancialPeriodId(e.target.value)}
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground">
+              <option value="ALL">Toàn bộ hợp đồng · Lũy kế</option>
+              {financialPeriods.map(p=><option key={p.type+':'+p.id} value={p.type+':'+p.id}>
+                {p.type==='ORIGINAL'?'Hợp đồng gốc':'Tái ký lần '+p.renewal_no} · {p.service_start_on?channelDate(p.service_start_on):'—'} – {p.service_end_on?channelDate(p.service_end_on):'—'}{p.service_confirmed?'':' (chưa xác nhận)'}
+              </option>)}
+            </select>
+            {financialPeriodsLoading&&<p className="text-xs text-muted-foreground">Đang tải các kỳ hợp đồng...</p>}
+            {financialPeriodsError&&<p role="alert" className="text-xs text-amber-700 dark:text-amber-300">{financialPeriodsError}</p>}
+            {selectedFinancialPeriod&&<div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="text-xs text-muted-foreground">Giá trị kỳ {selectedFinancialPeriod.service_confirmed?'đã xác nhận':'chưa xác nhận'}</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{channelMoney(selectedFinancialPeriod.total_value)}</p>
+              {!selectedFinancialPeriod.service_confirmed&&<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Kỳ này chưa tính vào tổng giá trị hợp đồng đã xác nhận.</p>}
+            </div>}
+          </div>
+        </div>
+        <section className="space-y-3" aria-label="Tổng quan tài chính lũy kế">
+          <div><h3 className="text-sm font-bold">Tổng quan tài chính</h3><p className="text-xs text-muted-foreground">Lũy kế toàn bộ hợp đồng, không lọc giao dịch theo kỳ tái ký.</p></div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Metric label="Tổng giá trị đã xác nhận" value={financialPeriodsLoading?'Đang tải...':totalConfirmedValue===null?'Chưa có dữ liệu':channelMoney(totalConfirmedValue)}/>
+            <Metric label="Thực thu lũy kế" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0)-(detail.refunded_total??0))}/>
+            <Metric label="Hoa hồng ghi nhận lũy kế" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
+            <Metric label="Hoa hồng đã chi lũy kế" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
+          </div>
+          {!financialScopeIsAll&&<p className="rounded-lg border border-amber-300/70 bg-amber-50/70 p-3 text-xs leading-5 text-amber-950 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-200">
+            Giá trị kỳ đã chọn hiển thị riêng ở trên. Khoản thu, hoa hồng và phiếu chi vẫn là toàn hợp đồng do API chưa gán giao dịch trực tiếp cho kỳ tái ký; không suy đoán theo năm giao dịch.
+          </p>}
+        </section>
+        <div role="tablist" aria-label="Nghiệp vụ tài chính hợp đồng" className="grid grid-cols-3 gap-1 rounded-xl bg-muted/60 p-1">
+          {([{id:'RECEIPTS',label:'Khoản thu'},{id:'COMMISSION',label:'Hoa hồng'},{id:'PAYOUTS',label:'Phiếu chi'}] as const).map(tab=>
+            <button key={tab.id} role="tab" type="button" aria-selected={financeDetailTab===tab.id} onClick={()=>setFinanceDetailTab(tab.id)}
+              className={`min-h-10 rounded-lg px-2 text-xs font-semibold transition-colors sm:text-sm ${financeDetailTab===tab.id?'bg-card text-primary shadow-sm':'text-muted-foreground hover:text-foreground'}`}>{tab.label}</button>)}
+        </div>
+        {financeDetailTab==='RECEIPTS'&&<>
         <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>
           {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}

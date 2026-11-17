@@ -655,21 +655,21 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </AppButton>
       </form>
       {busy && rows.length > 0 && <div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..." /></div>}
-      {busy && rows.length === 0 ? <output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</output> : <div className="overflow-x-auto">
-        <table className="w-full min-w-[1280px] text-left text-sm">
-          <thead className={adminTableHeadClass}>
+      {busy && rows.length === 0 ? <output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</output> : <div className="min-w-0">
+        <table className="block w-full text-left text-sm xl:table xl:table-fixed xl:text-xs 2xl:text-sm">
+          <thead className={`${adminTableHeadClass} hidden xl:table-header-group`}>
             <tr>
-              <th scope="col" className="px-4 py-3">Nhà trường</th>
-              <th scope="col" className="px-3 py-3">Sales phụ trách</th>
-              <th scope="col" className="px-3 py-3">Kỳ sử dụng</th>
-              <th scope="col" className="px-3 py-3">Dịch vụ</th>
-              <th scope="col" className="px-3 py-3">Cần xử lý</th>
-              <th scope="col" className="px-3 py-3 text-right">Thanh toán</th>
-              <th scope="col" className="px-3 py-3 text-right">Hoa hồng</th>
-              <th scope="col" className="px-3 py-3 text-center">Thao tác</th>
+              <th scope="col" className="w-[20%] px-3 py-3">Nhà trường</th>
+              <th scope="col" className="w-[12%] px-2 py-3">Sales phụ trách</th>
+              <th scope="col" className="w-[11%] px-2 py-3">Kỳ sử dụng</th>
+              <th scope="col" className="w-[12%] px-2 py-3">Dịch vụ</th>
+              <th scope="col" className="w-[13%] px-2 py-3">Cần xử lý</th>
+              <th scope="col" className="w-[13%] px-2 py-3 text-right">Tổng thực thu</th>
+              <th scope="col" className="w-[13%] px-2 py-3 text-right">Tổng hoa hồng</th>
+              <th scope="col" className="w-[6%] px-1 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/70">
+          <tbody className="block divide-y divide-border/70 xl:table-row-group">
             {rows.map(row=>{
               const state=row.service_status;
               const label:Record<string,string>={
@@ -679,52 +679,43 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 NEEDS_REVIEW:'Cần rà soát',INACTIVE:'Đã kết thúc',
                 HISTORICAL_GAP:'Cần rà soát',MISSING_TERM:'Cần rà soát'
               };
-              const amount=Math.max(0,row.received-row.refunded);
-              return <tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
-                <td className="px-4 py-4 align-middle">
-                  <p className="max-w-[260px] font-semibold text-foreground">{row.school_name}</p>
+              return <tr key={row.id} className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 px-3 py-4 transition-colors even:bg-muted/20 hover:bg-muted/40 sm:grid-cols-3 xl:table-row xl:p-0">
+                <td className="col-span-2 min-w-0 align-middle sm:col-span-1 xl:px-3 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Nhà trường</p>
+                  <p className="line-clamp-2 break-words font-semibold text-foreground" title={row.school_name}>{row.school_name}</p>
                 </td>
-                <td className="px-3 py-4 align-middle">
-                  <p className="font-medium">{row.owner_name}</p>
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Sales phụ trách</p>
+                  <p className="line-clamp-2 break-words font-medium" title={row.owner_name}>{row.owner_name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
                 </td>
-                <td className="px-3 py-4 align-middle tabular-nums">
+                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Kỳ sử dụng</p>
                   {row.service_until?channelDate(row.service_until):'—'}
                   {row.next_service_start_on&&<p className="mt-1 text-xs text-muted-foreground">
                     Kỳ tiếp theo: {channelDate(row.next_service_start_on)}</p>}
                 </td>
-                <td className="px-3 py-4 align-middle">
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Dịch vụ</p>
                   <AppStatusBadge variant="kidsfit-service" status={state} label={label[state]??'Cần kiểm tra'} size="md"/>
                   {row.threshold_on&&(['INTERRUPTED','THRESHOLD_REACHED','THRESHOLD_OVERDUE','RELEASED'].includes(state))&&
                     <p className="mt-1 text-xs text-muted-foreground">
                       {state==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(row.threshold_on)}
                     </p>}
                 </td>
-                <td className="px-3 py-4 align-middle">
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Cần xử lý</p>
                   {row.action==='CONFIRM_RENEWAL'
                     ? <AppStatusBadge variant="kidsfit-action" status="CONFIRM_RENEWAL" label="Xác nhận tái ký"/>
                     :row.action==='REVIEW_PERIOD'
                       ? <AppStatusBadge variant="kidsfit-action" status="REVIEW_PERIOD" label="Kiểm tra kỳ dịch vụ"/>
                       :<span className="text-muted-foreground">—</span>}
                 </td>
-                <td className="px-3 py-4 text-left align-middle tabular-nums"
-                  aria-label={`Thanh toán của ${row.school_name}`}>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Giá trị hợp đồng</p>
-                      <p className="mt-1 font-semibold">{channelMoney(row.total_value)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Thực thu</p>
-                      <p className="mt-1 font-semibold">{channelMoney(amount)}</p>
-                    </div>
-                  </div>
+                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right"
+                  aria-label={`Tổng thực thu của ${row.school_name}`}>
+                  <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng thực thu</p>
+                  <p className="break-words font-semibold xl:whitespace-nowrap" title={channelMoney(row.received)}>{channelMoney(row.received)}</p>
                 </td>
-                <td className="px-3 py-4 text-left align-middle tabular-nums">
-                  <p className="text-xs text-muted-foreground">Hoa hồng ghi nhận</p>
-                  <p className="mt-1 font-semibold">{channelMoney(row.commission)}</p>
+                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right">
+                  <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng hoa hồng</p>
+                  <p className="break-words font-semibold xl:whitespace-nowrap" title={channelMoney(row.commission)}>{channelMoney(row.commission)}</p>
                 </td>
-                <td className="px-3 py-4 text-center align-middle">
+                <td className="flex items-center justify-end align-middle xl:table-cell xl:px-1 xl:py-3 xl:text-center"><span className="mr-2 text-xs text-muted-foreground xl:hidden">Thao tác</span>
                   <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}
                     label={`Xem chi tiết hợp đồng trường ${row.school_name}`}/>
                 </td>

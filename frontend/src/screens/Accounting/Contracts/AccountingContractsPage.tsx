@@ -645,7 +645,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     .filter(p=>(financeStatus==='ALL'||p.status===financeStatus)
       &&(financeRole==='ALL'||p.beneficiary_role===financeRole)
       &&(financeOrganization==='ALL'||p.organization_id===Number(financeOrganization))
-      &&(!financeKeyword||[p.code,p.beneficiary_name].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
+      &&(!financeKeyword||[p.code,p.beneficiary_name,...(p.school_names??[]),...(p.contract_codes??[])].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
   const visiblePayouts=displayedPayouts.slice((financePage-1)*financePageSize,financePage*financePageSize);
   const eligibleCandidates=(financeOverview?.eligible_payouts??[])
     .filter(x=>(financeRole==='ALL'||x.beneficiary_role===financeRole)

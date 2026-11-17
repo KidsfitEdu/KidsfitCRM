@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {ChevronDown,ChevronUp,Download,Eye,FileText,Files,History,Paperclip} from 'lucide-react';
 import {AppStatusBadge} from '@/components/common/app-status-badge';
 import {Button} from '@/components/ui/button';
@@ -52,6 +52,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  const [detail,setDetail]=useState<RenewalDetail|null>(null);
  const [decision,setDecision]=useState<Decision|null>(null);
  const [reason,setReason]=useState('');
+ const reasonRef=useRef<HTMLTextAreaElement|null>(null);
  const [revision,setRevision]=useState(0);
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
@@ -122,6 +123,9 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  };
  const closeDecision=()=>{if(!busy){setDecision(null);setReason('');}};
  const openDecision=(next:Decision)=>{setReason('');setDecision(next);};
+ useEffect(()=>{
+   if(decision&&decision!=='confirm')reasonRef.current?.focus();
+ },[decision]);
  const process=async()=>{
    if(!activeRenewal||!detail||!decision||busy||detail.data.status!=='PENDING_ACCOUNTING'||!canReview)return;
    if(decision!=='request-info'&&!canConfirm)return;
@@ -243,7 +247,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
            <label htmlFor="accounting-renewal-decision-reason" className="font-medium text-foreground">
              {decision==='request-info'?'Nội dung cần bổ sung':'Lý do từ chối'} <span className="text-destructive">*</span>
            </label>
-           <Textarea id="accounting-renewal-decision-reason" autoFocus required maxLength={1000}
+           <Textarea ref={reasonRef} id="accounting-renewal-decision-reason" required maxLength={1000}
              rows={4} value={reason} onChange={e=>setReason(e.target.value)}
              placeholder={decision==='request-info'?'Nhập thông tin hoặc chứng từ cần bổ sung...':'Nhập lý do từ chối hồ sơ...'}
              aria-describedby="accounting-renewal-reason-help" className="min-h-28 resize-y"/>

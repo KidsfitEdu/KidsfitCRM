@@ -369,12 +369,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setAppliedSearch(search);
   };
 
-  const openReceipt = () => {
-    setFieldErrors({});setAmountInput('');
-    const next=detail?.schedules.find(x=>x.amount_received<x.amount_due);
-    setSelectedScheduleId(next?.id??null);
-    setSelectedPayoutId(null);receiptAttempt.current=null;setEntryMode('receipt');
-  };
   const openReceiptForm=()=>{
     setSelected(null);setDetail(null);setReceivableSearch('');setReceivablePage(1);
     setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode('receipt');
@@ -727,10 +721,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <div role="tablist" aria-label="Nghiệp vụ Kế toán"
       className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {([{key:'CONTRACTS',label:'Hợp đồng & khoản thu',icon:FileCheck2},
-         {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:HandCoins}] as const).map(item=>
+      {([{key:'CONTRACTS',label:'Hợp đồng',icon:FileCheck2},
+         {key:'RECEIPTS',label:'Khoản thu nhà trường',icon:HandCoins},
+         {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:WalletCards}] as const).map(item=>
         <button type="button" role="tab" key={item.key}
-          aria-selected={accountingTab===item.key} onClick={()=>{setAccountingTab(item.key);setSelected(null);setPayoutDialogOpen(false);setCentralPayoutIntent(null);}}
+          aria-selected={accountingTab===item.key} onClick={()=>{setAccountingTab(item.key);setSelected(null);setPayoutDialogOpen(false);setPayoutPickerOpen(false);setReceiptIntent(false);setEntryMode(null);setCentralPayoutIntent(null);}}
           className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${accountingTab===item.key
             ?'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
             :'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
@@ -1184,7 +1179,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
-              onClick={openReceipt}><Plus className="size-4"/> Thêm khoản thu</Button>}
+              onClick={()=>{setAccountingTab('RECEIPTS');openReceiptForm();}}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <label className="space-y-1 text-xs font-medium">Năm nhận tiền

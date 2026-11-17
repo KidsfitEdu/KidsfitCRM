@@ -38,6 +38,22 @@ test('Accounting renewal actions and reasons retain original security and endpoi
   assert.match(ui,/\/accounting\/renewals\/.*\+decision/);
   assert.match(ui,/await onChanged\(\)/);
 });
+
+test('Accounting renewal decisions open a shared branded confirmation dialog instead of an inline form',()=>{
+  assert.match(ui, /<AppDialog open=\{decision!==null\}/);
+  assert.match(ui, /busy=\{busy\} contentClassName="sm:max-w-lg"/);
+  for(const decision of ["confirm","request-info","reject"])
+    assert.ok(ui.includes("openDecision('"+decision+"')"),decision);
+  assert.match(ui, /onOpenChange=\{open=>\{if\(!open\)closeDecision\(\);\}\}/);
+  assert.match(ui, /const closeDecision=\(\)=>\{if\(!busy\)/);
+  assert.match(ui, /<Textarea id="accounting-renewal-decision-reason" autoFocus required maxLength=\{1000\}/);
+  assert.match(ui, /decision==='confirm'/);
+  assert.match(ui, /disabled=\{!decision \|\| \(decision!=='confirm'&&!reason\.trim\(\)\)\}/);
+  assert.match(ui, /<AppButton type="button" tone=\{decision==='reject'\?'danger':'green'\}/);
+  assert.match(ui, /busy=\{busy\}/);
+  assert.doesNotMatch(ui, /\{decision&&<div className="space-y-2 rounded-lg border border-border p-3"/);
+});
+
 test('Accounting period history is scoped and never treats pending renewal as confirmed service',()=>{
   assert.match(api,/MapGet\("\/accounting\/contracts\/\{contractId:long\}\/periods", AccountingPeriods\)/);
   assert.match(api,/RequireAuthorization\(Permissions\.ContractRenewalReview\)/);

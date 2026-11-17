@@ -511,14 +511,22 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             }
             // An original and every confirmed renewal each have independent face value.
             // Only receipts assigned to the selected period consume that period's limit.
-            var collected = await db.RevenueReceipts.Where(x => x.ContractId == contract.Id
-                && x.Status == "COMPLETED"
-                && (renewal != null
-                    ? db.RevenueSchedules.Any(due => due.Id == x.RevenueScheduleId
-                        && due.ContractRenewalId == renewal.Id)
-                    : (x.RevenueScheduleId == null || db.RevenueSchedules.Any(due =>
-                        due.Id == x.RevenueScheduleId && due.ContractRenewalId == null))))
-                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
+            var periodReceipts = db.RevenueReceipts.Where(x => x.ContractId == contract.Id
+                && x.Status == "COMPLETED");
+            if (schedule.ContractRenewalId.HasValue)
+            {
+                var renewalId = schedule.ContractRenewalId.Value;
+                periodReceipts = periodReceipts.Where(x => db.RevenueSchedules.Any(due =>
+                    due.Id == x.RevenueScheduleId && due.ContractRenewalId == renewalId));
+            }
+            else
+            {
+                // Include pre-migration receipts without a schedule in the original term.
+                periodReceipts = periodReceipts.Where(x => x.RevenueScheduleId == null
+                    || db.RevenueSchedules.Any(due => due.Id == x.RevenueScheduleId
+                        && due.ContractRenewalId == null));
+            }
+            var collected = await periodReceipts.SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
             if (renewal is null)
                 collected -= await db.RevenueRefunds.Where(x => x.ContractId == contract.Id)
                     .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;

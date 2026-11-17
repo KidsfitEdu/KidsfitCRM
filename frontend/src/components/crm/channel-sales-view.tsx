@@ -497,7 +497,7 @@ export function ChannelSalesView({
         description={detailCustomer?.code ?? 'Hồ sơ trường được phân quyền xem'}
         bodyClassName="space-y-4 bg-muted/10">
         {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
-        {!schoolProfile && !profileError && <p role="status" className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
+        {!schoolProfile && !profileError && <output className="block text-sm text-muted-foreground">Đang tải thông tin trường…</output>}
         {schoolProfile && <>
           <section className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-start gap-3">

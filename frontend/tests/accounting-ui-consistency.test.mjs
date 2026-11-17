@@ -19,8 +19,11 @@ test('Accounting dashboard uses real finance totals and shared KPI cards',()=>{
 test('Accounting contract and payout lists share rounded cards, action icons and status badges',()=>{
   const s=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(s, /accountingTab==='CONTRACTS'&&<AdminListPanel className="min-w-0"/);
-  assert.match(s, /accountingTab==='PAYOUTS'&&<AdminListPanel>/);
+  assert.match(s, /accountingTab==='PAYOUTS'&&<AdminListPanel className="min-w-0">/);
   assert.match(s, /<thead className=\{adminTableHeadClass\}>/);
+  assert.match(s, /<AppPageHeader eyebrow="KẾ TOÁN \/ KIDSFIT CRM"/);
+  assert.match(s, /filters=\{<AppSelect ariaLabel="Lọc năm nhận tiền"/);
+  assert.match(s, /tone="blue" label=\{'Sửa phiếu chi '/);
   assert.match(s, /<AdminIconAction icon=\{Eye\} onClick=\{\(\)=>setSelected\(row\.id\)\}/);
   assert.match(s, /<AppStatusBadge size="sm" status=\{p\.status\}/);
   assert.match(s, /<item\.icon className="size-4 shrink-0"/);

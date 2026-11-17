@@ -36,8 +36,11 @@ test('Active navigation targets match role page registry and preserve aliases', 
   const nav = read('src/config/navigation.ts');
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
-  assert.equal(known.length, 42, 'Expected 42 registered navigation entries including aliases');
+  // Includes the Sales Manager income route added alongside its role page.
+  assert.equal(known.length, 43, 'Expected 43 registered navigation entries including aliases');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
+  assert.ok(known.includes('manager-income'), 'Navigation missing: manager-income');
+  assert.ok(config.includes('income:'), 'Manager income page config missing');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;
     for(const screen of screens) {

@@ -52,7 +52,8 @@ test('Receipt accrual uses board split on collected cash and does not automatica
 });
 
 test('Accounting separates contracts and role-specific payout overview',()=>{
-  assert.match(accounting,/Hợp đồng & khoản thu/);
+  assert.match(accounting,/label:'Hợp đồng'/);
+  assert.match(accounting,/label:'Khoản thu nhà trường'/);
   assert.match(accounting,/Phiếu chi hoa hồng/);
   assert.match(accounting,/beneficiary_role:currentBeneficiary\?\.role/);
   assert.match(accounting,/role="tab"/);
@@ -84,7 +85,7 @@ test('Commission detail prioritizes actionable reconciliation and separate role 
   assert.match(accounting,/Chưa đưa vào phiếu/);
   assert.match(accounting,/Lịch sử phiếu chi/);
   assert.match(accounting,/beneficiaries=beneficiaryEntries\.filter/);
-  assert.match(accounting,/eligibleCandidates\.length===0/);
+  assert.match(accounting,/payoutChoices\.length===0/);
 });
 
 test('Backfill and payout dialogs show explicit reviewed amounts and never claim money was sent',()=>{

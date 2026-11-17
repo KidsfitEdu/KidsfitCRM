@@ -89,6 +89,14 @@ type ContractRow = {
   has_financial_history:boolean;
 };
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
+type ReceiptRow = {
+  id:number;contract_id:number;contract_code:string;school_name:string;
+  amount:number;received_at:string;reference_code:string;payment_method:string;
+  status:string;schedule_id:number|null;proof_id:number|null;proof_file_name:string|null;
+};
+type ReceiptList = {data:ReceiptRow[];total:number;page:number;page_size:number};
+type ReceivableContract={id:number;code:string;school_name:string;amount_remaining:number};
+type ReceivableList={data:ReceivableContract[];total:number;page:number;page_size:number};
 type BackfillPreview={
   receipt_id:number;contract_id:number;eligible_cash:number;
   sales_user_id:number;manager_user_id:number|null;manager_name:string|null;
@@ -141,7 +149,23 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [owners, setOwners] = useState<{ id: number; name: string }[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [accountingTab,setAccountingTab]=useState<'CONTRACTS'|'PAYOUTS'>('CONTRACTS');
+  const [accountingTab,setAccountingTab]=useState<'CONTRACTS'|'RECEIPTS'|'PAYOUTS'>('CONTRACTS');
+  const [receiptRows,setReceiptRows]=useState<ReceiptRow[]>([]);
+  const [receiptTotal,setReceiptTotal]=useState(0);
+  const [receiptPage,setReceiptPage]=useState(1);
+  const [receiptPageSize,setReceiptPageSize]=useState(20);
+  const [receiptSearch,setReceiptSearch]=useState('');
+  const [receiptAppliedSearch,setReceiptAppliedSearch]=useState('');
+  const [receiptYear,setReceiptYear]=useState('ALL');
+  const [receiptLoading,setReceiptLoading]=useState(false);
+  const [receiptRevision,setReceiptRevision]=useState(0);
+  const [receiptPreview,setReceiptPreview]=useState<ReceiptRow|null>(null);
+  const [receivableSearch,setReceivableSearch]=useState('');
+  const [receivablePage,setReceivablePage]=useState(1);
+  const [receivableRows,setReceivableRows]=useState<ReceivableContract[]>([]);
+  const [receivableTotal,setReceivableTotal]=useState(0);
+  const [receivableLoading,setReceivableLoading]=useState(false);
+  const [receiptIntent,setReceiptIntent]=useState(false);
   const [financePeriod,setFinancePeriod]=useState(()=>new Intl.DateTimeFormat('sv-SE',{
     timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
   }).format(new Date()));
@@ -236,6 +260,33 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     return()=>{active=false;};
   },[apiBase,token,connected,accountingTab,financePeriod,detailRevision]);
 
+  useEffect(()=>{
+    if(!connected||accountingTab!=='RECEIPTS')return;
+    let active=true;
+    setReceiptLoading(true);
+    const params=new URLSearchParams({page:String(receiptPage),page_size:String(receiptPageSize)});
+    if(receiptAppliedSearch)params.set('search',receiptAppliedSearch);
+    if(receiptYear!=='ALL')params.set('year',receiptYear);
+    void channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params)
+      .then(res=>{if(active){setReceiptRows(res.data);setReceiptTotal(res.total);}})
+      .catch(error=>{if(active)appNotice.error('Không tải được khoản thu.',error instanceof Error?error.message:'Thử lại sau.');})
+      .finally(()=>{if(active)setReceiptLoading(false);});
+    return()=>{active=false;};
+  },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,receiptAppliedSearch,receiptYear,receiptRevision]);
+
+  useEffect(()=>{
+    if(!connected||!canRecordRevenue||accountingTab!=='RECEIPTS'||!receiptIntent)return;
+    let active=true;
+    setReceivableLoading(true);
+    const params=new URLSearchParams({page:String(receivablePage)});
+    if(receivableSearch.trim())params.set('search',receivableSearch.trim());
+    void channelRequest<ReceivableList>(apiBase,token,'/accounting/receivable-contracts?'+params)
+      .then(res=>{if(active){setReceivableRows(res.data);setReceivableTotal(res.total);}})
+      .catch(error=>{if(active)appNotice.error('Không tải được hợp đồng còn phải thu.',error instanceof Error?error.message:'Thử lại sau.');})
+      .finally(()=>{if(active)setReceivableLoading(false);});
+    return()=>{active=false;};
+  },[apiBase,token,connected,canRecordRevenue,accountingTab,receiptIntent,receivableSearch,receivablePage,receiptRevision]);
+
   useEffect(() => {
     if (!connected || selected === null) { loadedContractId.current=null; setDetail(null); return; }
     let live = true;
@@ -320,9 +371,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const canApprovePayout = abilities.includes('channel_sales.payout.approve') || abilities.includes('*');
   const openReceipt = () => {
     setFieldErrors({});setAmountInput('');
-    const next = detail?.schedules.find(x=>x.amount_received<x.amount_due);
+    const next=detail?.schedules.find(x=>x.amount_received<x.amount_due);
     setSelectedScheduleId(next?.id??null);
     setSelectedPayoutId(null);receiptAttempt.current=null;setEntryMode('receipt');
+  };
+  const openReceiptForm=()=>{
+    setSelected(null);setDetail(null);setReceivableSearch('');setReceivablePage(1);
+    setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode('receipt');
   };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -410,6 +465,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       receiptAttempt.current=null;
       setEntryMode(null);
       setDetailRevision(v=>v+1);
+      if(entryMode==='receipt'){setReceiptRevision(v=>v+1);setReceiptIntent(false);}
       appNotice.success(entryMode==='receipt'?'Đã ghi nhận khoản thu.':'Đã ghi nhận khoản chi hoa hồng.');
       await load();
     }catch(cause){

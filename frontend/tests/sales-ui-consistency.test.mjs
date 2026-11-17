@@ -51,3 +51,42 @@ test('Sales customer state colors distinguish approach, pending review, and veri
   assert.match(source, /'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: amber/);
   assert.match(source, /'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: amber/);
 });
+
+test('Sales customer tabs use four semantic icons and preserve access controls', () => {
+  const source = read('src/components/roles/SalesFocusPage.tsx');
+  for (const [label,icon] of [
+    ['Trường đang phụ trách','School'],
+    ['Chờ nhận phân bổ','UserRoundPlus'],
+    ['Hợp đồng tái ký','FilePenLine'],
+    ['Quản lý quyền bảo vệ','ShieldCheck'],
+  ]) {
+    assert.match(source, new RegExp(`label:'${label}',icon:${icon}`));
+  }
+  assert.match(source, /<item\.icon className="size-4 shrink-0" aria-hidden="true"\/>/);
+  assert.match(source, /overflow-x-auto/);
+  assert.match(source, /onClick=\{\(\) => setSubview\(item\.id as typeof subview\)\}/);
+  assert.match(source, /can\('channel_sales\.renewal\.submit'\)/);
+  assert.match(source, /can\('channel_sales\.customer\.view'\)/);
+});
+
+test('Sales overview presents role-scoped KPI and operational tasks without fabricated history', () => {
+  const source = read('src/components/roles/SalesDashboard.tsx');
+  assert.match(source, /title="Tổng quan bán hàng"/);
+  assert.match(source, /<AppStatCard icon=\{Handshake\}/);
+  assert.match(source, /<AdminListPanel>/);
+  assert.match(source, /Công việc cần theo dõi/);
+  assert.match(source, /Lịch tư vấn sắp tới/);
+  assert.match(source, /operations\.data/);
+  assert.match(source, /Làm mới tổng quan bán hàng/);
+  assert.doesNotMatch(source, /revenue_trend|mockTrend|fakeData/);
+});
+
+test('Sales school drawer and modal form reuse branded shared primitives', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  assert.match(source, /title="Thông tin trường học"/);
+  assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
+  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10"/);
+  assert.match(source, /<AppDialog open onOpenChange/);
+  assert.match(source, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
+  assert.match(source, /<AppButton type="submit" tone="green" busy=\{saving\}/);
+});

@@ -94,8 +94,10 @@ test('Sales school drawer and modal form reuse branded shared primitives', () =>
 test('Sales school list has rounded panel and details use opt-in compact drawer header', () => {
   const source = read('src/components/crm/channel-sales-view.tsx');
   const drawer = read('src/components/common/drawers/app-drawer.tsx');
-  assert.match(source, /embedded \? 'overflow-hidden rounded-2xl border border-border\/80 bg-card shadow-sm'/);
+  assert.match(source, /embedded \? 'overflow-hidden rounded-2xl border-0 bg-card shadow-sm'/);
   assert.match(source, /title="Thông tin trường học" compactHeader/);
+  assert.match(source, /\[&::-webkit-scrollbar-track\]:bg-transparent/);
+  assert.match(source, /\[scrollbar-width:thin\]/);
   assert.match(drawer, /compactHeader\?: boolean/);
   assert.match(drawer, /compactHeader \? "py-3\.5" : "py-5"/);
   assert.match(drawer, /description && !compactHeader/);

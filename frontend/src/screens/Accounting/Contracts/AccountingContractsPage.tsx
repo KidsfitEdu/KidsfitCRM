@@ -207,6 +207,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     mode:'CREATE'|'EDIT'|'COMPLETE';payoutId?:number;
   }|null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [focusedRenewal,setFocusedRenewal]=useState<{id:number;action:'view'|'confirm'|'request-info'}|null>(null);
+  const openContract=(id:number)=>{setFocusedRenewal(null);setSelected(id);};
+  const openRenewal=(contractId:number,renewalId:number,action:'view'|'confirm'|'request-info')=>{
+    setFocusedRenewal({id:renewalId,action});setSelected(contractId);
+  };
   const [detail, setDetail] = useState<Detail | null>(null);
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
@@ -941,7 +946,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   <p className="break-words font-semibold [overflow-wrap:anywhere]" title={channelMoney(row.commission)}>{channelMoney(row.commission)}</p>
                 </td>
                 <td className="flex items-center justify-end align-middle xl:table-cell xl:px-1 xl:py-3 xl:text-center"><span className="mr-2 text-xs text-muted-foreground xl:hidden">Thao tác</span>
-                  <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}
+                  <AdminIconAction icon={Eye} onClick={()=>openContract(row.id)}
                     label={`Xem chi tiết hợp đồng trường ${row.school_name}`}/>
                 </td>
               </tr>
@@ -973,13 +978,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 <td className="min-w-0 align-middle xl:px-2 xl:py-3 xl:text-right" title="Hoa hồng ghi nhận khi phát sinh khoản thu">—</td>
                 <td className="flex items-center justify-end gap-2 xl:table-cell xl:px-1 xl:py-3 xl:text-center">
                   <AdminIconAction icon={Eye} label={'Xem tái ký lần '+period.renewal_no}
-                    onClick={()=>setSelected(row.id)}/>
+                    onClick={()=>openRenewal(row.id,period.id,'view')}/>
                   {period.status==='PENDING_ACCOUNTING'&&(abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*'))&&
                     <>
                       <AdminIconAction icon={CheckCircle2} label={'Mở xác nhận tái ký lần '+period.renewal_no}
-                        onClick={()=>setSelected(row.id)}/>
+                        onClick={()=>openRenewal(row.id,period.id,'confirm')}/>
                       <AdminIconAction icon={MessageSquareText} label={'Yêu cầu Sales bổ sung hồ sơ tái ký lần '+period.renewal_no}
-                        onClick={()=>setSelected(row.id)}/>
+                        onClick={()=>openRenewal(row.id,period.id,'request-info')}/>
                     </>}
                 </td>
               </tr>)}
@@ -1342,7 +1347,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>}
     </AppDialog>
-    <AppDrawer wide compactAccountingHeader open={selected !== null && accountingTab==='CONTRACTS'} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
+    <AppDrawer wide compactAccountingHeader open={selected !== null && accountingTab==='CONTRACTS'} onOpenChange={open => { if (!open) {setSelected(null);setFocusedRenewal(null);setEntryMode(null);closePreview();} }}
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description="Kế toán / Chi tiết hợp đồng">
       {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
@@ -1363,8 +1368,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Metric label="Hoa hồng ghi nhận" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
           <Metric label="Hoa hồng đã chi" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
         </div>
-        {selected!==null&&<AccountingRenewalInline key={selected} apiBase={apiBase} token={token}
+        {selected!==null&&<AccountingRenewalInline key={selected+':'+(focusedRenewal?.id??'all')+':'+(focusedRenewal?.action??'view')}
+          apiBase={apiBase} token={token}
           contractId={selected} abilities={abilities}
+          focusRenewalId={focusedRenewal?.id} focusAction={focusedRenewal?.action}
           onChanged={async()=>{setDetailRevision(v=>v+1);await load();await onChanged();}}/>}
         {rows.find(r=>r.id===selected)&&(()=>{
           const overview=rows.find(r=>r.id===selected)!;

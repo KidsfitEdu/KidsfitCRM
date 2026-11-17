@@ -142,7 +142,13 @@ public static class AccountingPayoutEndpoints
                     && related.Select(c => c.contract_id).Distinct().Count() == 1
             };
         }).ToArray();
-        return Results.Ok(new { data, total, page = pn, page_size = size });
+        var organizations = await db.Organizations.AsNoTracking()
+            .Where(x => x.Status == "ACTIVE"
+                && (access.All || access.OrganizationIds.Contains(x.Id)))
+            .OrderBy(x => x.Name)
+            .Select(x => new { x.Id, x.Name, x.Code, x.CommissionRateCeiling })
+            .ToArrayAsync(ct);
+        return Results.Ok(new { data, total, page = pn, page_size = size, organizations });
     }
 
     public static async Task<IResult> Eligible(

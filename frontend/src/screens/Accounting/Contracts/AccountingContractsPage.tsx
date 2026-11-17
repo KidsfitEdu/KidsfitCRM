@@ -158,6 +158,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [payoutHistoryYear,setPayoutHistoryYear] = useState('ALL');
   const [payoutHistoryStatus,setPayoutHistoryStatus] = useState('ALL');
   const [payoutHistoryPage,setPayoutHistoryPage] = useState(1);
+  const [receiptHistoryYear,setReceiptHistoryYear] = useState('ALL');
+  const [receiptHistoryPage,setReceiptHistoryPage] = useState(1);
+  const [showAllSchedules,setShowAllSchedules] = useState(false);
   const [payoutPeriod, setPayoutPeriod] = useState('');
   const [payoutBeneficiary, setPayoutBeneficiary] = useState('');
   const [payoutDialogOpen,setPayoutDialogOpen] = useState(false);
@@ -230,6 +233,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       setPayoutHistoryYear('ALL');
       setPayoutHistoryStatus('ALL');
       setPayoutHistoryPage(1);
+      setReceiptHistoryYear('ALL');
+      setReceiptHistoryPage(1);
+      setShowAllSchedules(false);
     }
     void channelRequest<Detail>(apiBase, token, `/accounting/contracts/${selected}`)
       .then(value => { if (live) setDetail(value); })
@@ -464,6 +470,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
     .reduce((sum,entry)=>sum+entry.calculation_base,0);
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
+  const receiptYears=[...new Set((detail?.receipts??[]).map(x=>x.received_at.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
+  const filteredReceipts=(detail?.receipts??[]).filter(x=>receiptHistoryYear==='ALL'||x.received_at.startsWith(receiptHistoryYear+'-'))
+    .slice().sort((a,b)=>b.received_at.localeCompare(a.received_at)||b.id-a.id);
+  const receiptPageCount=Math.max(1,Math.ceil(filteredReceipts.length/10));
+  const effectiveReceiptPage=Math.min(receiptHistoryPage,receiptPageCount);
+  const visibleReceipts=filteredReceipts.slice((effectiveReceiptPage-1)*10,effectiveReceiptPage*10);
   const payoutYears=[...new Set((detail?.payouts??[]).map(x=>x.period.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
   const payoutFiltered=(detail?.payouts??[]).filter(x=>(payoutHistoryYear==='ALL'||x.period.startsWith(payoutHistoryYear+'-'))&&(payoutHistoryStatus==='ALL'||x.status===payoutHistoryStatus));
   const payoutPageCount=Math.max(1,Math.ceil(payoutFiltered.length/10));
@@ -883,7 +895,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>
           {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
           <div className="divide-y divide-border/70 rounded-lg border border-border/70">
-            {detail.schedules.map(x=>{
+            {(showAllSchedules?detail.schedules:detail.schedules.slice(0,6)).map(x=>{
               const paid = Math.max(0, Math.min(x.amount_due, x.amount_received));
               const percentage = x.amount_due > 0 ? Math.min(100, paid / x.amount_due * 100) : 0;
               const status = paymentScheduleLabel(x.status);
@@ -913,12 +925,19 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </div>;
             })}
           </div>
+          {detail.schedules.length>6&&<Button type="button" variant="outline" size="sm" className="w-full" onClick={()=>setShowAllSchedules(value=>!value)}>{showAllSchedules?`Thu gọn lịch thanh toán`:`Xem toàn bộ ${detail.schedules.length} đợt thanh toán`}</Button>}
         </section>
         <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
               onClick={openReceipt}><Plus className="size-4"/> Thêm khoản thu</Button>}
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <label className="space-y-1 text-xs font-medium">Năm nhận tiền
+              <select className="mt-1 block h-10 min-w-40 rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={receiptHistoryYear} onChange={e=>{setReceiptHistoryYear(e.target.value);setReceiptHistoryPage(1);}}><option value="ALL">Tất cả các năm</option>{receiptYears.map(year=><option key={year} value={year}>{year}</option>)}</select>
+            </label>
+            <p className="text-xs text-muted-foreground">{filteredReceipts.length}/{detail.receipts.length} khoản thu</p>
           </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[520px] text-left text-sm">
@@ -931,8 +950,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
-                {detail.receipts.length===0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Chưa có khoản thu nào.</td></tr>
-                  : detail.receipts.map(x=>{
+                {filteredReceipts.length===0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Không có khoản thu phù hợp.</td></tr>
+                  : visibleReceipts.map(x=>{
                     const proof = detail.evidence.find(e=>e.revenue_receipt_id===x.id);
                     return <tr key={x.id} className="hover:bg-muted/20">
                       <td className="whitespace-nowrap px-3 py-3">{channelDate(x.received_at)}</td>
@@ -949,6 +968,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </tbody>
             </table>
           </div>
+          {filteredReceipts.length>10&&<div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectiveReceiptPage}/{receiptPageCount}</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage<=1} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage>=receiptPageCount} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage+1)}>Sau</Button></div></div>}
         </section>
         <section ref={payoutSectionRef} tabIndex={-1} aria-labelledby="contract-commission-heading"
           className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">

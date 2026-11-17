@@ -85,7 +85,7 @@ test('Sales school drawer and modal form reuse branded shared primitives', () =>
   const source = read('src/components/crm/channel-sales-view.tsx');
   assert.match(source, /title="Thông tin trường học"/);
   assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
-  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10 \[scrollbar-width:thin\]/);
+  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10 \[scrollbar-width:none\]/);
   assert.match(source, /<AppDialog open onOpenChange/);
   assert.match(source, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
   assert.match(source, /<AppButton type="submit" tone="green" busy=\{saving\}/);
@@ -94,10 +94,10 @@ test('Sales school drawer and modal form reuse branded shared primitives', () =>
 test('Sales school list has rounded panel and details use opt-in compact drawer header', () => {
   const source = read('src/components/crm/channel-sales-view.tsx');
   const drawer = read('src/components/common/drawers/app-drawer.tsx');
-  assert.match(source, /embedded \? 'overflow-hidden rounded-2xl border-0 bg-card shadow-sm'/);
+  assert.match(source, /embedded \? 'overflow-hidden rounded-2xl border-0 ring-0 bg-card shadow-sm'/);
   assert.match(source, /title="Thông tin trường học" compactHeader/);
-  assert.match(source, /\[&::-webkit-scrollbar-track\]:bg-transparent/);
-  assert.match(source, /\[scrollbar-width:thin\]/);
+  assert.match(source, /\[&::-webkit-scrollbar\]:hidden/);
+  assert.match(source, /\[scrollbar-width:none\]/);
   assert.match(drawer, /compactHeader\?: boolean/);
   assert.match(drawer, /compactHeader \? "py-3\.5" : "py-5"/);
   assert.match(drawer, /description && !compactHeader/);

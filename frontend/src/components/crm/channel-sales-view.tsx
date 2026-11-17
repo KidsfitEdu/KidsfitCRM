@@ -103,7 +103,7 @@ const statusCopy = {
     label: 'Đang tiếp cận',
     compact: 'Bảo vệ 5 ngày',
     className:
-      'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+      'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200',
   },
   CONTRACTED: {
     label: 'Đã ký hợp đồng',
@@ -117,13 +117,13 @@ const statusCopy = {
 const contractBadge = (customer: ChannelCustomer) => {
   if (customer.contract_id == null) return statusCopy[customer.visible_status];
   const status = customer.contract_status?.toUpperCase();
-  const blue = 'border-blue-200 bg-blue-50 text-blue-800';
-  const amber = 'border-amber-200 bg-amber-50 text-amber-800';
-  const red = 'border-red-200 bg-red-50 text-red-800';
+  const blue = 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200';
+  const amber = 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200';
+  const red = 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200';
   if (status === 'PENDING_REVIEW' || status === 'MANAGER_REVIEW')
-    return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: blue };
+    return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: amber };
   if (status === 'MANAGER_REVIEWED' || status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING_CHECKEE' || status === 'UNDER_VERIFICATION')
-    return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: blue };
+    return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: amber };
   if (status === 'NEEDS_REVISION' || status === 'NEEDS_INFO' || status === 'RETURNED')
     return { label: 'Cần bổ sung hồ sơ', compact: 'Bổ sung hồ sơ hiện có', className: amber };
   if (status === 'REJECTED')

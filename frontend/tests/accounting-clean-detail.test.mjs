@@ -60,7 +60,7 @@ test('Accounting payout table includes approved and draft records instead of onl
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(page, /payoutVisible.map\(x=>/);
   assert.match(page, /payoutStatusLabel\(x.status\)/);
-  assert.match(page, /payoutPreview.status==='PENDING_APPROVAL'&&canApprovePayout/);
+  assert.match(page, /payoutPreview.can_approve/);
   assert.doesNotMatch(page, /Phiếu chi đang xử lý/);
   assert.doesNotMatch(page, /detail.payouts.filter\(x=>x.status==='PAID'\).map/);
   assert.match(page, /detail.ledger/);

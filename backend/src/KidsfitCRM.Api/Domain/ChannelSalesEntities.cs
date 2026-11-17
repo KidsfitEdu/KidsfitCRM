@@ -152,6 +152,8 @@ public sealed class CustomerProtection : EntityBase
 public sealed class RevenueSchedule : EntityBase
 {
     public long ContractId { get; set; }
+    // Null for the verified original contract; populated for each confirmed renewal.
+    public long? ContractRenewalId { get; set; }
     public decimal AmountDue { get; set; }
     public decimal AmountReceived { get; set; }
     public DateOnly DueOn { get; set; }

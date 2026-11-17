@@ -659,12 +659,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         <table className="block w-full text-left text-sm xl:table xl:table-fixed xl:text-xs 2xl:text-sm">
           <thead className={`${adminTableHeadClass} hidden xl:table-header-group`}>
             <tr>
-              <th scope="col" className="w-[20%] px-3 py-3">Nhà trường</th>
+              <th scope="col" className="w-[19%] px-3 py-3">Nhà trường</th>
               <th scope="col" className="w-[12%] px-2 py-3">Sales phụ trách</th>
-              <th scope="col" className="w-[11%] px-2 py-3">Kỳ sử dụng</th>
-              <th scope="col" className="w-[12%] px-2 py-3">Dịch vụ</th>
-              <th scope="col" className="w-[13%] px-2 py-3">Cần xử lý</th>
-              <th scope="col" className="w-[13%] px-2 py-3 text-right">Tổng thực thu</th>
+              <th scope="col" className="w-[10%] px-2 py-3">Kỳ sử dụng</th>
+              <th scope="col" className="w-[16%] px-2 py-3">Dịch vụ</th>
+              <th scope="col" className="w-[12%] px-2 py-3">Cần xử lý</th>
+              <th scope="col" className="w-[12%] px-2 py-3 text-right">Tổng thực thu</th>
               <th scope="col" className="w-[13%] px-2 py-3 text-right">Tổng hoa hồng</th>
               <th scope="col" className="w-[6%] px-1 py-3 text-center">Thao tác</th>
             </tr>
@@ -694,10 +694,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </td>
                 <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Dịch vụ</p>
                   <AppStatusBadge variant="kidsfit-service" status={state} label={label[state]??'Cần kiểm tra'} size="md"/>
-                  {row.threshold_on&&(['INTERRUPTED','THRESHOLD_REACHED','THRESHOLD_OVERDUE','RELEASED'].includes(state))&&
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {state==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(row.threshold_on)}
-                    </p>}
                 </td>
                 <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Cần xử lý</p>
                   {row.action==='CONFIRM_RENEWAL'

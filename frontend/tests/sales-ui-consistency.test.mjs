@@ -39,10 +39,12 @@ test('Sales invitation list represents actionable states with semantic badges', 
 test('Sales income overview uses shared stat cards without changing API values', () => {
   const source = read('src/components/roles/SalesIncomePage.tsx');
   assert.match(source, /<AppStatCard icon=\{Wallet\}/);
-  assert.match(source, /data\?\.summary\.accrued/);
-  assert.match(source, /data\?\.summary\.paid/);
-  assert.match(source, /data\?\.summary\.unpaid/);
-  assert.match(source, /data\?\.summary\.contracts/);
+  assert.match(source, /data\.summary\.accrued/);
+  assert.match(source, /data\.summary\.paid/);
+  assert.match(source, /data\.summary\.unpaid/);
+  assert.match(source, /data\.summary\.contracts/);
+  assert.match(source, /data \? channelMoney\(data\.summary\.accrued\) : '—'/);
+  assert.match(source, /data \? data\.summary\.contracts : '—'/);
 });
 
 test('Sales customer state colors distinguish approach, pending review, and verification', () => {

@@ -85,7 +85,7 @@ test('Sales school drawer and modal form reuse branded shared primitives', () =>
   const source = read('src/components/crm/channel-sales-view.tsx');
   assert.match(source, /title="Thông tin trường học"/);
   assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
-  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10"/);
+  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10 \[scrollbar-width:thin\]/);
   assert.match(source, /<AppDialog open onOpenChange/);
   assert.match(source, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
   assert.match(source, /<AppButton type="submit" tone="green" busy=\{saving\}/);

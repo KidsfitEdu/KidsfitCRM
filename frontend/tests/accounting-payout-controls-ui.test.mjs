@@ -24,7 +24,10 @@ test('commission period is formatted for display without changing period submitt
   assert.match(page,/period:chosenPeriod/);
 });
 test('draft payout actions remain permission guarded in the central payout detail dialog',()=>{
-  assert.match(page,/payoutPreview\.status==='DRAFT'/);
+  assert.match(page,/payoutPreview\.can_edit/);
+  assert.match(page,/payoutPreview\.can_submit/);
+  assert.match(page,/payoutPreview\.can_approve/);
+  assert.match(page,/payoutPreview\.can_complete/);
   assert.match(page,/canCreatePayout/);
   assert.match(page,/mode:'EDIT'/);
   assert.match(page,/mode:'COMPLETE'/);

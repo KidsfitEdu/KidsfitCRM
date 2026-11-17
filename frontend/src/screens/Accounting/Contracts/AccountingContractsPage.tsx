@@ -893,9 +893,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input aria-label="Tìm khoản thu" className="h-10 w-full rounded-lg pl-10"
             placeholder="Tên trường, hợp đồng, mã giao dịch..." value={receiptSearch} onChange={event=>setReceiptSearch(event.target.value)}/>
         </div>
-        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <label htmlFor="accounting-receipt-year" className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           Năm nhận tiền
-          <Input type="number" min={2000} max={2100} className="h-10 w-32 rounded-lg"
+          <Input id="accounting-receipt-year" type="number" min={2000} max={2100} className="h-10 w-32 rounded-lg"
             value={receiptYear==='ALL'?'':receiptYear} placeholder="Tất cả"
             onChange={event=>{setReceiptYear(event.target.value||'ALL');setReceiptPage(1);}}/>
         </label>

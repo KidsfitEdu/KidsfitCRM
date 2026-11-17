@@ -2,7 +2,7 @@
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
-import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -87,6 +87,8 @@ type ContractRow = {
   action:string|null;
   pending_renewal_id:number|null;
   has_financial_history:boolean;
+  source_service_start_on?:string|null;source_service_end_on?:string|null;
+  periods?:{id:number;renewal_no:number;status:string;service_start_on:string;service_end_on:string;total_value:number}[];
 };
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
 type ReceiptRow = {
@@ -793,9 +795,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 NEEDS_REVIEW:'Cần rà soát',INACTIVE:'Đã kết thúc',
                 HISTORICAL_GAP:'Cần rà soát',MISSING_TERM:'Cần rà soát'
               };
-              return <tr key={row.id} className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 px-3 py-4 transition-colors even:bg-muted/20 hover:bg-muted/40 sm:grid-cols-3 xl:table-row xl:p-0">
+              return <Fragment key={row.id}><tr className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 px-3 py-4 transition-colors even:bg-muted/20 hover:bg-muted/40 sm:grid-cols-3 xl:table-row xl:p-0">
                 <td className="col-span-2 min-w-0 align-middle sm:col-span-1 xl:px-3 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Nhà trường</p>
                   <p className="line-clamp-2 break-words font-semibold text-foreground" title={row.school_name}>{row.school_name}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Hợp đồng gốc · {row.contract_code}</p>
                 </td>
                 <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Sales phụ trách</p>
                   <p className="line-clamp-2 break-words font-medium" title={row.owner_name}>{row.owner_name}</p>
@@ -829,7 +832,42 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}
                     label={`Xem chi tiết hợp đồng trường ${row.school_name}`}/>
                 </td>
-              </tr>;
+              </tr>
+              {row.periods?.map(period=><tr key={'renewal-'+period.id}
+                className="grid min-w-0 grid-cols-2 gap-3 bg-muted/10 px-3 py-4 sm:grid-cols-3 xl:table-row xl:p-0">
+                <td className="col-span-2 min-w-0 align-middle sm:col-span-1 xl:px-3 xl:py-3">
+                  <p className="line-clamp-2 break-words text-xs font-semibold">{row.school_name}</p>
+                  <p className="mt-1 text-xs font-semibold text-primary">Tái ký lần {period.renewal_no}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Giá trị: {channelMoney(period.total_value)}</p>
+                </td>
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3">
+                  <p className="line-clamp-2 break-words text-xs">{row.owner_name}</p>
+                </td>
+                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3">
+                  <p className="text-[11px] text-muted-foreground">Từ {channelDate(period.service_start_on)}</p>
+                  <p>{channelDate(period.service_end_on)}</p>
+                </td>
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3">
+                  <AppStatusBadge size="sm" status={period.status}
+                    label={period.status==='CONFIRMED'?'Đã xác nhận':period.status==='PENDING_ACCOUNTING'?'Chờ Kế toán':
+                      period.status==='NEEDS_INFO'?'Cần bổ sung':period.status==='REJECTED'?'Đã từ chối':'Chưa xác nhận'}/>
+                </td>
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3">
+                  {period.status==='PENDING_ACCOUNTING'
+                    ?<span className="text-xs font-medium text-amber-700 dark:text-amber-300">Xác nhận tái ký</span>
+                    :<span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3 xl:text-right" title="Khoản thu của từng kỳ xem ở tab Khoản thu nhà trường">—</td>
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3 xl:text-right" title="Hoa hồng ghi nhận khi phát sinh khoản thu">—</td>
+                <td className="flex items-center justify-end gap-2 xl:table-cell xl:px-1 xl:py-3 xl:text-center">
+                  <AdminIconAction icon={Eye} label={'Xem tái ký lần '+period.renewal_no}
+                    onClick={()=>setSelected(row.id)}/>
+                  {period.status==='PENDING_ACCOUNTING'&&(abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*'))&&
+                    <AdminIconAction icon={CheckCircle2} label={'Xác nhận tái ký lần '+period.renewal_no}
+                      onClick={()=>setSelected(row.id)}/>}
+                </td>
+              </tr>)}
+              </Fragment>;
             })}
           </tbody>
         </table>

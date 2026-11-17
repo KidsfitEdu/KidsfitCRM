@@ -119,7 +119,7 @@ type Detail = {
     source_service_start_on:string|null;source_service_end_on:string|null;source_payment_cycle:string|null;
     service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;
     protection_until:string|null };
-  schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
+  schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string; renewal_no?: number|null; contract_renewal_id?: number|null }[];
   refunded_total: number;
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; calculation_base:number;
@@ -1744,7 +1744,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);receiptAttempt.current=null;setFieldErrors({});}}
             className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
-              {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
+              {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng gốc'} · {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
           </select>{selectedScheduleId!==null&&<p className="text-xs text-muted-foreground">
               Còn phải thu: {channelMoney(Math.max(0,
                 (detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_due??0)-

@@ -135,7 +135,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  };
 
  return <section aria-label="Hợp đồng và lịch sử tái ký"
-   className="space-y-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
+   className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
    <div className="flex flex-wrap items-center justify-between gap-2">
      <h3 className="flex items-center gap-2 font-bold"><Files className="size-4 text-primary" aria-hidden="true"/> Hợp đồng & lịch sử tái ký</h3>
      {!loading&&!error&&<span className="text-xs text-muted-foreground">{periods.length} hồ sơ</span>}
@@ -183,10 +183,10 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
            {period.evidence?<div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/20 p-3">
              <FileText className="size-5 shrink-0 text-primary" aria-hidden="true"/>
              <span className="min-w-0 flex-1 truncate font-medium" title={period.evidence.file_name}>{period.evidence.file_name}</span>
-             <Button type="button" size="icon" variant="ghost" title="Xem chứng từ"
+             <Button type="button" size="icon" variant="outline" className="border-green-700 text-green-800 hover:bg-green-50 dark:border-green-500 dark:text-green-300 dark:hover:bg-green-950" title="Xem chứng từ"
                aria-label={'Xem '+period.evidence.file_name} disabled={fileBusy!==null}
                onClick={()=>void accessEvidence(period.evidence!,'view')}><Eye className="size-4" aria-hidden="true"/></Button>
-             <Button type="button" size="icon" variant="ghost" title="Tải chứng từ"
+             <Button type="button" size="icon" variant="outline" className="border-sky-600 text-sky-700 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950" title="Tải chứng từ"
                aria-label={'Tải '+period.evidence.file_name} disabled={fileBusy!==null}
                onClick={()=>void accessEvidence(period.evidence!,'download')}><Download className="size-4" aria-hidden="true"/></Button>
            </div>:<p className="text-xs text-muted-foreground">Chưa có chứng từ đính kèm.</p>}

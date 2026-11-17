@@ -187,6 +187,8 @@ public static class AccountingContractEndpoints
                 contract_renewal_id = x.ContractRenewalId,
                 renewal_no = db.ContractRenewals.Where(r => r.Id == x.ContractRenewalId)
                     .Select(r => (int?)r.RenewalNo).FirstOrDefault(),
+                renewal_signed_on = db.ContractRenewals.Where(r => r.Id == x.ContractRenewalId)
+                    .Select(r => (DateOnly?)r.SignedOn).FirstOrDefault(),
                 amount_due = x.AmountDue, amount_received = x.AmountReceived, status = x.Status }).ToArrayAsync(ct);
         var receipts = await db.RevenueReceipts.AsNoTracking().Where(x => x.ContractId == id && x.Status == "COMPLETED")
             .OrderByDescending(x => x.ReceivedAt).Select(x => new {

@@ -85,25 +85,25 @@ test('Sales school drawer and modal form reuse branded shared primitives', () =>
   const source = read('src/components/crm/channel-sales-view.tsx');
   assert.match(source, /title="Thông tin trường học"/);
   assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
-  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10 \[scrollbar-width:none\]/);
+  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10"/);
   assert.match(source, /<AppDialog open onOpenChange/);
   assert.match(source, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
   assert.match(source, /<AppButton type="submit" tone="green" busy=\{saving\}/);
 });
 
-test('Sales school list has rounded panel and details use opt-in compact drawer header', () => {
+test('Sales school list remains rounded and school drawer matches the shared scrolling pattern', () => {
   const source = read('src/components/crm/channel-sales-view.tsx');
   const drawer = read('src/components/common/drawers/app-drawer.tsx');
+  const protection = read('src/components/crm/SalesProtectionOverview.tsx');
   assert.match(source, /embedded \? 'overflow-hidden rounded-2xl border-0 ring-0 bg-card shadow-sm'/);
-  assert.match(source, /title="Thông tin trường học" compactHeader alignToViewportEdge extendHeaderToViewportEdge/);
-  assert.match(source, /\[&::-webkit-scrollbar\]:hidden/);
-  assert.match(source, /\[scrollbar-width:none\]/);
+  assert.match(source, /title="Thông tin trường học" compactHeader/);
+  assert.match(source, /bodyClassName="space-y-4 bg-muted\/10"/);
+  assert.doesNotMatch(source, /scrollbar-width:none|webkit-scrollbar.*hidden|alignToViewportEdge|extendHeaderToViewportEdge/);
+  assert.match(protection, /<AppDrawer wide open=/);
+  assert.match(protection, /bodyClassName="bg-muted\/15"/);
+  assert.match(drawer, /overflow-hidden border-l/);
+  assert.match(drawer, /overflow-y-auto overscroll-contain/);
   assert.match(drawer, /compactHeader\?: boolean/);
-  assert.match(drawer, /alignToViewportEdge\?: boolean/);
-  assert.match(drawer, /extendHeaderToViewportEdge\?: boolean/);
-  assert.match(drawer, /after:left-full after:w-6 after:bg-\[#1b5e20\]/);
-  assert.match(drawer, /style=\{alignToViewportEdge \? \{ right: "calc\(100% - 100vw\)" \} : undefined\}/);
-  assert.match(drawer, /compactHeader \? "py-3\.5" : "py-5"/);
-  assert.match(drawer, /description && !compactHeader/);
+  assert.doesNotMatch(drawer, /alignToViewportEdge|extendHeaderToViewportEdge|calc\(100% - 100vw\)/);
   assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
 });

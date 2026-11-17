@@ -9,7 +9,7 @@ namespace KidsfitCRM.Api.Features;
 /// <summary>
 /// KC-02: Sales sends yearly renewal directly to Accounting.
 /// This feature never calls CHECKEE, changes the original contract/ownership,
-/// creates payment schedules or accrues commissions.
+/// or accrues commissions. Confirmed terms create their own scheduled receivables.
 /// </summary>
 public static class ContractRenewalEndpoints
 {
@@ -585,6 +585,34 @@ public static class ContractRenewalEndpoints
         Event(db, renewal, access.UserId, action, reason);
         Audit.Add(db, access.UserId, "REVIEW_CONTRACT_RENEWAL", nameof(ContractRenewal),
             id, new { status = previous }, new { status = action, reason }, http);
+        // A signed renewal owns its independent annual receivables. Do not mutate
+        // original schedules or original contract value; commission accrues only on cash.
+        if (action == "CONFIRMED")
+        {
+            if (await db.RevenueSchedules.AnyAsync(x => x.ContractRenewalId == renewal.Id, ct))
+                throw new ApiConflictException("Kỳ tái ký đã có lịch phải thu. Vui lòng tải lại.");
+            if (renewal.PaymentCycle == "MONTHLY" && renewal.TotalValue < 12m)
+                throw ApiValidationException.For("total_value",
+                    "Giá trị tái ký theo tháng phải đủ để phân bổ thành 12 đợt dương.");
+            var installmentCount = renewal.PaymentCycle == "MONTHLY" ? 12 : 1;
+            var installmentBase = decimal.Floor(renewal.TotalValue / installmentCount);
+            for (var index = 0; index < installmentCount; index++)
+            {
+                var amount = index == installmentCount - 1
+                    ? renewal.TotalValue - installmentBase * (installmentCount - 1)
+                    : installmentBase;
+                db.RevenueSchedules.Add(new RevenueSchedule {
+                    ContractId = renewal.ContractId,
+                    ContractRenewalId = renewal.Id,
+                    DueOn = renewal.ServiceStartOn.AddMonths(index),
+                    AmountDue = amount,
+                    AmountReceived = 0m,
+                    Status = "PENDING",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            }
+        }
         // Accounting alone confirms the service year. Protection may be granted
         // only when the preceding five-year cycle has expired and all guards pass.
         await db.SaveChangesAsync(ct);

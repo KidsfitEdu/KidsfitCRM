@@ -41,7 +41,7 @@ test('Search applies on submission, pagination resets with filters, and uses all
 });
 test('Payout tracking is UI-only and contract detail workflow remains available',()=>{
   assert.match(page,/accountingTab==='CONTRACTS'/);
-  assert.match(page,/setSelected\(row.id\)/);
+  assert.match(page,/openContract\(row.id\)/);
   assert.match(page,/\/payouts\/\$\{.*\}\/submit/);
   assert.match(page,/\/accounting\/payouts\?/);
   assert.match(part,/title=\{p.code\}/);

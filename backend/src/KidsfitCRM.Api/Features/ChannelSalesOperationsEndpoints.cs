@@ -352,6 +352,7 @@ public static class ChannelSalesOperationsEndpoints
             },
             ledger = await ledgerQuery.Take(200).ToArrayAsync(ct),
             ledger_total = await entries.CountAsync(ct),
+            payout_total = await payoutsQuery.Where(x => x.Period == selectedPeriod).CountAsync(ct),
             eligible_payout_total = await eligiblePayouts.CountAsync(ct),
             eligible_payouts = await eligiblePayouts.OrderByDescending(x => x.amount).ThenBy(x => x.school_name)
                 .ThenBy(x => x.contract_id).Take(100).ToArrayAsync(ct),

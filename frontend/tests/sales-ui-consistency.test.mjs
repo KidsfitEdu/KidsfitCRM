@@ -114,6 +114,10 @@ test('Right-side CRM sheet removes root scrollbar gutter without changing scroll
   const drawer = read('src/components/common/drawers/app-drawer.tsx');
   assert.match(css, /html:has\(\[data-slot="sheet-content"\]\[data-side="right"\]\)/);
   assert.match(css, /scrollbar-gutter: auto !important/);
+  assert.match(css, /overflow: hidden !important/);
+  assert.match(css, /html:has\(\[data-slot="sheet-content"\]\[data-side="right"\]\) body \{/);
+  assert.match(css, /width: 100% !important/);
+  assert.doesNotMatch(css, /overflow: visible !important/);
   assert.match(sheet, /data-side=\{side\}/);
   assert.match(drawer, /overflow-y-auto overscroll-contain/);
   assert.doesNotMatch(drawer, /alignToViewportEdge|extendHeaderToViewportEdge/);

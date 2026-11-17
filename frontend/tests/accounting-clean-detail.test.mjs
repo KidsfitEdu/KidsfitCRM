@@ -60,7 +60,7 @@ test('Accounting payout table includes approved and draft records instead of onl
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(page, /payoutVisible.map\(x=>/);
   assert.match(page, /payoutStatusLabel\(x.status\)/);
-  assert.match(page, /x.status==='PENDING_APPROVAL'&&canApprovePayout/);
+  assert.match(page, /payoutPreview.status==='PENDING_APPROVAL'&&canApprovePayout/);
   assert.doesNotMatch(page, /Phiếu chi đang xử lý/);
   assert.doesNotMatch(page, /detail.payouts.filter\(x=>x.status==='PAID'\).map/);
   assert.match(page, /detail.ledger/);
@@ -93,7 +93,7 @@ test('Accounting detail refresh does not unmount all drawer content after a payo
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   const dialog = read('src/components/common/dialogs/app-dialog.tsx');
   assert.match(page, /loadedContractId\.current !== selected/);
-  assert.match(page, /returnFocusRef=\{payoutSectionRef\}/);
+  assert.match(page, /returnFocusRef=\{accountingTab==='CONTRACTS'\?payoutSectionRef:undefined\}/);
   assert.match(dialog, /finalFocus=\{returnFocusRef/);
   assert.match(dialog, /focus\(\{preventScroll:true\}\)/);
   assert.doesNotMatch(dialog, /onCloseAutoFocus/);

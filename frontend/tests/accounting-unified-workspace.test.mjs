@@ -44,6 +44,7 @@ test('Backend filters before pagination and scoping applies to all accounting ro
 test('GI-01 milestones differ from actual release and labels remain concise',()=>{
  const api=read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
  const ui=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+ const firstTable=ui.slice(ui.indexOf('<table className="block w-full text-left text-sm xl:table'),ui.indexOf('</table>',ui.indexOf('<table className="block w-full text-left text-sm xl:table'))+8);
  assert.match(api,/today == assessment\.ThresholdOn \? "THRESHOLD_REACHED" : "THRESHOLD_OVERDUE"/);
  assert.match(api,/e\.GapStartOn == assessment\.GapStartOn\.Value/);
  assert.match(api,/e\.Status == "RELEASED"/);

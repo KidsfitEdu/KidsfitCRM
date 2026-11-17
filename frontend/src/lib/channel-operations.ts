@@ -14,6 +14,7 @@ export type FinanceWorkspace = {
     net_collected_revenue: number;
   };
   ledger_total: number;
+  payout_total?: number;
   eligible_payout_total?: number;
   eligible_payouts?: {
     contract_id: number; contract_code: string; school_name: string;

@@ -12,7 +12,7 @@ test('central payout selection uses eligible contract and beneficiary scope',()=
   assert.match(page,/setSelected\(intent\.contractId\)/);
   assert.match(page,/setPayoutBeneficiary\(intent\.role\+':'\+intent\.beneficiaryUserId\)/);
   assert.match(page,/setPayoutPeriod\(intent\.period\)/);
-  assert.match(page,/const openDraft =/);
+  assert.match(page,/setEditingPayout\(payout\)/);
   assert.match(shared,/aria-label=\{ariaLabel\}/);
 });
 test('commission period is formatted for display without changing period submitted to API',()=>{

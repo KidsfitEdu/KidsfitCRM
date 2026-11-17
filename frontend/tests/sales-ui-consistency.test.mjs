@@ -107,3 +107,14 @@ test('Sales school list remains rounded and school drawer matches the shared scr
   assert.doesNotMatch(drawer, /alignToViewportEdge|extendHeaderToViewportEdge|calc\(100% - 100vw\)/);
   assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
 });
+
+test('Right-side CRM sheet removes root scrollbar gutter without changing scroll locking', () => {
+  const css = read('src/app/globals.css');
+  const sheet = read('src/components/ui/sheet.tsx');
+  const drawer = read('src/components/common/drawers/app-drawer.tsx');
+  assert.match(css, /html:has\(\[data-slot="sheet-content"\]\[data-side="right"\]\)/);
+  assert.match(css, /scrollbar-gutter: auto !important/);
+  assert.match(sheet, /data-side=\{side\}/);
+  assert.match(drawer, /overflow-y-auto overscroll-contain/);
+  assert.doesNotMatch(drawer, /alignToViewportEdge|extendHeaderToViewportEdge/);
+});

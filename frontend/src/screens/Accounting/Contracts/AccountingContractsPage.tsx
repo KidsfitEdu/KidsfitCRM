@@ -3,7 +3,7 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -886,13 +886,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               {detail.school_units.length>0?<ul className="grid gap-2 sm:grid-cols-2">{detail.school_units.map(unit=><li key={unit.id} className="min-w-0 rounded-lg bg-background px-3 py-2 text-sm font-medium break-words">{unit.name}</li>)}</ul>:<p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
             </div>
           </details>
-          {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><button key={x.id} type="button"
-            className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/40"
-            onClick={()=>void viewEvidence(x.id,x.file_name,true)} title="Mở hợp đồng trong tab mới">
-              <span className="flex min-w-0 items-center gap-2"><FileText className="size-4 shrink-0"/><span className="truncate">{x.file_name}</span></span>
-              <ExternalLink className="size-4 shrink-0" aria-hidden="true"/>
-            </button>)}
-          {detail.evidence.every(x=>x.kind!=='CONTRACT') && <p className="text-muted-foreground">Chưa có file hợp đồng đính kèm. {detail.data.evidence_reference ?? ''}</p>}
           </section>
         <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>

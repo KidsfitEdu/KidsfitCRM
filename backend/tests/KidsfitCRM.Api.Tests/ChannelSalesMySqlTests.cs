@@ -765,7 +765,7 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
             candidate => candidate.GetProperty("contract_id").GetInt64() == contractId
                 && candidate.GetProperty("beneficiary_user_id").GetInt64() == seller);
         var payout = Assert.Single(after.GetProperty("payouts").EnumerateArray()
-            .Where(item => item.GetProperty("id").GetInt64() == payoutId));
+            .Where(item => item.GetProperty("Id").GetInt64() == payoutId));
         Assert.Equal(contractId, Assert.Single(payout.GetProperty("contract_ids").EnumerateArray()).GetInt64());
         Assert.NotEmpty(payout.GetProperty("contract_codes").EnumerateArray());
         Assert.NotEmpty(payout.GetProperty("school_names").EnumerateArray());

@@ -137,31 +137,3 @@ test('Accounting original contract card does not duplicate contract evidence fro
   assert.match(renewal, /accessEvidence\(period\.evidence!,'view'\)/);
   assert.match(renewal, /accessEvidence\(period\.evidence!,'download'\)/);
 });
-
-
-test('Accounting exposes separate contract and finance actions without introducing a second drawer', () => {
-  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(page, /openContractDrawer\(row\.id,'CONTRACT'\)/);
-  assert.match(page, /openContractDrawer\(row\.id,'FINANCE'\)/);
-  assert.match(page, /icon=\{Eye\} tone="green"/);
-  assert.match(page, /icon=\{WalletCards\} tone="neutral"/);
-  assert.equal((page.match(/<AppDrawer\b/g)||[]).length, 1);
-  assert.match(page, /drawerMode==='CONTRACT'&&<>/);
-  assert.match(page, /drawerMode==='FINANCE'&&<>/);
-  assert.match(page, /<AccountingRenewalInline/);
-});
-
-test('Finance drawer separates verified renewal value from cumulative receipts and commissions', () => {
-  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(page, /financialPeriods\.filter\(p=>p\.service_confirmed\)/);
-  assert.match(page, /selectedFinancialPeriod\.total_value/);
-  assert.match(page, /Tổng giá trị đã xác nhận/);
-  assert.match(page, /Thực thu lũy kế/);
-  assert.match(page, /Hoa hồng ghi nhận lũy kế/);
-  assert.match(page, /Hoa hồng đã chi lũy kế/);
-  assert.match(page, /Không suy đoán kỳ dịch vụ|không suy đoán theo năm giao dịch/i);
-  assert.match(page, /financeDetailTab==='RECEIPTS'/);
-  assert.match(page, /financeDetailTab==='COMMISSION'/);
-  assert.match(page, /financeDetailTab==='PAYOUTS'/);
-  assert.match(page, /\/accounting\/contracts\/\$\{selected\}\/periods/);
-});

@@ -21,8 +21,7 @@ test('Accounting contract and payout lists share rounded cards, action icons and
   assert.match(s, /accountingTab==='CONTRACTS'&&<AdminListPanel className="min-w-0"/);
   assert.match(s, /accountingTab==='PAYOUTS'&&<AdminListPanel>/);
   assert.match(s, /<thead className=\{adminTableHeadClass\}>/);
-  assert.match(s, /<AdminIconAction icon=\{Eye\} tone="green" onClick=\{\(\)=>openContractDrawer\(row\.id,\x27CONTRACT\x27\)\}/);
-  assert.match(s, /<AdminIconAction icon=\{WalletCards\} tone="neutral" onClick=\{\(\)=>openContractDrawer\(row\.id,\x27FINANCE\x27\)\}/);
+  assert.match(s, /<AdminIconAction icon=\{Eye\} onClick=\{\(\)=>setSelected\(row\.id\)\}/);
   assert.match(s, /<AppStatusBadge size="sm" status=\{p\.status\}/);
   assert.match(s, /<item\.icon className="size-4 shrink-0"/);
   assert.match(s, /\[scrollbar-width:none\]/);

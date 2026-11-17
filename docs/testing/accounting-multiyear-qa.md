@@ -52,26 +52,3 @@ GROUP BY p.period,p.status,p.beneficiary_role ORDER BY p.period DESC;
 ## Phạm vi PR
 
 Chỉ UI và regression tests. **Chưa cung cấp fixture ghi dữ liệu 10 năm trong DB**, vì cần đi đúng luồng tài chính và không bỏ qua kiểm tra quyền/audit của backend. Bổ sung fixture tự động là bước riêng sau khi test trên DB cô lập.
-
-## Bàn giao giao diện tách chế độ — 17/11/2026
-
-- Từ bảng `Hợp đồng & thanh toán`, icon **Eye** mở hồ sơ hợp đồng, xác nhận tái ký và chứng từ; icon **WalletCards** mở Thanh toán & hoa hồng.
-- Hai chế độ dùng **một AppDrawer**, không mở 2 lớp chồng nhau. Trong chế độ tài chính có các tab Khoản thu / Hoa hồng / Phiếu chi; giữ nguyên API ghi nhận và phê duyệt có phân quyền.
-- Bộ chọn kỳ gọi `GET /accounting/contracts/{contractId}/periods`. **Chỉ giá trị kỳ hợp đồng** sử dụng metadata `total_value` của kỳ chọn. `Tổng giá trị đã xác nhận` cộng các kỳ `service_confirmed=true`, không tính `PENDING_ACCOUNTING`.
-- Các chỉ số `Thực thu lũy kế`, `Hoa hồng ghi nhận lũy kế`, `Hoa hồng đã chi lũy kế` lấy từ detail hiện có và **không đổi khi chọn kỳ**. Giao diện có cảnh báo rõ nếu đang chọn một kỳ cụ thể; không bao giờ lọc khoản thu theo `YEAR(received_at)`.
-- Khi có hoa hồng nhưng thực thu ròng bằng 0 hoặc âm, cảnh báo Kế toán đối soát thay vì tự thay đổi bút toán.
-
-### Backend / MySQL chưa đủ điều kiện triển khai tính tiền theo kỳ
-
-**Chưa có cơ sở để tự tạo lịch thu mới** khi `ContractRenewalEndpoints.Confirm` thành công: source chủ đích chỉ duyệt kỳ dịch vụ và cập nhật bảo vệ, chưa lập `revenue_schedules`. Trước khi viết migration/ghi dữ liệu cần xác định phương án chia khoản phải thu trong kỳ thanh toán tháng/năm, khách hàng trả trước/trả chậm, hoàn tiền, quyền lập lịch và xử lý các hợp đồng có lịch sử hiện có.
-
-Cần thiết kế quan hệ xác định **một** kỳ hợp đồng trên từng lịch thu; nếu gắn vào khoản thu thì phải thông qua lịch thu có nguồn gốc rõ ràng hoặc khóa đã được xác minh. Chỉ backfill dữ liệu cũ qua đối soát, không đoán từ ngày thu hoặc `commission_ledger_entries.period`.
-
-### Kiểm thử hồi quy bổ sung
-
-1. Mở Eye không hiển thị khoản thu/phiếu chi; vẫn thấy hợp đồng gốc và hồ sơ `PENDING_ACCOUNTING`.
-2. Mở WalletCards thấy 3 tab, chọn kỳ chỉ đổi giá trị kỳ và cảnh báo; số lũy kế giữ nguyên.
-3. Phiếu chi Sales/Quản lý có quyền tạo/gửi duyệt/ghi nhận chi như trước; không ghi trực tiếp `PAID` trong seed.
-4. Chọn kỳ chưa xác nhận không cộng vào tổng giá trị đã xác nhận.
-5. Đổi trường đang mở phải xóa kỳ chọn cũ, không hiển thị dữ liệu trường khác.
-6. Kiểm tra luồng keyboard/focus/scroll, mobile và dark mode trong browser khi có dữ liệu thật.

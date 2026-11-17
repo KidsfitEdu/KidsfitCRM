@@ -52,7 +52,7 @@ test('Receipt accrual uses board split on collected cash and does not automatica
 });
 
 test('Accounting separates contracts and role-specific payout overview',()=>{
-  assert.match(accounting,/Hợp đồng & thanh toán/);
+  assert.match(accounting,/Hợp đồng & khoản thu/);
   assert.match(accounting,/Phiếu chi hoa hồng/);
   assert.match(accounting,/beneficiary_role:currentBeneficiary\?\.role/);
   assert.match(accounting,/role="tab"/);

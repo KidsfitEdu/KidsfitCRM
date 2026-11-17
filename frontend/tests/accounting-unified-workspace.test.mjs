@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import test from 'node:test';
 
 const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
-test('Accounting keeps the eight-column workspace with one reusable detail Drawer',()=>{
+test('Accounting has one workspace table, eight columns, one detail Drawer and no tabs',()=>{
  const shell=read('src/screens/Accounting/Revenue/RevenuePage.tsx');
  const ui=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
  assert.doesNotMatch(shell,/AccountingTab|ServiceInterruptionPanel|ContractRenewalAccountingPanel/);
@@ -54,7 +54,7 @@ test('GI-01 milestones differ from actual release and labels remain concise',()=
  }
  assert.match(ui,/Đạt mốc/);
  assert.match(ui,/Mốc 12 tháng/);
- assert.match(ui,/Giá trị HĐ gốc<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(row\.total_value\)\}/);
+ assert.match(ui,/Giá trị hợp đồng<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(row\.total_value\)\}/);
  assert.match(ui,/Thực thu<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(amount\)\}/);
  assert.match(ui,/Hoa hồng ghi nhận<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(row\.commission\)\}/);
  assert.doesNotMatch(ui,/Đã thu sau hoàn tiền/);

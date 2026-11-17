@@ -54,8 +54,12 @@ test('GI-01 milestones differ from actual release and labels remain concise',()=
   'Đủ 12 tháng','Quá 12 tháng','Đã hết bảo vệ','Cần rà soát']) {
   assert.ok(ui.includes(label),'Missing state '+label);
  }
- assert.match(ui,/Đạt mốc/);
- assert.match(ui,/Mốc 12 tháng/);
+ // Milestone dates remain in backend and contract detail, not the compact list.
+ const tableStart=ui.indexOf('<table className="block w-full text-left text-sm xl:table');
+ const tableSection=ui.slice(tableStart,ui.indexOf('</table>',tableStart)+8);
+ assert.doesNotMatch(tableSection,/Mốc 12 tháng|Đạt mốc/);
+ assert.match(tableSection,/variant="kidsfit-service"/);
+ assert.match(tableSection,/w-\[16%\] px-2 py-3">Dịch vụ/);
  assert.doesNotMatch(firstTable,/channelMoney\(row\.total_value\)/);
  assert.match(firstTable,/Tổng thực thu/);
  assert.match(firstTable,/channelMoney\(row\.received\)/);
@@ -98,4 +102,18 @@ test('Accounting contract list keeps eight fields without forced table min width
  assert.match(ui,/channelMoney\(row\.received\)/);
  assert.doesNotMatch(ui,/const amount=Math\.max\(0,row\.received-row\.refunded\)/);
  assert.match(ui,/onClick=\{\(\)=>setSelected\(row\.id\)\}/);
+});
+
+
+test('Service column gets enough desktop width without changing shared badges or GI-01 backend',()=>{
+ const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+ const start=page.indexOf('<table className="block w-full text-left text-sm xl:table');
+ const table=page.slice(start,page.indexOf('</table>',start)+8);
+ const headings=[...table.matchAll(/<th scope="col" className="w-\[(\d+)%\]/g)].map(m=>Number(m[1]));
+ assert.deepEqual(headings,[19,12,10,16,12,12,13,6]);
+ assert.equal(headings.reduce((sum,value)=>sum+value,0),100);
+ assert.doesNotMatch(table,/row\.threshold_on/);
+ assert.match(table,/AppStatusBadge variant="kidsfit-service"/);
+ assert.match(table,/Đang sử dụng/);
+ assert.match(table,/Quá 12 tháng/);
 });

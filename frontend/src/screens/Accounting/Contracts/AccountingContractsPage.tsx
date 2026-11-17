@@ -3,11 +3,12 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { Fragment, useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPagination } from '@/components/common/app-pagination';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppSelect } from '@/components/common/app-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -180,6 +181,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [financePageSize,setFinancePageSize]=useState(20);
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeRole,setFinanceRole]=useState('ALL');
+  const [financeAdvancedOpen,setFinanceAdvancedOpen]=useState(false);
   const [financeOverview,setFinanceOverview]=useState<FinanceWorkspace|null>(null);
   const [payoutPickerOpen,setPayoutPickerOpen]=useState(false);
   const [payoutPickerSearch,setPayoutPickerSearch]=useState('');
@@ -728,11 +730,36 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       text.toLocaleLowerCase('vi-VN').includes(payoutPickerSearch.trim().toLocaleLowerCase('vi-VN'))));
   const candidateKey=(item:typeof eligibleCandidates[number])=>[item.contract_id,item.beneficiary_user_id,item.beneficiary_role,item.period].join(':');
   const chosenCandidate=payoutChoices.find(item=>candidateKey(item)===payoutCandidateKey);
+  const receiptCurrentYear=Number(accountingBusinessDay(new Date()).slice(0,4));
+  const receiptYearOptions=[{value:'ALL',label:'Tất cả các năm'},
+    ...Array.from({length:Math.min(32,receiptCurrentYear-2000+2)},(_,index)=>{
+      const year=String(receiptCurrentYear+1-index);
+      return {value:year,label:'Năm '+year};
+    })];
   const resetFinanceFilters=()=>{
     setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
     setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
   };
-  return <div className="space-y-5">
+  return <div className="min-w-0 space-y-5">
+    <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM"
+      title={accountingTab==='CONTRACTS'?'Hợp đồng & hoa hồng'
+        :accountingTab==='RECEIPTS'?'Khoản thu nhà trường':'Phiếu chi hoa hồng'}
+      description={accountingTab==='CONTRACTS'
+        ?'Theo dõi kỳ sử dụng, xử lý tái ký và đối soát tài chính trong một danh sách hợp đồng.'
+        :accountingTab==='RECEIPTS'
+          ?'Ghi nhận tiền nhà trường thanh toán và quản lý chứng từ theo hợp đồng.'
+          :'Lập phiếu, trình BGĐ phê duyệt và theo dõi chi trả hoa hồng Sales/Quản lý.'}
+      actions={accountingTab==='RECEIPTS'&&canRecordRevenue
+        ?<AppButton type="button" tone="green" premium
+          leadingIcon={<Plus aria-hidden="true" className="size-4"/>} onClick={openReceiptForm}>
+          Thêm mới
+        </AppButton>
+        :accountingTab==='PAYOUTS'&&canCreatePayout
+          ?<AppButton type="button" tone="green" premium
+            leadingIcon={<Plus aria-hidden="true" className="size-4"/>}
+            onClick={()=>{setPayoutPickerSearch('');setPayoutCandidateKey('');setPayoutPickerOpen(true);}}>
+            Thêm mới
+          </AppButton>:undefined}/>
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <div role="tablist" aria-label="Nghiệp vụ Kế toán"
       className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -887,61 +914,46 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </AdminListPanel>}
     {accountingTab==='RECEIPTS'&&<AdminListPanel className="min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
-        <div><h2 className="text-base font-bold">Quản lý khoản thu nhà trường</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Ghi nhận tiền thực nhận, đối chiếu và lưu chứng từ theo hợp đồng.</p></div>
-        {canRecordRevenue&&<Button type="button" size="sm" onClick={openReceiptForm}>
-          <Plus className="size-4" aria-hidden="true"/> Thêm mới</Button>}
-      </div>
-      <form className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-4 sm:px-6"
-        onSubmit={event=>{event.preventDefault();setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptPage(1);}}>
-        <div className="relative min-w-[210px] flex-[1_1_320px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
-          <Input aria-label="Tìm khoản thu" className="h-10 w-full rounded-lg pl-10"
-            placeholder="Tên trường, hợp đồng, mã giao dịch..." value={receiptSearch} onChange={event=>setReceiptSearch(event.target.value)}/>
-        </div>
-        <label htmlFor="accounting-receipt-year" className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          Năm nhận tiền
-          <Input id="accounting-receipt-year" type="number" min={2000} max={2100} className="h-10 w-32 rounded-lg"
-            value={receiptYear==='ALL'?'':receiptYear} placeholder="Tất cả"
-            onChange={event=>setReceiptYear(event.target.value||'ALL')}/>
-        </label>
-        <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
-        <AppButton type="button" tone="outline" size="icon-lg" className="h-10 w-10 min-w-10 rounded-lg p-0"
-          aria-label="Đặt lại bộ lọc khoản thu" title="Đặt lại bộ lọc"
-          onClick={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptPage(1);}}>
-          <RotateCcw className="size-4" aria-hidden="true"/>
-        </AppButton>
-      </form>
+      <AdminListToolbar search={receiptSearch} onSearchChange={setReceiptSearch}
+        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptPage(1);}}
+        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptPage(1);}}
+        searchLabel="Tìm khoản thu nhà trường"
+        placeholder="Tên trường, hợp đồng, mã giao dịch..."
+        filters={<AppSelect ariaLabel="Lọc năm nhận tiền" className="w-full sm:w-[190px]"
+          value={receiptYear} options={receiptYearOptions}
+          onValueChange={year=>setReceiptYear(year)}/>}/>
       {receiptLoading?<output className="block p-5 text-sm text-muted-foreground">Đang tải các khoản thu...</output>:
-      <div className="min-w-0">
-        <table className="block w-full text-left text-sm xl:table xl:table-fixed">
+      <div className="w-full overflow-x-auto">
+        <table className={adminTableClass+' table-fixed'}>
           <thead className={adminTableHeadClass}>
             <tr>
-              <th scope="col" className="w-[24%] px-3 py-3">Nhà trường / Hợp đồng</th>
-              <th scope="col" className="w-[14%] px-2 py-3">Ngày thu</th>
-              <th scope="col" className="w-[20%] px-2 py-3">Mã giao dịch</th>
-              <th scope="col" className="w-[17%] px-2 py-3 text-right">Số tiền</th>
-              <th scope="col" className="w-[16%] px-2 py-3">Trạng thái</th>
-              <th scope="col" className="w-[9%] px-2 py-3 text-center">Thao tác</th>
+              <th scope="col" className="w-[27%] px-4 py-3">Nhà trường / Hợp đồng</th>
+              <th scope="col" className="w-[14%] px-3 py-3">Ngày thu</th>
+              <th scope="col" className="w-[21%] px-3 py-3">Mã giao dịch</th>
+              <th scope="col" className="w-[17%] px-3 py-3 text-right">Số tiền</th>
+              <th scope="col" className="w-[13%] px-3 py-3">Trạng thái</th>
+              <th scope="col" className="w-[8%] px-2 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
-            {receiptRows.map(receipt=><tr key={receipt.id} className="even:bg-muted/20 hover:bg-muted/40">
-              <td className="min-w-0 px-3 py-3">
-                <p className="line-clamp-2 font-semibold" title={receipt.school_name}>{receipt.school_name}</p>
-                <p className="mt-1 break-words text-xs text-muted-foreground">{receipt.contract_code}</p>
+            {receiptRows.map(receipt=><tr key={receipt.id} className="transition-colors even:bg-muted/20 hover:bg-accent/60">
+              <td className="min-w-0 px-4 py-4 align-middle">
+                <p className="break-words font-semibold text-foreground" title={receipt.school_name}>{receipt.school_name}</p>
+                <p className="mt-1 break-all text-xs text-muted-foreground">{receipt.contract_code}</p>
               </td>
-              <td className="tabular-nums px-2 py-3">{channelDate(receipt.received_at)}</td>
-              <td className="min-w-0 break-all px-2 py-3">{receipt.reference_code}</td>
-              <td className="font-semibold tabular-nums px-2 py-3 text-right">{channelMoney(receipt.amount)}</td>
-              <td className="px-2 py-3"><AppStatusBadge status={receipt.status} tone="success" label="Đã ghi nhận" size="sm"/></td>
-              <td className="px-2 py-3 text-center">
-                <AdminIconAction icon={Eye} label={'Xem khoản thu '+receipt.reference_code} onClick={()=>setReceiptPreview(receipt)}/>
+              <td className="whitespace-nowrap px-3 py-4 align-middle tabular-nums">{channelDate(receipt.received_at)}</td>
+              <td className="min-w-0 break-all px-3 py-4 align-middle" title={receipt.reference_code}>{receipt.reference_code}</td>
+              <td className="whitespace-nowrap px-3 py-4 text-right align-middle font-semibold tabular-nums">{channelMoney(receipt.amount)}</td>
+              <td className="px-3 py-4 align-middle">
+                <AppStatusBadge status={receipt.status} tone="success" label="Đã ghi nhận" size="sm"/>
+              </td>
+              <td className="px-2 py-4 text-center align-middle">
+                <AdminIconAction icon={Eye} label={'Xem khoản thu '+receipt.reference_code}
+                  onClick={()=>setReceiptPreview(receipt)}/>
               </td>
             </tr>)}
-            {receiptRows.length===0&&<tr><td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
-              Không có khoản thu phù hợp. Chọn Thêm mới để ghi nhận giao dịch ngân hàng đã xác minh.
+            {receiptRows.length===0&&<tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
+              Không có khoản thu phù hợp. Dùng nút Thêm mới để ghi nhận tiền đã đối chiếu.
             </td></tr>}
           </tbody>
         </table>

@@ -261,8 +261,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
 
   useEffect(()=>{
     if(!connected||selected===null||drawerMode!=='FINANCE')return;
-    if(!abilities.includes('channel_sales.renewal.review')&&!abilities.includes('*')){
+    if(!canReviewRenewal){
       setFinancialPeriods([]);
+      setFinancialPeriodsLoading(false);
       setFinancialPeriodsError('Cần quyền xem lịch sử tái ký để chọn kỳ hợp đồng.');
       return;
     }
@@ -274,7 +275,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       .catch(err=>{if(live){setFinancialPeriods([]);setFinancialPeriodsError(err instanceof Error?err.message:'Không tải được danh sách kỳ hợp đồng.');}})
       .finally(()=>{if(live)setFinancialPeriodsLoading(false);});
     return()=>{live=false;};
-  },[connected,selected,drawerMode,apiBase,token,detailRevision,abilities]);
+  },[connected,selected,drawerMode,apiBase,token,detailRevision,canReviewRenewal]);
   const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
     if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
     if (!start || !end) return 'Chưa cập nhật';
@@ -324,10 +325,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
 
   const openContractDrawer=(id:number,mode:'CONTRACT'|'FINANCE')=>{
     setDrawerMode(mode);
+    setFinancialPeriods([]);
+    setFinancialPeriodsError('');
+    setFinancialPeriodsLoading(mode==='FINANCE');
     setFinancialPeriodId('ALL');
     setFinanceDetailTab('RECEIPTS');
     setSelected(id);
   };
+  const canReviewRenewal = abilities.includes('channel_sales.renewal.review') || abilities.includes('*');
   const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
   const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
   const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
@@ -649,7 +654,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <div role="tablist" aria-label="Nghiệp vụ Kế toán"
       className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {([{key:'CONTRACTS',label:'Hợp đồng & khoản thu',icon:FileCheck2},
+      {([{key:'CONTRACTS',label:'Hợp đồng & thanh toán',icon:FileCheck2},
          {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:HandCoins}] as const).map(item=>
         <button type="button" role="tab" key={item.key}
           aria-selected={accountingTab===item.key} onClick={()=>setAccountingTab(item.key)}
@@ -955,6 +960,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <Metric label="Hoa hồng ghi nhận lũy kế" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
             <Metric label="Hoa hồng đã chi lũy kế" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
           </div>
+          {detail.receipts.reduce((sum,x)=>sum+x.amount,0)-(detail.refunded_total??0)<=0&&detail.ledger.some(x=>x.amount>0)&&<p className="rounded-lg border border-amber-300/70 bg-amber-50/70 p-3 text-xs leading-5 text-amber-950 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-200">Có hoa hồng được ghi nhận nhưng thực thu ròng hiện bằng 0 hoặc âm. Cần đối soát bút toán lịch sử, điều chỉnh hoặc dữ liệu demo; không tự kết luận khoản chi hợp lệ.</p>}
           {!financialScopeIsAll&&<p className="rounded-lg border border-amber-300/70 bg-amber-50/70 p-3 text-xs leading-5 text-amber-950 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-200">
             Giá trị kỳ đã chọn hiển thị riêng ở trên. Khoản thu, hoa hồng và phiếu chi vẫn là toàn hợp đồng do API chưa gán giao dịch trực tiếp cho kỳ tái ký; không suy đoán theo năm giao dịch.
           </p>}

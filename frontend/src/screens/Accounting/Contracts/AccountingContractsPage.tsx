@@ -780,7 +780,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description="Kế toán / Chi tiết hợp đồng">
       {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
-        <div className="space-y-2 rounded-xl bg-muted/25 p-4 sm:p-5">
+        <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-4 sm:p-5">
           <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
           <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>
           <p className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
@@ -802,7 +802,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           onChanged={async()=>{setDetailRevision(v=>v+1);await load();await onChanged();}}/>}
         {rows.find(r=>r.id===selected)&&(()=>{
           const overview=rows.find(r=>r.id===selected)!;
-          return <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          return <section className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
             <h3 className="text-base font-bold">Tình trạng dịch vụ & quyền bảo vệ</h3>
             <AppStatusBadge variant="kidsfit-service" status={overview.service_status} label={{
               CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
@@ -830,7 +830,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </div>}
           </section>;
         })()}
-        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+        <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold text-foreground">Thông tin hợp đồng</h3>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&_dd]:break-words [&_dd]:leading-6 [&_dt]:text-xs">
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
@@ -893,7 +893,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             })}
           </div>
         </section>
-        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+        <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
@@ -1362,7 +1362,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
           <select name="schedule_id" required value={selectedScheduleId??''}
             onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);receiptAttempt.current=null;setFieldErrors({});}}
-            className="w-full rounded-lg border bg-background p-2">
+            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
               {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
           </select>{selectedScheduleId!==null&&<p className="text-xs text-muted-foreground">
@@ -1375,7 +1375,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               const id=Number(e.target.value);
               setSelectedPayoutId(id);receiptAttempt.current=null;setFieldErrors({});
               setAmountInput(String(detail.payouts.find(x=>x.id===id)?.net_amount??''));
-            }} className="w-full rounded-lg border bg-background p-2">
+            }} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
           </select>{fieldErrors.payout_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.payout_id}</span>}</label>}
         <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
@@ -1396,9 +1396,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required aria-invalid={Boolean(fieldErrors.proof)}/>
           {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
-        <div className="flex flex-wrap justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</Button>
-          <Button type="submit" disabled={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</Button>
+        <div className="flex flex-wrap justify-end gap-3 border-t border-border/70 pt-4">
+          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</AppButton>
+          <AppButton type="submit" tone="green" busy={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</AppButton>
         </div>
       </form>}
     </AppDialog>

@@ -41,6 +41,13 @@ test('Accounting renewal actions and reasons retain original security and endpoi
 
 test('Accounting renewal decisions open a shared branded confirmation dialog instead of an inline form',()=>{
   assert.match(ui, /<AppDialog open=\{decision!==null\}/);
+  const dialog=ui.slice(ui.indexOf('<AppDialog open={decision!==null}'),ui.indexOf('</AppDialog>')+12);
+  assert.doesNotMatch(dialog, /description=|rounded-xl border border-border\/70 bg-muted\/20|CRM tự kiểm tra quyền bảo vệ/);
+  assert.match(dialog, /Bạn có chắc chắn muốn xác nhận tái ký hợp đồng của/);
+  assert.match(dialog, /<strong>\{detail\?\.data\.school_name/);
+  assert.match(dialog, /Nội dung cần bổ sung/);
+  assert.match(dialog, /Lý do từ chối/);
+
   assert.match(ui, /busy=\{busy\} contentClassName="sm:max-w-lg"/);
   for(const decision of ["confirm","request-info","reject"])
     assert.ok(ui.includes("openDecision('"+decision+"')"),decision);

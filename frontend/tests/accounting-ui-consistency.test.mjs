@@ -22,7 +22,8 @@ test('Accounting contract and payout lists share rounded cards, action icons and
   assert.match(s, /accountingTab==='PAYOUTS'&&<AdminListPanel className="min-w-0">/);
   assert.match(s, /<thead className=\{adminTableHeadClass\}>/);
   assert.match(s, /<AppPageHeader eyebrow="KẾ TOÁN \/ KIDSFIT CRM"/);
-  assert.match(s, /filters=\{<AppSelect ariaLabel="Lọc năm nhận tiền"/);
+  assert.match(s, /ariaLabel="Lọc trạng thái khoản thu"/);
+  assert.match(s, /ariaLabel="Lọc năm nhận tiền"/);
   assert.match(s, /tone="blue" label=\{'Sửa phiếu chi '/);
   assert.match(s, /<AdminIconAction icon=\{Eye\} onClick=\{\(\)=>openContract\(row\.id\)\}/);
   assert.match(s, /<AppStatusBadge size="sm" status=\{p\.status\}/);

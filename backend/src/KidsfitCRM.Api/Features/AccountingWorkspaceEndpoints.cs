@@ -23,12 +23,42 @@ public static class AccountingWorkspaceEndpoints
     {
         group.MapGet("/accounting/workspace", List)
             .RequireAuthorization(Permissions.ChannelSalesCommissionView);
+        group.MapGet("/accounting/receivable-contracts", ReceivableContracts)
+            .RequireAuthorization(Permissions.ChannelSalesRecordRevenue);
         group.MapGet("/accounting/receipts", Receipts)
             .RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/accounting/contracts/{contractId:long}/renewals", Renewals)
             .RequireAuthorization(Permissions.ContractRenewalReview);
         group.MapGet("/accounting/contracts/{contractId:long}/service-history", ServiceHistory)
             .RequireAuthorization(Permissions.ChannelSalesCommissionView);
+    }
+
+    public static async Task<IResult> ReceivableContracts(HttpContext http, KidsfitDbContext db,
+        string? search, int? page, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesRecordRevenue)) return Results.Forbid();
+        var term = (search ?? "").Trim();
+        if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
+        var pn = Math.Max(1, page ?? 1);
+        var scope = access.Contracts(db).AsNoTracking().Where(c => c.VerifiedAt.HasValue
+            && c.Status == "ACTIVE"
+            && db.RevenueSchedules.Any(schedule => schedule.ContractId == c.Id
+                && schedule.AmountReceived < schedule.AmountDue));
+        if (term.Length > 0)
+            scope = scope.Where(c => c.ContractCode.Contains(term)
+                || db.ChannelCustomers.Any(school => school.Id == c.CustomerId
+                    && school.DisplayName.Contains(term)));
+        var total = await scope.CountAsync(ct);
+        var data = await (from contract in scope
+            join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+            orderby school.DisplayName, contract.Id
+            select new { id = contract.Id, code = contract.ContractCode,
+                school_name = school.DisplayName,
+                amount_remaining = db.RevenueSchedules.Where(x => x.ContractId == contract.Id)
+                    .Sum(x => (decimal?)(x.AmountDue - x.AmountReceived)) ?? 0m })
+            .Skip((pn - 1) * 50).Take(50).ToArrayAsync(ct);
+        return Results.Ok(new { data, total, page = pn, page_size = 50 });
     }
 
     /// <summary>

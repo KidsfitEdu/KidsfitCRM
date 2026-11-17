@@ -5,7 +5,7 @@ import { Eye, History, Pencil, Send, Trash2 } from 'lucide-react';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { AppSelect } from '@/components/common/app-select';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
-import { AdminStatusBadge } from '@/components/common/admin-list-ui';
+import { AppStatusBadge, type AppStatusTone } from '@/components/common/app-status-badge';
 import { workflowLabels, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 
 type Proposal = SchoolOperationsWorkspace['proposals'][number];
@@ -24,6 +24,15 @@ type Props = {
   onEdit?: (proposal: Proposal) => void;
   onDelete?: (proposal: Proposal) => void;
   onSubmitDraft?: (proposal: Proposal) => void;
+};
+
+const proposalStatusTone: Record<string, AppStatusTone> = {
+  DRAFT: 'neutral',
+  NEEDS_REVISION: 'warning',
+  PENDING_MANAGER: 'warning',
+  PENDING_ADMIN: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'danger',
 };
 
 // Keep school name and area visually adjacent; reserve enough room for draft action icons.
@@ -62,11 +71,12 @@ export function SalesProposalTable({
         <p className="mt-0.5 truncate" title={item.province || 'Chưa cập nhật'}>{item.province || 'Chưa cập nhật'}</p>
       </div>
       <div className="min-w-0 truncate text-sm" title={item.submitted_by}>{item.submitted_by}</div>
-      <div className="flex justify-center"><AdminStatusBadge label={workflowLabels[item.status] ?? item.status} status={item.status}/></div>
+      <div className="flex justify-center"><AppStatusBadge label={workflowLabels[item.status] ?? 'Chưa xác định'} status={item.status}
+        tone={proposalStatusTone[item.status] ?? 'neutral'} size="sm"/></div>
       <div className="flex min-w-0 items-center justify-end gap-1.5 whitespace-nowrap">
         <AdminIconAction icon={Eye} label={`Xem đề xuất ${item.name}`} onClick={() => onOpen(item)}/>
         {item.can_edit_draft && <>
-          <AdminIconAction icon={Pencil} label={`Sửa bản nháp ${item.name}`} onClick={() => onEdit?.(item)}/>
+          <AdminIconAction icon={Pencil} tone="blue" label={`Sửa bản nháp ${item.name}`} onClick={() => onEdit?.(item)}/>
           <AdminIconAction icon={Trash2} tone="red" label={`Xóa bản nháp ${item.name}`} onClick={() => onDelete?.(item)}/>
           <AdminIconAction icon={Send} label={`Gửi phê duyệt ${item.name}`} onClick={() => onSubmitDraft?.(item)}/>
         </>}

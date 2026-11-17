@@ -103,7 +103,7 @@ const statusCopy = {
     label: 'Đang tiếp cận',
     compact: 'Bảo vệ 5 ngày',
     className:
-      'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+      'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200',
   },
   CONTRACTED: {
     label: 'Đã ký hợp đồng',
@@ -117,13 +117,13 @@ const statusCopy = {
 const contractBadge = (customer: ChannelCustomer) => {
   if (customer.contract_id == null) return statusCopy[customer.visible_status];
   const status = customer.contract_status?.toUpperCase();
-  const blue = 'border-blue-200 bg-blue-50 text-blue-800';
-  const amber = 'border-amber-200 bg-amber-50 text-amber-800';
-  const red = 'border-red-200 bg-red-50 text-red-800';
+  const blue = 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200';
+  const amber = 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200';
+  const red = 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200';
   if (status === 'PENDING_REVIEW' || status === 'MANAGER_REVIEW')
-    return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: blue };
+    return { label: 'Chờ Quản lý duyệt', compact: 'Hồ sơ đã gửi', className: amber };
   if (status === 'MANAGER_REVIEWED' || status === 'SENT_TO_CHECKEE' || status === 'IN_VERIFICATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING_CHECKEE' || status === 'UNDER_VERIFICATION')
-    return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: blue };
+    return { label: 'Chờ CHECKEE xác minh', compact: 'CHECKEE đang xử lý', className: amber };
   if (status === 'NEEDS_REVISION' || status === 'NEEDS_INFO' || status === 'RETURNED')
     return { label: 'Cần bổ sung hồ sơ', compact: 'Bổ sung hồ sơ hiện có', className: amber };
   if (status === 'REJECTED')
@@ -396,7 +396,7 @@ export function ChannelSalesView({
         />
       </section>}
 
-      <Card className={embedded ? 'overflow-hidden rounded-none border-0 shadow-none' : 'overflow-hidden border-0 shadow-sm ring-1 ring-border/80'}>
+      <Card className={embedded ? 'overflow-hidden rounded-2xl border-0 ring-0 bg-card shadow-sm' : 'overflow-hidden border-0 shadow-sm ring-1 ring-border/80'}>
         <CardContent className="p-0">
           {embedded ? <form onSubmit={event=>{event.preventDefault();setSearch(draftSearch.trim());setListPage(1);}}
             className="flex flex-wrap items-center gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
@@ -493,11 +493,48 @@ export function ChannelSalesView({
       </Card>
 
       <AppDrawer open={detailCustomer !== null} onOpenChange={open => { if (!open) setDetailCustomer(null); }}
-        title={detailCustomer?.display_name ?? 'Hồ sơ trường học'}
-        description={detailCustomer?.code ?? ''} wide>
-        {profileError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
-        {!schoolProfile && !profileError && <p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
-        {schoolProfile && <SchoolProfileDetails units={schoolProfile.school_units} />}
+        title="Thông tin trường học" compactHeader
+        bodyClassName="space-y-4 bg-muted/10">
+        {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
+        {!schoolProfile && !profileError && <output className="block text-sm text-muted-foreground">Đang tải thông tin trường…</output>}
+        {schoolProfile && <>
+          <section className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Building2 className="size-6" aria-hidden="true"/>
+              </span>
+              <div className="min-w-0 space-y-1.5">
+                <h2 className="break-words text-base font-bold text-foreground">{schoolProfile.data.display_name}</h2>
+                <p className="text-xs text-muted-foreground">{detailCustomer?.code || 'Chưa cập nhật mã trường'}</p>
+                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${detailCustomer ? contractBadge(detailCustomer).className : statusCopy.AVAILABLE.className}`}>
+                  {detailCustomer ? contractBadge(detailCustomer).label : 'Chưa cập nhật trạng thái'}
+                </span>
+              </div>
+            </div>
+          </section>
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <Building2 className="size-4 text-primary" aria-hidden="true"/>Thông tin trường chính
+            </h3>
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+              {([
+                ['Địa chỉ', [schoolProfile.data.address, schoolProfile.data.province].filter(Boolean).join(', ')],
+                ['Số điện thoại', schoolProfile.data.phone],
+                ['Email', schoolProfile.data.email],
+                ['Người liên hệ', schoolProfile.data.contact_name],
+                ['Chức vụ', schoolProfile.data.contact_position],
+                ['Mã số thuế', schoolProfile.data.tax_code],
+              ] as [string, string | null][]).map(([label,value])=>
+                <div key={label} className="min-w-0 space-y-1">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="break-words font-medium text-foreground">{value || 'Chưa cập nhật'}</dd>
+                </div>)}
+            </dl>
+          </section>
+          <section className="rounded-2xl border border-border bg-card p-4">
+            <SchoolProfileDetails units={schoolProfile.school_units}/>
+          </section>
+        </>}
       </AppDrawer>
       {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
         onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}
@@ -700,23 +737,23 @@ function CustomerRow({
         ) : (
           <>
             <p className="font-medium">{customer.phone ?? '—'}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {customer.next_follow_up_at
-                ? `Hẹn ${dateTime(customer.next_follow_up_at)}`
-                : 'Chưa có lịch hẹn'}
-            </p>
+            {customer.next_follow_up_at && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Hẹn {dateTime(customer.next_follow_up_at)}
+              </p>
+            )}
           </>
         )}
       </div>}
       <div className="flex flex-wrap justify-end gap-2 xl:min-w-44">
         {mineMode && <>
-          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onOpenDetail}
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800 hover:bg-green-50 hover:text-green-900 dark:border-green-500 dark:text-green-300 dark:hover:bg-green-950" onClick={onOpenDetail}
             disabled={!onOpenDetail} title="Xem chi tiết trường" aria-label={`Xem chi tiết ${customer.display_name}`}><Eye className="size-4"/></Button>
           {canAddActivity && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && (
-            <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onActivity}
+            <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-sky-600 text-sky-700 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950" onClick={onActivity}
               title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
           )}
-          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-800" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
           {showExtension && (
             <span title={extensionHint} className="inline-flex" aria-label={extensionBlocked ? `${extensionHint} - ${customer.display_name}` : undefined}>
@@ -758,7 +795,7 @@ function CustomerRow({
         {!mineMode && customer.visible_status === 'APPROACHING' && (
           <>
             {canAddActivity && customer.can_manage_approach && (
-              <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
+              <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-sky-600 text-sky-700 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950"
                 title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}>
                 <SquarePen className="size-4" aria-hidden="true"/>
               </Button>
@@ -1488,22 +1525,11 @@ function DialogFooter({
           {error}
         </p>
       )}
-      <div className="mt-6 flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-          className="rounded-xl"
-        >
-          Hủy
-        </Button>
-        <Button
-          type="submit"
-          disabled={saving}
-          className="rounded-xl bg-[#1b5e20] hover:bg-[#124c17]"
-        >
+      <div className="sticky bottom-0 z-10 -mx-5 mt-6 flex flex-wrap justify-end gap-3 border-t border-border bg-card/95 px-5 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6">
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={onClose}>Hủy</AppButton>
+        <AppButton type="submit" tone="green" busy={saving}>
           {saving ? 'Đang lưu…' : label}
-        </Button>
+        </AppButton>
       </div>
     </>
   );

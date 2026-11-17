@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock3, Eye, FileImage, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Clock3, Eye, FileImage, ExternalLink, Wallet, FileCheck2 } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
+import { AppStatCard } from '@/components/common/app-stat-card';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
@@ -89,16 +90,15 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
     {!permitted && <p role="alert" className="rounded-lg border p-4 text-sm">Tài khoản chưa có quyền xem hoa hồng.</p>}
     {permitted && <>
       {error && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{error}</p>}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {[
-          ['Tổng hoa hồng',data?.summary.accrued??0],
-          ['Đã nhận',data?.summary.paid??0],
-          ['Chưa nhận',data?.summary.unpaid??0],
-          ['Hợp đồng có hoa hồng',data?.summary.contracts??0]
-        ].map(([label,value],i)=><div key={String(label)} className="rounded-xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="mt-2 text-xl font-bold tabular-nums">{i===3?value:channelMoney(Number(value))}</p>
-        </div>)}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <AppStatCard icon={Wallet} label="Tổng hoa hồng" value={data ? channelMoney(data.summary.accrued) : '—'}
+          description="Tổng hoa hồng đã ghi nhận"/>
+        <AppStatCard icon={CheckCircle2} label="Đã nhận" value={data ? channelMoney(data.summary.paid) : '—'}
+          description="Số tiền đã thanh toán"/>
+        <AppStatCard icon={Clock3} label="Chưa nhận" value={data ? channelMoney(data.summary.unpaid) : '—'}
+          description="Hoa hồng còn chờ thanh toán"/>
+        <AppStatCard icon={FileCheck2} label="Hợp đồng có hoa hồng" value={data ? data.summary.contracts : '—'}
+          description="Số hợp đồng phát sinh hoa hồng"/>
       </div>
       <SalesListLayout
         columns={['Trường học','Tỷ lệ HH','Hoa hồng','Đã nhận','Thao tác']}

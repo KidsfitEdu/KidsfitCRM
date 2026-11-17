@@ -6,11 +6,11 @@ import test from 'node:test';
 const root = resolve(import.meta.dirname, '..');
 const read = (path) => readFileSync(resolve(root, 'src', path), 'utf8');
 
-test('Sales dashboard uses a clear task table without duplicate shortcut cards', () => {
+test('Sales dashboard prioritizes real operational work without unsupported appointments', () => {
   const source = read('components/roles/SalesDashboard.tsx');
-  assert.match(source, /Lịch tư vấn sắp tới/);
-  assert.match(source, /<table\s/);
-  assert.doesNotMatch(source, /Lối tắt công việc/);
+  assert.match(source, /Công việc cần theo dõi/);
+  assert.match(source, /<section aria-labelledby="sales-priority-heading"/);
+  assert.doesNotMatch(source, /Lịch tư vấn sắp tới|nextFollowups|<table\s|Lối tắt công việc/);
   assert.match(source, /onSalesNavigate/);
 });
 

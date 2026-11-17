@@ -394,3 +394,21 @@ body { font-family: var(--font-brand); }
   .crm-skeleton, .crm-page-enter, .crm-global-progress-bar { animation: none !important; }
   .crm-page-enter { transform: none !important; }
 }
+
+/*
+ * Base UI locks document scrolling while a modal Sheet is open and may set
+ * inline scrollbar-gutter: stable, overflow: hidden scroll on <html>, plus
+ * a scrollbar-compensated body width. That reserves a blank strip beside
+ * right-side drawers in browsers with classic scrollbars.
+ *
+ * Scope the overrides to a mounted right-side Sheet. Keep the page locked
+ * with overflow: hidden, but remove the reserved gutter and body width
+ * compensation. The Drawer body retains its own overflow-y-auto scrolling.
+ */
+html:has([data-slot="sheet-content"][data-side="right"]) {
+  scrollbar-gutter: auto !important;
+  overflow: hidden !important;
+}
+html:has([data-slot="sheet-content"][data-side="right"]) body {
+  width: 100% !important;
+}

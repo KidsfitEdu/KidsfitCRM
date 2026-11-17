@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { Plus } from 'lucide-react';
+import { FilePenLine, Plus, School, ShieldCheck, UserRoundPlus } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { ChannelOperations } from '@/components/crm/channel-operations';
@@ -87,21 +87,22 @@ export function SalesFocusPage({section, ...props}: Props) {
         onClick={() => proposalActionRef.current?.open()}>Thêm mới</AppButton> : undefined}/>
     {contained ? <section className="min-w-0 space-y-5">
       {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
-        className="flex flex-wrap gap-x-6 gap-y-1 border-b border-border bg-transparent">
+        className="flex gap-5 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-6">
         {[
-          {id:'main',label:'Trường đang phụ trách'},
-          {id:'invitations',label:'Chờ nhận phân bổ'},
+          {id:'main',label:'Trường đang phụ trách',icon:School},
+          {id:'invitations',label:'Chờ nhận phân bổ',icon:UserRoundPlus},
           ...(section==='customers' && can('channel_sales.renewal.submit')
-            ? [{id:'renewals',label:'Hợp đồng tái ký'}] : []),
+            ? [{id:'renewals',label:'Hợp đồng tái ký',icon:FilePenLine}] : []),
           ...(section==='customers' && can('channel_sales.customer.view')
-            ? [{id:'protection',label:'Quản lý quyền bảo vệ'}] : []),
+            ? [{id:'protection',label:'Quản lý quyền bảo vệ',icon:ShieldCheck}] : []),
         ].map(item => <button key={item.id} type="button"
           onClick={() => setSubview(item.id as typeof subview)}
           aria-current={subview === item.id ? 'page' : undefined}
-          className={`-mb-px border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${subview === item.id
+          className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${subview === item.id
             ? 'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
             : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
-          {item.label}
+          <item.icon className="size-4 shrink-0" aria-hidden="true"/>
+          <span>{item.label}</span>
         </button>)}
       </nav>}
       {section==='customers' && subview==='renewals'

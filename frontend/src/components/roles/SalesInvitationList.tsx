@@ -5,10 +5,17 @@ import { CheckCircle2, History, XCircle } from 'lucide-react';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { AppSelect } from '@/components/common/app-select';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
-import { Badge } from '@/components/ui/badge';
+import { AppStatusBadge, type AppStatusTone } from '@/components/common/app-status-badge';
 import { workflowDate, workflowLabels, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 
 type Invitation = SchoolOperationsWorkspace['invitations'][number];
+const invitationStatusTone: Record<string, AppStatusTone> = {
+  PENDING: 'warning',
+  ACCEPTED: 'success',
+  REJECTED: 'danger',
+  EXPIRED: 'danger',
+  CANCELLED: 'neutral',
+};
 const columns = 'minmax(230px,2fr) minmax(145px,1fr) minmax(135px,1fr) minmax(125px,.9fr) minmax(145px,auto)';
 
 export function SalesInvitationList({
@@ -47,7 +54,10 @@ export function SalesInvitationList({
       </div>
       <div>{x.assignee_name}</div>
       <div className="tabular-nums">{workflowDate(x.respond_by)}</div>
-      <div><Badge variant="outline">{x.is_expired ? 'Đã hết hạn' : workflowLabels[x.status] ?? x.status}</Badge></div>
+      <div><AppStatusBadge size="sm"
+        status={x.is_expired ? 'EXPIRED' : x.status}
+        label={x.is_expired ? 'Đã hết hạn' : workflowLabels[x.status] ?? 'Chưa xác định'}
+        tone={x.is_expired ? 'danger' : invitationStatusTone[x.status] ?? 'neutral'}/></div>
       <div className="flex justify-end gap-2">
         {x.can_respond && <>
           <AdminIconAction icon={CheckCircle2} label={`Nhận trường ${x.school_name}`} onClick={() => onAccept(x)}/>

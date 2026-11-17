@@ -78,8 +78,8 @@ test('Sales tabs follow accounting underline pattern and proposal table retains 
   const proposals = read('src/components/crm/school-operations.tsx');
   const table = read('src/components/roles/SalesProposalTable.tsx');
   assert.doesNotMatch(focus, /lg:w-\\[30%\\]/);
-  assert.match(focus, /flex flex-wrap gap-x-6 gap-y-1 border-b border-border/);
-  assert.match(focus, /-mb-px border-b-2 px-1 py-3 text-sm font-semibold/);
+  assert.match(focus, /flex gap-5 overflow-x-auto border-b border-border/);
+  assert.match(focus, /-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2/);
   assert.match(focus, /border-\[#1b5e20\]/);
   assert.match(focus, /min-w-0 space-y-5/);
   assert.doesNotMatch(focus, /rounded-t-\[24px\]/);
@@ -128,7 +128,10 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(sales.includes('serverMine ? minePage?.total ?? 0 : customers.length'));
   assert.ok(sales.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
   assert.ok(sales.includes('aria-label={`Báo hợp đồng ${customer.display_name}`}'));
-  assert.ok(dashboard.includes('aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}'));
+  // Shared icon actions generate aria-label from the supplied Vietnamese label.
+  assert.ok(dashboard.includes('label={`Mở ${item.label}`}'));
+  const sharedActions = read('src/components/common/admin-list-ui.tsx');
+  assert.match(sharedActions, /aria-label=\{label\}/);
   assert.ok(operations.includes('Nhận trường ${x.school_name}'));
   assert.ok(operations.includes('Từ chối gia hạn ${x.school_name}'));
   assert.ok(operations.includes('<AppPagination page={page}'));

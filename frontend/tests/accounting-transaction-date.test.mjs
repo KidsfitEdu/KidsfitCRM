@@ -12,7 +12,8 @@ test('DateOnly is compared directly without UTC/local calendar conversion', () =
   assert.equal(contractSignedDay('2026-11-12T00:00:00Z'), '2026-11-12');
   assert.equal(contractSignedDay('11/12/2026'), null);
   assert.doesNotMatch(source, /accountingBusinessDay\(new Date\(detail\.data\.signed_on\)\)/);
-  assert.match(source, /contractSignedDay\(detail\.data\.signed_on\)/);
+  assert.match(source, /paymentTerm\?\.renewal_signed_on\?\?detail\.data\.signed_on/);
+  assert.match(source, /contractSignedDay\(entryMode==='receipt'/);
 });
 
 test('Receipt accepts signed date, rejects previous day, and disallows future days', () => {

@@ -30,10 +30,10 @@ test('All statuses label is concise, with complete payout lifecycle options',()=
 });
 test('Search applies on submission, pagination resets with filters, and uses all filtered rows',()=>{
   assert.match(page,/const \[financeAppliedSearch,setFinanceAppliedSearch\]/);
-  assert.match(page,/financeAppliedSearch\.trim\(\)\.toLocaleLowerCase/);
+  assert.match(page,/params\.set\('search',financeAppliedSearch\)/);
   assert.match(part,/setFinanceAppliedSearch\(financeSearch\.trim\(\)\);setFinancePage\(1\)/);
-  assert.match(page,/const visiblePayouts=displayedPayouts\.slice\(\(financePage-1\)\*financePageSize,financePage\*financePageSize\)/);
-  assert.match(part,/total=\{displayedPayouts.length\}/);
+  assert.match(page,/const visiblePayouts=payoutRows/);
+  assert.match(part,/total=\{payoutTotal\}/);
   assert.match(part,/pageSizeOptions=\{\[10,20,50,100\]\}/);
   assert.match(part,/onPageChange=\{setFinancePage\}/);
   assert.match(part,/onReset=\{resetFinanceFilters\}/);
@@ -43,7 +43,7 @@ test('Payout tracking is UI-only and contract detail workflow remains available'
   assert.match(page,/accountingTab==='CONTRACTS'/);
   assert.match(page,/setSelected\(row.id\)/);
   assert.match(page,/\/payouts\/\$\{.*\}\/submit/);
-  assert.match(page,/financeOverview\?\.payouts/);
+  assert.match(page,/\/accounting\/payouts\?/);
   assert.match(part,/title=\{p.code\}/);
   assert.match(part,/channelMoney\(p.net_amount\)/);
 });

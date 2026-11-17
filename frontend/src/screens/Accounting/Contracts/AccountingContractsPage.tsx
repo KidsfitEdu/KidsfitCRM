@@ -195,6 +195,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [busy, setBusy] = useState(false);
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
   const connected = Boolean(apiBase && token && canView);
+  const canReviewRenewal = abilities.includes('channel_sales.renewal.review') || abilities.includes('*');
   const load = useCallback(async () => {
     if (!connected) return;
     setBusy(true);
@@ -332,7 +333,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setFinanceDetailTab('RECEIPTS');
     setSelected(id);
   };
-  const canReviewRenewal = abilities.includes('channel_sales.renewal.review') || abilities.includes('*');
   const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
   const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
   const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');

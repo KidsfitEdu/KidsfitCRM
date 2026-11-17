@@ -340,3 +340,13 @@ body { font-family: var(--font-brand); }
   .crm-skeleton, .crm-page-enter, .crm-global-progress-bar { animation: none !important; }
   .crm-page-enter { transform: none !important; }
 }
+
+/*
+ * Base UI modal scroll locking sets an inline scrollbar-gutter: stable on <html>.
+ * With classic scrollbars this leaves a blank strip to the right of fixed
+ * CRM drawers. Override only while a right-side Sheet is mounted: Base UI
+ * still owns the page scroll lock and the drawer keeps its own scrolling.
+ */
+html:has([data-slot="sheet-content"][data-side="right"]) {
+  scrollbar-gutter: auto !important;
+}

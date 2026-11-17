@@ -10,7 +10,6 @@ import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
-import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -530,9 +529,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     }else{
       const payout=detail.payouts.find(x=>x.id===intent.payoutId);
       if(!payout){appNotice.error('Không tìm thấy phiếu trong hợp đồng đã chọn.');}
-      else if(intent.mode==='EDIT'){openDraft(payout);}
-      else if(payout.status==='APPROVED'){openPayoutPayment(payout.id);}
-      else {appNotice.error('Phiếu chưa được phê duyệt để ghi nhận chuyển khoản.');}
+      else if(intent.mode==='EDIT'){
+        setEditingPayout(payout);setPayoutError('');
+        setPayoutRate(String(payout.requested_rate_percent));
+        setPayoutRequestedAmount(String(payout.requested_amount));
+        setPayoutAdjustmentReason(payout.adjustment_reason??'');
+        setPayoutWithholding(String(payout.withholding_amount??0));
+        setPayoutWithholdingReason(payout.withholding_reason??'');
+        payoutKey.current=null;setPayoutDialogOpen(true);
+      }else if(payout.status==='APPROVED'){
+        setFieldErrors({});
+        setSelectedPayoutId(payout.id);setSelectedScheduleId(null);
+        setAmountInput(String(payout.net_amount));
+        receiptAttempt.current=null;setEntryMode('payout');
+      }else {appNotice.error('Phiếu chưa được phê duyệt để ghi nhận chuyển khoản.');}
     }
     setCentralPayoutIntent(null);
   // Act only on a newly selected intent and its loaded contract; never auto-reopen on refresh.

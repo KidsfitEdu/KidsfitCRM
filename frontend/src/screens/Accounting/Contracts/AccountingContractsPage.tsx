@@ -463,6 +463,53 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setTransactionDate(accountingBusinessDay(new Date()));setTransactionReference('');
     setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode(null);
   };
+  const openEditReceiptDraft=(draft:ReceiptRow)=>{
+    setEditingReceiptDraft(draft);
+    setSelected(draft.contract_id);setDetail(null);
+    setReceivableSearch('');setReceivablePage(1);
+    setTransactionDate(draft.received_at?accountingBusinessDay(new Date(draft.received_at)):'');
+    setTransactionReference(draft.reference_code);
+    setAmountInput(draft.amount?String(draft.amount):'');
+    setFieldErrors({});setEntryMode(null);setReceiptIntent(true);
+  };
+  const saveReceiptDraft=async()=>{
+    if(selected===null||!detail||saving)return;
+    const amount=amountInput.trim()?parseMoneyInput(amountInput):null;
+    if(amount!==null&&(!Number.isSafeInteger(amount)||amount<=0)){
+      setFieldErrors(previous=>({...previous,amount:'Số tiền phải là số nguyên dương.'}));return;
+    }
+    setSaving(true);
+    try{
+      const request={
+        contract_id:selected,revenue_schedule_id:selectedScheduleId,amount,
+        received_at:transactionDate?accountingTransactionTimestamp(transactionDate):null,
+        reference_code:transactionReference.trim()||null,payment_method:'BANK_TRANSFER'
+      };
+      await channelRequest(apiBase,token,
+        editingReceiptDraft?'/accounting/receipt-drafts/'+editingReceiptDraft.id:'/accounting/receipt-drafts',{
+        method:editingReceiptDraft?'PATCH':'POST',body:JSON.stringify(request)
+      });
+      setReceiptIntent(false);setEntryMode(null);setSelected(null);setEditingReceiptDraft(null);
+      setReceiptStatus('DRAFT');setReceiptAppliedStatus('DRAFT');
+      setReceiptPage(1);setReceiptRevision(value=>value+1);
+      appNotice.success('Đã lưu khoản thu Nháp. Chưa ghi nhận tiền hoặc hoa hồng.');
+    }catch(error){appNotice.error('Không lưu được khoản thu Nháp.',
+      error instanceof Error?error.message:'Vui lòng thử lại.');}
+    finally{setSaving(false);}
+  };
+  const cancelReceiptDraft=async()=>{
+    if(cancelReceiptDraftId===null||saving)return;
+    setSaving(true);
+    try{
+      await channelRequest(apiBase,token,
+        '/accounting/receipt-drafts/'+cancelReceiptDraftId+'/cancel',{method:'POST'});
+      setCancelReceiptDraftId(null);
+      setReceiptRevision(value=>value+1);
+      appNotice.success('Đã hủy Nháp; không xóa chứng từ tài chính đã ghi nhận.');
+    }catch(error){appNotice.error('Không hủy được khoản thu Nháp.',
+      error instanceof Error?error.message:'Vui lòng thử lại.');}
+    finally{setSaving(false);}
+  };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (selected === null || !detail || !entryMode) return;
@@ -533,13 +580,30 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       }
       attemptedEvidenceId=attempt.evidenceId;
       if(entryMode==='receipt'){
-        await channelRequest(apiBase,token,`/contracts/${selected}/revenue-receipts`,{
-          method:'POST',body:JSON.stringify({
-            idempotency_key:attempt.key,revenue_schedule_id:scheduleId,
-            received_at:timestamp,amount,reference_code:reference,
-            payment_method:'BANK_TRANSFER',evidence_id:attempt.evidenceId,
-          }),
-        });
+        if(editingReceiptDraft){
+          // Keep draft staging in sync; authoritative posting still performs
+          // all receipt, evidence, limit and commission checks on the server.
+          await channelRequest(apiBase,token,
+            '/accounting/receipt-drafts/'+editingReceiptDraft.id,{
+            method:'PATCH',body:JSON.stringify({
+              contract_id:selected,revenue_schedule_id:scheduleId,amount,
+              received_at:timestamp,reference_code:reference,
+              payment_method:'BANK_TRANSFER'
+            })
+          });
+          await channelRequest(apiBase,token,
+            '/accounting/receipt-drafts/'+editingReceiptDraft.id+'/post',{
+            method:'POST',body:JSON.stringify({evidence_id:attempt.evidenceId})
+          });
+        }else{
+          await channelRequest(apiBase,token,`/contracts/${selected}/revenue-receipts`,{
+            method:'POST',body:JSON.stringify({
+              idempotency_key:attempt.key,revenue_schedule_id:scheduleId,
+              received_at:timestamp,amount,reference_code:reference,
+              payment_method:'BANK_TRANSFER',evidence_id:attempt.evidenceId
+            })
+          });
+        }
       }else{
         await channelRequest(apiBase,token,`/payouts/${payoutId}/complete`,{
           method:'POST',body:JSON.stringify({
@@ -551,7 +615,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       receiptAttempt.current=null;
       setEntryMode(null);
       setDetailRevision(v=>v+1);
-      if(entryMode==='receipt'){setReceiptRevision(v=>v+1);setReceiptIntent(false);}
+      if(entryMode==='receipt'){
+        setReceiptRevision(v=>v+1);setReceiptIntent(false);setEditingReceiptDraft(null);
+        setReceiptStatus('COMPLETED');setReceiptAppliedStatus('COMPLETED');
+        setReceiptPage(1);
+      }
       appNotice.success(entryMode==='receipt'?'Đã ghi nhận khoản thu.':'Đã ghi nhận khoản chi hoa hồng.');
       await load();
     }catch(cause){

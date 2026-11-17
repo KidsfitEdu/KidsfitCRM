@@ -993,7 +993,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
           </select>{fieldErrors.payout_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.payout_id}</span>}</label>}
         <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
-          <Input id="accounting-transaction-date" type="date" name="transaction_date" required aria-invalid={Boolean(fieldErrors.transaction_date)} defaultValue={accountingBusinessDay(new Date())}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
+          <Input id="accounting-transaction-date" type="date" name="transaction_date" required
+            aria-invalid={Boolean(fieldErrors.transaction_date)} value={transactionDate}
+            onChange={event=>setTransactionDate(event.target.value)}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
         <div className="space-y-1"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
           <div className="relative">
             <AppCurrencyInput id="accounting-amount" name="amount"
@@ -1005,13 +1007,17 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           {fieldErrors.amount && <p role="alert" className="text-xs text-red-700">{fieldErrors.amount}</p>}</div>
         {entryMode==='payout' && <p className="text-xs text-muted-foreground">Số tiền chi phải khớp phiếu chi đã duyệt; chưa hỗ trợ chia nhỏ một phiếu chi.</p>}
         <div className="space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch ngân hàng *</label>
-          <Input id="accounting-bank-reference" name="reference_code" required maxLength={64} aria-invalid={Boolean(fieldErrors.reference_code)}/>{fieldErrors.reference_code && <p role="alert" className="text-xs text-red-700">{fieldErrors.reference_code}</p>}</div>
+          <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}
+            aria-invalid={Boolean(fieldErrors.reference_code)} value={transactionReference}
+            onChange={event=>setTransactionReference(event.target.value)}/>{fieldErrors.reference_code && <p role="alert" className="text-xs text-red-700">{fieldErrors.reference_code}</p>}</div>
         <div className="space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chứng từ chuyển khoản *</label>
           <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required aria-invalid={Boolean(fieldErrors.proof)}/>
           {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
         <div className="flex flex-wrap justify-end gap-3 border-t border-border/70 pt-4">
-          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{setEntryMode(null);if(entryMode==='receipt'){setReceiptIntent(false);setSelected(null);}}}>Hủy</AppButton>
+          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{setEntryMode(null);if(entryMode==='receipt'){setReceiptIntent(false);setSelected(null);setEditingReceiptDraft(null);}}}>Hủy</AppButton>
+          {entryMode==='receipt'&&<AppButton type="button" tone="outline" disabled={saving}
+            onClick={()=>void saveReceiptDraft()}>{editingReceiptDraft?'Cập nhật Nháp':'Lưu nháp'}</AppButton>}
           <AppButton type="submit" tone="green" busy={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</AppButton>
         </div>
       </form>
@@ -1191,13 +1197,19 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     </AdminListPanel>}
     {accountingTab==='RECEIPTS'&&<AdminListPanel className="min-w-0">
       <AdminListToolbar search={receiptSearch} onSearchChange={setReceiptSearch}
-        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptPage(1);}}
-        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptPage(1);}}
+        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptAppliedStatus(receiptStatus);setReceiptPage(1);}}
+        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptStatus('COMPLETED');setReceiptAppliedStatus('COMPLETED');setReceiptPage(1);}}
         searchLabel="Tìm khoản thu nhà trường"
         placeholder="Tên trường, hợp đồng, mã giao dịch..."
-        filters={<AppSelect ariaLabel="Lọc năm nhận tiền" className="w-full sm:w-[190px]"
-          value={receiptYear} options={receiptYearOptions}
-          onValueChange={year=>setReceiptYear(year)}/>}/>
+        filters={<div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <AppSelect ariaLabel="Lọc trạng thái khoản thu" className="w-full sm:w-[170px]"
+            value={receiptStatus}
+            options={[{value:'COMPLETED',label:'Đã ghi nhận'},{value:'DRAFT',label:'Nháp'}]}
+            onValueChange={status=>{const next=status as 'COMPLETED'|'DRAFT';setReceiptStatus(next);setReceiptAppliedStatus(next);setReceiptPage(1);}}/>
+          {receiptStatus==='COMPLETED'&&<AppSelect ariaLabel="Lọc năm nhận tiền"
+            className="w-full sm:w-[175px]" value={receiptYear} options={receiptYearOptions}
+            onValueChange={year=>setReceiptYear(year)}/>}
+        </div>}/>
       {receiptLoading?<output className="block p-5 text-sm text-muted-foreground">Đang tải các khoản thu...</output>:
       <div className="w-full overflow-x-auto">
         <table className={adminTableClass+' table-fixed'}>
@@ -1217,19 +1229,35 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 <p className="break-words font-semibold text-foreground" title={receipt.school_name}>{receipt.school_name}</p>
                 <p className="mt-1 break-all text-xs text-muted-foreground">{receipt.contract_code}</p>
               </td>
-              <td className="whitespace-nowrap px-3 py-4 align-middle tabular-nums">{channelDate(receipt.received_at)}</td>
-              <td className="min-w-0 break-all px-3 py-4 align-middle" title={receipt.reference_code}>{receipt.reference_code}</td>
-              <td className="whitespace-nowrap px-3 py-4 text-right align-middle font-semibold tabular-nums">{channelMoney(receipt.amount)}</td>
+              <td className="whitespace-nowrap px-3 py-4 align-middle tabular-nums">
+                {receipt.received_at?channelDate(receipt.received_at):'Chưa nhập'}
+              </td>
+              <td className="min-w-0 break-all px-3 py-4 align-middle" title={receipt.reference_code||undefined}>
+                {receipt.reference_code||'Chưa nhập'}
+              </td>
+              <td className="whitespace-nowrap px-3 py-4 text-right align-middle font-semibold tabular-nums">
+                {receipt.amount>0?channelMoney(receipt.amount):'Chưa nhập'}
+              </td>
               <td className="px-3 py-4 align-middle">
-                <AppStatusBadge status={receipt.status} tone="success" label="Đã ghi nhận" size="sm"/>
+                <AppStatusBadge status={receipt.status}
+                  tone={receipt.status==='DRAFT'?'neutral':'success'}
+                  label={receipt.status==='DRAFT'?'Nháp':'Đã ghi nhận'} size="sm"/>
               </td>
               <td className="px-2 py-4 text-center align-middle">
-                <AdminIconAction icon={Eye} label={'Xem khoản thu '+receipt.reference_code}
-                  onClick={()=>setReceiptPreview(receipt)}/>
+                <div className="flex items-center justify-center gap-2">
+                  <AdminIconAction icon={Eye} label={'Xem khoản thu '+(receipt.reference_code||receipt.id)}
+                    onClick={()=>setReceiptPreview(receipt)}/>
+                  {receipt.status==='DRAFT'&&<>
+                    <AdminIconAction icon={Pencil} tone="blue" label={'Sửa khoản thu nháp '+receipt.id}
+                      onClick={()=>openEditReceiptDraft(receipt)}/>
+                    <AdminIconAction icon={Trash2} tone="red" label={'Hủy khoản thu nháp '+receipt.id}
+                      onClick={()=>setCancelReceiptDraftId(receipt.id)}/>
+                  </>}
+                </div>
               </td>
             </tr>)}
             {receiptRows.length===0&&<tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
-              Không có khoản thu phù hợp. Dùng nút Thêm mới để ghi nhận tiền đã đối chiếu.
+              Không có khoản thu phù hợp. Chọn Thêm mới để tạo Nháp hoặc ghi nhận giao dịch đã đối chiếu.
             </td></tr>}
           </tbody>
         </table>
@@ -1340,7 +1368,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
     </AdminListPanel>}
     <AppDialog open={receiptIntent} onOpenChange={open=>{if(!open&&!saving){setReceiptIntent(false);setEntryMode(null);setSelected(null);}}}
-      title="Thêm khoản thu từ nhà trường" description="Bước 1: Chọn trường có đợt thanh toán chưa hoàn tất; bước 2: nhập giao dịch và tải chứng từ.">
+      title={editingReceiptDraft?'Chỉnh sửa khoản thu Nháp':'Thêm khoản thu từ nhà trường'}
+      description="Chọn trường và đợt thanh toán; có thể lưu Nháp trước khi ghi nhận tiền và hoa hồng.">
       {entryMode==='receipt'&&detail?financialTransactionForm:<div className="space-y-4">
         <label htmlFor="receivable-contract-search" className="block space-y-1 text-sm font-medium">
           <span>Tìm nhà trường / Hợp đồng</span>
@@ -1376,16 +1405,33 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>}
     </AppDialog>
+    <AppDialog open={cancelReceiptDraftId!==null}
+      onOpenChange={open=>{if(!open&&!saving)setCancelReceiptDraftId(null);}}
+      title="Hủy khoản thu Nháp"
+      description="Chỉ hủy Nháp chưa ghi nhận. Không xóa bất kỳ giao dịch hay hoa hồng đã phát sinh.">
+      <div className="space-y-4">
+        <p className="text-sm">Bạn có chắc chắn muốn hủy Nháp này? Hành động sẽ được lưu vào lịch sử hệ thống.</p>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" disabled={saving}
+            onClick={()=>setCancelReceiptDraftId(null)}>Giữ lại</Button>
+          <Button type="button" variant="destructive" disabled={saving}
+            onClick={()=>void cancelReceiptDraft()}>{saving?'Đang xử lý...':'Hủy Nháp'}</Button>
+        </div>
+      </div>
+    </AppDialog>
     <AppDialog open={receiptPreview!==null} onOpenChange={open=>{if(!open)setReceiptPreview(null);}}
-      title="Chi tiết khoản thu" description="Khoản thu đã ghi nhận không được sửa/xóa trực tiếp vì có thể phát sinh hoa hồng.">
+      title={receiptPreview?.status==='DRAFT'?'Chi tiết khoản thu Nháp':'Chi tiết khoản thu'}
+      description={receiptPreview?.status==='DRAFT'
+        ?'Nháp chưa ghi nhận tiền hoặc hoa hồng; có thể chỉnh sửa trước khi ghi nhận.'
+        :'Khoản thu đã ghi nhận không được sửa/xóa trực tiếp vì có thể phát sinh hoa hồng.'}>
       {receiptPreview&&<div className="space-y-4 text-sm">
         <dl className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2">
           <div><dt className="text-xs text-muted-foreground">Nhà trường</dt><dd className="mt-1 font-semibold">{receiptPreview.school_name}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 break-all">{receiptPreview.contract_code}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Ngày nhận</dt><dd className="mt-1">{channelDate(receiptPreview.received_at)}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Mã giao dịch</dt><dd className="mt-1 break-all">{receiptPreview.reference_code}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Tổng tiền đã nhận</dt><dd className="mt-1 font-bold tabular-nums text-primary">{channelMoney(receiptPreview.amount)}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Trạng thái</dt><dd className="mt-1">Đã ghi nhận</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Ngày nhận</dt><dd className="mt-1">{receiptPreview.received_at?channelDate(receiptPreview.received_at):'Chưa nhập'}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Mã giao dịch</dt><dd className="mt-1 break-all">{receiptPreview.reference_code||'Chưa nhập'}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Tổng tiền đã nhận</dt><dd className="mt-1 font-bold tabular-nums text-primary">{receiptPreview.amount>0?channelMoney(receiptPreview.amount):'Chưa nhập'}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Trạng thái</dt><dd className="mt-1">{receiptPreview.status==='DRAFT'?'Nháp':'Đã ghi nhận'}</dd></div>
         </dl>
         <div className="flex justify-end gap-2">
           {receiptPreview.proof_id&&receiptPreview.proof_file_name&&<Button type="button" variant="outline"

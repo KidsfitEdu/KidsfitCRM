@@ -66,13 +66,19 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
     </div>
     <section aria-labelledby="accounting-work-heading"
       className="crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card">
-      <div className="border-b border-border/70 px-5 py-4 sm:px-6">
-        <h3 id="accounting-work-heading" className="flex items-center gap-2 text-base font-bold text-foreground">
-          <FileCheck2 className="size-5 text-primary" aria-hidden="true"/>Nghiệp vụ tài chính
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Xử lý hồ sơ và kiểm tra chứng từ trong danh sách hợp đồng được phân quyền.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
+        <div>
+          <h3 id="accounting-work-heading" className="flex items-center gap-2 text-base font-bold text-foreground">
+            <FileCheck2 className="size-5 text-primary" aria-hidden="true"/>Nghiệp vụ tài chính
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Xử lý hồ sơ và kiểm tra chứng từ trong danh sách hợp đồng được phân quyền.
+          </p>
+        </div>
+        {connected && onSalesNavigate && <AppButton type="button" tone="outline" size="sm"
+          aria-label="Mở Hợp đồng và hoa hồng" onClick={openContracts}>
+          Xem danh sách <ArrowUpRight className="size-4" aria-hidden="true"/>
+        </AppButton>}
       </div>
       <div className="grid gap-0 divide-y divide-border/70 md:grid-cols-2 md:divide-x md:divide-y-0">
         <div className="flex min-w-0 items-center justify-between gap-4 px-5 py-5 sm:px-6">
@@ -80,20 +86,14 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
             <p className="font-semibold text-foreground">Hợp đồng & khoản thu</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">Xem kỳ dịch vụ, xác nhận tái ký và chứng từ khoản thu.</p>
           </div>
-          {onSalesNavigate && <AppButton type="button" tone="outline" size="sm"
-            aria-label="Mở danh sách hợp đồng và khoản thu" onClick={openContracts}>
-            Mở <ArrowUpRight className="size-4" aria-hidden="true"/>
-          </AppButton>}
+
         </div>
         <div className="flex min-w-0 items-center justify-between gap-4 px-5 py-5 sm:px-6">
           <div className="min-w-0">
             <p className="font-semibold text-foreground">Phiếu chi hoa hồng</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">Theo dõi nháp, phê duyệt và chứng từ đã thanh toán.</p>
           </div>
-          {onSalesNavigate && <AppButton type="button" tone="outline" size="sm"
-            aria-label="Mở màn hình hợp đồng và phiếu chi hoa hồng" onClick={openContracts}>
-            Mở <ArrowUpRight className="size-4" aria-hidden="true"/>
-          </AppButton>}
+}
         </div>
       </div>
     </section>

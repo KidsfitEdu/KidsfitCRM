@@ -909,7 +909,89 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageChange={setFinancePage}
         onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
     </AdminListPanel>}
-    <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
+    <AppDialog open={payoutPreview!==null}
+      onOpenChange={open=>{if(!open)setPayoutPreview(null);}}
+      title={payoutPreview?'Phiếu chi · '+payoutPreview.code:'Chi tiết phiếu chi'}
+      description="Kiểm tra nguồn hoa hồng và lịch sử trước khi thao tác. Các chức năng chỉ xuất hiện theo quyền.">
+      {payoutPreview&&<div className="space-y-4 text-sm">
+        <div className="grid gap-3 rounded-xl border border-border/80 bg-muted/20 p-4 sm:grid-cols-2">
+          <div><p className="text-xs text-muted-foreground">Người hưởng</p>
+            <p className="mt-1 font-semibold">{payoutPreview.beneficiary_name} · {payoutPreview.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Kỳ hoa hồng</p>
+            <p className="mt-1 font-medium">{payoutPeriodLabel(payoutPreview.period)}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Trường / Hợp đồng</p>
+            <p className="mt-1 break-words font-medium">{payoutPreview.school_names?.join(', ')||'Chưa xác định'}</p>
+            <p className="mt-1 break-words text-xs text-muted-foreground">{payoutPreview.contract_codes?.join(', ')||'Không có mã hợp đồng'}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Trạng thái phiếu</p>
+            <p className="mt-1 font-semibold">{payoutStatusLabel(payoutPreview.status)}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Đề nghị chi</p>
+            <p className="mt-1 font-semibold tabular-nums">{channelMoney(payoutPreview.requested_amount)}</p>
+            <p className="text-xs text-muted-foreground">Theo hệ thống: {channelMoney(payoutPreview.suggested_amount)}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Thực chi sau khấu trừ</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-primary">{channelMoney(payoutPreview.net_amount)}</p>
+            <p className="text-xs text-muted-foreground">Khấu trừ: {channelMoney(payoutPreview.withholding_amount)}</p>
+          </div>
+          {payoutPreview.paid_at&&<div><p className="text-xs text-muted-foreground">Ngày chuyển khoản</p>
+            <p className="mt-1 font-medium">{channelDate(payoutPreview.paid_at)}</p></div>}
+          {payoutPreview.payment_reference&&<div><p className="text-xs text-muted-foreground">Mã giao dịch</p>
+            <p className="mt-1 break-all font-medium">{payoutPreview.payment_reference}</p></div>}
+          {payoutPreview.adjustment_reason&&<div className="sm:col-span-2">
+            <p className="text-xs text-muted-foreground">Lý do điều chỉnh</p>
+            <p className="mt-1 whitespace-pre-wrap break-words">{payoutPreview.adjustment_reason}</p></div>}
+          {payoutPreview.withholding_reason&&<div className="sm:col-span-2">
+            <p className="text-xs text-muted-foreground">Lý do khấu trừ</p>
+            <p className="mt-1 whitespace-pre-wrap break-words">{payoutPreview.withholding_reason}</p></div>}
+        </div>
+        <section className="space-y-2" aria-label="Lịch sử xử lý phiếu chi">
+          <h3 className="font-semibold">Lịch sử xử lý</h3>
+          {payoutPreview.events.length===0?<p className="text-xs text-muted-foreground">Chưa có lịch sử xử lý.</p>:
+            payoutPreview.events.map((event,index)=><div key={index} className="border-l-2 border-border pl-3 text-xs">
+              <p className="font-semibold">{event.event_type}</p>
+              <p className="mt-1 text-muted-foreground">{channelDate(event.created_at)}</p>
+              {event.reason&&<p className="mt-1 whitespace-pre-wrap break-words">{event.reason}</p>}
+            </div>)}
+        </section>
+        {payoutPreview.contract_ids?.length!==1&&<p className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          Phiếu lịch sử liên quan nhiều hợp đồng hoặc chưa xác định nguồn. Không thể tự chọn một trường để sửa hay chuyển khoản.
+        </p>}
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
+          {payoutPreview.contract_ids?.length===1&&<Button type="button" size="sm" variant="outline"
+            onClick={()=>{setSelected(payoutPreview.contract_ids![0]);setAccountingTab('CONTRACTS');setPayoutPreview(null);}}>
+            <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
+          </Button>}
+          {(payoutPreview.status==='DRAFT'||payoutPreview.status==='CHANGES_REQUESTED')&&canCreatePayout
+            &&payoutPreview.contract_ids?.length===1&&<Button type="button" size="sm" variant="outline" disabled={saving}
+              onClick={()=>openCentralPayout({contractId:payoutPreview.contract_ids![0],beneficiaryUserId:payoutPreview.beneficiary_user_id,
+                role:payoutPreview.beneficiary_role,period:payoutPreview.period,mode:'EDIT',payoutId:payoutPreview.id})}>
+              <Pencil className="size-4" aria-hidden="true"/> Sửa phiếu
+            </Button>}
+          {(payoutPreview.status==='DRAFT'||payoutPreview.status==='CHANGES_REQUESTED')&&canCreatePayout
+            &&<Button type="button" size="sm" disabled={saving}
+              onClick={()=>{const id=payoutPreview.id;setPayoutPreview(null);void submitPayout(id);}}>
+              <Send className="size-4" aria-hidden="true"/> Gửi BGĐ duyệt
+            </Button>}
+          {payoutPreview.status==='PENDING_APPROVAL'&&canApprovePayout&&<>
+            <Button type="button" size="sm" variant="outline" disabled={saving}
+              onClick={()=>{setReturningPayoutId(payoutPreview.id);setPayoutPreview(null);}}>Yêu cầu bổ sung</Button>
+            <Button type="button" size="sm" disabled={saving}
+              onClick={()=>{const id=payoutPreview.id;setPayoutPreview(null);void approvePayout(id);}}>Duyệt phiếu</Button>
+          </>}
+          {payoutPreview.status==='APPROVED'&&canCompletePayout&&payoutPreview.contract_ids?.length===1&&
+            <Button type="button" size="sm" disabled={saving}
+              onClick={()=>openCentralPayout({contractId:payoutPreview.contract_ids![0],
+                beneficiaryUserId:payoutPreview.beneficiary_user_id,role:payoutPreview.beneficiary_role,
+                period:payoutPreview.period,mode:'COMPLETE',payoutId:payoutPreview.id})}>
+              <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
+            </Button>}
+        </div>
+      </div>}
+    </AppDialog>
+    <AppDrawer wide compactAccountingHeader open={selected !== null && accountingTab==='CONTRACTS'} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description="Kế toán / Chi tiết hợp đồng">
       {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
@@ -1403,7 +1485,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>
     </AppDialog>
-    <AppDialog returnFocusRef={payoutSectionRef} open={Boolean(detail&&payoutDialogOpen)}
+    <AppDialog returnFocusRef={accountingTab==='CONTRACTS'?payoutSectionRef:undefined} open={Boolean(detail&&payoutDialogOpen)}
       onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open){payoutKey.current=null;setEditingPayout(null);}}}}
       busy={saving} title={editingPayout?'Chỉnh sửa phiếu chi Nháp':'Lập phiếu chi hoa hồng'}
       description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh.">
@@ -1488,7 +1570,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" className="w-full sm:w-auto"
             disabled={saving} onClick={()=>{setPayoutDialogOpen(false);payoutKey.current=null;}}>Hủy</Button>
-          <Button type="submit" className="w-full sm:w-auto" disabled={saving||!chosenPeriod}>
+          <Button type="submit" className="w-full sm:w-auto" disabled={saving||(!editingPayout&&!chosenPeriod)}>
             {saving?'Đang lưu...':'Lưu nháp'}
           </Button>
         </div>

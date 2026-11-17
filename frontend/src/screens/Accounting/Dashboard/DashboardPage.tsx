@@ -93,7 +93,6 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
             <p className="font-semibold text-foreground">Phiếu chi hoa hồng</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">Theo dõi nháp, phê duyệt và chứng từ đã thanh toán.</p>
           </div>
-}
         </div>
       </div>
     </section>

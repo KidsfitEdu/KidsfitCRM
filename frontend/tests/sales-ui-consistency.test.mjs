@@ -122,3 +122,14 @@ test('Right-side CRM sheet removes root scrollbar gutter without changing scroll
   assert.match(drawer, /overflow-y-auto overscroll-contain/);
   assert.doesNotMatch(drawer, /alignToViewportEdge|extendHeaderToViewportEdge/);
 });
+
+test('Sales school action icons distinguish view, edit and history in both list modes', () => {
+  const source = read('src/components/crm/channel-sales-view.tsx');
+  const row = source.slice(source.indexOf('function CustomerRow({'), source.indexOf('function ExtensionDialog({'));
+  assert.match(row, /onClick=\{onOpenDetail\}[\s\S]*?border-green-700 text-green-800/);
+  assert.match(row, /border-sky-600 text-sky-700[\s\S]*?onClick=\{onActivity\}/);
+  assert.match(row, /border-slate-300 text-slate-600[\s\S]*?onClick=\{onHistory\}/);
+  assert.match(row, /aria-label=\{`Cập nhật tư vấn \$\{customer\.display_name\}\`\}/);
+  assert.doesNotMatch(row, /: 'Chưa có lịch hẹn'/);
+  assert.match(row, /\{customer\.next_follow_up_at && \(/);
+});

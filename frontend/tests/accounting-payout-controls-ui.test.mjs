@@ -6,16 +6,14 @@ import {resolve} from 'node:path';
 const page=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingContractsPage.tsx'),'utf8');
 const shared=readFileSync(resolve(import.meta.dirname,'../src/components/common/app-select.tsx'),'utf8');
 
-test('payout selectors reuse accessible app selects with matching height and balanced layout',()=>{
-  assert.match(page,/id="accounting-payout-beneficiary" ariaLabel="Người hưởng hoa hồng"/);
-  assert.match(page,/id="accounting-payout-period" ariaLabel="Kỳ hoa hồng để lập phiếu chi"/);
-  assert.match(page,/sm:grid-cols-2 lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1fr\)_auto\]/);
-  assert.match(page,/value=\{currentBeneficiary\?\.key\?\?''\}/);
-  assert.match(page,/onValueChange=\{value=>\{setPayoutBeneficiary\(value\);setPayoutPeriod\(''\);payoutKey\.current=null;\}\}/);
-  assert.match(page,/onValueChange=\{setPayoutPeriod\}/);
-  assert.match(shared,/!h-10 min-w-0/);
-  assert.doesNotMatch(page,/<select aria-label="Người hưởng hoa hồng"/);
-  assert.doesNotMatch(page,/<select aria-label="Kỳ hoa hồng để lập phiếu chi"/);
+test('central payout selection uses eligible contract and beneficiary scope',()=>{
+  assert.match(page,/const openCentralPayout=/);
+  assert.match(page,/setCentralPayoutIntent\(intent\)/);
+  assert.match(page,/setSelected\(intent\.contractId\)/);
+  assert.match(page,/setPayoutBeneficiary\(intent\.role\+':'\+intent\.beneficiaryUserId\)/);
+  assert.match(page,/setPayoutPeriod\(intent\.period\)/);
+  assert.match(page,/const openDraft =/);
+  assert.match(shared,/aria-label=\{ariaLabel\}/);
 });
 test('commission period is formatted for display without changing period submitted to API',()=>{
   assert.match(page,/const payoutPeriodLabel = \(period: string\)/);
@@ -25,11 +23,12 @@ test('commission period is formatted for display without changing period submitt
   assert.match(page,/eligibleByPeriod\.get\(period\)/);
   assert.match(page,/period:chosenPeriod/);
 });
-test('draft payout actions become accessible icon-only controls but retain existing authorization and handlers',()=>{
-  assert.match(page,/AdminIconAction icon=\{Pencil\} tone="neutral" disabled=\{saving\}/);
-  assert.match(page,/label=\{\x60Sửa phiếu nháp \$\{x\.code\}\x60\} onClick=\{\(\)=>openDraft\(x\)\}/);
-  assert.match(page,/AdminIconAction icon=\{Send\} tone="green" disabled=\{saving\}/);
-  assert.match(page,/onClick=\{\(\)=>void submitPayout\(x\.id\)\}/);
-  assert.match(page,/\(x\.status==='DRAFT'\|\|x\.status==='CHANGES_REQUESTED'\)&&canCreatePayout/);
-  assert.match(shared,/aria-label=\{ariaLabel\}/);
+test('draft payout actions remain permission guarded in the central payout detail dialog',()=>{
+  assert.match(page,/payoutPreview\.status==='DRAFT'/);
+  assert.match(page,/canCreatePayout/);
+  assert.match(page,/mode:'EDIT'/);
+  assert.match(page,/mode:'COMPLETE'/);
+  assert.match(page,/submitPayout\(id\)/);
+  assert.match(page,/approvePayout\(id\)/);
+  assert.match(page,/setReturningPayoutId\(payoutPreview\.id\)/);
 });

@@ -73,21 +73,23 @@ test('Login has retry and safe fallback to edit credentials', () => {
   assert.match(login, /validateLogin\(email, password\)/);
 });
 
-test('Mascot is shared, has retry and respects reduced motion', () => {
-  const mascot = source('components/common/mascot-loading-state.tsx');
+test('Shared loading and error states replace owl with actionable retry', () => {
+  const loading = source('components/common/app-loading.tsx');
   const styles = source('app/globals.css');
-  assert.match(mascot, /function KidsfitOwl/);
-  assert.match(mascot, /viewBox="0 0 180 146"/);
-  assert.match(mascot, /w-\[112px\] sm:w-\[124px\]/);
-  assert.match(mascot, /max-w-\[340px\]/);
-  assert.match(mascot, /sleeping=\{!loading\}/);
-  assert.match(mascot, /crm-owl-progress/);
-  assert.match(mascot, /aria-label="Đang tải dữ liệu/);
-  assert.match(mascot, /aria-live=/);
-  assert.match(mascot, /role=\{loading \? 'status' : 'alert'\}/);
-  assert.match(mascot, /Thử kết nối lại/);
-  assert.match(styles, /@keyframes crm-owl-blink/);
-  assert.match(styles, /@keyframes crm-owl-breathe/);
-  assert.match(styles, /@keyframes crm-owl-progress/);
+  const app = source('components/crm/crm-app.tsx');
+  const login = source('screens/Auth/Login/LoginPage.tsx');
+  assert.match(loading, /export function PageLoading/);
+  assert.match(loading, /export function AppRequestErrorState/);
+  assert.match(loading, /title = 'Không thể tải nội dung'/);
+  assert.match(loading, /onRetry && <Button/);
+  assert.match(app, /<AppRequestErrorState fullScreen title="Không thể kết nối máy chủ"/);
+  assert.match(app, /setRetryIndex\(index => index \+ 1\)/);
+  assert.match(app, /setHealthRetryIndex\(index => index \+ 1\)/);
+  assert.match(login, /<PageLoading label="Đang kết nối và xác thực tài khoản/);
+  assert.match(login, /<AppRequestErrorState fullScreen title="Không thể kết nối máy chủ"/);
+  assert.match(login, /Quay lại đăng nhập/);
+  assert.doesNotMatch(app, /MascotLoadingState/);
+  assert.doesNotMatch(login, /MascotLoadingState/);
+  assert.doesNotMatch(styles, /crm-owl-|mascot-float/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
 });

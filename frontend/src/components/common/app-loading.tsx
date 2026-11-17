@@ -36,10 +36,12 @@ export function InlineLoading({ label = 'Đang tải...' }: { label?: string }) 
 }
 
 /** Generic request errors must not be mistaken for a backend outage. */
-export function AppRequestErrorState({ detail, onRetry }: { detail?: string; onRetry?: () => void }) {
-  return <section role="alert" className="flex min-h-[260px] flex-col items-center justify-center gap-3 px-6 text-center">
+export function AppRequestErrorState({ detail, onRetry, title = 'Không thể tải nội dung', fullScreen = false }: {
+  detail?: string; onRetry?: () => void; title?: string; fullScreen?: boolean;
+}) {
+  return <section role="alert" className={`flex ${fullScreen?'min-h-screen':'min-h-[260px]'} flex-col items-center justify-center gap-3 px-6 text-center`}>
     <AlertCircle className="size-8 text-destructive" aria-hidden="true" />
-    <h2 className="font-semibold">Không thể tải nội dung</h2>
+    <h2 className="font-semibold">{title}</h2>
     <p className="max-w-md text-sm text-muted-foreground">{detail || 'Vui lòng kiểm tra quyền truy cập và thử lại.'}</p>
     {onRetry && <Button type="button" variant="outline" onClick={onRetry}><RefreshCw className="mr-2 size-4" />Thử lại</Button>}
   </section>;

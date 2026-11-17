@@ -184,6 +184,22 @@ textarea {
 }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--crm-scrollbar-thumb-hover); }
 ::-webkit-scrollbar-corner { background: transparent; }
+/* Shared scroll containers: contract detail drawers, dialogs and scrollable lists. */
+.crm-scrollbar,
+[data-slot="sheet-content"] .crm-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-scrollbar-thumb) var(--crm-scrollbar-track);
+}
+/* Keep horizontal table scrolling inside its panel instead of the page. */
+.crm-scrollbar::-webkit-scrollbar,
+.crm-scrollbar-sidebar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.crm-scrollbar::-webkit-scrollbar-thumb,
+.crm-scrollbar-sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+}
 /* The navigation rail sits on deep green and needs a lighter, low-contrast thumb. */
 .crm-scrollbar-sidebar {
   --crm-scrollbar-thumb: rgb(165 214 167 / 48%);

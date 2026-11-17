@@ -41,6 +41,9 @@ test('CRM scrollbar uses branded light/dark tokens and remains accessible', () =
   assert.match(css, /scrollbar-width: thin/);
   assert.match(css, /::-webkit-scrollbar-thumb:hover/);
   assert.match(css, /forced-colors: active/);
+  assert.match(css, /\.crm-scrollbar,/);
+  assert.match(css, /\[data-slot="sheet-content"\] \.crm-scrollbar/);
+  assert.match(css, /\.crm-scrollbar::-webkit-scrollbar-thumb/);
   assert.match(sidebar, /crm-scrollbar-sidebar.*overflow-y-auto/);
   assert.match(drawer, /crm-scrollbar min-h-0 flex-1 overflow-y-auto/);
 });

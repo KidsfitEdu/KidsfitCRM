@@ -396,7 +396,7 @@ export function ChannelSalesView({
         />
       </section>}
 
-      <Card className={embedded ? 'overflow-hidden rounded-none border-0 shadow-none' : 'overflow-hidden border-0 shadow-sm ring-1 ring-border/80'}>
+      <Card className={embedded ? 'overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm' : 'overflow-hidden border-0 shadow-sm ring-1 ring-border/80'}>
         <CardContent className="p-0">
           {embedded ? <form onSubmit={event=>{event.preventDefault();setSearch(draftSearch.trim());setListPage(1);}}
             className="flex flex-wrap items-center gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
@@ -493,8 +493,7 @@ export function ChannelSalesView({
       </Card>
 
       <AppDrawer open={detailCustomer !== null} onOpenChange={open => { if (!open) setDetailCustomer(null); }}
-        title="Thông tin trường học"
-        description={detailCustomer?.code ?? 'Hồ sơ trường được phân quyền xem'}
+        title="Thông tin trường học" compactHeader
         bodyClassName="space-y-4 bg-muted/10">
         {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
         {!schoolProfile && !profileError && <output className="block text-sm text-muted-foreground">Đang tải thông tin trường…</output>}

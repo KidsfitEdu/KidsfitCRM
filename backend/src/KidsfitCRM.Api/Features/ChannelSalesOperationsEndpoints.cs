@@ -207,7 +207,7 @@ public static class ChannelSalesOperationsEndpoints
                     .Select(e => new { event_type = e.EventType, reason = e.Reason, created_at = e.CreatedAt })
                     .ToArray()
             })
-            .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
+            .AsSplitQuery().Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
 
         var organizations = await db.Organizations.AsNoTracking()
             .Where(x => x.Status == "ACTIVE" && (access.All || access.OrganizationIds.Contains(x.Id)))
@@ -285,7 +285,7 @@ public static class ChannelSalesOperationsEndpoints
         var eligiblePayouts = eligiblePayoutQuery.Where(x => x.amount > 0);
         var payouts = from payout in payoutsQuery.Where(x => x.Period == selectedPeriod)
                       join user in db.Users on payout.BeneficiaryUserId equals (long?)user.Id
-                      orderby payout.CreatedAt descending
+                      orderby payout.CreatedAt descending, payout.Id descending
                       select new
                       {
                           payout.Id,
@@ -358,7 +358,7 @@ public static class ChannelSalesOperationsEndpoints
             eligible_payout_total = await eligiblePayouts.CountAsync(ct),
             eligible_payouts = await eligiblePayouts.OrderByDescending(x => x.amount).ThenBy(x => x.school_name)
                 .ThenBy(x => x.contract_id).Take(100).ToArrayAsync(ct),
-            payouts = await payouts.Take(100).ToArrayAsync(ct),
+            payouts = await payouts.AsSplitQuery().Take(100).ToArrayAsync(ct),
             policies = await policies.OrderByDescending(x => x.CreatedAt).Take(100).Select(x => new {
                 x.Id, x.Scope, x.OrganizationId, x.ManagerUserId, x.SalesUserId,
                 x.SalesPercent, x.ManagerPercent, x.CreatedAt, x.Status }).ToArrayAsync(ct),

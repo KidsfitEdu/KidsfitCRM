@@ -493,11 +493,49 @@ export function ChannelSalesView({
       </Card>
 
       <AppDrawer open={detailCustomer !== null} onOpenChange={open => { if (!open) setDetailCustomer(null); }}
-        title={detailCustomer?.display_name ?? 'Hồ sơ trường học'}
-        description={detailCustomer?.code ?? ''} wide>
-        {profileError && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{profileError}</p>}
-        {!schoolProfile && !profileError && <p className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
-        {schoolProfile && <SchoolProfileDetails units={schoolProfile.school_units} />}
+        title="Thông tin trường học"
+        description={detailCustomer?.code ?? 'Hồ sơ trường được phân quyền xem'}
+        bodyClassName="space-y-4 bg-muted/10">
+        {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
+        {!schoolProfile && !profileError && <p role="status" className="text-sm text-muted-foreground">Đang tải thông tin trường…</p>}
+        {schoolProfile && <>
+          <section className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Building2 className="size-6" aria-hidden="true"/>
+              </span>
+              <div className="min-w-0 space-y-1.5">
+                <h2 className="break-words text-base font-bold text-foreground">{schoolProfile.data.display_name}</h2>
+                <p className="text-xs text-muted-foreground">{detailCustomer?.code || 'Chưa cập nhật mã trường'}</p>
+                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${detailCustomer ? contractBadge(detailCustomer).className : statusCopy.AVAILABLE.className}`}>
+                  {detailCustomer ? contractBadge(detailCustomer).label : 'Chưa cập nhật trạng thái'}
+                </span>
+              </div>
+            </div>
+          </section>
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <Building2 className="size-4 text-primary" aria-hidden="true"/>Thông tin trường chính
+            </h3>
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+              {([
+                ['Địa chỉ', [schoolProfile.data.address, schoolProfile.data.province].filter(Boolean).join(', ')],
+                ['Số điện thoại', schoolProfile.data.phone],
+                ['Email', schoolProfile.data.email],
+                ['Người liên hệ', schoolProfile.data.contact_name],
+                ['Chức vụ', schoolProfile.data.contact_position],
+                ['Mã số thuế', schoolProfile.data.tax_code],
+              ] as [string, string | null][]).map(([label,value])=>
+                <div key={label} className="min-w-0 space-y-1">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="break-words font-medium text-foreground">{value || 'Chưa cập nhật'}</dd>
+                </div>)}
+            </dl>
+          </section>
+          <section className="rounded-2xl border border-border bg-card p-4">
+            <SchoolProfileDetails units={schoolProfile.school_units}/>
+          </section>
+        </>}
       </AppDrawer>
       {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
         onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}
@@ -1488,22 +1526,11 @@ function DialogFooter({
           {error}
         </p>
       )}
-      <div className="mt-6 flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-          className="rounded-xl"
-        >
-          Hủy
-        </Button>
-        <Button
-          type="submit"
-          disabled={saving}
-          className="rounded-xl bg-[#1b5e20] hover:bg-[#124c17]"
-        >
+      <div className="sticky bottom-0 z-10 -mx-5 mt-6 flex flex-wrap justify-end gap-3 border-t border-border bg-card/95 px-5 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6">
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={onClose}>Hủy</AppButton>
+        <AppButton type="submit" tone="green" busy={saving}>
           {saving ? 'Đang lưu…' : label}
-        </Button>
+        </AppButton>
       </div>
     </>
   );

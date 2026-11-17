@@ -56,6 +56,16 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   const [search, setSearch] = useState('');
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem('kidsfit-crm-sidebar') === 'collapsed') setSidebarOpen(false);
+    } catch { /* Storage may be unavailable; keep the expanded default. */ }
+  }, []);
+  const toggleSidebar = () => setSidebarOpen(current => {
+    try { window.localStorage.setItem('kidsfit-crm-sidebar', current ? 'collapsed' : 'expanded'); }
+    catch { /* Sidebar remains usable when storage is blocked. */ }
+    return !current;
+  });
   const [error, setError] = useState('');
   const has = (permission: string) => abilities.includes('*') || abilities.includes(permission);
 
@@ -224,9 +234,9 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
 
   return <AppProviders key={token}>
     <AppShell>
-      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
-      <div className={`pb-20 lg:pb-0 transition-[padding] duration-200 motion-reduce:transition-none ${sidebarOpen ? "lg:pl-[248px]" : "lg:pl-0"}`}>
-        <Header sidebarOpen={sidebarOpen} onOpenSidebar={() => setSidebarOpen(true)} todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
+      <Sidebar sidebarOpen={sidebarOpen} onToggle={toggleSidebar} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
+      <div className={`pb-20 lg:pb-0 transition-[padding] duration-200 motion-reduce:transition-none ${sidebarOpen ? "lg:pl-[248px]" : "lg:pl-[72px]"}`}>
+        <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div key={currentView} className="crm-page-enter">

@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Moon, PanelLeftOpen, Search, Sun } from 'lucide-react';
+import { Bell, Moon, Search, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -38,11 +38,9 @@ const initials = (name: string) => name.split(' ').slice(-2).map(p => p[0]).join
 
 export function Header({
   todayLabel, userName, search, setSearch, dark, setDark,
-  apiBase = '', token = '', onNavigate, sidebarOpen = true, onOpenSidebar,
+  apiBase = '', token = '', onNavigate,
 }: {
   todayLabel: string;
-  sidebarOpen?: boolean;
-  onOpenSidebar?: () => void;
   userName: string;
   search: string;
   setSearch: (value: string) => void;
@@ -115,14 +113,9 @@ export function Header({
   };
 
   return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">
-    <div className="flex min-w-0 items-center gap-3">
-      {!sidebarOpen && onOpenSidebar && <Button type="button" variant="outline" size="icon"
-        onClick={onOpenSidebar} aria-label="Mở thanh điều hướng" title="Mở thanh điều hướng"
-        className="hidden shrink-0 rounded-xl lg:inline-flex"><PanelLeftOpen aria-hidden="true" className="size-4" /></Button>}
-      <div className="min-w-0">
+    <div className="min-w-0">
       <p className="text-xs font-medium text-muted-foreground">{todayLabel}</p>
       <h1 className="mt-1 text-lg font-bold tracking-[-0.03em] sm:text-xl">Chào buổi sáng, {userName}</h1>
-      </div>
     </div>
     <div className="flex items-center gap-2">
       <div className="relative hidden xl:block">

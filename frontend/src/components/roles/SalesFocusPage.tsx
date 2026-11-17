@@ -87,7 +87,7 @@ export function SalesFocusPage({section, ...props}: Props) {
         onClick={() => proposalActionRef.current?.open()}>Thêm mới</AppButton> : undefined}/>
     {contained ? <section className="min-w-0 space-y-5">
       {hasTaskTabs && <nav aria-label="Nhóm công việc Sales"
-        className="flex gap-5 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:thin] sm:gap-6">
+        className="flex gap-5 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-6">
         {[
           {id:'main',label:'Trường đang phụ trách',icon:School},
           {id:'invitations',label:'Chờ nhận phân bổ',icon:UserRoundPlus},

@@ -6,12 +6,12 @@ import test from 'node:test';
 const root = resolve(import.meta.dirname, '..');
 const read = path => readFileSync(resolve(root, path), 'utf8');
 
-test('Sales dashboard uses shared branded list and edit action styling', () => {
+test('Sales dashboard uses branded KPI and actionable task cards', () => {
   const source = read('src/components/roles/SalesDashboard.tsx');
-  assert.match(source, /<AdminListPanel>/);
-  assert.match(source, /adminTableHeadClass/);
-  assert.match(source, /<AdminIconAction icon=\{SquarePen\} tone="blue"/);
-  assert.match(source, /onClick=\{\(\)=>go\('role-sales-staff-activities'\)\}/);
+  assert.match(source, /<AppStatCard icon=\{Handshake\}/);
+  assert.match(source, /<section aria-labelledby="sales-priority-heading"/);
+  assert.match(source, /<AdminIconAction icon=\{ArrowUpRight\}/);
+  assert.match(source, /onClick=\{\(\)=>go\(item\.target\)\}/);
 });
 
 test('Sales proposal list distinguishes actions and workflow statuses', () => {
@@ -73,9 +73,9 @@ test('Sales overview presents role-scoped KPI and operational tasks without fabr
   const source = read('src/components/roles/SalesDashboard.tsx');
   assert.match(source, /title="Tổng quan bán hàng"/);
   assert.match(source, /<AppStatCard icon=\{Handshake\}/);
-  assert.match(source, /<AdminListPanel>/);
   assert.match(source, /Công việc cần theo dõi/);
-  assert.match(source, /Lịch tư vấn sắp tới/);
+  assert.doesNotMatch(source, /Lịch tư vấn sắp tới|nextFollowups|next_follow_up_at|adminTableHeadClass/);
+  assert.match(source, /md:grid-cols-3/);
   assert.match(source, /operations\.data/);
   assert.match(source, /Làm mới tổng quan bán hàng/);
   assert.doesNotMatch(source, /revenue_trend|mockTrend|fakeData/);

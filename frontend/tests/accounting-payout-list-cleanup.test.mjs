@@ -10,10 +10,12 @@ test('Accounting payout tab manages eligible candidates and tracked payout recor
   assert.match(part,/<AdminListPanel>/);
   assert.match(part,/<AdminListToolbar/);
   assert.match(part,/<table className=\{adminTableClass\}>/);
-  assert.match(part,/Hoa hồng đủ điều kiện lập phiếu/);
-  assert.match(part,/openCentralPayout\(\{contractId:candidate\.contract_id/);
+  assert.doesNotMatch(part,/accounting-eligible-payouts/);
+  assert.match(page,/title="Lập phiếu chi hoa hồng"/);
+  assert.match(page,/setPayoutPickerOpen\(true\)/);
+  assert.match(page,/openCentralPayout\(\{contractId:chosenCandidate\.contract_id/);
   assert.match(part,/setPayoutPreview\(p\)/);
-  for (const name of ['Mã phiếu','Người hưởng','Thực chi','Trạng thái','Kỳ','Trường','Thao tác'])
+  for (const name of ['Mã phiếu','Người hưởng','Số tiền phiếu','Trạng thái','Kỳ','Trường','Thao tác'])
     assert.ok(part.includes(name),name);
   assert.equal((part.match(/<th scope="col"/g)||[]).length,6);
 });
@@ -29,7 +31,7 @@ test('All statuses label is concise, with complete payout lifecycle options',()=
 test('Search applies on submission, pagination resets with filters, and uses all filtered rows',()=>{
   assert.match(page,/const \[financeAppliedSearch,setFinanceAppliedSearch\]/);
   assert.match(page,/financeAppliedSearch\.trim\(\)\.toLocaleLowerCase/);
-  assert.match(part,/setFinanceAppliedSearch\(financeSearch\.trim\(\)\);setFinancePage\(1\);setEligiblePage\(1\)/);
+  assert.match(part,/setFinanceAppliedSearch\(financeSearch\.trim\(\)\);setFinancePage\(1\)/);
   assert.match(page,/const visiblePayouts=displayedPayouts\.slice\(\(financePage-1\)\*financePageSize,financePage\*financePageSize\)/);
   assert.match(part,/total=\{displayedPayouts.length\}/);
   assert.match(part,/pageSizeOptions=\{\[10,20,50,100\]\}/);

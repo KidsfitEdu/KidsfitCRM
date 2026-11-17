@@ -149,6 +149,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeRole,setFinanceRole]=useState('ALL');
   const [financeOverview,setFinanceOverview]=useState<FinanceWorkspace|null>(null);
+  const [eligiblePage,setEligiblePage]=useState(1);
+  const [payoutPreview,setPayoutPreview]=useState<FinanceWorkspace['payouts'][number]|null>(null);
+  const [centralPayoutIntent,setCentralPayoutIntent]=useState<{
+    contractId:number;beneficiaryUserId:number;role:'SALES'|'MANAGER';period:string;
+    mode:'CREATE'|'EDIT'|'COMPLETE';payoutId?:number;
+  }|null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
@@ -484,6 +490,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const payoutPageCount=Math.max(1,Math.ceil(payoutFiltered.length/10));
   const effectivePayoutPage=Math.min(payoutHistoryPage,payoutPageCount);
   const payoutVisible=payoutFiltered.slice((effectivePayoutPage-1)*10,effectivePayoutPage*10);
+  const openCentralPayout=(intent:NonNullable<typeof centralPayoutIntent>)=>{
+    setPayoutPreview(null);
+    setCentralPayoutIntent(intent);
+    setSelected(intent.contractId);
+  };
   const openDraft = (payout?:Detail['payouts'][number]) => {
     setEditingPayout(payout??null);setPayoutError('');
     setPayoutRate(String(payout?.requested_rate_percent??suggestedRate));
@@ -493,6 +504,39 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setPayoutWithholdingReason(payout?.withholding_reason??'');
     payoutKey.current=null;setPayoutDialogOpen(true);
   };
+  // The detail API is the authority for draft amounts and contract-scoped ledger.
+  // It is loaded without opening the contract Drawer when working in the payout tab.
+  useEffect(()=>{
+    if(!centralPayoutIntent||!detail||detail.data.id!==centralPayoutIntent.contractId)return;
+    const intent=centralPayoutIntent;
+    if(intent.mode==='CREATE'){
+      const entries=detail.ledger.filter(x=>!x.assigned_to_payout
+        &&x.beneficiary_role===intent.role&&x.beneficiary_user_id===intent.beneficiaryUserId
+        &&x.period===intent.period);
+      const amount=entries.reduce((sum,x)=>sum+x.amount,0);
+      if(amount<=0){
+        appNotice.error('Không còn hoa hồng đủ điều kiện để lập phiếu trong kỳ này.');
+      }else{
+        const base=entries.filter(x=>x.entry_type==='ACCRUAL').reduce((sum,x)=>sum+x.calculation_base,0);
+        setPayoutBeneficiary(intent.role+':'+intent.beneficiaryUserId);
+        setPayoutPeriod(intent.period);
+        setEditingPayout(null);
+        setPayoutRate(String(base>0?Number((amount/base*100).toFixed(4)):0));
+        setPayoutRequestedAmount(String(amount));
+        setPayoutAdjustmentReason('');setPayoutWithholding('0');
+        setPayoutWithholdingReason('');setPayoutError('');
+        payoutKey.current=null;setPayoutDialogOpen(true);
+      }
+    }else{
+      const payout=detail.payouts.find(x=>x.id===intent.payoutId);
+      if(!payout){appNotice.error('Không tìm thấy phiếu trong hợp đồng đã chọn.');}
+      else if(intent.mode==='EDIT'){openDraft(payout);}
+      else if(payout.status==='APPROVED'){openPayoutPayment(payout.id);}
+      else {appNotice.error('Phiếu chưa được phê duyệt để ghi nhận chuyển khoản.');}
+    }
+    setCentralPayoutIntent(null);
+  // Act only on a newly selected intent and its loaded contract; never auto-reopen on refresh.
+  },[centralPayoutIntent,detail]);
   const openBackfill = async (receiptId:number) => {
     setBackfillBusy(true);
     try {
@@ -610,9 +654,17 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       &&(financeOrganization==='ALL'||p.organization_id===Number(financeOrganization))
       &&(!financeKeyword||[p.code,p.beneficiary_name].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
   const visiblePayouts=displayedPayouts.slice((financePage-1)*financePageSize,financePage*financePageSize);
+  const eligibleCandidates=(financeOverview?.eligible_payouts??[])
+    .filter(x=>(financeRole==='ALL'||x.beneficiary_role===financeRole)
+      &&(financeOrganization==='ALL'||x.organization_id===Number(financeOrganization))
+      &&(!financeKeyword||[x.contract_code,x.school_name,x.beneficiary_name].some(
+        value=>value.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
+  const eligiblePages=Math.max(1,Math.ceil(eligibleCandidates.length/10));
+  const eligiblePageSafe=Math.min(eligiblePage,eligiblePages);
+  const visibleCandidates=eligibleCandidates.slice((eligiblePageSafe-1)*10,eligiblePageSafe*10);
   const resetFinanceFilters=()=>{
     setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
-    setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
+    setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);setEligiblePage(1);
   };
   return <div className="space-y-5">
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
@@ -621,7 +673,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       {([{key:'CONTRACTS',label:'Hợp đồng & khoản thu',icon:FileCheck2},
          {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:HandCoins}] as const).map(item=>
         <button type="button" role="tab" key={item.key}
-          aria-selected={accountingTab===item.key} onClick={()=>setAccountingTab(item.key)}
+          aria-selected={accountingTab===item.key} onClick={()=>{setAccountingTab(item.key);setSelected(null);setPayoutDialogOpen(false);setCentralPayoutIntent(null);}}
           className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${accountingTab===item.key
             ?'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
             :'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
@@ -728,6 +780,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </AdminListPanel>}
     {accountingTab==='PAYOUTS'&&<AdminListPanel>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
+        <div><h2 className="text-base font-bold">Quản lý phiếu chi hoa hồng</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Lập phiếu theo trường, người hưởng và kỳ hoa hồng; gửi BGĐ duyệt trước khi chi.</p></div>
+        <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu trong kỳ</span>
+      </div>
       <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
         onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
         onReset={resetFinanceFilters} searchLabel="Tìm người hưởng hoặc mã phiếu chi"

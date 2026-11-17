@@ -962,65 +962,67 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         itemLabel="khoản thu" disabled={receiptLoading} showSummary={false} pageSizeOptions={[10,20,50,100]}
         onPageChange={setReceiptPage} onPageSizeChange={size=>{setReceiptPageSize(size);setReceiptPage(1);}}/>
     </AdminListPanel>}
-    {accountingTab==='PAYOUTS'&&<AdminListPanel>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
-        <div><h2 className="text-base font-bold">Quản lý phiếu chi hoa hồng</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Lập phiếu theo trường, người hưởng và kỳ hoa hồng; gửi BGĐ duyệt trước khi chi.</p></div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canCreatePayout&&<Button type="button" size="sm"
-            onClick={()=>{setPayoutPickerSearch('');setPayoutCandidateKey('');setPayoutPickerOpen(true);}}>
-            <Plus className="size-4" aria-hidden="true"/> Thêm mới
-          </Button>}
-          <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu đang hiển thị · {financeOverview?.payout_total??displayedPayouts.length} phiếu trong kỳ</span>
-        </div>
-      </div>
+    {accountingTab==='PAYOUTS'&&<AdminListPanel className="min-w-0">
       <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
         onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
-        onReset={resetFinanceFilters} searchLabel="Tìm người hưởng hoặc mã phiếu chi"
-        placeholder="Tìm mã phiếu, người hưởng..."
-        filters={<div className="flex flex-wrap items-center gap-2">
-          <label className="sr-only" htmlFor="accounting-finance-period">Kỳ hoa hồng</label>
+        onReset={resetFinanceFilters} searchLabel="Tìm phiếu chi"
+        placeholder="Mã phiếu, nhà trường, người hưởng..."
+        filters={<AppSelect ariaLabel="Lọc trạng thái phiếu chi" className="w-full sm:w-[190px]"
+          value={financeStatus}
+          options={[{value:'ALL',label:'Tất cả trạng thái'},
+            {value:'DRAFT',label:'Nháp'},
+            {value:'PENDING_APPROVAL',label:'Chờ BGĐ duyệt'},
+            {value:'CHANGES_REQUESTED',label:'Cần bổ sung'},
+            {value:'APPROVED',label:'Đã duyệt'},
+            {value:'PAID',label:'Đã chi'},
+            {value:'CANCELLED',label:'Đã hủy'},
+            {value:'REJECTED',label:'Đã từ chối'}]}
+          onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>}/>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-3 sm:px-6">
+        <label htmlFor="accounting-finance-period" className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          Kỳ hoa hồng
           <Input id="accounting-finance-period" type="month" className="h-10 w-40 rounded-lg"
             value={financePeriod} onChange={event=>{setFinancePeriod(event.target.value);setFinancePage(1);}}/>
-          <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-[160px]"
-            value={financeOrganization}
-            options={[{value:'ALL',label:'Tất cả tổ chức'},
-              ...(financeOverview?.organizations??[]).map(org=>({value:String(org.id),label:org.name}))]}
-            onValueChange={next=>{setFinanceOrganization(next);setFinancePage(1);}}/>
-          <AppSelect ariaLabel="Lọc người hưởng hoa hồng" className="w-[166px]"
-            value={financeRole}
-            options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
-            onValueChange={next=>{setFinanceRole(next);setFinancePage(1);}}/>
-          <AppSelect ariaLabel="Lọc trạng thái phiếu chi" className="w-[155px]"
-            value={financeStatus}
-            options={[{value:'ALL',label:'Tất cả'},
-              {value:'DRAFT',label:'Nháp'},
-              {value:'PENDING_APPROVAL',label:'Chờ BGĐ duyệt'},
-              {value:'CHANGES_REQUESTED',label:'Cần bổ sung'},
-              {value:'APPROVED',label:'Đã duyệt'},
-              {value:'PAID',label:'Đã chi'},
-              {value:'CANCELLED',label:'Đã hủy'},
-              {value:'REJECTED',label:'Đã từ chối'}]}
-            onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
-        </div>}/>
-      <div className="px-5 py-4 sm:px-6">
-        <h3 className="text-sm font-bold">Danh sách phiếu chi</h3>
-        <p className="mt-1 text-xs text-muted-foreground">Xem hồ sơ, sửa nháp, gửi BGĐ duyệt và ghi nhận chi theo quyền.</p>
+        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {displayedPayouts.length} phiếu đang hiển thị · {financeOverview?.payout_total??displayedPayouts.length} phiếu trong kỳ
+          </span>
+          <Button type="button" variant="outline" size="sm" aria-controls="accounting-payout-advanced"
+            aria-expanded={financeAdvancedOpen} onClick={()=>setFinanceAdvancedOpen(value=>!value)}
+            className="h-10 rounded-lg text-xs">
+            <SlidersHorizontal className="size-4" aria-hidden="true"/>
+            Bộ lọc nâng cao
+            {(financeRole!=='ALL'||financeOrganization!=='ALL')&&<span className="sr-only">(đang áp dụng)</span>}
+          </Button>
+        </div>
       </div>
+      {financeAdvancedOpen&&<div id="accounting-payout-advanced"
+        className="flex flex-wrap items-center gap-3 border-b border-border/80 bg-muted/20 px-5 py-3 sm:px-6">
+        <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-full sm:w-[220px]"
+          value={financeOrganization}
+          options={[{value:'ALL',label:'Tất cả tổ chức'},
+            ...(financeOverview?.organizations??[]).map(org=>({value:String(org.id),label:org.name}))]}
+          onValueChange={next=>{setFinanceOrganization(next);setFinancePage(1);}}/>
+        <AppSelect ariaLabel="Lọc người hưởng hoa hồng" className="w-full sm:w-[190px]"
+          value={financeRole}
+          options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
+          onValueChange={next=>{setFinanceRole(next);setFinancePage(1);}}/>
+      </div>}
       <div className="overflow-x-auto">
-        <table className={adminTableClass}>
+        <table className={adminTableClass+' table-fixed'}>
           <thead className={adminTableHeadClass}>
             <tr>
-              <th scope="col" className="px-4 py-3">Mã phiếu / Người hưởng</th>
-              <th scope="col" className="px-3 py-3">Trường / Hợp đồng</th>
-              <th scope="col" className="px-3 py-3 text-right">Số tiền phiếu</th>
-              <th scope="col" className="px-3 py-3">Trạng thái</th>
-              <th scope="col" className="px-3 py-3">Kỳ</th>
-              <th scope="col" className="px-3 py-3 text-center">Thao tác</th>
+              <th scope="col" className="w-[19%] px-4 py-3">Mã phiếu / Người hưởng</th>
+              <th scope="col" className="w-[27%] px-3 py-3">Trường / Hợp đồng</th>
+              <th scope="col" className="w-[17%] px-3 py-3 text-right">Số tiền phiếu</th>
+              <th scope="col" className="w-[15%] px-3 py-3">Trạng thái</th>
+              <th scope="col" className="w-[12%] px-3 py-3">Kỳ</th>
+              <th scope="col" className="w-[10%] px-3 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
-            {visiblePayouts.map(p=><tr key={p.id} className="transition-colors even:bg-muted/20 hover:bg-accent">
+            {visiblePayouts.map(p=><tr key={p.id} className="transition-colors even:bg-muted/20 hover:bg-accent/60">
               <td className="min-w-0 px-4 py-3">
                 <p className="max-w-[200px] truncate font-semibold" title={p.code}>{p.code}</p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">{p.beneficiary_name} · {p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</p>
@@ -1043,7 +1045,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     onClick={()=>setPayoutPreview(p)}/>
                   {(p.status==='DRAFT'||p.status==='CHANGES_REQUESTED')&&canCreatePayout
                     &&p.contract_ids?.length===1&&
-                    <AdminIconAction icon={Pencil} label={'Sửa phiếu chi '+p.code}
+                    <AdminIconAction icon={Pencil} tone="blue" label={'Sửa phiếu chi '+p.code}
                       onClick={()=>openCentralPayout({contractId:p.contract_ids![0],
                         beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
                         period:p.period,mode:'EDIT',payoutId:p.id})}/>}

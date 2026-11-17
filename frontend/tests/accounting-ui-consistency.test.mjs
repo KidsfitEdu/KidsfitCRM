@@ -32,7 +32,9 @@ test('Accounting contract and payout lists share rounded cards, action icons and
 
 test('Accounting transaction form maintains validation and consistent actions',()=>{
   const s=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(s, /<AppDialog open=\{Boolean\(detail && entryMode\)\}/);
+  assert.match(s, /<AppDialog open=\{Boolean\(detail && entryMode==='payout'\)\}/);
+  assert.match(s, /financialTransactionForm/);
+  assert.match(s, /<AppDialog open=\{receiptIntent\}/);
   assert.match(s, /<AppCurrencyInput id="accounting-amount"/);
   assert.match(s, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
   assert.match(s, /<AppButton type="submit" tone="green" busy=\{saving\}/);

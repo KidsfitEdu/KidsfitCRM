@@ -1,14 +1,20 @@
 'use client';
-import { LogOut } from 'lucide-react';
+import { LogOut, PanelLeftClose } from 'lucide-react';
 import { AppBrand } from '@/components/common/app-brand';
 import { nav, type View } from '@/config/navigation';
 
-type Props={visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};
+type Props={sidebarOpen:boolean;onClose:()=>void;visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};
 const initials=(name:string)=>name.split(' ').slice(-2).map(p=>p[0]).join('').toUpperCase();
-export function Sidebar({visibleNav,currentView,onNavigate,userName,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout}:Props){
+export function Sidebar({sidebarOpen,onClose,visibleNav,currentView,onNavigate,userName,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout}:Props){
 return <>
-      <aside className="crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white lg:flex">
-        <div className="flex h-20 items-center px-5"><AppBrand inverted /></div>
+      <aside className={`crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-white/10 text-white ${sidebarOpen ? "lg:flex" : "lg:hidden"}`}>
+        <div className="flex h-20 items-center justify-between gap-2 px-4">
+          <AppBrand inverted />
+          <button type="button" onClick={onClose} aria-label="Thu gọn thanh điều hướng" title="Thu gọn thanh điều hướng"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-[#c7ddcc] transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a5d6a7]">
+            <PanelLeftClose aria-hidden="true" className="size-[18px]" />
+          </button>
+        </div>
         <nav className="crm-scrollbar-sidebar mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Điều hướng chính">
           {visibleNav.map((item) => (
             <button

@@ -47,3 +47,17 @@ test('CRM scrollbar uses branded light/dark tokens and remains accessible', () =
   assert.match(sidebar, /crm-scrollbar-sidebar.*overflow-y-auto/);
   assert.match(drawer, /crm-scrollbar min-h-0 flex-1 overflow-y-auto/);
 });
+
+test('desktop sidebar can collapse and reopen without changing mobile navigation', () => {
+  const shell = readFileSync(new URL('../src/components/crm/crm-app.tsx', import.meta.url), 'utf8');
+  const sidebar = readFileSync(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8');
+  const header = readFileSync(new URL('../src/components/layout/Header.tsx', import.meta.url), 'utf8');
+  assert.match(shell, /\[sidebarOpen, setSidebarOpen\] = useState\(true\)/);
+  assert.match(shell, /onClose=\{\(\) => setSidebarOpen\(false\)\}/);
+  assert.match(shell, /onOpenSidebar=\{\(\) => setSidebarOpen\(true\)\}/);
+  assert.match(shell, /sidebarOpen \? "lg:pl-\[248px\]" : "lg:pl-0"/);
+  assert.match(sidebar, /aria-label="Thu gọn thanh điều hướng"/);
+  assert.match(header, /aria-label="Mở thanh điều hướng"/);
+  assert.match(sidebar, /lg:hidden/);
+  assert.match(sidebar, /aria-label="Điều hướng di động"/);
+});

@@ -174,6 +174,24 @@ public static class AccountingReceiptDraftEndpoints
         if (draft.Status == "POSTED" && draft.PostedReceiptId.HasValue)
             return Results.Ok(new { data = new { id = draft.PostedReceiptId.Value } });
         if (draft.Status != "DRAFT") throw new ApiConflictException("Nháp không còn được ghi nhận.");
+        // Recover after the authoritative cash transaction commits but the final
+        // draft-status update times out/fails. The receipt idempotency key is stable.
+        var idempotencyKey = "ACCOUNTING-DRAFT-" + draft.Id;
+        var previouslyPosted = await db.RevenueReceipts.AsNoTracking()
+            .Where(x => x.IdempotencyKey == idempotencyKey && x.ContractId == draft.ContractId
+                && x.RecordedByUserId == access.UserId)
+            .Select(x => (long?)x.Id).SingleOrDefaultAsync(ct);
+        if (previouslyPosted.HasValue)
+        {
+            draft.Status = "POSTED";
+            draft.PostedReceiptId = previouslyPosted.Value;
+            draft.UpdatedAt = DateTime.UtcNow;
+            Audit.Add(db, access.UserId, "RECOVER_POSTED_RECEIPT_DRAFT",
+                nameof(RevenueReceiptDraft), draft.Id, new { status = "DRAFT" },
+                new { status = "POSTED", receipt_id = previouslyPosted.Value }, http);
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { data = new { id = previouslyPosted.Value } });
+        }
         if (draft.RevenueScheduleId is null || draft.Amount is null || draft.ReceivedAt is null
             || string.IsNullOrWhiteSpace(draft.ReferenceCode))
             throw ApiValidationException.For("draft", "Vui lòng hoàn tất đợt thu, số tiền, ngày nhận và mã giao dịch.");

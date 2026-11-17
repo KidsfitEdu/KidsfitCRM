@@ -713,7 +713,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           adjustment_reason:payoutAdjustmentReason.trim()||null
         })});
       }
-      setPayoutDialogOpen(false);setEditingPayout(null);payoutKey.current=null;
+      setPayoutDialogOpen(false);setPayoutPickerOpen(false);setEditingPayout(null);payoutKey.current=null;
       setDetailRevision(v=>v+1);
       appNotice.success('Đã lưu phiếu Nháp; cần gửi BGĐ duyệt trước khi chuyển tiền.');
       await load();
@@ -773,6 +773,94 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
     setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
   };
+  const payoutDraftForm=detail&&payoutDialogOpen?(
+    <form className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
+        {editingPayout?.status==='CHANGES_REQUESTED'&&<section className="rounded-xl border border-amber-300/70 bg-amber-50/70 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+          <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
+            <MessageSquareText aria-hidden="true" className="size-4"/> BGĐ yêu cầu bổ sung
+          </div>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+            {editingPayout.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1)?.reason?.trim()||'Chưa có nội dung yêu cầu.'}
+          </p>
+        </section>}
+        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
+          <p className="text-xs font-medium text-muted-foreground">Người hưởng</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <UserRound className="size-4 text-primary" aria-hidden="true"/>
+            <span className="font-semibold text-foreground">{editingPayout
+              ? detail.ledger.find(entry=>entry.beneficiary_user_id===editingPayout.beneficiary_user_id)?.beneficiary_name??'Người hưởng'
+              : currentBeneficiary?.name??'Chưa chọn người hưởng'}</span>
+            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+              {(editingPayout?.beneficiary_role??currentBeneficiary?.role)==='MANAGER'?'Quản lý':'Sales'}
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {payoutPeriodLabel(editingPayout?.period??chosenPeriod)}</p>
+        </div>
+        <div className="space-y-3 rounded-xl border border-border/80 p-4">
+          <p className="text-xs text-muted-foreground">Hệ thống đề xuất:{' '}
+            {editingPayout?.suggested_rate_percent??suggestedRate}% ·
+            {channelMoney(editingPayout?.suggested_amount??(eligibleByPeriod.get(chosenPeriod)??0))}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label htmlFor="payout-rate" className="text-sm font-medium">% Hoa hồng</label>
+              <Input id="payout-rate" type="number" min={0} max={100} step="0.0001"
+                value={payoutRate} onChange={event=>{
+                  const rate=event.target.value;setPayoutRate(rate);payoutKey.current=null;
+                  const originalRate=editingPayout?.suggested_rate_percent??suggestedRate;
+                  const originalAmount=editingPayout?.suggested_amount??(eligibleByPeriod.get(chosenPeriod)??0);
+                  const base=originalRate>0?originalAmount*100/originalRate:0;
+                  if(Number.isFinite(Number(rate))&&base>0)
+                    setPayoutRequestedAmount(String(Math.round(base*Number(rate)/100)));
+                }}/>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="payout-amount" className="text-sm font-medium">Tiền hoa hồng (VNĐ)</label>
+              <AppCurrencyInput id="payout-amount" value={payoutRequestedAmount}
+                onValueChange={value=>{setPayoutRequestedAmount(value);payoutKey.current=null;}}/>
+            </div>
+          </div>
+          {(Number(payoutRate)!==(editingPayout?.suggested_rate_percent??suggestedRate)
+            ||parseMoneyInput(payoutRequestedAmount)!==(editingPayout?.suggested_amount??(eligibleByPeriod.get(chosenPeriod)??0)))&&
+            <div className="space-y-1 rounded-lg border border-amber-300/60 bg-amber-50/50 p-3 dark:bg-amber-950/20">
+              <label htmlFor="payout-adjustment-reason" className="text-sm font-semibold">Lý do điều chỉnh *</label>
+              <Input id="payout-adjustment-reason" value={payoutAdjustmentReason}
+                onChange={event=>setPayoutAdjustmentReason(event.target.value)}
+                maxLength={1000} placeholder="Vì sao số liệu khác đề xuất của hệ thống?"/>
+              <p className="text-xs text-muted-foreground">Có thể lưu Nháp; bắt buộc nhập lý do trước khi gửi BGĐ.</p>
+            </div>}
+          <div className="space-y-1">
+            <label htmlFor="payout-withholding" className="text-sm font-medium">Khấu trừ (VNĐ)</label>
+            <AppCurrencyInput id="payout-withholding" value={payoutWithholding}
+              onValueChange={value=>{setPayoutWithholding(value);payoutKey.current=null;setPayoutError('');}}/>
+          </div>
+          {parseMoneyInput(payoutWithholding)>0&&<div className="space-y-1">
+            <label htmlFor="payout-withholding-reason" className="text-sm font-medium">Lý do khấu trừ *</label>
+            <Input id="payout-withholding-reason" value={payoutWithholdingReason}
+              onChange={event=>setPayoutWithholdingReason(event.target.value)} maxLength={1000} required/>
+          </div>}
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+            <span className="font-semibold text-foreground">Dự kiến thực chi</span>
+            <strong className="text-xl font-bold tabular-nums text-primary">
+              {channelMoney(Math.max(0,parseMoneyInput(payoutRequestedAmount)-parseMoneyInput(payoutWithholding)))}
+            </strong>
+          </div>
+        </div>
+        <p className="flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
+          <ClipboardCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
+          Thao tác này chỉ lập phiếu ở trạng thái Nháp, chưa ghi nhận chuyển khoản.
+          Giá trị chính thức sẽ được Backend kiểm tra.
+        </p>
+        {payoutError&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{payoutError}</p>}
+        <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" className="w-full sm:w-auto"
+            disabled={saving} onClick={()=>{setPayoutDialogOpen(false);setPayoutPickerOpen(false);payoutKey.current=null;}}>Hủy</Button>
+          <Button type="submit" className="w-full sm:w-auto" disabled={saving||(!editingPayout&&!chosenPeriod)}>
+            {saving?'Đang lưu...':'Lưu nháp'}
+          </Button>
+        </div>
+      </form>
+  ):null;
   const financialTransactionForm=detail&&entryMode?(
     <form noValidate className="space-y-4" onChange={event=>{
         const name = event.target.getAttribute('name') as keyof FieldErrors | null;
@@ -1132,9 +1220,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     onClick={()=>setPayoutPreview(p)}/>
                   {p.can_edit&&
                     <AdminIconAction icon={Pencil} tone="blue" label={'Sửa phiếu chi '+p.code}
-                      onClick={()=>openCentralPayout({contractId:p.contract_ids![0],
+                      onClick={()=>{setPayoutPickerOpen(true);openCentralPayout({contractId:p.contract_ids![0],
                         beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
-                        period:p.period,mode:'EDIT',payoutId:p.id})}/>}
+                        period:p.period,mode:'EDIT',payoutId:p.id});}}/>}
                 </div>
               </td>
             </tr>)}
@@ -1209,9 +1297,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>}
     </AppDialog>
-    <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!saving)setPayoutPickerOpen(open);}}
+    <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!saving&&!open){setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);setEditingPayout(null);}}}
       title="Lập phiếu chi hoa hồng" description="Chọn kỳ, nhà trường và người hưởng có hoa hồng đủ điều kiện. Sau đó kiểm tra số tiền trong form Nháp.">
-      <div className="space-y-4">
+      {payoutDialogOpen&&detail?payoutDraftForm:centralPayoutIntent?
+        <output className="block py-6 text-center text-sm text-muted-foreground">Đang tải phiếu chi...</output>:
+        <div className="space-y-4">
         <label htmlFor="accounting-payout-month" className="block space-y-1 text-sm font-medium">
           <span>Kỳ hoa hồng *</span>
           <Input id="accounting-payout-month" type="month" value={financePeriod}
@@ -1256,12 +1346,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Button type="button" disabled={!chosenCandidate||eligibleLoading||saving}
             onClick={()=>{
               if(!chosenCandidate)return;
-              setPayoutPickerOpen(false);
               openCentralPayout({contractId:chosenCandidate.contract_id,beneficiaryUserId:chosenCandidate.beneficiary_user_id,
                 role:chosenCandidate.beneficiary_role,period:chosenCandidate.period,mode:'CREATE'});
             }}>Tiếp tục lập phiếu</Button>
         </div>
-      </div>
+      </div>}
     </AppDialog>
     <AppDialog open={payoutPreview!==null}
       onOpenChange={open=>{if(!open)setPayoutPreview(null);}}
@@ -1323,8 +1412,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
           </Button>}
           {payoutPreview.can_edit&&<Button type="button" size="sm" variant="outline" disabled={saving}
-              onClick={()=>openCentralPayout({contractId:payoutPreview.contract_ids![0],beneficiaryUserId:payoutPreview.beneficiary_user_id,
-                role:payoutPreview.beneficiary_role,period:payoutPreview.period,mode:'EDIT',payoutId:payoutPreview.id})}>
+              onClick={()=>{setPayoutPickerOpen(true);openCentralPayout({contractId:payoutPreview.contract_ids![0],beneficiaryUserId:payoutPreview.beneficiary_user_id,
+                role:payoutPreview.beneficiary_role,period:payoutPreview.period,mode:'EDIT',payoutId:payoutPreview.id});}}>
               <Pencil className="size-4" aria-hidden="true"/> Sửa phiếu
             </Button>}
           {payoutPreview.can_submit&&<Button type="button" size="sm" disabled={saving}
@@ -1753,96 +1842,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>
     </AppDialog>
-    <AppDialog returnFocusRef={accountingTab==='CONTRACTS'?payoutSectionRef:undefined} open={Boolean(detail&&payoutDialogOpen)}
+    <AppDialog returnFocusRef={accountingTab==='CONTRACTS'?payoutSectionRef:undefined}
+      open={Boolean(detail&&payoutDialogOpen&&!payoutPickerOpen)}
       onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open){payoutKey.current=null;setEditingPayout(null);}}}}
       busy={saving} title={editingPayout?'Chỉnh sửa phiếu chi Nháp':'Lập phiếu chi hoa hồng'}
       description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh.">
-      {detail&&payoutDialogOpen&&<form className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
-        {editingPayout?.status==='CHANGES_REQUESTED'&&<section className="rounded-xl border border-amber-300/70 bg-amber-50/70 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-          <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
-            <MessageSquareText aria-hidden="true" className="size-4"/> BGĐ yêu cầu bổ sung
-          </div>
-          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-            {editingPayout.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1)?.reason?.trim()||'Chưa có nội dung yêu cầu.'}
-          </p>
-        </section>}
-        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
-          <p className="text-xs font-medium text-muted-foreground">Người hưởng</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <UserRound className="size-4 text-primary" aria-hidden="true"/>
-            <span className="font-semibold text-foreground">{editingPayout
-              ? detail.ledger.find(entry=>entry.beneficiary_user_id===editingPayout.beneficiary_user_id)?.beneficiary_name??'Người hưởng'
-              : currentBeneficiary?.name??'Chưa chọn người hưởng'}</span>
-            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-              {(editingPayout?.beneficiary_role??currentBeneficiary?.role)==='MANAGER'?'Quản lý':'Sales'}
-            </span>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {payoutPeriodLabel(editingPayout?.period??chosenPeriod)}</p>
-        </div>
-        <div className="space-y-3 rounded-xl border border-border/80 p-4">
-          <p className="text-xs text-muted-foreground">Hệ thống đề xuất:{' '}
-            {editingPayout?.suggested_rate_percent??suggestedRate}% ·
-            {channelMoney(editingPayout?.suggested_amount??(eligibleByPeriod.get(chosenPeriod)??0))}
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label htmlFor="payout-rate" className="text-sm font-medium">% Hoa hồng</label>
-              <Input id="payout-rate" type="number" min={0} max={100} step="0.0001"
-                value={payoutRate} onChange={event=>{
-                  const rate=event.target.value;setPayoutRate(rate);payoutKey.current=null;
-                  const originalRate=editingPayout?.suggested_rate_percent??suggestedRate;
-                  const originalAmount=editingPayout?.suggested_amount??(eligibleByPeriod.get(chosenPeriod)??0);
-                  const base=originalRate>0?originalAmount*100/originalRate:0;
-                  if(Number.isFinite(Number(rate))&&base>0)
-                    setPayoutRequestedAmount(String(Math.round(base*Number(rate)/100)));
-                }}/>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="payout-amount" className="text-sm font-medium">Tiền hoa hồng (VNĐ)</label>
-              <AppCurrencyInput id="payout-amount" value={payoutRequestedAmount}
-                onValueChange={value=>{setPayoutRequestedAmount(value);payoutKey.current=null;}}/>
-            </div>
-          </div>
-          {(Number(payoutRate)!==(editingPayout?.suggested_rate_percent??suggestedRate)
-            ||parseMoneyInput(payoutRequestedAmount)!==(editingPayout?.suggested_amount??(eligibleByPeriod.get(chosenPeriod)??0)))&&
-            <div className="space-y-1 rounded-lg border border-amber-300/60 bg-amber-50/50 p-3 dark:bg-amber-950/20">
-              <label htmlFor="payout-adjustment-reason" className="text-sm font-semibold">Lý do điều chỉnh *</label>
-              <Input id="payout-adjustment-reason" value={payoutAdjustmentReason}
-                onChange={event=>setPayoutAdjustmentReason(event.target.value)}
-                maxLength={1000} placeholder="Vì sao số liệu khác đề xuất của hệ thống?"/>
-              <p className="text-xs text-muted-foreground">Có thể lưu Nháp; bắt buộc nhập lý do trước khi gửi BGĐ.</p>
-            </div>}
-          <div className="space-y-1">
-            <label htmlFor="payout-withholding" className="text-sm font-medium">Khấu trừ (VNĐ)</label>
-            <AppCurrencyInput id="payout-withholding" value={payoutWithholding}
-              onValueChange={value=>{setPayoutWithholding(value);payoutKey.current=null;setPayoutError('');}}/>
-          </div>
-          {parseMoneyInput(payoutWithholding)>0&&<div className="space-y-1">
-            <label htmlFor="payout-withholding-reason" className="text-sm font-medium">Lý do khấu trừ *</label>
-            <Input id="payout-withholding-reason" value={payoutWithholdingReason}
-              onChange={event=>setPayoutWithholdingReason(event.target.value)} maxLength={1000} required/>
-          </div>}
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-            <span className="font-semibold text-foreground">Dự kiến thực chi</span>
-            <strong className="text-xl font-bold tabular-nums text-primary">
-              {channelMoney(Math.max(0,parseMoneyInput(payoutRequestedAmount)-parseMoneyInput(payoutWithholding)))}
-            </strong>
-          </div>
-        </div>
-        <p className="flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
-          <ClipboardCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
-          Thao tác này chỉ lập phiếu ở trạng thái Nháp, chưa ghi nhận chuyển khoản.
-          Giá trị chính thức sẽ được Backend kiểm tra.
-        </p>
-        {payoutError&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{payoutError}</p>}
-        <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" className="w-full sm:w-auto"
-            disabled={saving} onClick={()=>{setPayoutDialogOpen(false);payoutKey.current=null;}}>Hủy</Button>
-          <Button type="submit" className="w-full sm:w-auto" disabled={saving||(!editingPayout&&!chosenPeriod)}>
-            {saving?'Đang lưu...':'Lưu nháp'}
-          </Button>
-        </div>
-      </form>}
+      {payoutDraftForm}
     </AppDialog>
     <AppDialog open={Boolean(detail && entryMode==='payout')} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}
       busy={saving} title="Ghi nhận chuyển khoản phiếu chi"

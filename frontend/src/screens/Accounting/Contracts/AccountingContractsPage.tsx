@@ -776,7 +776,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div><h2 className="text-base font-bold">Quản lý phiếu chi hoa hồng</h2>
           <p className="mt-1 text-xs text-muted-foreground">Lập phiếu theo trường, người hưởng và kỳ hoa hồng; gửi BGĐ duyệt trước khi chi.</p></div>
-        <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu trong kỳ</span>
+        <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu đang hiển thị · {financeOverview?.payout_total??displayedPayouts.length} phiếu trong kỳ</span>
       </div>
       <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
         onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);setEligiblePage(1);}}

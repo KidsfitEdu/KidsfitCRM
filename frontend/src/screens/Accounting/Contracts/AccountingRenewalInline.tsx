@@ -4,6 +4,9 @@ import {useEffect,useState} from 'react';
 import {ChevronDown,ChevronUp,Download,Eye,FileText,Files,History,Paperclip} from 'lucide-react';
 import {AppStatusBadge} from '@/components/common/app-status-badge';
 import {Button} from '@/components/ui/button';
+import {AppButton} from '@/components/common/buttons/app-button';
+import {AppDialog} from '@/components/common/dialogs/app-dialog';
+import {Textarea} from '@/components/ui/textarea';
 import {Input} from '@/components/ui/input';
 import {appNotice} from '@/components/common/app-toast-provider';
 import {channelDate,channelMoney,channelRequest} from '@/lib/channel-operations';
@@ -118,6 +121,8 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
    }catch(e){if(tab&&!tab.closed)tab.close();appNotice.error('Không thể mở chứng từ.',e instanceof Error?e.message:'Thử lại sau.');}
    finally{setFileBusy(null);}
  };
+ const closeDecision=()=>{if(!busy){setDecision(null);setReason('');}};
+ const openDecision=(next:Decision)=>{setReason('');setDecision(next);};
  const process=async()=>{
    if(!activeRenewal||!detail||!decision||busy||detail.data.status!=='PENDING_ACCOUNTING'||!canReview)return;
    if(decision!=='request-info'&&!canConfirm)return;
@@ -134,7 +139,8 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
    finally{setBusy(false);}
  };
 
- return <section aria-label="Hợp đồng và lịch sử tái ký"
+ return <>
+ <section aria-label="Hợp đồng và lịch sử tái ký"
    className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
    <div className="flex flex-wrap items-center justify-between gap-2">
      <h3 className="flex items-center gap-2 font-bold"><Files className="size-4 text-primary" aria-hidden="true"/> Hợp đồng & lịch sử tái ký</h3>
@@ -205,25 +211,48 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
          {period.type==='RENEWAL'&&period.status==='PENDING_ACCOUNTING'&&canReview&&detail?.data.id===period.id&&<div className="space-y-3 border-t border-border pt-3">
            <h4 className="font-semibold">Kế toán xử lý</h4>
            <div className="flex flex-wrap gap-2">
-             <Button type="button" disabled={!canConfirm||busy} onClick={()=>{setDecision('confirm');setReason('');}}>Xác nhận tái ký</Button>
-             <Button type="button" disabled={busy} variant="outline" onClick={()=>{setDecision('request-info');setReason('');}}>Yêu cầu bổ sung</Button>
-             <Button type="button" disabled={!canConfirm||busy} variant="destructive" onClick={()=>{setDecision('reject');setReason('');}}>Từ chối</Button>
+             <Button type="button" disabled={!canConfirm||busy} onClick={()=>openDecision('confirm')}>Xác nhận tái ký</Button>
+             <Button type="button" disabled={busy} variant="outline" onClick={()=>openDecision('request-info')}>Yêu cầu bổ sung</Button>
+             <Button type="button" disabled={!canConfirm||busy} variant="destructive" onClick={()=>openDecision('reject')}>Từ chối</Button>
            </div>
-           {decision&&<div className="space-y-2 rounded-lg border border-border p-3">
-             <p className="font-medium">Xác nhận thao tác {decision==='confirm'?'duyệt tái ký':decision==='request-info'?'yêu cầu bổ sung':'từ chối'}?</p>
-             {decision!=='confirm'&&<div className="space-y-1">
-               <label htmlFor="accounting-renewal-decision-reason" className="block font-medium">Lý do *</label>
-               <Input id="accounting-renewal-decision-reason" value={reason} onChange={e=>setReason(e.target.value)} maxLength={1000}/>
-             </div>}
-             <p className="text-xs text-muted-foreground">Kế toán chỉ xác nhận kỳ sử dụng. CRM tự kiểm tra quyền bảo vệ Sales khi đến mốc 5 năm.</p>
-             <div className="flex flex-wrap gap-2">
-               <Button type="button" disabled={busy} onClick={()=>void process()}>{busy?'Đang xử lý…':'Đồng ý'}</Button>
-               <Button type="button" variant="outline" disabled={busy} onClick={()=>setDecision(null)}>Hủy</Button>
-             </div>
-           </div>}
+
          </div>}
        </div>}
      </div>;
    })}</div>}
- </section>;
+ </section>
+ <AppDialog open={decision!==null} onOpenChange={open=>{if(!open)closeDecision();}}
+   busy={busy} contentClassName="sm:max-w-lg"
+   title={decision==='confirm'?'Xác nhận tái ký':decision==='request-info'?'Yêu cầu bổ sung hồ sơ':'Từ chối hồ sơ tái ký'}
+   description={decision==='confirm'?'Kiểm tra lại thông tin kỳ sử dụng trước khi xác nhận.':decision==='request-info'?'Nhập nội dung cần bổ sung để Sales hoàn thiện hồ sơ.':'Nhập lý do từ chối hồ sơ tái ký.'}
+   footer={<>
+     <AppButton type="button" tone="neutral" disabled={busy} onClick={closeDecision}>Hủy</AppButton>
+     <AppButton type="button" tone={decision==='reject'?'danger':'green'}
+       busy={busy} disabled={!decision || (decision!=='confirm'&&!reason.trim())}
+       onClick={()=>void process()}>{decision==='confirm'?'Xác nhận tái ký':decision==='request-info'?'Gửi yêu cầu bổ sung':'Xác nhận từ chối'}</AppButton>
+   </>}>
+   <div className="space-y-4 text-sm">
+     <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+       <p className="font-semibold text-foreground">{detail?.data.school_name??'Nhà trường'}</p>
+       <p className="mt-1 break-all text-xs text-muted-foreground">
+         Hợp đồng: {detail?.data.contract_code??'—'}
+       </p>
+       <p className="mt-1 text-xs text-muted-foreground">Kỳ sử dụng: {showDate(detail?.data.service_start_on??null)} – {showDate(detail?.data.service_end_on??null)}</p>
+     </div>
+     {decision==='confirm'
+       ? <p className="leading-6 text-foreground">Cậu có chắc chắn muốn xác nhận kỳ dịch vụ của hồ sơ tái ký này?</p>
+       : <div className="space-y-2">
+           <label htmlFor="accounting-renewal-decision-reason" className="font-medium text-foreground">
+             {decision==='request-info'?'Nội dung cần bổ sung':'Lý do từ chối'} <span className="text-destructive">*</span>
+           </label>
+           <Textarea id="accounting-renewal-decision-reason" autoFocus required maxLength={1000}
+             rows={4} value={reason} onChange={e=>setReason(e.target.value)}
+             placeholder={decision==='request-info'?'Nhập thông tin hoặc chứng từ cần bổ sung...':'Nhập lý do từ chối hồ sơ...'}
+             aria-describedby="accounting-renewal-reason-help" className="min-h-28 resize-y"/>
+           <p id="accounting-renewal-reason-help" className="text-right text-xs text-muted-foreground">{reason.length}/1000 ký tự</p>
+         </div>}
+     <p className="text-xs leading-5 text-muted-foreground">Kế toán chỉ xác nhận kỳ sử dụng. CRM tự kiểm tra quyền bảo vệ Sales khi đến mốc 5 năm.</p>
+   </div>
+ </AppDialog>
+ </>;
 }

@@ -1,22 +1,15 @@
 'use client';
-import { LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { AppBrand } from '@/components/common/app-brand';
 import { nav, type View } from '@/config/navigation';
 
-type Props={sidebarOpen:boolean;onToggle:()=>void;visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};
+type Props={sidebarOpen:boolean;visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};
 const initials=(name:string)=>name.split(' ').slice(-2).map(p=>p[0]).join('').toUpperCase();
-export function Sidebar({sidebarOpen,onToggle,visibleNav,currentView,onNavigate,userName,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout}:Props){
+export function Sidebar({sidebarOpen,visibleNav,currentView,onNavigate,userName,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout}:Props){
 return <>
       <aside className={`crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/10 text-white transition-[width] duration-200 motion-reduce:transition-none lg:flex ${sidebarOpen ? "w-[248px]" : "w-[72px]"}`}>
-        <div className={`flex shrink-0 items-center gap-2 ${sidebarOpen ? "h-20 justify-between px-4" : "flex-col px-2 pt-3 pb-2"}`}>
+        <div className={`flex shrink-0 items-center ${sidebarOpen ? "h-20 px-4" : "justify-center px-1 pt-3 pb-2"}`}>
           <AppBrand inverted compact={!sidebarOpen} />
-          <button type="button" onClick={onToggle}
-            aria-label={sidebarOpen ? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'}
-            title={sidebarOpen ? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'}
-            aria-expanded={sidebarOpen} aria-controls="crm-desktop-navigation"
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-[#c7ddcc] transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a5d6a7]">
-            {sidebarOpen ? <PanelLeftClose aria-hidden="true" className="size-[18px]" /> : <PanelLeftOpen aria-hidden="true" className="size-[18px]" />}
-          </button>
         </div>
         <nav id="crm-desktop-navigation" className={`crm-scrollbar-sidebar min-h-0 flex-1 space-y-1 overflow-y-auto pb-4 ${sidebarOpen ? "mt-4 px-3" : "mt-2 px-2"}`} aria-label="Điều hướng chính">
           {visibleNav.map((item) => (

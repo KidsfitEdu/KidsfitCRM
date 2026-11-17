@@ -235,9 +235,9 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
 
   return <AppProviders key={token}>
     <AppShell>
-      <Sidebar sidebarOpen={sidebarOpen} onToggle={toggleSidebar} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
+      <Sidebar sidebarOpen={sidebarOpen} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
       <div className={`pb-20 lg:pb-0 transition-[padding] duration-200 motion-reduce:transition-none ${sidebarOpen ? "lg:pl-[248px]" : "lg:pl-[72px]"}`}>
-        <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
+        <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div key={currentView} className="crm-page-enter">

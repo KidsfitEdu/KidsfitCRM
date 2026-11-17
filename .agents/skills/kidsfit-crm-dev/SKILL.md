@@ -41,6 +41,7 @@ description: Professional full-stack development, requirements review, code revi
 |---|---|
 | Architecture, files or refactor | [Architecture & Reuse](references/architecture-and-reuse.md), [Backend & API](references/backend-and-api.md) |
 | Screenshot, design, shared UI, badges | [Frontend & Design](references/frontend-and-design.md), repo frontend-design skill, [Quality Checklist](references/quality-checklist.md) |
+| Mobile-first Web App UX, touch, overlays, safe areas, responsive app-like navigation | [Frontend & Design](references/frontend-and-design.md), [Web App UX skill](../kidsfit-crm-webapp-ux/SKILL.md), repo frontend-design skill |
 | Contract, renewal, GI-01, Sales protection, Accounting | [Business Rules](references/business-rules.md), [KC-02 / GI-01](references/kc02-gi01-accounting.md), repo CHECKEE reference |
 | Schema, migration, locking, seed | [MySQL](references/mysql-and-migrations.md), repo `mysql-conventions.md`, [Security & Audit](references/security-and-audit.md) |
 | Branch, commit, PR, CI and deployment | [Git & Delivery](references/git-and-delivery.md), [Quality Checklist](references/quality-checklist.md), [AI Workflow](references/ai-workflow.md) |

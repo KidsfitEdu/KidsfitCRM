@@ -15,13 +15,14 @@ Current frontend architecture is `frontend/src/app/` for Vinext pages, `frontend
 
 1. Repository \`AGENTS.md\`, then \`docs/design/FRONTEND_DESIGN_SYSTEM.md\`.
 2. Inspect the actual view, nearby components, \`frontend/src/app/globals.css\`, its data/loading/permission paths, and related tests.
-3. Read only relevant reference(s):
+3. For app-like interactions, touch UX, mobile keyboards, safe areas or responsive shell behavior, also load [Web App UX skill](../kidsfit-crm-webapp-ux/SKILL.md). It extends, but does not override, this Design System.
+4. Read only relevant reference(s):
    - [Design system](references/design-system.md): color, spacing, type, hierarchy and states.
    - [UI components](references/ui-components.md): forms, actions, tables, messages.
    - [Responsive layout](references/responsive-layout.md): shell, breakpoints and overflow.
    - [Role-based UI](references/role-based-ui.md): target seven roles and security boundaries.
    - [UI review checklist](references/ui-review-checklist.md): implementation and visual verification.
-4. If an action, status, policy, permission or source-of-truth is involved, additionally read \`.agents/skills/kidsfit-crm-development/SKILL.md\` and relevant \`docs/requirements/\` files. **Frontend design rules never override business rules, backend authorization or financial policy.**
+5. If an action, status, policy, permission or source-of-truth is involved, additionally read \`.agents/skills/kidsfit-crm-development/SKILL.md\` and relevant \`docs/requirements/\` files. **Frontend design rules never override business rules, backend authorization or financial policy.**
 
 ## Workflow for every UI task
 
@@ -60,7 +61,7 @@ The BGĐ reference is a **visual language benchmark, not a common dataset**. Sal
 ## Design and engineering invariants
 
 - Brand: dark-green sidebar, white/light neutral workspace, green primary actions, restrained orange/blue emphasis. Prefer semantic tokens (\`bg-card\`, \`text-foreground\`, \`border-border\`) and existing \`crm-brand-*\` classes. No new global palette overriding \`globals.css\` without explicit decision.
-- Responsive shell already uses a **248px sidebar at \`lg\`** and bottom navigation below \`lg\`. Prevent off-screen forms and page-wide horizontal scrolling; scope table scrolling to the table container.
+- Responsive shell uses an expanded **248px** or collapsed **72px** Sidebar at `lg`, with the toggle in Header and a persisted preference; below `lg`, existing bottom navigation remains. Prevent off-screen forms and page-wide horizontal scrolling; scope table scrolling to the table container.
 - Interactive states: distinguish filter reset from data refresh, visually and accessibly identify overdue *pending* work based on authoritative timestamps, require confirmation for destructive/high-impact actions, and display server errors precisely.
 - Accessibility: semantic page headings and table headers, associated labels, keyboard focus, no color-only statuses, useful \`aria-label\` for icon-only actions, sufficient contrast and sensible touch targets.
 - Target business model: seven roles with one \`SALES\` UI for employees and CTV; existing \`BOARD\`, \`CHANNEL_SALES\`, \`PARTNER_ADMIN\`, \`PARTNER_COLLABORATOR\` are **legacy implementation codes**, not permission to delete existing account data. Follow \`docs/requirements/ROLES_AND_PERMISSIONS.md\`.
@@ -70,7 +71,7 @@ The BGĐ reference is a **visual language benchmark, not a common dataset**. Sal
 
 ## Verification commands
 
-From \`frontend/\` (after dependencies are installed): \`npm run lint\`, \`npx tsc --noEmit\`, \`npm run build\`; run \`npm run test:demo\` when modifying demo navigation/state. Use tests and checks only for the scope touched and report their actual results. For business permissions/transactions also follow engineering skill and backend test requirements.
+From `frontend/` (after dependencies are installed): `npm run lint`, `npx tsc --noEmit`, `npm run test:unit`, `npm run test:pages`, `npm run build`. This Real API Only frontend has no `test:demo` script. Use checks appropriate to the touched scope and report actual results.
 
 ## Handoff
 

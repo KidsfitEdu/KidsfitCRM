@@ -5,16 +5,16 @@ Refer to the actual implementation before modifying signatures or behavior. Path
 | UI pattern | Existing component/source | Design / behavior contract |
 | --- | --- | --- |
 | Title/eyebrow/description/action | \`frontend/src/components/common/app-page-header.tsx\` | Consistent title hierarchy; responsive action wrapping |
-| Action buttons (tones, pending) | \`frontend/src/components/common/app-button.tsx\` | Prefer \`AppButton\` \`green/orange/blue/outline/ghost/danger\`; honor \`busy\` & disabled, avoid multiple indistinguishable primaries |
+| Action buttons (tones, pending) | \`frontend/src/components/common/buttons/app-button.tsx\` | Prefer \`AppButton\` \`green/orange/blue/outline/ghost/danger\`; honor \`busy\` & disabled, avoid multiple indistinguishable primaries |
 | Search/filter/reset | \`frontend/src/components/common/admin-list-ui.tsx\` (\`AdminListToolbar\`) | Form submit on Enter, explicit filter reset, separate **data refresh** action |
 | Lists + row actions | Same file (\`AdminListPanel\`, \`AdminIconAction\`, \`AdminStatusBadge\`) | Semantic table header, explicit status label, \`aria-label\`, permissions and tooltip |
 | Pagination | \`frontend/src/components/common/app-pagination.tsx\` | True total, page/size sync, disabled boundaries; preserve context on filter changes |
 | Select | \`frontend/src/components/common/app-native-select.tsx\` | Native label and predictable keyboard behavior |
 | Empty state | \`frontend/src/components/common/app-empty-state.tsx\` | Explain why empty and one useful recovery action |
 | Notices / toast | \`frontend/src/components/common/app-toast-provider.tsx\` | Success/failure messages grounded in server result, no false success |
-| Confirmations | \`frontend/src/components/common/confirm-dialog.tsx\` and shadcn Dialog | Name subject/action, show impact, confirm only for high-risk changes |
+| Confirmations | \`frontend/src/components/common/dialogs/confirm-dialog.tsx\` and shadcn Dialog | Name subject/action, show impact, confirm only for high-risk changes |
 | Inputs and errors | \`frontend/src/components/ui/input.tsx\`, \`form-error.tsx\` | Controlled state, programmatic labels and \`aria-invalid\` |
-| Shell/nav | \`frontend/src/components/crm/crm-app.tsx\` | Current nav, sidebar, topbar, mobile bottom nav; do not reimplement in each role |
+| Shell/nav | `frontend/src/components/crm/crm-app.tsx`, `frontend/src/components/layout/{Sidebar,Header}.tsx` | Desktop Sidebar 248px/72px toggles in Header; mobile bottom nav; do not reimplement in each role |
 | Table CSS | \`frontend/src/app/globals.css\` \`.crm-workspace-content table:not(.crm-school-table)\` | Be aware global selector affects most CRM tables; special school table is excluded |
 
 ## Search / filter / refresh / reset

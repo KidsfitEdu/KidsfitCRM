@@ -10,13 +10,13 @@ The Vinext/React frontend now uses `frontend/src/app/` for routes, `frontend/src
 
 - App shell and role navigation: \`frontend/src/components/crm/crm-app.tsx\`.
 - Active brand tokens and dark theme: \`frontend/src/app/globals.css\` (later KIDSFIT \`:root\` definitions override earlier theme defaults).
-- Shared components: \`frontend/src/components/common/app-page-header.tsx\`, \`app-button.tsx\`, \`app-native-select.tsx\`, \`app-pagination.tsx\`, \`app-empty-state.tsx\`; Admin list components at \`frontend/src/components/common/admin-list-ui.tsx\`.
+- Shared components: `frontend/src/components/common/app-page-header.tsx`, `frontend/src/components/common/buttons/app-button.tsx`, `frontend/src/components/common/app-native-select.tsx`, `frontend/src/components/common/app-pagination.tsx`, `frontend/src/components/common/app-empty-state.tsx`; Admin list components at `frontend/src/components/common/admin-list-ui.tsx`.
 - Admin proposal screen: \`frontend/src/screens/Admin/Proposals/ProposalsPage.tsx\`; preserve current API handlers and permission controls.
 - Stack: React 19, TypeScript, Vinext, Tailwind CSS 4, shadcn/ui, Lucide Icons, TanStack Query. Do not introduce a different UI framework from a design-only request.
 
 ## Design language
 
-Deep-green fixed sidebar \`#0e2a1a\` (desktop width 248px), bright near-white workspace \`#f9fafb\`, green table head/primary \`#1b5e20\`, white card \`#fff\`, softened green navigation selection and subdued borders/shadows. Blue \`#0369a1\` is informational/secondary; orange \`#d97706\` is attention/search accent; destructive actions use \`#be123c\`. **Prefer semantic CSS tokens and shared button components, not freshly hardcoded hex values.** Use Vietnamese-friendly Inter/Be Vietnam Pro fallback and clear heading/body hierarchy.
+Deep-green fixed sidebar \`#0e2a1a\` (desktop Sidebar 248px expanded / 72px collapsed), bright near-white workspace \`#f9fafb\`, green table head/primary \`#1b5e20\`, white card \`#fff\`, softened green navigation selection and subdued borders/shadows. Blue \`#0369a1\` is informational/secondary; orange \`#d97706\` is attention/search accent; destructive actions use \`#be123c\`. **Prefer semantic CSS tokens and shared button components, not freshly hardcoded hex values.** Use Vietnamese-friendly Inter/Be Vietnam Pro fallback and clear heading/body hierarchy.
 
 - Header: small green uppercase eyebrow, meaningful page title, muted description, page-level action on the right; wraps on narrow screens.
 - Workspace: constrained width, \`space-y-5\`, cards with \`rounded-2xl\`, subtle borders/shadows.
@@ -25,7 +25,7 @@ Deep-green fixed sidebar \`#0e2a1a\` (desktop width 248px), bright near-white wo
 - Actions: primary green for commit/approve, orange search/attention where existing pattern uses it, blue information/refresh, outline reset. Do not rely on color to explain role. Icon actions require text labels accessible to assistive technology.
 - States: loading, no data, no match, forbidden, error, success, disabled and preview/demo have distinct presentation.
 - Dark mode: use \`.dark\` token variants; verify contrast and focus, not just background colors.
-- Responsive: existing shell uses fixed left sidebar at \`lg\` and bottom navigation below \`lg\`; aim for usable layouts at 375 / 768 / 1024 / 1440 px and 200% zoom.
+- Responsive: existing shell uses a toggleable Sidebar **248px/72px at `lg`** (toggle in Header) and bottom navigation below `lg`; review at 320 / 375 / 390 / 768 / 1024 / 1440px and 200% zoom. See [Web App UX skill](../../.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) for touch, safe areas and virtual keyboard.
 
 ## Approved visual contract for future CRM screens (2026-11-16)
 
@@ -102,4 +102,4 @@ Business source: [roles](../requirements/ROLES_AND_PERMISSIONS.md), [workflows](
 
 ## Skill and checks
 
-Load [frontend design skill](../../.agents/skills/kidsfit-crm-frontend-design/SKILL.md) and its focused references for tokens, component map, responsive matrix, role-specific UX and QA checklist. From \`frontend/\`, run \`npm run lint\`, \`npx tsc --noEmit\`, \`npm run build\`; run \`npm run test:demo\` when demo state/navigation changes. Browser testing must be **actually performed** before reporting visual fidelity.
+Load [frontend design skill](../../.agents/skills/kidsfit-crm-frontend-design/SKILL.md) for visual tokens and component reuse and [Web App UX skill](../../.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) for app-like experiences. From `frontend/`, run `npm run lint`, `npx tsc --noEmit`, `npm run test:unit`, `npm run test:pages`, `npm run build` when UI code changes; this Real API Only frontend has no `test:demo` script. Browser testing must be performed before reporting visual fidelity.

@@ -4,12 +4,12 @@ import {resolve} from 'node:path';
 import test from 'node:test';
 
 const page=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingContractsPage.tsx'),'utf8');
-const part=page.slice(page.indexOf("{accountingTab==='PAYOUTS'&&<AdminListPanel>"),page.indexOf('<AppDrawer wide compactAccountingHeader'));
+const part=page.slice(page.indexOf("{accountingTab==='PAYOUTS'&&<AdminListPanel className=\"min-w-0\">"),page.indexOf('<AppDrawer wide compactAccountingHeader'));
 
 test('Accounting payout tab manages eligible candidates and tracked payout records',()=>{
-  assert.match(part,/<AdminListPanel>/);
+  assert.match(part,/<AdminListPanel className="min-w-0">/);
   assert.match(part,/<AdminListToolbar/);
-  assert.match(part,/<table className=\{adminTableClass\}>/);
+  assert.match(part,/<table className=\{adminTableClass\+' table-fixed'\}>/);
   assert.doesNotMatch(part,/accounting-eligible-payouts/);
   assert.match(page,/title="Lập phiếu chi hoa hồng"/);
   assert.match(page,/setPayoutPickerOpen\(true\)/);
@@ -20,7 +20,7 @@ test('Accounting payout tab manages eligible candidates and tracked payout recor
   assert.equal((part.match(/<th scope="col"/g)||[]).length,6);
 });
 test('All statuses label is concise, with complete payout lifecycle options',()=>{
-  assert.match(part,/value:'ALL',label:'Tất cả'/);
+  assert.match(part,/value:'ALL',label:'Tất cả trạng thái'/);
   assert.doesNotMatch(part,/Mọi trạng thái/);
   for(const value of ['DRAFT','PENDING_APPROVAL','CHANGES_REQUESTED','APPROVED','PAID','CANCELLED','REJECTED'])
     assert.ok(part.includes("value:'"+value+"'"),value);

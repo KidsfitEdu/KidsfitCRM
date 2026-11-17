@@ -1044,7 +1044,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </div>
           {filteredReceipts.length>10&&<div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectiveReceiptPage}/{receiptPageCount}</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage<=1} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage>=receiptPageCount} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage+1)}>Sau</Button></div></div>}
         </section>
-        <section ref={payoutSectionRef} tabIndex={-1} aria-labelledby="contract-commission-heading"
+        </>}
+        {financeDetailTab!=='RECEIPTS'&&<section ref={payoutSectionRef} tabIndex={-1} aria-labelledby="contract-commission-heading"
           className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
             <div className="flex min-w-0 items-start gap-3">
@@ -1058,12 +1059,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </p>
               </div>
             </div>
-            {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') &&
+            {financeDetailTab==='PAYOUTS' && canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') &&
               <Button size="sm" disabled={saving} onClick={()=>openPayoutPayment()}>
                 <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
               </Button>}
           </div>
           <div className="space-y-5 p-4 sm:p-5">
+            {financeDetailTab==='COMMISSION'&&<>
             {pendingBackfillReceipts.length>0&&
               <div className="overflow-hidden rounded-xl border border-amber-300/60 bg-amber-50/60 dark:border-amber-800/70 dark:bg-amber-950/20">
                 <div className="flex items-start gap-3 px-4 pt-4 pb-3">
@@ -1147,6 +1149,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   </div>;
                 })}
               </div>}
+            </>}
+            {financeDetailTab==='PAYOUTS'&&<>
             {canCreatePayout && eligiblePeriods.length>0&&
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1288,8 +1292,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </table>
           </div>
           {payoutFiltered.length>10&&<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectivePayoutPage}/{payoutPageCount} · {payoutFiltered.length} phiếu</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage<=1} onClick={()=>setPayoutHistoryPage(effectivePayoutPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage>=payoutPageCount} onClick={()=>setPayoutHistoryPage(effectivePayoutPage+1)}>Sau</Button></div></div>}
+            </>}
           </div>
-        </section>
+        </section>}
+        </>}
       </div>}
     </AppDrawer>
     <AppDialog open={Boolean(backfillPreview)}

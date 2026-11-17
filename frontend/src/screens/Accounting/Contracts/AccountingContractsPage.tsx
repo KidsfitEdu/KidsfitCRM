@@ -1163,10 +1163,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </p>
               </div>
             </div>
-            {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') &&
-              <Button size="sm" disabled={saving} onClick={()=>openPayoutPayment()}>
-                <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
-              </Button>}
+
           </div>
           <div className="space-y-5 p-4 sm:p-5">
             {pendingBackfillReceipts.length>0&&
@@ -1252,40 +1249,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   </div>;
                 })}
               </div>}
-            {canCreatePayout && eligiblePeriods.length>0&&
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="space-y-1">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <CheckCircle2 className="size-4 text-primary" aria-hidden="true"/> Có hoa hồng có thể lập phiếu
-                    </p>
-                    <p className="text-xs text-muted-foreground">Chọn đúng người hưởng và kỳ trước khi tạo phiếu nháp.</p>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <label htmlFor="accounting-payout-beneficiary" className="text-xs font-medium">Người hưởng</label>
-                    <AppSelect id="accounting-payout-beneficiary" ariaLabel="Người hưởng hoa hồng"
-                      value={currentBeneficiary?.key??''}
-                      onValueChange={value=>{setPayoutBeneficiary(value);setPayoutPeriod('');payoutKey.current=null;}}
-                      options={beneficiaries.map(item=>({
-                        value:item.key,label:`${item.role==='MANAGER'?'Quản lý':'Sales'} · ${item.name}`
-                      }))} className="w-full"/>
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <label htmlFor="accounting-payout-period" className="text-xs font-medium">Kỳ hoa hồng</label>
-                    <AppSelect id="accounting-payout-period" ariaLabel="Kỳ hoa hồng để lập phiếu chi"
-                      value={chosenPeriod} onValueChange={setPayoutPeriod}
-                      options={eligiblePeriods.map(period=>({
-                        value:period,label:`${payoutPeriodLabel(period)} · ${channelMoney(eligibleByPeriod.get(period)??0)}`
-                      }))} className="w-full"/>
-                  </div>
-                  <Button type="button" className="h-10 w-full sm:col-span-2 lg:col-span-1 lg:w-auto" disabled={saving || !chosenPeriod}
-                    onClick={()=>openDraft()}>
-                    <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
-                  </Button>
-                </div>
-              </div>}
+            {canCreatePayout&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <div><p className="font-semibold">Quản lý phiếu chi tập trung</p>
+                <p className="mt-1 text-xs text-muted-foreground">Lập, sửa và gửi duyệt phiếu tại tab Phiếu chi hoa hồng để tránh thao tác trùng.</p>
+              </div>
+              <Button type="button" size="sm" onClick={()=>{setFinancePeriod(chosenPeriod||financePeriod);setFinancePage(1);setAccountingTab('PAYOUTS');setSelected(null);}}>
+                <WalletCards className="size-4" aria-hidden="true"/> Đến phiếu chi hoa hồng
+              </Button>
+            </div>}
             {canCreatePayout && eligiblePeriods.length===0 && detail.ledger.length>0 &&
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CheckCircle2 className="size-4 shrink-0" aria-hidden="true"/>
@@ -1299,99 +1270,38 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 {detail.ledger.filter(entry=>entry.entry_type!=='ACCRUAL')
                   .map(entry=>`${entry.reason||'Điều chỉnh'} (${channelMoney(entry.amount)})`).join('; ')}
               </div>}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h4 className="text-sm font-semibold text-foreground">Lịch sử phiếu chi</h4><p className="mt-1 text-xs text-muted-foreground">Lọc theo năm kỳ hoa hồng và trạng thái.</p></div>
-              <span className="text-xs tabular-nums text-muted-foreground">{payoutFiltered.length}/{detail.payouts.length} phiếu</span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div><h4 className="text-sm font-semibold text-foreground">Lịch sử phiếu chi liên quan</h4>
+                <p className="mt-1 text-xs text-muted-foreground">Chỉ tra cứu tại hợp đồng; thao tác ở tab Phiếu chi hoa hồng.</p></div>
+              <span className="text-xs text-muted-foreground">{payoutFiltered.length}/{detail.payouts.length} phiếu</span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <label className="space-y-1 text-xs font-medium">Năm kỳ hoa hồng
-                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={payoutHistoryYear} onChange={e=>{setPayoutHistoryYear(e.target.value);setPayoutHistoryPage(1);}}>
+                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  value={payoutHistoryYear} onChange={e=>{setPayoutHistoryYear(e.target.value);setPayoutHistoryPage(1);}}>
                   <option value="ALL">Tất cả các năm</option>{payoutYears.map(year=><option key={year} value={year}>{year}</option>)}
                 </select>
               </label>
-              <label className="space-y-1 text-xs font-medium">Trạng thái phiếu
-                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={payoutHistoryStatus} onChange={e=>{setPayoutHistoryStatus(e.target.value);setPayoutHistoryPage(1);}}>
+              <label className="space-y-1 text-xs font-medium">Trạng thái
+                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  value={payoutHistoryStatus} onChange={e=>{setPayoutHistoryStatus(e.target.value);setPayoutHistoryPage(1);}}>
                   <option value="ALL">Tất cả trạng thái</option>{["DRAFT","CHANGES_REQUESTED","PENDING_APPROVAL","APPROVED","PAID","CANCELLED","REJECTED"].map(status=><option key={status} value={status}>{payoutStatusLabel(status)}</option>)}
                 </select>
               </label>
             </div>
-          <div className="overflow-x-auto rounded-lg border border-border/80">
-            <table className="w-full min-w-[1000px] table-fixed text-left text-sm">
-              <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
-                <tr>
-                  <th scope="col" className="w-[22%] px-3 py-3">Mã phiếu</th>
-                  <th scope="col" className="w-[20%] px-3 py-3">Người hưởng</th>
-                  <th scope="col" className="w-[14%] px-3 py-3">Ngày chuyển</th>
-                  <th scope="col" className="w-[13%] px-3 py-3 text-right">Số tiền</th>
-                  <th scope="col" className="w-[14%] px-3 py-3">Trạng thái</th>
-                  <th scope="col" className="w-[17%] px-3 py-3 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                {payoutFiltered.length===0 ?
-                  <tr><td colSpan={6} className="px-3 py-8 text-center">
-                    <div className="flex flex-col items-center gap-1.5">
-                      <WalletCards className="size-6 text-muted-foreground/60" aria-hidden="true"/>
-                      <span className="font-medium text-foreground">Chưa có phiếu chi</span>
-                      <span className="text-xs text-muted-foreground">Phiếu sẽ xuất hiện sau khi lập từ hoa hồng đủ điều kiện.</span>
-                    </div>
-                  </td></tr>
-                  : payoutVisible.map(x=>{
-                    const proof = detail.evidence.find(e=>e.payout_id===x.id);
-                    const latestRequest = x.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1);
-                    const tone = x.status==='PAID'
-                      ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
-                      : x.status==='APPROVED'
-                        ? 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300'
-                        : 'border-border bg-muted/50 text-muted-foreground';
-                    return <tr key={x.id} className="hover:bg-muted/20">
-                      <td className="min-w-0 px-3 py-3">
-                        <p className="truncate font-medium" title={x.code}>{x.code}</p>
-                        {x.payment_reference&&<p className="mt-1 truncate text-xs text-muted-foreground" title={x.payment_reference}>{x.payment_reference}</p>}
-                      </td>
-                      <td className="px-3 py-3">{x.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {detail.ledger.find(e=>e.beneficiary_user_id===x.beneficiary_user_id)?.beneficiary_name??'—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3">{x.paid_at?channelDate(x.paid_at):'Chưa chuyển'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(x.net_amount)}</td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex max-w-full whitespace-nowrap rounded-full border px-2 py-1 text-xs font-medium ${tone}`}>{payoutStatusLabel(x.status)}</span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-nowrap justify-center gap-1">
-                          {x.status==='CHANGES_REQUESTED'&&<Popover>
-                            <PopoverTrigger type="button" title="Xem yêu cầu bổ sung từ BGĐ"
-                              aria-label={`Xem yêu cầu bổ sung phiếu ${x.code}`}
-                              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-amber-800 transition-colors hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                              <MessageSquareText aria-hidden="true" className="size-4"/>
-                            </PopoverTrigger>
-                            <PopoverContent side="top" align="end" className="w-[min(90vw,350px)] space-y-2 p-4">
-                              <PopoverTitle className="text-sm font-semibold">BGĐ yêu cầu bổ sung</PopoverTitle>
-                              <p className="max-h-52 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{latestRequest?.reason?.trim()||'Chưa có nội dung yêu cầu.'}</p>
-                              {latestRequest?.created_at&&<p className="text-xs text-muted-foreground">Yêu cầu lúc {channelDate(latestRequest.created_at)}</p>}
-                            </PopoverContent>
-                          </Popover>}
-                          {proof&&<Button type="button" variant="outline" size="icon" title="Xem chứng từ khoản chi"
-                            aria-label={`Xem chứng từ khoản chi ${x.code}`}
-                            onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>}
-                          {(x.status==='DRAFT'||x.status==='CHANGES_REQUESTED')&&canCreatePayout&&<>
-                            <AdminIconAction icon={Pencil} tone="neutral" disabled={saving}
-                              label={`Sửa phiếu nháp ${x.code}`} onClick={()=>openDraft(x)}/>
-                            <AdminIconAction icon={Send} tone="green" disabled={saving}
-                              label={`Gửi phiếu ${x.code} đến BGĐ phê duyệt`}
-                              onClick={()=>void submitPayout(x.id)}/>
-                          </>}
-                          {x.status==='PENDING_APPROVAL'&&canApprovePayout&&<>
-                            <Button type="button" variant="outline" size="sm" disabled={saving}
-                              onClick={()=>setReturningPayoutId(x.id)}>Yêu cầu bổ sung</Button>
-                            <Button type="button" size="sm" disabled={saving}
-                              onClick={()=>void approvePayout(x.id)}>Duyệt</Button>
-                          </>}
-                        </div>
-                      </td>
-                    </tr>;
-                  })}
-              </tbody>
-            </table>
-          </div>
+            <div className="space-y-2">
+              {payoutVisible.length===0&&<div className="rounded-xl border border-dashed border-border px-4 py-5 text-center text-xs text-muted-foreground">
+                Chưa có phiếu chi phù hợp với bộ lọc.
+              </div>}
+              {payoutVisible.map(x=><div key={x.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="break-all text-xs font-semibold">{x.code}</p>
+                  <p className="mt-1 break-words text-xs text-muted-foreground">{x.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {detail.ledger.find(e=>e.beneficiary_user_id===x.beneficiary_user_id)?.beneficiary_name??'—'} · {payoutPeriodLabel(x.period)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{payoutStatusLabel(x.status)}{x.paid_at?' · Đã chuyển '+channelDate(x.paid_at):''}</p>
+                </div>
+                <p className="font-bold tabular-nums">{channelMoney(x.net_amount)}</p>
+              </div>)}
+            </div>
           {payoutFiltered.length>10&&<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectivePayoutPage}/{payoutPageCount} · {payoutFiltered.length} phiếu</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage<=1} onClick={()=>setPayoutHistoryPage(effectivePayoutPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage>=payoutPageCount} onClick={()=>setPayoutHistoryPage(effectivePayoutPage+1)}>Sau</Button></div></div>}
           </div>
         </section>
@@ -1577,7 +1487,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       </form>}
     </AppDialog>
     <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}
-      busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
+      busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Ghi nhận chuyển khoản phiếu chi'}
       description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
       {detail && entryMode && <form noValidate className="space-y-4" onChange={event=>{
         const name = event.target.getAttribute('name') as keyof FieldErrors | null;

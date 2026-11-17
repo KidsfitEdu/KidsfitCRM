@@ -15,7 +15,9 @@ test('Accounting history visually matches Sales: source contract and renewals in
     'aria-expanded={expanded}','aria-controls={\'accounting-period-\'+key}',
     'Chứng từ ','Lịch sử xử lý','Giá trị hợp đồng','Kỳ sử dụng'])
     assert.ok(ui.includes(phrase),phrase);
-  for(const phrase of ['rounded-2xl border border-border bg-card','overflow-hidden rounded-xl border border-border',
+  assert.ok(ui.includes('rounded-2xl border border-border/70 bg-card p-4 shadow-sm'));
+  assert.ok(sales.includes('rounded-2xl border border-border bg-card'));
+  for(const phrase of ['overflow-hidden rounded-xl border border-border',
     'border-t border-border px-3 py-4','ChevronUp','ChevronDown','AppStatusBadge'])
     assert.ok(ui.includes(phrase)&&sales.includes(phrase),phrase);
   assert.match(ui,/response\.data\.find\(p=>p\.type==='RENEWAL'&&p\.status==='PENDING_ACCOUNTING'\)/);
@@ -36,6 +38,31 @@ test('Accounting renewal actions and reasons retain original security and endpoi
   assert.match(ui,/\/accounting\/renewals\/.*\+decision/);
   assert.match(ui,/await onChanged\(\)/);
 });
+
+test('Accounting renewal decisions open a shared branded confirmation dialog instead of an inline form',()=>{
+  assert.match(ui, /<AppDialog open=\{decision!==null\}/);
+  const dialog=ui.slice(ui.indexOf('<AppDialog open={decision!==null}'),ui.indexOf('</AppDialog>')+12);
+  assert.doesNotMatch(dialog, /description=|rounded-xl border border-border\/70 bg-muted\/20|CRM tự kiểm tra quyền bảo vệ/);
+  assert.match(dialog, /Bạn có chắc chắn muốn xác nhận tái ký hợp đồng của/);
+  assert.match(dialog, /<strong>\{detail\?\.data\.school_name/);
+  assert.match(dialog, /Nội dung cần bổ sung/);
+  assert.match(dialog, /Lý do từ chối/);
+
+  assert.match(ui, /busy=\{busy\} contentClassName="sm:max-w-lg"/);
+  for(const decision of ["confirm","request-info","reject"])
+    assert.ok(ui.includes("openDecision('"+decision+"')"),decision);
+  assert.match(ui, /onOpenChange=\{open=>\{if\(!open\)closeDecision\(\);\}\}/);
+  assert.match(ui, /const closeDecision=\(\)=>\{if\(!busy\)/);
+  assert.match(ui, /<Textarea ref=\{reasonRef\} id="accounting-renewal-decision-reason" required maxLength=\{1000\}/);
+  assert.match(ui, /reasonRef\.current\?\.focus\(\)/);
+  assert.doesNotMatch(ui, /autoFocus/);
+  assert.match(ui, /decision==='confirm'/);
+  assert.match(ui, /disabled=\{!decision \|\| \(decision!=='confirm'&&!reason\.trim\(\)\)\}/);
+  assert.match(ui, /<AppButton type="button" tone=\{decision==='reject'\?'danger':'green'\}/);
+  assert.match(ui, /busy=\{busy\}/);
+  assert.doesNotMatch(ui, /\{decision&&<div className="space-y-2 rounded-lg border border-border p-3"/);
+});
+
 test('Accounting period history is scoped and never treats pending renewal as confirmed service',()=>{
   assert.match(api,/MapGet\("\/accounting\/contracts\/\{contractId:long\}\/periods", AccountingPeriods\)/);
   assert.match(api,/RequireAuthorization\(Permissions\.ContractRenewalReview\)/);

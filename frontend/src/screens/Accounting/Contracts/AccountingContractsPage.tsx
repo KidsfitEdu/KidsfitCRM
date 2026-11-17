@@ -3,7 +3,7 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -585,22 +585,23 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   return <div className="space-y-5">
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <div role="tablist" aria-label="Nghiệp vụ Kế toán"
-      className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent">
-      {([{key:'CONTRACTS',label:'Hợp đồng & khoản thu'},
-         {key:'PAYOUTS',label:'Phiếu chi hoa hồng'}] as const).map(item=>
+      className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {([{key:'CONTRACTS',label:'Hợp đồng & khoản thu',icon:FileCheck2},
+         {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:HandCoins}] as const).map(item=>
         <button type="button" role="tab" key={item.key}
           aria-selected={accountingTab===item.key} onClick={()=>setAccountingTab(item.key)}
-          className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${accountingTab===item.key
+          className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${accountingTab===item.key
             ?'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
             :'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
-          {item.label}
+          <item.icon className="size-4 shrink-0" aria-hidden="true"/>
+          <span>{item.label}</span>
         </button>)}
     </div>
-    {accountingTab==='CONTRACTS'&&<section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-      <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
-        <div className="relative min-w-[190px] flex-1">
+    {accountingTab==='CONTRACTS'&&<AdminListPanel className="min-w-0">
+      <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6">
+        <div className="relative min-w-[220px] flex-[1_1_320px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
-          <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-11 w-full rounded-xl pl-10"
+          <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-10 w-full rounded-lg bg-card pl-10"
             placeholder="Tên trường, mã hợp đồng, người phụ trách..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
         <AppSelect ariaLabel="Lọc nhóm hợp đồng Kế toán" value={workspaceStatus}
@@ -616,7 +617,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             ...owners.map(owner=>({value:String(owner.id),label:owner.name})),
           ]} onValueChange={next=>{setOwnerUserId(next);setPage(1);}}/>
         <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
-        <AppButton type="button" tone="outline" size="icon-lg" className="h-11 w-11 min-w-11 rounded-lg p-0"
+        <AppButton type="button" tone="outline" size="icon-lg" className="h-10 w-10 min-w-10 rounded-lg p-0"
           aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>
           <RotateCcw className="size-4" aria-hidden="true"/>
         </AppButton>
@@ -624,7 +625,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       {busy && rows.length > 0 && <div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..." /></div>}
       {busy && rows.length === 0 ? <output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</output> : <div className="overflow-x-auto">
         <table className="w-full min-w-[1280px] text-left text-sm">
-          <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-[.04em] text-white">
+          <thead className={adminTableHeadClass}>
             <tr>
               <th scope="col" className="px-4 py-3">Nhà trường</th>
               <th scope="col" className="px-3 py-3">Sales phụ trách</th>
@@ -692,9 +693,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   <p className="mt-1 font-semibold">{channelMoney(row.commission)}</p>
                 </td>
                 <td className="px-3 py-4 text-center align-middle">
-                  <Button type="button" size="icon" variant="outline" onClick={()=>setSelected(row.id)}
-                    aria-label={`Xem chi tiết hợp đồng trường ${row.school_name}`}
-                    title="Xem chi tiết hợp đồng"><Eye className="size-4"/></Button>
+                  <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}
+                    label={`Xem chi tiết hợp đồng trường ${row.school_name}`}/>
                 </td>
               </tr>;
             })}
@@ -707,7 +707,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         disabled={busy} showSummary={false} pageSizeOptions={[20,50,100]}
         onPageChange={setPage}
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
-    </section>}
+    </AdminListPanel>}
     {accountingTab==='PAYOUTS'&&<AdminListPanel>
       <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
         onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
@@ -757,7 +757,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <td className="px-4 py-4">{p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</td>
               <td className="whitespace-nowrap px-4 py-4 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}</td>
               <td className="px-4 py-4">
-                <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${p.status==='PAID'?'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':p.status==='CHANGES_REQUESTED'?'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200':p.status==='REJECTED'||p.status==='CANCELLED'?'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200':'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200'}`}>{payoutStatusLabel(p.status)}</span>
+                <AppStatusBadge size="sm" status={p.status} label={payoutStatusLabel(p.status)}
+                  tone={p.status==='PAID'||p.status==='APPROVED'?'success'
+                    :p.status==='REJECTED'||p.status==='CANCELLED'?'danger'
+                    :p.status==='CHANGES_REQUESTED'||p.status==='PENDING_APPROVAL'?'warning':'neutral'}/>
               </td>
               <td className="whitespace-nowrap px-4 py-4">{payoutPeriodLabel(p.period)}</td>
             </tr>)}
@@ -777,7 +780,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description="Kế toán / Chi tiết hợp đồng">
       {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
-        <div className="space-y-2 rounded-xl bg-muted/25 p-4 sm:p-5">
+        <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-4 sm:p-5">
           <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
           <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>
           <p className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
@@ -799,7 +802,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           onChanged={async()=>{setDetailRevision(v=>v+1);await load();await onChanged();}}/>}
         {rows.find(r=>r.id===selected)&&(()=>{
           const overview=rows.find(r=>r.id===selected)!;
-          return <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          return <section className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
             <h3 className="text-base font-bold">Tình trạng dịch vụ & quyền bảo vệ</h3>
             <AppStatusBadge variant="kidsfit-service" status={overview.service_status} label={{
               CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
@@ -827,7 +830,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </div>}
           </section>;
         })()}
-        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+        <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold text-foreground">Thông tin hợp đồng</h3>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&_dd]:break-words [&_dd]:leading-6 [&_dt]:text-xs">
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
@@ -890,7 +893,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             })}
           </div>
         </section>
-        <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+        <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
@@ -1359,7 +1362,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
           <select name="schedule_id" required value={selectedScheduleId??''}
             onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);receiptAttempt.current=null;setFieldErrors({});}}
-            className="w-full rounded-lg border bg-background p-2">
+            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
               {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
           </select>{selectedScheduleId!==null&&<p className="text-xs text-muted-foreground">
@@ -1372,7 +1375,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               const id=Number(e.target.value);
               setSelectedPayoutId(id);receiptAttempt.current=null;setFieldErrors({});
               setAmountInput(String(detail.payouts.find(x=>x.id===id)?.net_amount??''));
-            }} className="w-full rounded-lg border bg-background p-2">
+            }} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
           </select>{fieldErrors.payout_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.payout_id}</span>}</label>}
         <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
@@ -1393,9 +1396,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required aria-invalid={Boolean(fieldErrors.proof)}/>
           {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
-        <div className="flex flex-wrap justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</Button>
-          <Button type="submit" disabled={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</Button>
+        <div className="flex flex-wrap justify-end gap-3 border-t border-border/70 pt-4">
+          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</AppButton>
+          <AppButton type="submit" tone="green" busy={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</AppButton>
         </div>
       </form>}
     </AppDialog>

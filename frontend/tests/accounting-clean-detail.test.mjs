@@ -11,7 +11,7 @@ test('Accounting detail groups summary, service terms, payment schedule, receipt
     'Nhà trường thanh toán', 'Hoa hồng Sales']) {
     assert.ok(page.includes(label), label);
   }
-  assert.match(page, /rounded-xl border border-border\/70 bg-card p-4 shadow-sm/);
+  assert.match(page, /rounded-2xl border border-border\/70 bg-card p-4 shadow-sm/);
   assert.match(page, /current_period/);
   assert.match(page, /next_confirmed_period/);
 });

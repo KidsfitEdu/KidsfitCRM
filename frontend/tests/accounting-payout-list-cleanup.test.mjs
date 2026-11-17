@@ -23,7 +23,7 @@ test('All statuses label is concise, with complete payout lifecycle options',()=
   for(const value of ['DRAFT','PENDING_APPROVAL','CHANGES_REQUESTED','APPROVED','PAID','CANCELLED','REJECTED'])
     assert.ok(part.includes("value:'"+value+"'"),value);
   assert.match(part,/payoutStatusLabel\(p.status\)/);
-  assert.match(part,/whitespace-nowrap rounded-full/);
+  assert.match(part,/<AppStatusBadge size="sm" status=\{p.status\}/);
   assert.match(part,/payoutPeriodLabel\(p.period\)/);
 });
 test('Search applies on submission, pagination resets with filters, and uses all filtered rows',()=>{

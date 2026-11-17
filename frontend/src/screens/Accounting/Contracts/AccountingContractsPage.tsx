@@ -154,7 +154,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeRole,setFinanceRole]=useState('ALL');
   const [financeOverview,setFinanceOverview]=useState<FinanceWorkspace|null>(null);
-  const [eligiblePage,setEligiblePage]=useState(1);
+  const [payoutPickerOpen,setPayoutPickerOpen]=useState(false);
+  const [payoutPickerSearch,setPayoutPickerSearch]=useState('');
+  const [payoutCandidateKey,setPayoutCandidateKey]=useState('');
   const [payoutPreview,setPayoutPreview]=useState<FinanceWorkspace['payouts'][number]|null>(null);
   const [centralPayoutIntent,setCentralPayoutIntent]=useState<{
     contractId:number;beneficiaryUserId:number;role:'SALES'|'MANAGER';period:string;
@@ -655,15 +657,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const visiblePayouts=displayedPayouts.slice((financePage-1)*financePageSize,financePage*financePageSize);
   const eligibleCandidates=(financeOverview?.eligible_payouts??[])
     .filter(x=>(financeRole==='ALL'||x.beneficiary_role===financeRole)
-      &&(financeOrganization==='ALL'||x.organization_id===Number(financeOrganization))
-      &&(!financeKeyword||[x.contract_code,x.school_name,x.beneficiary_name].some(
-        value=>value.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
-  const eligiblePages=Math.max(1,Math.ceil(eligibleCandidates.length/10));
-  const eligiblePageSafe=Math.min(eligiblePage,eligiblePages);
-  const visibleCandidates=eligibleCandidates.slice((eligiblePageSafe-1)*10,eligiblePageSafe*10);
+      &&(financeOrganization==='ALL'||x.organization_id===Number(financeOrganization)));
+  const payoutChoices=eligibleCandidates.filter(x=>!payoutPickerSearch.trim()||
+    [x.school_name,x.contract_code,x.beneficiary_name].some(text=>
+      text.toLocaleLowerCase('vi-VN').includes(payoutPickerSearch.trim().toLocaleLowerCase('vi-VN'))));
+  const candidateKey=(item:typeof eligibleCandidates[number])=>[item.contract_id,item.beneficiary_user_id,item.beneficiary_role,item.period].join(':');
+  const chosenCandidate=payoutChoices.find(item=>candidateKey(item)===payoutCandidateKey);
   const resetFinanceFilters=()=>{
     setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
-    setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);setEligiblePage(1);
+    setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
   };
   return <div className="space-y-5">
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
@@ -784,14 +786,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <p className="mt-1 text-xs text-muted-foreground">Lập phiếu theo trường, người hưởng và kỳ hoa hồng; gửi BGĐ duyệt trước khi chi.</p></div>
         <div className="flex flex-wrap items-center gap-2">
           {canCreatePayout&&<Button type="button" size="sm"
-            onClick={()=>document.getElementById('accounting-eligible-payouts')?.scrollIntoView({behavior:'smooth',block:'start'})}>
+            onClick={()=>{setPayoutPickerSearch('');setPayoutCandidateKey('');setPayoutPickerOpen(true);}}>
             <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
           </Button>}
           <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu đang hiển thị · {financeOverview?.payout_total??displayedPayouts.length} phiếu trong kỳ</span>
         </div>
       </div>
       <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
-        onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);setEligiblePage(1);}}
+        onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
         onReset={resetFinanceFilters} searchLabel="Tìm người hưởng hoặc mã phiếu chi"
         placeholder="Tìm mã phiếu, người hưởng..."
         filters={<div className="flex flex-wrap items-center gap-2">
@@ -819,48 +821,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               {value:'REJECTED',label:'Đã từ chối'}]}
             onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
         </div>}/>
-      {canCreatePayout&&<section id="accounting-eligible-payouts" aria-labelledby="accounting-eligible-heading"
-        className="space-y-3 border-b border-border/80 bg-primary/[0.03] px-5 py-5 sm:px-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 id="accounting-eligible-heading" className="flex items-center gap-2 text-sm font-bold">
-              <CheckCircle2 className="size-4 text-primary" aria-hidden="true"/> Hoa hồng đủ điều kiện lập phiếu
-            </h3>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Chọn khoản theo trường, người hưởng và kỳ hoa hồng. Chỉ lập phiếu Nháp, chưa ghi nhận chuyển tiền.</p>
-          </div>
-          <span className="text-xs tabular-nums text-muted-foreground">{eligibleCandidates.length}/{financeOverview?.eligible_payout_total??0} lựa chọn</span>
-        </div>
-        {!financeLoading&&eligibleCandidates.length===0&&
-          <p className="rounded-lg border border-dashed border-border bg-card px-4 py-4 text-sm text-muted-foreground">
-            Chưa có hoa hồng đủ điều kiện trong kỳ hoặc bộ lọc đang chọn. Hãy kiểm tra kỳ hoa hồng và đối soát hợp đồng.
-          </p>}
-        <div className="grid gap-2 lg:grid-cols-2">
-          {visibleCandidates.map(candidate=><div key={candidate.contract_id+':'+candidate.beneficiary_role+':'+candidate.beneficiary_user_id}
-            className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-3">
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="break-words text-sm font-semibold">{candidate.school_name}</p>
-              <p className="break-words text-xs text-muted-foreground">{candidate.contract_code} · {candidate.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {candidate.beneficiary_name}</p>
-              <p className="font-bold tabular-nums text-primary">{channelMoney(candidate.amount)}</p>
-            </div>
-            <Button type="button" size="sm" disabled={saving||Boolean(centralPayoutIntent)}
-              onClick={()=>openCentralPayout({contractId:candidate.contract_id,
-                beneficiaryUserId:candidate.beneficiary_user_id,role:candidate.beneficiary_role,
-                period:candidate.period,mode:'CREATE'})}>
-              <Plus className="size-4" aria-hidden="true"/> Lập phiếu
-            </Button>
-          </div>)}
-        </div>
-        {eligibleCandidates.length>10&&<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span>Trang {eligiblePageSafe}/{eligiblePages}</span>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={eligiblePageSafe<=1} onClick={()=>setEligiblePage(eligiblePageSafe-1)}>Trước</Button>
-            <Button type="button" variant="outline" size="sm" disabled={eligiblePageSafe>=eligiblePages} onClick={()=>setEligiblePage(eligiblePageSafe+1)}>Sau</Button>
-          </div>
-        </div>}
-        {(financeOverview?.eligible_payout_total??0)>100&&<p className="text-xs text-amber-700 dark:text-amber-300">
-          Hiển thị tối đa 100 lựa chọn của kỳ. Cần phân trang API để xem toàn bộ {financeOverview?.eligible_payout_total} lựa chọn.
-        </p>}
-      </section>}
       <div className="px-5 py-4 sm:px-6">
         <h3 className="text-sm font-bold">Danh sách phiếu chi</h3>
         <p className="mt-1 text-xs text-muted-foreground">Xem hồ sơ, sửa nháp, gửi BGĐ duyệt và ghi nhận chi theo quyền.</p>
@@ -915,6 +875,54 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageChange={setFinancePage}
         onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
     </AdminListPanel>}
+    <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!saving)setPayoutPickerOpen(open);}}
+      title="Lập phiếu chi hoa hồng" description="Chọn kỳ, nhà trường và người hưởng có hoa hồng đủ điều kiện. Sau đó kiểm tra số tiền trong form Nháp.">
+      <div className="space-y-4">
+        <label htmlFor="accounting-payout-month" className="block space-y-1 text-sm font-medium">
+          <span>Kỳ hoa hồng *</span>
+          <Input id="accounting-payout-month" type="month" value={financePeriod}
+            onChange={event=>{setFinancePeriod(event.target.value);setPayoutCandidateKey('');}}/>
+        </label>
+        <label htmlFor="accounting-payout-search" className="block space-y-1 text-sm font-medium">
+          <span>Tìm nhà trường / hợp đồng</span>
+          <Input id="accounting-payout-search" value={payoutPickerSearch}
+            onChange={event=>{setPayoutPickerSearch(event.target.value);setPayoutCandidateKey('');}}
+            placeholder="Nhập tên trường, mã hợp đồng hoặc người hưởng"/>
+        </label>
+        <label htmlFor="accounting-payout-candidate" className="block space-y-1 text-sm font-medium">
+          <span>Nhà trường và người hưởng *</span>
+          <select id="accounting-payout-candidate" value={payoutCandidateKey}
+            onChange={event=>setPayoutCandidateKey(event.target.value)}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm">
+            <option value="">Chọn khoản hoa hồng chưa lập phiếu</option>
+            {payoutChoices.map(item=><option key={candidateKey(item)} value={candidateKey(item)}>
+              {item.school_name} · {item.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}: {item.beneficiary_name} · {channelMoney(item.amount)}
+            </option>)}
+          </select>
+        </label>
+        {financeLoading?<output className="block text-xs text-muted-foreground">Đang tải khoản hoa hồng...</output>
+          :payoutChoices.length===0?<p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+            Chưa có hoa hồng đủ điều kiện ở kỳ hoặc bộ lọc này.</p>:null}
+        {chosenCandidate&&<div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <p className="text-sm font-semibold">{chosenCandidate.school_name}</p>
+          <p className="mt-1 break-words text-xs text-muted-foreground">{chosenCandidate.contract_code} · {chosenCandidate.beneficiary_name}</p>
+          <p className="mt-2 text-lg font-bold text-primary tabular-nums">Hoa hồng đề xuất: {channelMoney(chosenCandidate.amount)}</p>
+        </div>}
+        {(financeOverview?.eligible_payout_total??0)>100&&<p className="text-xs text-amber-700 dark:text-amber-300">
+          Kỳ này có hơn 100 lựa chọn; hệ thống mới tải 100 khoản đầu. Không nên lập phiếu từ dữ liệu chưa hiển thị.
+        </p>}
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+          <Button type="button" variant="outline" onClick={()=>setPayoutPickerOpen(false)}>Hủy</Button>
+          <Button type="button" disabled={!chosenCandidate||financeLoading||saving}
+            onClick={()=>{
+              if(!chosenCandidate)return;
+              setPayoutPickerOpen(false);
+              openCentralPayout({contractId:chosenCandidate.contract_id,beneficiaryUserId:chosenCandidate.beneficiary_user_id,
+                role:chosenCandidate.beneficiary_role,period:chosenCandidate.period,mode:'CREATE'});
+            }}>Tiếp tục lập phiếu</Button>
+        </div>
+      </div>
+    </AppDialog>
     <AppDialog open={payoutPreview!==null}
       onOpenChange={open=>{if(!open)setPayoutPreview(null);}}
       title={payoutPreview?'Phiếu chi · '+payoutPreview.code:'Chi tiết phiếu chi'}

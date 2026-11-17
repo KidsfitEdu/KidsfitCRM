@@ -611,6 +611,23 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(newStart, newSchedule.DueOn);
         await Assert.ThrowsAsync<ApiConflictException>(() =>
             ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct));
+
+        // Collect the renewal's own amount without charging it against the original
+        // contract face value, while keeping old contract/schedules untouched.
+        var receiptId = await new ChannelSalesActions(db).RecordRevenueReceipt(contractId,
+            new RecordRevenueReceiptRequest(Key(), newSchedule.Id, newSchedule.AmountDue,
+                DateTime.UtcNow, "REN-" + Key(), "BANK_TRANSFER"),
+            accountant, Http(accountant), Ct);
+        Assert.True(receiptId > 0);
+        var collectedRenewal = await db.RevenueReceipts.AsNoTracking()
+            .SingleAsync(x => x.Id == receiptId, Ct);
+        Assert.Equal(newSchedule.AmountDue, collectedRenewal.Amount);
+        var paidSchedule = await db.RevenueSchedules.AsNoTracking()
+            .SingleAsync(x => x.Id == newSchedule.Id, Ct);
+        Assert.Equal("PAID", paidSchedule.Status);
+        Assert.Equal(newSchedule.AmountDue, paidSchedule.AmountReceived);
+        Assert.Equal(originalMoney, (await db.SalesContracts.AsNoTracking()
+            .SingleAsync(x => x.Id == contractId, Ct)).TotalValue);
     }
 
     [MySqlFact] public async Task RenewalReturnsToSalesAndResubmitsDirectlyWithoutCheckeeOrManager()

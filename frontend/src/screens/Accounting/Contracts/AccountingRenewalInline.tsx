@@ -7,7 +7,6 @@ import {Button} from '@/components/ui/button';
 import {AppButton} from '@/components/common/buttons/app-button';
 import {AppDialog} from '@/components/common/dialogs/app-dialog';
 import {Textarea} from '@/components/ui/textarea';
-import {Input} from '@/components/ui/input';
 import {appNotice} from '@/components/common/app-toast-provider';
 import {channelDate,channelMoney,channelRequest} from '@/lib/channel-operations';
 
@@ -215,7 +214,6 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
              <Button type="button" disabled={busy} variant="outline" onClick={()=>openDecision('request-info')}>Yêu cầu bổ sung</Button>
              <Button type="button" disabled={!canConfirm||busy} variant="destructive" onClick={()=>openDecision('reject')}>Từ chối</Button>
            </div>
-
          </div>}
        </div>}
      </div>;
@@ -240,7 +238,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
        <p className="mt-1 text-xs text-muted-foreground">Kỳ sử dụng: {showDate(detail?.data.service_start_on??null)} – {showDate(detail?.data.service_end_on??null)}</p>
      </div>
      {decision==='confirm'
-       ? <p className="leading-6 text-foreground">Cậu có chắc chắn muốn xác nhận kỳ dịch vụ của hồ sơ tái ký này?</p>
+       ? <p className="leading-6 text-foreground">Bạn có chắc chắn muốn xác nhận kỳ dịch vụ của hồ sơ tái ký này?</p>
        : <div className="space-y-2">
            <label htmlFor="accounting-renewal-decision-reason" className="font-medium text-foreground">
              {decision==='request-info'?'Nội dung cần bổ sung':'Lý do từ chối'} <span className="text-destructive">*</span>

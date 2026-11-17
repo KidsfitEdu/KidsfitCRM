@@ -1,6 +1,6 @@
 # Responsive layout and state coverage
 
-Current KIDSFIT shell source: \`frontend/src/components/crm/crm-app.tsx\` and \`frontend/src/app/globals.css\`. Existing desktop sidebar is \`w-[248px]\` at \`lg\`; mobile/tablet get bottom navigation below \`lg\`; header is sticky and content wrapper is \`max-w-[1480px]\`. New UI must fit the shell, not replace it.
+Current KIDSFIT shell source: `frontend/src/components/crm/crm-app.tsx` and `frontend/src/app/globals.css`. Desktop Sidebar is **248px expanded or 72px collapsed** at `lg`, toggled from Header with localStorage persistence; mobile/tablet use bottom navigation below `lg`; Header is sticky and content wrapper is `max-w-[1480px]`. New UI must fit the shell, not replace it.
 
 ## Expected behavior by viewport (check representative widths)
 
@@ -9,10 +9,10 @@ Current KIDSFIT shell source: \`frontend/src/components/crm/crm-app.tsx\` and \`
 | 320–399px | Existing bottom navigation; keyboard-aware | One column, compact header and wrapped toolbar | No page-level horizontal overflow; use contained table scroll or deliberate cards |
 | 400–767px | Bottom nav | One-column filters, full-width fields as needed | Buttons comfortably tappable, readable labels and dialogs |
 | 768–1023px | Bottom nav per existing \`lg\` breakpoint | Multi-column where content fits; avoid squeezed search | Table internal horizontal scrolling where required |
-| 1024–1439px | Sidebar appears, 248px | Content respects sidebar, search and page actions wrap | Table columns proportionate to remaining width |
-| 1440px+ | Sidebar, desktop topbar | Constrained to existing max width | Full table and toolbar alignment |
+| 1024–1439px | Sidebar 248px expanded / 72px collapsed | Content tracks Sidebar width; search and actions wrap | Table columns proportionate to remaining width |
+| 1440px+ | Toggleable Sidebar 248px / 72px, desktop topbar | Constrained to existing max width | Full table and toolbar alignment |
 
-These are **test viewports**, not new breakpoint definitions. Use project Tailwind utilities (\`sm/md/lg/xl\`) and actual component measurements; do not add a new screen-specific global breakpoint without reason.
+For touch, safe-area, on-screen keyboard and app-like interaction use [Web App UX](../../kidsfit-crm-webapp-ux/SKILL.md). These are **test viewports**, not new breakpoint definitions. Use project Tailwind utilities (\`sm/md/lg/xl\`) and actual component measurements; do not add a new screen-specific global breakpoint without reason.
 
 ## Header, navigation and content
 

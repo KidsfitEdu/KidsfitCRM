@@ -316,14 +316,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setSelectedScheduleId(next?.id??null);
     setSelectedPayoutId(null);receiptAttempt.current=null;setEntryMode('receipt');
   };
-  const openPayoutPayment = (payoutId?:number) => {
-    const next = detail?.payouts.find(x=>x.id===payoutId&&x.status==='APPROVED')
-      ?? detail?.payouts.find(x=>x.status==='APPROVED');
-    if(!next)return;
-    setFieldErrors({});
-    setSelectedPayoutId(next.id);setSelectedScheduleId(null);
-    setAmountInput(String(next.net_amount));receiptAttempt.current=null;setEntryMode('payout');
-  };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (selected === null || !detail || !entryMode) return;
@@ -493,15 +485,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setPayoutPreview(null);
     setCentralPayoutIntent(intent);
     setSelected(intent.contractId);
-  };
-  const openDraft = (payout?:Detail['payouts'][number]) => {
-    setEditingPayout(payout??null);setPayoutError('');
-    setPayoutRate(String(payout?.requested_rate_percent??suggestedRate));
-    setPayoutRequestedAmount(String(payout?.requested_amount??(eligibleByPeriod.get(chosenPeriod)??0)));
-    setPayoutAdjustmentReason(payout?.adjustment_reason??'');
-    setPayoutWithholding(String(payout?.withholding_amount??0));
-    setPayoutWithholdingReason(payout?.withholding_reason??'');
-    payoutKey.current=null;setPayoutDialogOpen(true);
   };
   // The detail API is the authority for draft amounts and contract-scoped ledger.
   // It is loaded without opening the contract Drawer when working in the payout tab.

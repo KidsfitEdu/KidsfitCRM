@@ -114,7 +114,7 @@ export function Header({
     }
   };
 
-  return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:px-7">
+  return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:pl-4 sm:pr-7">
     <div className="flex min-w-0 items-center gap-3">
       <Button type="button" variant="outline" size="icon" onClick={onToggleSidebar}
         aria-label={sidebarOpen ? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'}

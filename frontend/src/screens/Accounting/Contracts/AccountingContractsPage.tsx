@@ -847,10 +847,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
       description={drawerMode==="CONTRACT"?"Kế toán / Hồ sơ hợp đồng":"Kế toán / Xử lý tài chính"}>
       {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
-        <div role="group" aria-label="Chuyển chế độ chi tiết" className="flex flex-wrap gap-2 border-b border-border pb-3">
+        <fieldset className="flex flex-wrap gap-2 border-b border-border pb-3"><legend className="sr-only">Chuyển chế độ chi tiết</legend>
           <Button type="button" size="sm" variant={drawerMode==='CONTRACT'?'default':'outline'} aria-pressed={drawerMode==='CONTRACT'} onClick={()=>setDrawerMode('CONTRACT')}><Eye className="size-4"/> Hồ sơ hợp đồng</Button>
           <Button type="button" size="sm" variant={drawerMode==='FINANCE'?'default':'outline'} aria-pressed={drawerMode==='FINANCE'} onClick={()=>setDrawerMode('FINANCE')}><WalletCards className="size-4"/> Thanh toán & hoa hồng</Button>
-        </div>
+        </fieldset>
         {drawerMode==='CONTRACT'&&<>
         <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-4 sm:p-5">
           <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>

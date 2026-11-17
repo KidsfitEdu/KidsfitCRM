@@ -258,9 +258,9 @@ public static class ChannelSalesOperationsEndpoints
                               reconciliation_status = db.ReconciliationCases.Where(x => x.ContractId == entry.ContractId).Select(x => x.Status).FirstOrDefault(),
                           };
         var payoutsQuery = access.Payouts(db).AsNoTracking();
-        // Return eligible candidates per contract, scoped to the viewer and reconciled ledger.
-        var eligibleEntries = entries.Where(x => !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id)
-            && db.ReconciliationCases.Any(r => r.ContractId == x.ContractId && r.Status == "CONFIRMED"));
+        // Match CreatePayout eligibility: scoped, unassigned commission entries;
+        // do not introduce an approval/reconciliation gate absent from that command.
+        var eligibleEntries = entries.Where(x => !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id));
         var eligiblePayoutQuery = from entry in eligibleEntries
                                   join contract in access.Contracts(db) on entry.ContractId equals contract.Id
                                   join school in db.ChannelCustomers on contract.CustomerId equals school.Id

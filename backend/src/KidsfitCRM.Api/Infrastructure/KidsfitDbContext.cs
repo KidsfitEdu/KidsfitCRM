@@ -223,7 +223,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         receiptDraft.Property(x => x.ReferenceCode).HasMaxLength(64).UseCollation("utf8mb4_bin");
         receiptDraft.Property(x => x.PaymentMethod).HasMaxLength(32);
         receiptDraft.Property(x => x.Status).HasMaxLength(24);
-        Money<RevenueReceiptDraft>(b, x => x.Amount);
+        receiptDraft.Property(x => x.Amount).HasPrecision(19, 0);
         receiptDraft.HasIndex(x => new { x.CreatedByUserId, x.Status, x.UpdatedAt });
         receiptDraft.HasIndex(x => x.ContractId);
         receiptDraft.HasIndex(x => x.RevenueScheduleId);

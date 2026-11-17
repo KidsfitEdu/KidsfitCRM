@@ -57,7 +57,7 @@ test('Accounting separates contracts and role-specific payout overview',()=>{
   assert.match(accounting,/Phiếu chi hoa hồng/);
   assert.match(accounting,/beneficiary_role:currentBeneficiary\?\.role/);
   assert.match(accounting,/role="tab"/);
-  assert.match(accounting,/financeOverview\?\.payouts/);
+  assert.match(accounting,/\/accounting\/payouts\?/);
 });
 
 test('Legacy receipt requires explicit verified backfill and never silently reassigns manager share',()=>{

@@ -265,6 +265,7 @@ public static class ChannelSalesOperationsEndpoints
                                   join contract in access.Contracts(db) on entry.ContractId equals contract.Id
                                   join school in db.ChannelCustomers on contract.CustomerId equals school.Id
                                   join user in db.Users on entry.BeneficiaryUserId equals user.Id
+                                  where contract.OwnerOrganizationId == entry.BeneficiaryOrganizationId
                                   group entry by new { entry.ContractId, contract.ContractCode, school.DisplayName,
                                       entry.BeneficiaryOrganizationId, entry.BeneficiaryUserId, user.Name,
                                       entry.BeneficiaryRole, entry.Period } into grouped

@@ -98,3 +98,28 @@ test('Accounting detail refresh does not unmount all drawer content after a payo
   assert.match(dialog, /focus\(\{preventScroll:true\}\)/);
   assert.doesNotMatch(dialog, /onCloseAutoFocus/);
 });
+
+
+test('Accounting receipt history has year filtering and bounded rows without changing actual income totals', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /receiptHistoryYear/);
+  assert.match(page, /filteredReceipts\.slice\(\(effectiveReceiptPage-1\)\*10,effectiveReceiptPage\*10\)/);
+  assert.match(page, /visibleReceipts\.map\(x=>/);
+  assert.match(page, /detail\.receipts\.reduce\(\(sum,x\)=>sum\+x\.amount,0\)/);
+  assert.match(page, /detail\.refunded_total/);
+});
+
+test('Accounting service schedules prioritize outstanding payments and collapse long history', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /orderedSchedules/);
+  assert.match(page, /Number\(a\.amount_received>=a\.amount_due\)/);
+  assert.match(page, /showAllSchedules\?orderedSchedules:orderedSchedules\.slice\(0,6\)/);
+  assert.match(page, /setShowAllSchedules\(value=>!value\)/);
+});
+
+test('Accounting school units are compact until expanded', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /<details className="group rounded-xl/);
+  assert.match(page, /Trường điểm \/ Phân hiệu \(\{detail\.school_units\.length\}\)/);
+  assert.doesNotMatch(page, /list-inside list-disc space-y-1/);
+});

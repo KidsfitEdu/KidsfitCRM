@@ -709,11 +709,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right"
                   aria-label={`Tổng thực thu của ${row.school_name}`}>
                   <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng thực thu</p>
-                  <p className="break-words font-semibold xl:whitespace-nowrap" title={channelMoney(row.received)}>{channelMoney(row.received)}</p>
+                  <p className="break-words font-semibold [overflow-wrap:anywhere]" title={channelMoney(row.received)}>{channelMoney(row.received)}</p>
                 </td>
                 <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right">
                   <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng hoa hồng</p>
-                  <p className="break-words font-semibold xl:whitespace-nowrap" title={channelMoney(row.commission)}>{channelMoney(row.commission)}</p>
+                  <p className="break-words font-semibold [overflow-wrap:anywhere]" title={channelMoney(row.commission)}>{channelMoney(row.commission)}</p>
                 </td>
                 <td className="flex items-center justify-end align-middle xl:table-cell xl:px-1 xl:py-3 xl:text-center"><span className="mr-2 text-xs text-muted-foreground xl:hidden">Thao tác</span>
                   <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}

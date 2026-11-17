@@ -8,8 +8,9 @@ test('Accounting has one workspace table, eight columns, one detail Drawer and n
  const shell=read('src/screens/Accounting/Revenue/RevenuePage.tsx');
  const ui=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
  assert.doesNotMatch(shell,/AccountingTab|ServiceInterruptionPanel|ContractRenewalAccountingPanel/);
- const firstTable=ui.slice(ui.indexOf('<table className="w-full min-w-[1280px]'),
-   ui.indexOf('</table>',ui.indexOf('<table className="w-full min-w-[1280px]'))+8);
+ const start=ui.indexOf('<table className="block w-full text-left text-sm xl:table xl:table-fixed');
+ const firstTable=ui.slice(start,ui.indexOf('</table>',start)+8);
+ assert.ok(start>=0);
  assert.equal((firstTable.match(/<th scope="col"/g)||[]).length,8);
  for(const label of ['Nhà trường','Sales phụ trách','Kỳ sử dụng','Dịch vụ','Cần xử lý','Thanh toán','Hoa hồng','Thao tác'])
   assert.ok(ui.includes(label),label);
@@ -54,9 +55,12 @@ test('GI-01 milestones differ from actual release and labels remain concise',()=
  }
  assert.match(ui,/Đạt mốc/);
  assert.match(ui,/Mốc 12 tháng/);
- assert.match(ui,/Giá trị hợp đồng<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(row\.total_value\)\}/);
- assert.match(ui,/Thực thu<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(amount\)\}/);
- assert.match(ui,/Hoa hồng ghi nhận<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(row\.commission\)\}/);
+ assert.doesNotMatch(firstTable,/channelMoney\(row\.total_value\)/);
+ assert.match(firstTable,/Tổng thực thu/);
+ assert.match(firstTable,/channelMoney\(row\.received\)/);
+ assert.doesNotMatch(firstTable,/row\.received-row\.refunded/);
+ assert.match(firstTable,/Tổng hoa hồng/);
+ assert.match(firstTable,/channelMoney\(row\.commission\)/);
  assert.doesNotMatch(ui,/Đã thu sau hoàn tiền/);
  assert.doesNotMatch(ui,/Hoa hồng ghi nhận: \{channelMoney\(row\.commission\)\}/);
 });
@@ -80,4 +84,17 @@ test('Kidsfit branding differentiates service states from accounting actions wit
  assert.match(table,/variant="kidsfit-action" status="REVIEW_PERIOD"/);
  assert.match(table,/<span className="text-muted-foreground">—<\/span>/);
  assert.doesNotMatch(table,/font-semibold text-amber-800 dark:text-amber-200/);
+});
+
+
+test('Accounting contract list keeps eight fields without forced table min width',()=>{
+ const ui=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+ assert.doesNotMatch(ui,/min-w-\[1280px\]/);
+ assert.match(ui,/xl:table-fixed/);
+ assert.match(ui,/xl:hidden/);
+ assert.match(ui,/Tổng thực thu/);
+ assert.match(ui,/Tổng hoa hồng/);
+ assert.match(ui,/channelMoney\(row\.received\)/);
+ assert.doesNotMatch(ui,/const amount=Math\.max\(0,row\.received-row\.refunded\)/);
+ assert.match(ui,/onClick=\{\(\)=>setSelected\(row\.id\)\}/);
 });

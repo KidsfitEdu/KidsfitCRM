@@ -331,7 +331,7 @@ public static class ManagerContractEndpoints
         var setupFee = feeItems.FirstOrDefault(x => x.Description == "Phí khởi tạo (một lần)")?.UnitPrice ?? 0m;
         var files = await db.FinancialEvidences.AsNoTracking()
             .Where(x => x.ContractId == id && x.Kind == "CONTRACT" && x.AttachedAt != null)
-            .OrderByDescending(x => x.AttachedAt)
+            .OrderByDescending(x => x.AttachedAt).ThenByDescending(x => x.Id)
             .Select(x => new { id = x.Id, file_name = x.FileName, mime_type = x.MimeType, created_at = x.CreatedAt })
             .ToArrayAsync(ct);
         var installments = await db.RevenueSchedules.AsNoTracking().Where(x => x.ContractId == id)

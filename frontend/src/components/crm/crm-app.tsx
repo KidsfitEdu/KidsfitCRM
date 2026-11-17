@@ -55,6 +55,18 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   });
   const [search, setSearch] = useState('');
   const [dark, setDark] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem('kidsfit-crm-sidebar') === 'collapsed') setSidebarOpen(false);
+    } catch { /* Storage may be unavailable; keep the expanded default. */ }
+  }, []);
+  const toggleSidebar = () => {
+    const nextOpen = !sidebarOpen;
+    try { window.localStorage.setItem('kidsfit-crm-sidebar', nextOpen ? 'expanded' : 'collapsed'); }
+    catch { /* Sidebar remains usable when storage is blocked. */ }
+    setSidebarOpen(nextOpen);
+  };
   const [error, setError] = useState('');
   const has = (permission: string) => abilities.includes('*') || abilities.includes(permission);
 
@@ -223,9 +235,9 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
 
   return <AppProviders key={token}>
     <AppShell>
-      <Sidebar visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
-      <div className="pb-20 lg:pl-[248px] lg:pb-0">
-        <Header todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
+      <Sidebar sidebarOpen={sidebarOpen} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
+      <div className={`pb-20 lg:pb-0 transition-[padding] duration-200 motion-reduce:transition-none ${sidebarOpen ? "lg:pl-[248px]" : "lg:pl-[72px]"}`}>
+        <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div key={currentView} className="crm-page-enter">

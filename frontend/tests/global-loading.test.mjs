@@ -47,3 +47,24 @@ test('CRM scrollbar uses branded light/dark tokens and remains accessible', () =
   assert.match(sidebar, /crm-scrollbar-sidebar.*overflow-y-auto/);
   assert.match(drawer, /crm-scrollbar min-h-0 flex-1 overflow-y-auto/);
 });
+
+test('desktop sidebar collapses to an icon rail and preserves mobile navigation', () => {
+  const shell = readFileSync(new URL('../src/components/crm/crm-app.tsx', import.meta.url), 'utf8');
+  const sidebar = readFileSync(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8');
+  const header = readFileSync(new URL('../src/components/layout/Header.tsx', import.meta.url), 'utf8');
+  assert.match(shell, /kidsfit-crm-sidebar/);
+  assert.match(shell, /localStorage\.setItem/);
+  assert.match(shell, /onToggleSidebar=\{toggleSidebar\}/);
+  assert.match(shell, /sidebarOpen \? "lg:pl-\[248px\]" : "lg:pl-\[72px\]"/);
+  assert.match(sidebar, /sidebarOpen \? "w-\[248px\]" : "w-\[72px\]"/);
+  assert.match(sidebar, /compact=\{!sidebarOpen\}/);
+  assert.match(header, /aria-label=\{sidebarOpen \? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'\}/);
+  assert.match(header, /aria-controls="crm-desktop-navigation"/);
+  assert.match(header, /lg:inline-flex/);
+  assert.doesNotMatch(sidebar, /onClick=\{onToggle\}/);
+  assert.match(sidebar, /aria-label=\{item.label\}/);
+  assert.match(sidebar, /aria-current=\{currentView === item.id \? 'page' : undefined\}/);
+  assert.match(sidebar, /title=\{!sidebarOpen \? item.label : undefined\}/);
+  assert.match(sidebar, /aria-label="Điều hướng di động"/);
+  assert.match(header, /onClick=\{onToggleSidebar\}/);
+});

@@ -896,6 +896,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </tbody>
         </table>
       </div>
+      {(financeOverview?.payout_total??0)>100&&<p role="status" className="px-5 py-2 text-xs text-amber-700 dark:text-amber-300">Danh sách kỳ này có {financeOverview?.payout_total} phiếu nhưng API hiện trả tối đa 100 phiếu. Không dùng danh sách này để kết luận đã xem toàn bộ kỳ.</p>}
       <AppPagination page={financePage} pageSize={financePageSize} total={displayedPayouts.length}
         itemLabel="phiếu chi" disabled={financeLoading} showSummary={false}
         pageSizeOptions={[10,20,50,100]}

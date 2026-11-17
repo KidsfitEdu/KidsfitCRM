@@ -123,3 +123,17 @@ test('Accounting school units are compact until expanded', () => {
   assert.match(page, /Trường điểm \/ Phân hiệu \(\{detail\.school_units\.length\}\)/);
   assert.doesNotMatch(page, /list-inside list-disc space-y-1/);
 });
+
+
+test('Accounting original contract card does not duplicate contract evidence from renewal history', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  const renewal = read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
+  const card = page.slice(page.indexOf('Thông tin hợp đồng gốc'), page.indexOf('Lịch thanh toán theo hợp đồng'));
+  assert.ok(card.length > 0);
+  assert.doesNotMatch(card, /detail\.evidence\.filter\(x=>x\.kind==='CONTRACT'\)/);
+  assert.doesNotMatch(card, /Chưa có file hợp đồng đính kèm/);
+  assert.match(renewal, /Chứng từ /);
+  assert.match(renewal, /period\.evidence/);
+  assert.match(renewal, /accessEvidence\(period\.evidence!,'view'\)/);
+  assert.match(renewal, /accessEvidence\(period\.evidence!,'download'\)/);
+});

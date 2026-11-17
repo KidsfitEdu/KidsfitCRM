@@ -90,6 +90,38 @@ A state with distinct urgency may need a separate warning accent (e.g. *Quá h�
 - **Form/modal:** similar green header, spacious white content, consistent large input/select/textarea, labels and required marks, clear two-column grouping on wide screens, single column on mobile, inline validation. Footer separates white neutral Cancel from green primary submit, with busy/disabled feedback.
 - **Toast:** floating white card near top-right on desktop, restrained elevation, close button, semantic status icon, clear title and short secondary message; optional subtle timer indicator. Success green, error red, warning amber, info blue. Avoid blocking primary controls and duplicate messages, do not reveal private API detail.
 
+## Dashboard visual system — BGĐ-inspired, role-specific (2026-11-17)
+
+**Approved reference:** user-supplied screenshot of BGĐ *Tổng quan điều hành*: quiet light canvas, compact green eyebrow/heading, period control at the right, four evenly sized KPI cards (muted label + small soft-green icon + dominant value + timeframe), followed by a wide trend chart and narrower status-distribution panel. The layout is a reference for **quality and hierarchy**, not a requirement to copy BGĐ revenue data into other roles.
+
+### Page composition and information hierarchy
+
+- **Above the fold:** `AppPageHeader` with role-specific eyebrow, concise title, helpful description, and contextual period + refresh only if backed by real queries. Avoid large decorative hero headers pushing operational data down.
+- **KPI row:** arrange four or fewer genuinely useful metrics in balanced `AppStatCard` tiles. Unified height, `rounded-2xl` styling via existing component, restrained surface/shadow, 12–20px internal rhythm (adjust to existing tokens), primary figures aligned and sized to withstand large VND amounts and long Vietnamese labels.
+- **Below KPIs:** use a grid with broad analytical view and compact supporting view when both have value; e.g. 2:1 distribution on a wide desktop, 1-column stack as space shrinks. A second region may be “Công việc cần xử lý” or “Lịch tư vấn sắp tới” rather than a gratuitous pie chart.
+- **Color:** brand green signals primary actions and positive trend, but negative/overdue/uncertain states use real semantic tones; never paint all charts green if it obscures distinctions. Reuse `--chart-*` tokens and dark-mode contrast.
+- **Typography:** a small muted KPI label, a large tabular value, and small explanatory caption. Chart titles stay short with units/timeframe beside them; legends and tooltip labels in Vietnamese.
+
+### Data visualization requirements
+
+| Purpose | Pattern | Guardrails |
+|---|---|---|
+| Time series | Line/area chart | Real dated observations only; sorted periods, meaningful units, visible zero/axis context and tooltip |
+| Category comparison | Bar chart | Comparable categories, clearly labeled axis and honest scale |
+| Composition | Donut/pie chart | Few nonnegative categories with meaningful total; legend with values and clear no-data state |
+| Operational priority | Table/list or alert card | Due date, owner/status, next action when authorized; do not force a chart |
+
+Use existing Recharts `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`; ensure stable chart height and screen-reader equivalent summary/table where feasible. Do not show fake smooth trends, use unnecessary chart animations or assume aggregate totals provide history.
+
+### Role-aware examples (not mandatory widgets)
+
+- **Sales/CTV:** active school approaches, approaching-expiry alerts, invitations awaiting acceptance and proposals awaiting processing; real dated contact activity or consultation schedule if available. Do **not** show BGĐ organization-wide revenue.
+- **BGĐ:** authorized enterprise KPIs and trend/status mix, as already exemplified by `BoardDashboardPage.tsx`.
+- **Manager:** team allocation, follow-ups and pending approvals within assigned scope.
+- **Accounting:** actual reconciled amounts and payment due/approval within accounting permissions.
+
+A KPI marked “current state” must not silently change when the user selects a report month unless the underlying API truly supports historical snapshots. No period selector without a corresponding data source. Never use zeros to mask missing/forbidden/loading data. A role’s correct, limited dashboard is more professional than a misleading large one.
+
 ## Accessibility and motion
 
 - Aim for WCAG AA: 4.5:1 normal text contrast, 3:1 large text/meaningful nontext UI; verify actual computed colors and dark-mode contrast.

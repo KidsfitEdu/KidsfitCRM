@@ -47,6 +47,33 @@ This supplement documents the four new user-provided visual references; it does 
 
 **Visual QA:** Compare rendered screens to the referenced screenshots at 375, 768, 1024 and 1440px, light/dark themes, 200% zoom, keyboard/focus and mobile overlays. Report exactly what was *actually* tested; no screenshot-fidelity claim based on documentation alone.
 
+## Dashboard / Tổng quan visual standards (approved 2026-11-17)
+
+**Visual reference:** BGĐ “Tổng quan điều hành” screenshot supplied by the user in conversation (not committed to the repository). It establishes a professional **layout language** for role Dashboards, not a common set of financial metrics. The current `frontend/src/screens/Board/BoardDashboardPage.tsx` demonstrates `AppPageHeader`, four `AppStatCard` tiles and real-query Recharts charts; `frontend/src/components/roles/SalesDashboard.tsx` has four Sales-focused cards and a consultation table. **This documentation-only update does not modify those runtime screens.**
+
+### Mandatory visual contract
+
+| Region | Design standard | Behavior and data integrity |
+|---|---|---|
+| Page header | Green uppercase role eyebrow, strong title, one-line description, right-side period/refresh if useful | Period selector must query relevant real period; refresh does not reset filters; no inert controls |
+| KPI strip | Up to four balanced soft-shadow white cards; muted label, green-tinted Lucide icon, dominant localized number/VND value, short context line | `AppStatCard` and shared CSS tokens, correct permission, actual time basis; unknown/forbidden is not zero |
+| Main analysis | Spacious rounded card, short title, units/period, real-data line/bar trend with legend and tooltip when suitable | Recharts `ChartContainer`/`ChartTooltip`, real dated observations, honest axes and no invented samples |
+| Supporting analysis | Compact status breakdown with clear totals/legend **or** operational task card | Donut/pie only for valid parts of a meaningful whole; no useless decoration |
+| Actionable work | Upcoming consultations, assignments, approval queues or deadlines in consistent table/list cards | Only authorized records/actions; distinguish pending, urgent and completed states |
+| Feedback | Quiet loading state, empty/no-trend explanation, partial error, no-permission and preview note | Never show fake successful data after API failure |
+
+### Responsive, accessibility and quality requirements
+
+- Desktop (1440px): four cards when feasible, main/secondary analytical layout around 2:1 when both are useful; 1024px/768px reflow to two KPI columns and stacked charts as needed; 375px and 200% zoom prioritize readable one-column cards, touch targets and no horizontal page overflow.
+- Keep meaningful contrast and tokens for light/dark, visible keyboard focus, clear chart text/tooltip plus nonvisual summary, units and `vi-VN` formatting. No unsupported animations or overloaded dashboards.
+- Different roles **share visual patterns, not privileges**: Sales/CTV only sees its own approaches, invitations, proposals, follow-ups and authorized metrics; BGĐ uses its own authorized company view; Managers and Accounting likewise. Do not import BGĐ organization revenue into Sales.
+- Only offer historical/monthly trend charts or period selectors when real authorized time-series/period APIs exist; do not turn present-day aggregate statistics into fictional month-by-month history. If data is missing, show empty/explanatory state or defer visualization.
+- Check 375/768/1024/1440px, dark/light and 200% zoom with a live browser before claiming visual fidelity; source review alone is not visual verification.
+
+### Reuse and scope
+
+Use the existing `AppPageHeader`, `AppStatCard`, `ChartContainer`, `ChartTooltip`, `AdminListPanel` and `AdminIconAction` where applicable; no additional Dashboard framework, chart library or duplicate styles without an observed gap. This document sets a standard for **future authorized screen PRs**, not approval to change backend endpoints, finance definitions, roles, routes, or existing PR #138.
+
 ## Seven business roles (target UI)
 
 Admin, BGĐ KIDSFIT, Kế toán, Quản lý bán hàng, CSKH, CHECKEE, Sales. The Sales UI is shared by employees and collaborators; partner/KIDSFIT Managers share business operations with strict organization scoping. **Currently implemented legacy role codes and workspaces still exist; this document alone does not migrate them.** Backend permissions remain authoritative.

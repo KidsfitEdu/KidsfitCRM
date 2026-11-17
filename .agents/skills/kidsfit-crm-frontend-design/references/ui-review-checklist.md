@@ -74,6 +74,32 @@ Mark each item PASS/FAIL/NOT_TESTED against a **rendered** screen where possible
 - [ ] 375/768/1024/1440px, light/dark, keyboard, touch and 200% zoom are inspected when UI code changes; screenshots are compared only if browser rendering actually occurred.
 - [ ] Document which exact routes/roles were visually reviewed and mark unavailable tests as NOT_TESTED, not PASS.
 
+## F. BGĐ-inspired role Dashboard acceptance checklist (2026-11-17)
+
+Use the user-provided **BGĐ Tổng quan điều hành** screenshot as a visual-quality reference for dashboards, including Sales/CTV. These checks apply to a **future frontend implementation**, not a claim that this documentation-only change improved runtime UI. Mark PASS/FAIL/NOT_TESTED; keep a screenshot and route/device record where possible.
+
+### Header, KPI hierarchy and composition
+- [ ] Role eyebrow, strong title, concise purpose and permitted controls follow the shared `AppPageHeader` hierarchy.
+- [ ] KPI selection is role-relevant and authorization-safe; summary figures have clear scope and reference time/period.
+- [ ] KPI cards reuse `AppStatCard`, with balanced heights, soft green icon container, readable label and dominant tabular values; no chopped VND values/diacritics.
+- [ ] Grid uses up to four tiles on wide desktop, then reflows meaningfully at 1024/768/375px and 200% zoom.
+- [ ] Main analytical/operational card has a useful companion (chart, status composition, or upcoming tasks), not filler content.
+
+### Charts, period and data integrity
+- [ ] Trend charts are backed by real, authorized, dated time series rather than a fabricated spread of one aggregate total.
+- [ ] Line/bar/donut choice accurately represents trend/comparison/composition and avoids misleading axes, excess decoration and false trend interpolation.
+- [ ] Charts have title, units, relevant timeframe, legend and tooltip; pie/donut totals reconcile with displayed parts, and zero/empty data has an explicit message.
+- [ ] Use `ChartContainer`, `ChartTooltip`, Recharts and shared CSS variables with light/dark colors; do not add duplicate chart infrastructure.
+- [ ] Period control is labeled and actually changes period-specific queries; refresh re-fetches without clearing the chosen period; current-state snapshots are not incorrectly presented as historical period data.
+- [ ] No organizational revenue/commission/other restricted metrics leak into Sales/CTV views; preview/demo values are explicitly identified.
+
+### Operational states and QA evidence
+- [ ] Upcoming consultation/priority tasks are actionable only with actual callback and backend-authorized scope, and use consistent semantic statuses.
+- [ ] Loading, empty, no chart data, partial failure, total API failure, forbidden state and refreshing are visually distinct; missing/forbidden data is not displayed as zero.
+- [ ] Keyboard focus, screen-reader text alternative to visual trend, touch behavior and reduced-motion preferences are considered.
+- [ ] Actual visual check records 375/768/1024/1440px, light/dark and 200% zoom; otherwise mark visual QA NOT_TESTED.
+- [ ] `npm run lint`, `npx tsc --noEmit`, relevant tests and build are reported from the exact UI commit when runtime code is modified. Documentation-only edits do not claim these checks ran.
+
 ## Screenshot 1 audit baseline (2026-10-30 user-provided image)
 
 Screen: Admin > Quản lý đề xuất trường. Visible: deep-green sidebar, light workspace, green table header, global search, page-level blue "Làm mới", table toolbar with orange "Tìm kiếm" plus icon reset, a proposed school marked "Chờ Admin", row action icons (edit/history/approve), pagination.

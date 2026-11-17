@@ -864,8 +864,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   <AdminIconAction icon={Eye} label={'Xem tái ký lần '+period.renewal_no}
                     onClick={()=>setSelected(row.id)}/>
                   {period.status==='PENDING_ACCOUNTING'&&(abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*'))&&
-                    <AdminIconAction icon={CheckCircle2} label={'Xác nhận tái ký lần '+period.renewal_no}
-                      onClick={()=>setSelected(row.id)}/>}
+                    <>
+                      <AdminIconAction icon={CheckCircle2} label={'Mở xác nhận tái ký lần '+period.renewal_no}
+                        onClick={()=>setSelected(row.id)}/>
+                      <AdminIconAction icon={MessageSquareText} label={'Yêu cầu Sales bổ sung hồ sơ tái ký lần '+period.renewal_no}
+                        onClick={()=>setSelected(row.id)}/>
+                    </>}
                 </td>
               </tr>)}
               </Fragment>;

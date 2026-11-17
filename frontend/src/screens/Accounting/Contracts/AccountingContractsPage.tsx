@@ -150,6 +150,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [financeRole,setFinanceRole]=useState('ALL');
   const [financeOverview,setFinanceOverview]=useState<FinanceWorkspace|null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [drawerMode,setDrawerMode]=useState<'CONTRACT'|'FINANCE'>('CONTRACT');
+  const [financeDetailTab,setFinanceDetailTab]=useState<'RECEIPTS'|'COMMISSION'|'PAYOUTS'>('RECEIPTS');
+  const [financialPeriodId,setFinancialPeriodId]=useState('ALL');
+  const [financialPeriods,setFinancialPeriods]=useState<{type:'ORIGINAL'|'RENEWAL';id:number;renewal_no:number|null;service_start_on:string|null;service_end_on:string|null;total_value:number;status:string;service_confirmed:boolean}[]>([]);
+  const [financialPeriodsLoading,setFinancialPeriodsLoading]=useState(false);
+  const [financialPeriodsError,setFinancialPeriodsError]=useState('');
   const [detail, setDetail] = useState<Detail | null>(null);
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
@@ -253,6 +259,22 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     return ()=>{active=false;};
   },[apiBase,token,selected,connected]);
 
+  useEffect(()=>{
+    if(!connected||selected===null||drawerMode!=='FINANCE')return;
+    if(!abilities.includes('channel_sales.renewal.review')&&!abilities.includes('*')){
+      setFinancialPeriods([]);
+      setFinancialPeriodsError('Cần quyền xem lịch sử tái ký để chọn kỳ hợp đồng.');
+      return;
+    }
+    let live=true;
+    setFinancialPeriodsLoading(true);
+    setFinancialPeriodsError('');
+    void channelRequest<{data:typeof financialPeriods}>(apiBase,token,`/accounting/contracts/${selected}/periods`)
+      .then(res=>{if(live)setFinancialPeriods(res.data);})
+      .catch(err=>{if(live){setFinancialPeriods([]);setFinancialPeriodsError(err instanceof Error?err.message:'Không tải được danh sách kỳ hợp đồng.');}})
+      .finally(()=>{if(live)setFinancialPeriodsLoading(false);});
+    return()=>{live=false;};
+  },[connected,selected,drawerMode,apiBase,token,detailRevision,abilities]);
   const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
     if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
     if (!start || !end) return 'Chưa cập nhật';
@@ -300,6 +322,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setAppliedSearch(search);
   };
 
+  const openContractDrawer=(id:number,mode:'CONTRACT'|'FINANCE')=>{
+    setDrawerMode(mode);
+    setFinancialPeriodId('ALL');
+    setFinanceDetailTab('RECEIPTS');
+    setSelected(id);
+  };
   const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
   const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
   const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
@@ -470,6 +498,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
     .reduce((sum,entry)=>sum+entry.calculation_base,0);
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
+  const selectedFinancialPeriod=financialPeriods.find(p=>`${p.type}:${p.id}`===financialPeriodId);
+  const totalConfirmedValue=financialPeriods.length?financialPeriods.filter(p=>p.service_confirmed).reduce((sum,p)=>sum+p.total_value,0):null;
+  const financialScopeIsAll=financialPeriodId==='ALL';
   const orderedSchedules=(detail?.schedules??[]).slice().sort((a,b)=>
     Number(a.amount_received>=a.amount_due)-Number(b.amount_received>=b.amount_due)||
     b.due_on.localeCompare(a.due_on)||b.id-a.id);
@@ -725,8 +756,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   <p className="mt-1 font-semibold">{channelMoney(row.commission)}</p>
                 </td>
                 <td className="px-3 py-4 text-center align-middle">
-                  <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}
-                    label={`Xem chi tiết hợp đồng trường ${row.school_name}`}/>
+                  <div className="flex items-center justify-center gap-2">
+                    <AdminIconAction icon={Eye} tone="green" onClick={()=>openContractDrawer(row.id,'CONTRACT')}
+                      label={`Xem hồ sơ hợp đồng trường ${row.school_name}`}/>
+                    <AdminIconAction icon={WalletCards} tone="neutral" onClick={()=>openContractDrawer(row.id,'FINANCE')}
+                      label={`Xử lý thanh toán và hoa hồng trường ${row.school_name}`}/>
+                  </div>
                 </td>
               </tr>;
             })}

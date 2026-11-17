@@ -2,8 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CalendarClock, FileCheck2, Handshake, SquarePen, UsersRound } from 'lucide-react';
+import { AdminIconAction, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
+import { AdminListPanel } from '@/components/common/admin-list-ui';
 import { channelRequest } from '@/lib/channel-operations';
 import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
 import type { RolePageProps } from '@/types/role-pages';
@@ -42,7 +44,8 @@ export function SalesDashboard({apiBase, token, abilities, workspace, onSalesNav
       <AppStatCard icon={UsersRound} label="Lời mời chờ phản hồi" value={preview ? '—' : pendingInvitations} description="Nhận hoặc từ chối phân bổ"/>
       <AppStatCard icon={FileCheck2} label="Đề xuất đang xử lý" value={preview ? '—' : pendingProposals} description="Chờ Quản lý hoặc Admin phản hồi"/>
     </div>
-    <section aria-labelledby="sales-upcoming-heading" className="overflow-hidden rounded-2xl border border-border/80 bg-card">
+    <AdminListPanel>
+      <div aria-labelledby="sales-upcoming-heading">
       <div className="flex items-center gap-2 border-b border-border/80 px-5 py-4">
         <CalendarClock aria-hidden="true" className="size-5 text-primary"/>
         <h2 id="sales-upcoming-heading" className="font-semibold">Lịch tư vấn sắp tới</h2>
@@ -50,7 +53,7 @@ export function SalesDashboard({apiBase, token, abilities, workspace, onSalesNav
       {nextFollowups.length ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[460px] text-left text-sm">
-            <thead className="bg-[#1b5e20] text-xs font-bold uppercase tracking-wide text-white">
+            <thead className={adminTableHeadClass}>
               <tr><th scope="col" className="px-5 py-3">Trường học</th><th scope="col" className="px-5 py-3">Lịch hẹn</th><th scope="col" className="px-5 py-3 text-right">Thao tác</th></tr>
             </thead>
             <tbody className="divide-y divide-border/70">
@@ -58,18 +61,17 @@ export function SalesDashboard({apiBase, token, abilities, workspace, onSalesNav
                 <td className="px-5 py-4 font-medium">{customer.display_name}</td>
                 <td className="px-5 py-4 text-muted-foreground">{formatDate(customer.next_follow_up_at!)}</td>
                 <td className="px-5 py-4 text-right">
-                  <button type="button" onClick={()=>go('role-sales-staff-activities')}
-                    className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-[#1b5e20] hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary"
-                    title={`Xem hoạt động tư vấn ${customer.display_name}`} aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}>
-                    <SquarePen className="size-4" aria-hidden="true"/>
-                  </button>
+                  <AdminIconAction icon={SquarePen} tone="blue"
+                    label={`Mở hoạt động tư vấn ${customer.display_name}`}
+                    onClick={()=>go('role-sales-staff-activities')}/>
                 </td>
               </tr>)}
             </tbody>
           </table>
         </div>
       ) : <p className="px-5 py-6 text-sm text-muted-foreground">Chưa có lịch tư vấn trong danh sách trường đang phụ trách.</p>}
-    </section>
+      </div>
+    </AdminListPanel>
     <p className="text-xs text-muted-foreground">Hạn mức tiếp cận do Admin cấu hình và được kiểm tra bởi hệ thống khi đăng ký hoặc nhận phân bổ.</p>
   </div>;
 }

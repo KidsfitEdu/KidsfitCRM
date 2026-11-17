@@ -990,6 +990,28 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageChange={setFinancePage}
         onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
     </AdminListPanel>}
+    <AppDialog open={receiptPreview!==null} onOpenChange={open=>{if(!open)setReceiptPreview(null);}}
+      title="Chi tiết khoản thu" description="Khoản thu đã ghi nhận không được sửa/xóa trực tiếp vì có thể phát sinh hoa hồng.">
+      {receiptPreview&&<div className="space-y-4 text-sm">
+        <dl className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2">
+          <div><dt className="text-xs text-muted-foreground">Nhà trường</dt><dd className="mt-1 font-semibold">{receiptPreview.school_name}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 break-all">{receiptPreview.contract_code}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Ngày nhận</dt><dd className="mt-1">{channelDate(receiptPreview.received_at)}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Mã giao dịch</dt><dd className="mt-1 break-all">{receiptPreview.reference_code}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Tổng tiền đã nhận</dt><dd className="mt-1 font-bold tabular-nums text-primary">{channelMoney(receiptPreview.amount)}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Trạng thái</dt><dd className="mt-1">Đã ghi nhận</dd></div>
+        </dl>
+        <div className="flex justify-end gap-2">
+          {receiptPreview.proof_id&&receiptPreview.proof_file_name&&<Button type="button" variant="outline"
+            onClick={()=>void viewEvidence(receiptPreview.proof_id!,receiptPreview.proof_file_name!)}>
+            <ImageIcon className="size-4" aria-hidden="true"/> Xem chứng từ
+          </Button>}
+          <Button type="button" onClick={()=>{setSelected(receiptPreview.contract_id);setAccountingTab('CONTRACTS');setReceiptPreview(null);}}>
+            <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
+          </Button>
+        </div>
+      </div>}
+    </AppDialog>
     <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!saving)setPayoutPickerOpen(open);}}
       title="Lập phiếu chi hoa hồng" description="Chọn kỳ, nhà trường và người hưởng có hoa hồng đủ điều kiện. Sau đó kiểm tra số tiền trong form Nháp.">
       <div className="space-y-4">

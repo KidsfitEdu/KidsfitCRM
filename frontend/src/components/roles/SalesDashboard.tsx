@@ -158,8 +158,5 @@ export function SalesDashboard({apiBase, token, abilities, workspace, onSalesNav
         </div>
       </section>
     </div>
-    <p className="text-xs text-muted-foreground">
-      Các số liệu tổng quan chỉ phản ánh dữ liệu tài khoản được phép xem. Hạn mức tiếp cận do Admin cấu hình và được hệ thống kiểm tra khi đăng ký hoặc nhận phân bổ.
-    </p>
   </div>;
 }

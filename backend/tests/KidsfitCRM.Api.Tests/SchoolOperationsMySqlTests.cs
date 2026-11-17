@@ -630,6 +630,50 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             .SingleAsync(x => x.Id == contractId, Ct)).TotalValue);
     }
 
+    [MySqlFact] public async Task ConfirmedMonthlyRenewalGeneratesTwelveReceivablesWithoutChangingOriginal()
+    {
+        var scenario = await Arrange();
+        var contractId = await ActiveContract(scenario);
+        var accountant = (await AddMember(scenario.OrgId, "ACCOUNTANT", "ACCOUNTANT")).UserId;
+        await using var db = fixture.Open();
+        var contract = await db.SalesContracts.SingleAsync(x => x.Id == contractId, Ct);
+        var originalValue = contract.TotalValue;
+        var originalSchedules = await db.RevenueSchedules.CountAsync(x => x.ContractId == contractId, Ct);
+        var originalStart = ChannelSalesValidation.BusinessDate(DateTime.UtcNow);
+        contract.ServiceStartOn = originalStart;
+        contract.ServiceEndOn = originalStart.AddYears(1).AddDays(-1);
+        contract.PaymentCycle = "YEARLY";
+        await db.SaveChangesAsync(Ct);
+        var renewalStart = contract.ServiceEndOn.Value.AddDays(1);
+        var renewalEnd = renewalStart.AddYears(1).AddDays(-1);
+        var evidence = new FinancialEvidence {
+            Kind = "RENEWAL", UploadedByUserId = scenario.Seller.UserId,
+            FileName = "renewal-monthly.pdf", MimeType = "application/pdf",
+            StorageKey = FixtureEvidenceStorage.Save("%PDF-"u8.ToArray(), "RENEWAL").StorageKey,
+            FileSize = 5, Sha256 = new string('B', 64),
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        db.FinancialEvidences.Add(evidence);
+        await db.SaveChangesAsync(Ct);
+        var result = Json(await ContractRenewalEndpoints.Submit(contractId,
+            new ContractRenewalEndpoints.SubmitRequest(Key(), originalStart,
+                renewalStart, renewalEnd, "MONTHLY", 1_000_001m, evidence.Id),
+            Http(scenario.Seller.UserId), db, Ct));
+        var renewalId = result.GetProperty("data").GetProperty("id").GetInt64();
+        await ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct);
+        var dues = await db.RevenueSchedules.AsNoTracking()
+            .Where(x => x.ContractRenewalId == renewalId).OrderBy(x => x.DueOn)
+            .ToArrayAsync(Ct);
+        Assert.Equal(12, dues.Length);
+        Assert.Equal(1_000_001m, dues.Sum(x => x.AmountDue));
+        for (var month = 0; month < 12; month++)
+            Assert.Equal(renewalStart.AddMonths(month), dues[month].DueOn);
+        Assert.Equal(originalSchedules + 12,
+            await db.RevenueSchedules.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(originalValue, (await db.SalesContracts.AsNoTracking()
+            .SingleAsync(x => x.Id == contractId, Ct)).TotalValue);
+    }
+
     [MySqlFact] public async Task RenewalReturnsToSalesAndResubmitsDirectlyWithoutCheckeeOrManager()
     {
         var s = await Arrange();

@@ -605,7 +605,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(scenario.Seller.UserId, unchanged.OwnerUserId);
         Assert.Equal(initialLedgerCount, await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct));
         Assert.Equal(initialReceipts, await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct));
-        Assert.Equal(initialSchedules, await db.RevenueSchedules.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(initialSchedules + 1, await db.RevenueSchedules.CountAsync(x => x.ContractId == contractId, Ct));
+        var newSchedule = await db.RevenueSchedules.SingleAsync(x => x.ContractRenewalId == renewalId, Ct);
+        Assert.Equal(renewal.TotalValue, newSchedule.AmountDue);
+        Assert.Equal(newStart, newSchedule.DueOn);
         await Assert.ThrowsAsync<ApiConflictException>(() =>
             ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct));
     }

@@ -174,11 +174,11 @@ textarea {
   scrollbar-color: var(--crm-scrollbar-thumb) var(--crm-scrollbar-track);
 }
 /* Chromium / Safari: keep the thumb easy to discover without overpowering content. */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--crm-scrollbar-track); }
 ::-webkit-scrollbar-thumb {
   background: var(--crm-scrollbar-thumb);
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background-clip: padding-box;
   border-radius: 999px;
 }
@@ -193,8 +193,8 @@ textarea {
 /* Keep horizontal table scrolling inside its panel instead of the page. */
 .crm-scrollbar::-webkit-scrollbar,
 .crm-scrollbar-sidebar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 .crm-scrollbar::-webkit-scrollbar-thumb,
 .crm-scrollbar-sidebar::-webkit-scrollbar-thumb {

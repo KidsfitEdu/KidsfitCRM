@@ -54,6 +54,8 @@ export type FinanceWorkspace = {
     contract_ids?: number[];
     contract_codes?: string[];
     school_names?: string[];
+    proof_id?: number|null;
+    proof_file_name?: string|null;
     gross_amount: number;
     suggested_rate_percent: number;
     requested_rate_percent: number;

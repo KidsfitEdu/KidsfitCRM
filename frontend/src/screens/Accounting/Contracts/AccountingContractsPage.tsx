@@ -831,6 +831,70 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageChange={setPage}
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
     </AdminListPanel>}
+    {accountingTab==='RECEIPTS'&&<AdminListPanel className="min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
+        <div><h2 className="text-base font-bold">Quản lý khoản thu nhà trường</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Ghi nhận tiền thực nhận, đối chiếu và lưu chứng từ theo hợp đồng.</p></div>
+        {canRecordRevenue&&<Button type="button" size="sm" onClick={openReceiptForm}>
+          <Plus className="size-4" aria-hidden="true"/> Thêm mới</Button>}
+      </div>
+      <form className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-4 sm:px-6"
+        onSubmit={event=>{event.preventDefault();setReceiptAppliedSearch(receiptSearch.trim());setReceiptPage(1);}}>
+        <div className="relative min-w-[210px] flex-[1_1_320px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+          <Input aria-label="Tìm khoản thu" className="h-10 w-full rounded-lg pl-10"
+            placeholder="Tên trường, hợp đồng, mã giao dịch..." value={receiptSearch} onChange={event=>setReceiptSearch(event.target.value)}/>
+        </div>
+        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          Năm nhận tiền
+          <Input type="number" min={2000} max={2100} className="h-10 w-32 rounded-lg"
+            value={receiptYear==='ALL'?'':receiptYear} placeholder="Tất cả"
+            onChange={event=>{setReceiptYear(event.target.value||'ALL');setReceiptPage(1);}}/>
+        </label>
+        <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+        <AppButton type="button" tone="outline" size="icon-lg" className="h-10 w-10 min-w-10 rounded-lg p-0"
+          aria-label="Đặt lại bộ lọc khoản thu" title="Đặt lại bộ lọc"
+          onClick={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptPage(1);}}>
+          <RotateCcw className="size-4" aria-hidden="true"/>
+        </AppButton>
+      </form>
+      {receiptLoading?<output className="block p-5 text-sm text-muted-foreground">Đang tải các khoản thu...</output>:
+      <div className="min-w-0">
+        <table className="block w-full text-left text-sm xl:table xl:table-fixed">
+          <thead className={adminTableHeadClass}>
+            <tr>
+              <th scope="col" className="w-[24%] px-3 py-3">Nhà trường / Hợp đồng</th>
+              <th scope="col" className="w-[14%] px-2 py-3">Ngày thu</th>
+              <th scope="col" className="w-[20%] px-2 py-3">Mã giao dịch</th>
+              <th scope="col" className="w-[17%] px-2 py-3 text-right">Số tiền</th>
+              <th scope="col" className="w-[16%] px-2 py-3">Trạng thái</th>
+              <th scope="col" className="w-[9%] px-2 py-3 text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/70">
+            {receiptRows.map(receipt=><tr key={receipt.id} className="even:bg-muted/20 hover:bg-muted/40">
+              <td className="min-w-0 px-3 py-3">
+                <p className="line-clamp-2 font-semibold" title={receipt.school_name}>{receipt.school_name}</p>
+                <p className="mt-1 break-words text-xs text-muted-foreground">{receipt.contract_code}</p>
+              </td>
+              <td className="tabular-nums px-2 py-3">{channelDate(receipt.received_at)}</td>
+              <td className="min-w-0 break-all px-2 py-3">{receipt.reference_code}</td>
+              <td className="font-semibold tabular-nums px-2 py-3 text-right">{channelMoney(receipt.amount)}</td>
+              <td className="px-2 py-3"><AppStatusBadge status={receipt.status} tone="success" label="Đã ghi nhận" size="sm"/></td>
+              <td className="px-2 py-3 text-center">
+                <AdminIconAction icon={Eye} label={'Xem khoản thu '+receipt.reference_code} onClick={()=>setReceiptPreview(receipt)}/>
+              </td>
+            </tr>)}
+            {receiptRows.length===0&&<tr><td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
+              Không có khoản thu phù hợp. Chọn Thêm mới để ghi nhận giao dịch ngân hàng đã xác minh.
+            </td></tr>}
+          </tbody>
+        </table>
+      </div>}
+      <AppPagination page={receiptPage} pageSize={receiptPageSize} total={receiptTotal}
+        itemLabel="khoản thu" disabled={receiptLoading} showSummary={false} pageSizeOptions={[10,20,50,100]}
+        onPageChange={setReceiptPage} onPageSizeChange={size=>{setReceiptPageSize(size);setReceiptPage(1);}}/>
+    </AdminListPanel>}
     {accountingTab==='PAYOUTS'&&<AdminListPanel>
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div><h2 className="text-base font-bold">Quản lý phiếu chi hoa hồng</h2>

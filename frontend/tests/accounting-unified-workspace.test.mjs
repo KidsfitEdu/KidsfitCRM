@@ -101,7 +101,7 @@ test('Accounting contract list keeps eight fields without forced table min width
  assert.match(ui,/Tổng hoa hồng/);
  assert.match(ui,/channelMoney\(row\.received\)/);
  assert.doesNotMatch(ui,/const amount=Math\.max\(0,row\.received-row\.refunded\)/);
- assert.match(ui,/onClick=\{\(\)=>setSelected\(row\.id\)\}/);
+ assert.match(ui,/onClick=\{\(\)=>openContract\(row\.id\)\}/);
 });
 
 

@@ -119,7 +119,7 @@ type Detail = {
     source_service_start_on:string|null;source_service_end_on:string|null;source_payment_cycle:string|null;
     service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;
     protection_until:string|null };
-  schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string; renewal_no?: number|null; contract_renewal_id?: number|null }[];
+  schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string; renewal_no?: number|null; contract_renewal_id?: number|null; renewal_signed_on?: string|null }[];
   refunded_total: number;
   receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; calculation_base:number;
@@ -397,7 +397,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     const referenceValue = form.get('reference_code');
     const reference = typeof referenceValue === 'string' ? referenceValue.trim() : '';
     const today = accountingBusinessDay(new Date());
-    const signedOn = contractSignedDay(detail.data.signed_on);
+    const paymentTerm=detail.schedules.find(item=>item.id===selectedScheduleId);
+    const signedOn = contractSignedDay(entryMode==='receipt'
+      ? (paymentTerm?.renewal_signed_on??detail.data.signed_on) : detail.data.signed_on);
     const validation: FieldErrors = {};
     if(entryMode==='receipt'&&!signedOn){
       validation.transaction_date='Không xác định được ngày ký hợp đồng. Vui lòng tải lại chi tiết.';

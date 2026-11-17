@@ -91,13 +91,13 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
     {permitted && <>
       {error && <p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-700">{error}</p>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AppStatCard icon={Wallet} label="Tổng hoa hồng" value={channelMoney(data?.summary.accrued??0)}
+        <AppStatCard icon={Wallet} label="Tổng hoa hồng" value={data ? channelMoney(data.summary.accrued) : '—'}
           description="Tổng hoa hồng đã ghi nhận"/>
-        <AppStatCard icon={CheckCircle2} label="Đã nhận" value={channelMoney(data?.summary.paid??0)}
+        <AppStatCard icon={CheckCircle2} label="Đã nhận" value={data ? channelMoney(data.summary.paid) : '—'}
           description="Số tiền đã thanh toán"/>
-        <AppStatCard icon={Clock3} label="Chưa nhận" value={channelMoney(data?.summary.unpaid??0)}
+        <AppStatCard icon={Clock3} label="Chưa nhận" value={data ? channelMoney(data.summary.unpaid) : '—'}
           description="Hoa hồng còn chờ thanh toán"/>
-        <AppStatCard icon={FileCheck2} label="Hợp đồng có hoa hồng" value={data?.summary.contracts??0}
+        <AppStatCard icon={FileCheck2} label="Hợp đồng có hoa hồng" value={data ? data.summary.contracts : '—'}
           description="Số hợp đồng phát sinh hoa hồng"/>
       </div>
       <SalesListLayout

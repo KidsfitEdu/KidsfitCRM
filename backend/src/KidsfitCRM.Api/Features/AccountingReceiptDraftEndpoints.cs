@@ -1,3 +1,4 @@
+using System.Data;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Infrastructure;
@@ -104,6 +105,7 @@ public static class AccountingReceiptDraftEndpoints
         Validate(request);
         await VerifyScope(db, access, request.ContractId, request.RevenueScheduleId, ct);
         var now = DateTime.UtcNow;
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var draft = new RevenueReceiptDraft {
             ContractId = request.ContractId,
             RevenueScheduleId = request.RevenueScheduleId,
@@ -119,6 +121,7 @@ public static class AccountingReceiptDraftEndpoints
         Audit.Add(db, access.UserId, "CREATE_RECEIPT_DRAFT", nameof(RevenueReceiptDraft),
             draft.Id, null, new { draft.ContractId, draft.RevenueScheduleId, draft.Amount }, http);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return Results.Created("/api/channel-sales/accounting/receipt-drafts/" + draft.Id,
             new { data = new { draft.Id } });
     }
@@ -128,8 +131,11 @@ public static class AccountingReceiptDraftEndpoints
     {
         var access = await Require(http, db, ct);
         Validate(request);
-        var draft = await db.RevenueReceiptDrafts.SingleOrDefaultAsync(x =>
-            x.Id == id && x.CreatedByUserId == access.UserId, ct) ?? throw new KeyNotFoundException();
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var draft = await db.RevenueReceiptDrafts.FromSqlInterpolated(
+            $"SELECT * FROM revenue_receipt_drafts WHERE id = {id} FOR UPDATE")
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        if (draft.CreatedByUserId != access.UserId) throw new KeyNotFoundException();
         if (draft.Status != "DRAFT") throw new ApiConflictException("Chỉ được sửa khoản thu Nháp.");
         if (draft.ContractId != request.ContractId)
             throw ApiValidationException.For("contract_id", "Không thể chuyển nháp sang hợp đồng khác.");
@@ -144,6 +150,7 @@ public static class AccountingReceiptDraftEndpoints
             draft.Id, before,
             new { draft.RevenueScheduleId, draft.Amount, draft.ReceivedAt, draft.ReferenceCode }, http);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return Results.Ok(new { message = "Đã cập nhật khoản thu Nháp." });
     }
 
@@ -151,8 +158,11 @@ public static class AccountingReceiptDraftEndpoints
         KidsfitDbContext db, CancellationToken ct)
     {
         var access = await Require(http, db, ct);
-        var draft = await db.RevenueReceiptDrafts.SingleOrDefaultAsync(x =>
-            x.Id == id && x.CreatedByUserId == access.UserId, ct) ?? throw new KeyNotFoundException();
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var draft = await db.RevenueReceiptDrafts.FromSqlInterpolated(
+            $"SELECT * FROM revenue_receipt_drafts WHERE id = {id} FOR UPDATE")
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        if (draft.CreatedByUserId != access.UserId) throw new KeyNotFoundException();
         if (!await access.Contracts(db).AnyAsync(x => x.Id == draft.ContractId, ct))
             throw new KeyNotFoundException();
         if (draft.Status != "DRAFT") throw new ApiConflictException("Không thể hủy khoản thu đã ghi nhận.");
@@ -160,6 +170,7 @@ public static class AccountingReceiptDraftEndpoints
         Audit.Add(db, access.UserId, "CANCEL_RECEIPT_DRAFT", nameof(RevenueReceiptDraft),
             draft.Id, new { status = "DRAFT" }, new { status = draft.Status }, http);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return Results.Ok(new { message = "Đã hủy khoản thu Nháp." });
     }
 

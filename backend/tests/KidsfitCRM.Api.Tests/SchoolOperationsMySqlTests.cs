@@ -89,8 +89,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var bankProof = new FinancialEvidence {
             Kind = "RECEIPT", ContractId = contractId, UploadedByUserId = actor,
             FileName = "draft-bank.png", MimeType = "image/png",
-            StorageKey = FixtureEvidenceStorage.Save("PNG"u8.ToArray(), "RECEIPT").StorageKey,
-            FileSize = 3, Sha256 = new string('A', 64),
+            StorageKey = FixtureEvidenceStorage.Save(new byte[]{137,80,78,71,13,10,26,10}, "RECEIPT").StorageKey,
+            FileSize = 8, Sha256 = new string('A', 64),
             CreatedAt = today, UpdatedAt = today
         };
         db.FinancialEvidences.Add(bankProof);

@@ -23,10 +23,66 @@ public static class AccountingWorkspaceEndpoints
     {
         group.MapGet("/accounting/workspace", List)
             .RequireAuthorization(Permissions.ChannelSalesCommissionView);
+        group.MapGet("/accounting/receipts", Receipts)
+            .RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/accounting/contracts/{contractId:long}/renewals", Renewals)
             .RequireAuthorization(Permissions.ContractRenewalReview);
         group.MapGet("/accounting/contracts/{contractId:long}/service-history", ServiceHistory)
             .RequireAuthorization(Permissions.ChannelSalesCommissionView);
+    }
+
+    /// <summary>
+    /// One ledger-backed source of receipt history across verified contracts;
+    /// no financial mutation and no inferred renewal year from the bank date.
+    /// </summary>
+    public static async Task<IResult> Receipts(HttpContext http, KidsfitDbContext db,
+        string? search, int? year, int? page, int? page_size, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
+        var term = (search ?? "").Trim();
+        if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
+        if (year is < 2000 or > 2100) throw ApiValidationException.For("year", "Năm không hợp lệ.");
+        var pn = Math.Max(1, page ?? 1);
+        var size = Math.Clamp(page_size ?? 20, 1, 100);
+        var scopedContracts = access.Contracts(db).AsNoTracking().Where(c => c.VerifiedAt.HasValue);
+        var query = from receipt in db.RevenueReceipts.AsNoTracking()
+                    join contract in scopedContracts on receipt.ContractId equals contract.Id
+                    join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+                    where receipt.Status == "COMPLETED"
+                    select new { receipt, contract, school };
+        if (term.Length > 0)
+            query = query.Where(x => x.receipt.ReferenceCode.Contains(term)
+                || x.contract.ContractCode.Contains(term) || x.school.DisplayName.Contains(term));
+        if (year.HasValue)
+        {
+            var beginning = new DateTime(year.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            query = query.Where(x => x.receipt.ReceivedAt >= beginning
+                && x.receipt.ReceivedAt < beginning.AddYears(1));
+        }
+        var total = await query.CountAsync(ct);
+        var data = await query.OrderByDescending(x => x.receipt.ReceivedAt)
+            .ThenByDescending(x => x.receipt.Id)
+            .Skip((pn - 1) * size).Take(size)
+            .Select(x => new {
+                id = x.receipt.Id,
+                contract_id = x.contract.Id,
+                contract_code = x.contract.ContractCode,
+                school_name = x.school.DisplayName,
+                amount = x.receipt.Amount,
+                received_at = x.receipt.ReceivedAt,
+                reference_code = x.receipt.ReferenceCode,
+                payment_method = x.receipt.PaymentMethod,
+                status = x.receipt.Status,
+                schedule_id = x.receipt.RevenueScheduleId,
+                proof_id = db.FinancialEvidences.Where(e => e.RevenueReceiptId == x.receipt.Id
+                        && e.Kind == "RECEIPT" && e.AttachedAt.HasValue)
+                    .OrderByDescending(e => e.Id).Select(e => (long?)e.Id).FirstOrDefault(),
+                proof_file_name = db.FinancialEvidences.Where(e => e.RevenueReceiptId == x.receipt.Id
+                        && e.Kind == "RECEIPT" && e.AttachedAt.HasValue)
+                    .OrderByDescending(e => e.Id).Select(e => e.FileName).FirstOrDefault()
+            }).ToArrayAsync(ct);
+        return Results.Ok(new { data, total, page = pn, page_size = size });
     }
 
     public static async Task<IResult> List(HttpContext http, KidsfitDbContext db,

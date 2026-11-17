@@ -84,7 +84,7 @@ test('Commission detail prioritizes actionable reconciliation and separate role 
   assert.match(accounting,/Chưa đưa vào phiếu/);
   assert.match(accounting,/Lịch sử phiếu chi/);
   assert.match(accounting,/beneficiaries=beneficiaryEntries\.filter/);
-  assert.match(accounting,/eligiblePeriods\.length>0/);
+  assert.match(accounting,/eligibleCandidates\.length===0/);
 });
 
 test('Backfill and payout dialogs show explicit reviewed amounts and never claim money was sent',()=>{
@@ -94,7 +94,7 @@ test('Backfill and payout dialogs show explicit reviewed amounts and never claim
   assert.match(accounting,/backfillManagerVerified/);
   assert.match(accounting,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
   assert.match(accounting,/Lưu nháp/);
-  assert.match(accounting,/Gửi phiếu .* đến BGĐ phê duyệt/);
+  assert.match(accounting,/Gửi BGĐ duyệt/);
   assert.match(accounting,/Lý do điều chỉnh/);
 });
 

@@ -786,7 +786,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu trong kỳ</span>
       </div>
       <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
-        onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
+        onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);setEligiblePage(1);}}
         onReset={resetFinanceFilters} searchLabel="Tìm người hưởng hoặc mã phiếu chi"
         placeholder="Tìm mã phiếu, người hưởng..."
         filters={<div className="flex flex-wrap items-center gap-2">
@@ -814,33 +814,90 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               {value:'REJECTED',label:'Đã từ chối'}]}
             onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
         </div>}/>
+      {canCreatePayout&&<section id="accounting-eligible-payouts" aria-labelledby="accounting-eligible-heading"
+        className="space-y-3 border-b border-border/80 bg-primary/[0.03] px-5 py-5 sm:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 id="accounting-eligible-heading" className="flex items-center gap-2 text-sm font-bold">
+              <CheckCircle2 className="size-4 text-primary" aria-hidden="true"/> Hoa hồng đủ điều kiện lập phiếu
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Chọn khoản theo trường, người hưởng và kỳ hoa hồng. Chỉ lập phiếu Nháp, chưa ghi nhận chuyển tiền.</p>
+          </div>
+          <span className="text-xs tabular-nums text-muted-foreground">{eligibleCandidates.length}/{financeOverview?.eligible_payout_total??0} lựa chọn</span>
+        </div>
+        {!financeLoading&&eligibleCandidates.length===0&&
+          <p className="rounded-lg border border-dashed border-border bg-card px-4 py-4 text-sm text-muted-foreground">
+            Chưa có hoa hồng đủ điều kiện trong kỳ hoặc bộ lọc đang chọn. Hãy kiểm tra kỳ hoa hồng và đối soát hợp đồng.
+          </p>}
+        <div className="grid gap-2 lg:grid-cols-2">
+          {visibleCandidates.map(candidate=><div key={candidate.contract_id+':'+candidate.beneficiary_role+':'+candidate.beneficiary_user_id}
+            className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="break-words text-sm font-semibold">{candidate.school_name}</p>
+              <p className="break-words text-xs text-muted-foreground">{candidate.contract_code} · {candidate.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {candidate.beneficiary_name}</p>
+              <p className="font-bold tabular-nums text-primary">{channelMoney(candidate.amount)}</p>
+            </div>
+            <Button type="button" size="sm" disabled={saving||Boolean(centralPayoutIntent)}
+              onClick={()=>openCentralPayout({contractId:candidate.contract_id,
+                beneficiaryUserId:candidate.beneficiary_user_id,role:candidate.beneficiary_role,
+                period:candidate.period,mode:'CREATE'})}>
+              <Plus className="size-4" aria-hidden="true"/> Lập phiếu
+            </Button>
+          </div>)}
+        </div>
+        {eligibleCandidates.length>10&&<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span>Trang {eligiblePageSafe}/{eligiblePages}</span>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={eligiblePageSafe<=1} onClick={()=>setEligiblePage(eligiblePageSafe-1)}>Trước</Button>
+            <Button type="button" variant="outline" size="sm" disabled={eligiblePageSafe>=eligiblePages} onClick={()=>setEligiblePage(eligiblePageSafe+1)}>Sau</Button>
+          </div>
+        </div>}
+        {(financeOverview?.eligible_payout_total??0)>100&&<p className="text-xs text-amber-700 dark:text-amber-300">
+          Hiển thị tối đa 100 lựa chọn của kỳ. Cần phân trang API để xem toàn bộ {financeOverview?.eligible_payout_total} lựa chọn.
+        </p>}
+      </section>}
+      <div className="px-5 py-4 sm:px-6">
+        <h3 className="text-sm font-bold">Danh sách phiếu chi</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Xem hồ sơ, sửa nháp, gửi BGĐ duyệt và ghi nhận chi theo quyền.</p>
+      </div>
       <div className="overflow-x-auto">
         <table className={adminTableClass}>
           <thead className={adminTableHeadClass}>
             <tr>
-              <th scope="col" className="w-[27%] px-5 py-4">Mã phiếu</th>
-              <th scope="col" className="px-4 py-4">Người hưởng</th>
-              <th scope="col" className="px-4 py-4">Vai trò</th>
-              <th scope="col" className="px-4 py-4 text-right">Thực chi</th>
-              <th scope="col" className="px-4 py-4">Trạng thái</th>
-              <th scope="col" className="px-4 py-4">Kỳ</th>
+              <th scope="col" className="px-4 py-3">Mã phiếu / Người hưởng</th>
+              <th scope="col" className="px-3 py-3">Trường / Hợp đồng</th>
+              <th scope="col" className="px-3 py-3 text-right">Thực chi</th>
+              <th scope="col" className="px-3 py-3">Trạng thái</th>
+              <th scope="col" className="px-3 py-3">Kỳ</th>
+              <th scope="col" className="px-3 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
             {visiblePayouts.map(p=><tr key={p.id} className="transition-colors even:bg-muted/20 hover:bg-accent">
-              <td className="px-5 py-4"><span title={p.code} className="block max-w-[265px] truncate font-semibold">{p.code}</span></td>
-              <td className="px-4 py-4">{p.beneficiary_name}</td>
-              <td className="px-4 py-4">{p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</td>
-              <td className="whitespace-nowrap px-4 py-4 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}</td>
-              <td className="px-4 py-4">
+              <td className="min-w-0 px-4 py-3">
+                <p className="max-w-[200px] truncate font-semibold" title={p.code}>{p.code}</p>
+                <p className="mt-1 break-words text-xs text-muted-foreground">{p.beneficiary_name} · {p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</p>
+              </td>
+              <td className="min-w-0 px-3 py-3">
+                <p className="max-w-[230px] break-words text-xs font-medium">{p.school_names?.length?p.school_names.join(', '):'Không xác định trường'}</p>
+                <p className="mt-1 break-words text-xs text-muted-foreground">{p.contract_codes?.length?p.contract_codes.join(', '):'Chưa có mã hợp đồng'}</p>
+              </td>
+              <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}</td>
+              <td className="px-3 py-3">
                 <AppStatusBadge size="sm" status={p.status} label={payoutStatusLabel(p.status)}
                   tone={p.status==='PAID'||p.status==='APPROVED'?'success'
                     :p.status==='REJECTED'||p.status==='CANCELLED'?'danger'
                     :p.status==='CHANGES_REQUESTED'||p.status==='PENDING_APPROVAL'?'warning':'neutral'}/>
               </td>
-              <td className="whitespace-nowrap px-4 py-4">{payoutPeriodLabel(p.period)}</td>
+              <td className="whitespace-nowrap px-3 py-3 text-xs">{payoutPeriodLabel(p.period)}</td>
+              <td className="px-3 py-3 text-center">
+                <Button type="button" size="sm" variant="outline" onClick={()=>setPayoutPreview(p)}
+                  aria-label={`Xem và xử lý phiếu chi ${p.code}`}>
+                  <Eye className="size-4" aria-hidden="true"/> Xem
+                </Button>
+              </td>
             </tr>)}
-            {!visiblePayouts.length&&<tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-muted-foreground">
+            {!visiblePayouts.length&&<tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
               {financeLoading?'Đang tải danh sách phiếu chi...':!connected?'Cần đăng nhập để xem phiếu chi.':'Không có phiếu chi phù hợp với bộ lọc.'}
             </td></tr>}
           </tbody>

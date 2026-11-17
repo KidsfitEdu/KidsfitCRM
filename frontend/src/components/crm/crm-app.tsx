@@ -61,11 +61,12 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
       if (window.localStorage.getItem('kidsfit-crm-sidebar') === 'collapsed') setSidebarOpen(false);
     } catch { /* Storage may be unavailable; keep the expanded default. */ }
   }, []);
-  const toggleSidebar = () => setSidebarOpen(current => {
-    try { window.localStorage.setItem('kidsfit-crm-sidebar', current ? 'collapsed' : 'expanded'); }
+  const toggleSidebar = () => {
+    const nextOpen = !sidebarOpen;
+    try { window.localStorage.setItem('kidsfit-crm-sidebar', nextOpen ? 'expanded' : 'collapsed'); }
     catch { /* Sidebar remains usable when storage is blocked. */ }
-    return !current;
-  });
+    setSidebarOpen(nextOpen);
+  };
   const [error, setError] = useState('');
   const has = (permission: string) => abilities.includes('*') || abilities.includes(permission);
 

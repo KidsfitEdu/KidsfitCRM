@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { X } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -19,17 +19,23 @@ type AppDialogProps = {
   contentClassName?: string;
   bodyClassName?: string;
   headerClassName?: string;
+  /** Focus a stable area of the underlying drawer without scrolling after closing a nested dialog. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
   footerAlign?: 'start' | 'center' | 'end';
 };
 
 /** KIDSFIT CRM dialog shell: one consistent brand header, scrollable content and fixed footer. */
 export function AppDialog({
   open, onOpenChange, title, description, eyebrow = 'KIDSFIT CRM',
-  children, footer, busy = false, contentClassName, bodyClassName, headerClassName, footerAlign = 'end',
+  children, footer, busy = false, contentClassName, bodyClassName, headerClassName, footerAlign = 'end', returnFocusRef,
 }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={next => { if (!busy) onOpenChange(next); }}>
       <DialogContent
+        finalFocus={returnFocusRef ? () => {
+          returnFocusRef.current?.focus({preventScroll:true});
+          return false;
+        } : undefined}
         showCloseButton={false}
         className={cn(
           'flex max-h-[min(90dvh,800px)] w-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden rounded-[20px] border-border/60 bg-card p-0 sm:p-0 shadow-[0_28px_95px_rgba(14,42,26,.24)] sm:max-w-2xl',

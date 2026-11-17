@@ -58,7 +58,7 @@ test('Accounting schedule status is Vietnamese and progress reflects actual paid
 
 test('Accounting payout table includes approved and draft records instead of only paid payouts', () => {
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(page, /detail.payouts.map\(x=>/);
+  assert.match(page, /payoutVisible.map\(x=>/);
   assert.match(page, /payoutStatusLabel\(x.status\)/);
   assert.match(page, /x.status==='PENDING_APPROVAL'&&canApprovePayout/);
   assert.doesNotMatch(page, /Phiếu chi đang xử lý/);
@@ -74,4 +74,66 @@ test('Evidence image viewer is dark edge to edge with scroll zoom and drag', () 
   assert.match(viewer, /onPointerMove=\{moveDrag\}/);
   assert.match(viewer, /aria-label="Phóng to ảnh"/);
   assert.doesNotMatch(viewer, /bg-muted\/30 p-3 sm:p-5/);
+});
+
+
+test('Accounting payout history stays grouped by year with bounded visible rows', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /payoutHistoryYear/);
+  assert.match(page, /payoutHistoryStatus/);
+  assert.match(page, /x\.period\.startsWith\(payoutHistoryYear\+'-'\)/);
+  assert.match(page, /payoutFiltered\.slice\(\(effectivePayoutPage-1\)\*10,effectivePayoutPage\*10\)/);
+  assert.match(page, /payoutVisible\.map\(x=>/);
+  assert.match(page, /setPayoutHistoryPage\(1\)/);
+  assert.match(page, /Trước/);
+  assert.match(page, /Sau/);
+});
+
+test('Accounting detail refresh does not unmount all drawer content after a payout mutation', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  const dialog = read('src/components/common/dialogs/app-dialog.tsx');
+  assert.match(page, /loadedContractId\.current !== selected/);
+  assert.match(page, /returnFocusRef=\{payoutSectionRef\}/);
+  assert.match(dialog, /finalFocus=\{returnFocusRef/);
+  assert.match(dialog, /focus\(\{preventScroll:true\}\)/);
+  assert.doesNotMatch(dialog, /onCloseAutoFocus/);
+});
+
+
+test('Accounting receipt history has year filtering and bounded rows without changing actual income totals', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /receiptHistoryYear/);
+  assert.match(page, /filteredReceipts\.slice\(\(effectiveReceiptPage-1\)\*10,effectiveReceiptPage\*10\)/);
+  assert.match(page, /visibleReceipts\.map\(x=>/);
+  assert.match(page, /detail\.receipts\.reduce\(\(sum,x\)=>sum\+x\.amount,0\)/);
+  assert.match(page, /detail\.refunded_total/);
+});
+
+test('Accounting service schedules prioritize outstanding payments and collapse long history', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /orderedSchedules/);
+  assert.match(page, /Number\(a\.amount_received>=a\.amount_due\)/);
+  assert.match(page, /showAllSchedules\?orderedSchedules:orderedSchedules\.slice\(0,6\)/);
+  assert.match(page, /setShowAllSchedules\(value=>!value\)/);
+});
+
+test('Accounting school units are compact until expanded', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /<details className="group rounded-xl/);
+  assert.match(page, /Trường điểm \/ Phân hiệu \(\{detail\.school_units\.length\}\)/);
+  assert.doesNotMatch(page, /list-inside list-disc space-y-1/);
+});
+
+
+test('Accounting original contract card does not duplicate contract evidence from renewal history', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  const renewal = read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
+  const card = page.slice(page.indexOf('Thông tin hợp đồng gốc'), page.indexOf('Lịch thanh toán theo hợp đồng'));
+  assert.ok(card.length > 0);
+  assert.doesNotMatch(card, /detail\.evidence\.filter\(x=>x\.kind==='CONTRACT'\)/);
+  assert.doesNotMatch(card, /Chưa có file hợp đồng đính kèm/);
+  assert.match(renewal, /Chứng từ /);
+  assert.match(renewal, /period\.evidence/);
+  assert.match(renewal, /accessEvidence\(period\.evidence!,'view'\)/);
+  assert.match(renewal, /accessEvidence\(period\.evidence!,'download'\)/);
 });

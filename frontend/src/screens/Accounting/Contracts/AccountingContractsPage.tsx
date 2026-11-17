@@ -3,7 +3,7 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, ExternalLink, Eye, FileText, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -153,6 +153,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [detail, setDetail] = useState<Detail | null>(null);
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
+  const loadedContractId = useRef<number | null>(null);
+  const payoutSectionRef = useRef<HTMLElement | null>(null);
+  const [payoutHistoryYear,setPayoutHistoryYear] = useState('ALL');
+  const [payoutHistoryStatus,setPayoutHistoryStatus] = useState('ALL');
+  const [payoutHistoryPage,setPayoutHistoryPage] = useState(1);
+  const [receiptHistoryYear,setReceiptHistoryYear] = useState('ALL');
+  const [receiptHistoryPage,setReceiptHistoryPage] = useState(1);
+  const [showAllSchedules,setShowAllSchedules] = useState(false);
   const [payoutPeriod, setPayoutPeriod] = useState('');
   const [payoutBeneficiary, setPayoutBeneficiary] = useState('');
   const [payoutDialogOpen,setPayoutDialogOpen] = useState(false);
@@ -216,9 +224,19 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   },[apiBase,token,connected,accountingTab,financePeriod,detailRevision]);
 
   useEffect(() => {
-    if (!connected || selected === null) { setDetail(null); return; }
+    if (!connected || selected === null) { loadedContractId.current=null; setDetail(null); return; }
     let live = true;
-    setDetail(null);
+    // Retain the current content during a refresh so the drawer does not collapse and jump.
+    if (loadedContractId.current !== selected) {
+      loadedContractId.current = selected;
+      setDetail(null);
+      setPayoutHistoryYear('ALL');
+      setPayoutHistoryStatus('ALL');
+      setPayoutHistoryPage(1);
+      setReceiptHistoryYear('ALL');
+      setReceiptHistoryPage(1);
+      setShowAllSchedules(false);
+    }
     void channelRequest<Detail>(apiBase, token, `/accounting/contracts/${selected}`)
       .then(value => { if (live) setDetail(value); })
       .catch(cause => { if (live) appNotice.error('Không tải được chi tiết hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); });
@@ -452,6 +470,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
     .reduce((sum,entry)=>sum+entry.calculation_base,0);
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
+  const orderedSchedules=(detail?.schedules??[]).slice().sort((a,b)=>
+    Number(a.amount_received>=a.amount_due)-Number(b.amount_received>=b.amount_due)||
+    b.due_on.localeCompare(a.due_on)||b.id-a.id);
+  const receiptYears=[...new Set((detail?.receipts??[]).map(x=>x.received_at.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
+  const filteredReceipts=(detail?.receipts??[]).filter(x=>receiptHistoryYear==='ALL'||x.received_at.startsWith(receiptHistoryYear+'-'))
+    .slice().sort((a,b)=>b.received_at.localeCompare(a.received_at)||b.id-a.id);
+  const receiptPageCount=Math.max(1,Math.ceil(filteredReceipts.length/10));
+  const effectiveReceiptPage=Math.min(receiptHistoryPage,receiptPageCount);
+  const visibleReceipts=filteredReceipts.slice((effectiveReceiptPage-1)*10,effectiveReceiptPage*10);
+  const payoutYears=[...new Set((detail?.payouts??[]).map(x=>x.period.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
+  const payoutFiltered=(detail?.payouts??[]).filter(x=>(payoutHistoryYear==='ALL'||x.period.startsWith(payoutHistoryYear+'-'))&&(payoutHistoryStatus==='ALL'||x.status===payoutHistoryStatus));
+  const payoutPageCount=Math.max(1,Math.ceil(payoutFiltered.length/10));
+  const effectivePayoutPage=Math.min(payoutHistoryPage,payoutPageCount);
+  const payoutVisible=payoutFiltered.slice((effectivePayoutPage-1)*10,effectivePayoutPage*10);
   const openDraft = (payout?:Detail['payouts'][number]) => {
     setEditingPayout(payout??null);setPayoutError('');
     setPayoutRate(String(payout?.requested_rate_percent??suggestedRate));
@@ -623,21 +655,21 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </AppButton>
       </form>
       {busy && rows.length > 0 && <div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..." /></div>}
-      {busy && rows.length === 0 ? <output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</output> : <div className="overflow-x-auto">
-        <table className="w-full min-w-[1280px] text-left text-sm">
-          <thead className={adminTableHeadClass}>
+      {busy && rows.length === 0 ? <output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</output> : <div className="min-w-0">
+        <table className="block w-full text-left text-sm xl:table xl:table-fixed xl:text-xs 2xl:text-sm">
+          <thead className={`${adminTableHeadClass} hidden xl:table-header-group`}>
             <tr>
-              <th scope="col" className="px-4 py-3">Nhà trường</th>
-              <th scope="col" className="px-3 py-3">Sales phụ trách</th>
-              <th scope="col" className="px-3 py-3">Kỳ sử dụng</th>
-              <th scope="col" className="px-3 py-3">Dịch vụ</th>
-              <th scope="col" className="px-3 py-3">Cần xử lý</th>
-              <th scope="col" className="px-3 py-3 text-right">Thanh toán</th>
-              <th scope="col" className="px-3 py-3 text-right">Hoa hồng</th>
-              <th scope="col" className="px-3 py-3 text-center">Thao tác</th>
+              <th scope="col" className="w-[19%] px-3 py-3">Nhà trường</th>
+              <th scope="col" className="w-[12%] px-2 py-3">Sales phụ trách</th>
+              <th scope="col" className="w-[10%] px-2 py-3">Kỳ sử dụng</th>
+              <th scope="col" className="w-[16%] px-2 py-3">Dịch vụ</th>
+              <th scope="col" className="w-[12%] px-2 py-3">Cần xử lý</th>
+              <th scope="col" className="w-[12%] px-2 py-3 text-right">Tổng thực thu</th>
+              <th scope="col" className="w-[13%] px-2 py-3 text-right">Tổng hoa hồng</th>
+              <th scope="col" className="w-[6%] px-1 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/70">
+          <tbody className="block divide-y divide-border/70 xl:table-row-group">
             {rows.map(row=>{
               const state=row.service_status;
               const label:Record<string,string>={
@@ -647,52 +679,39 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 NEEDS_REVIEW:'Cần rà soát',INACTIVE:'Đã kết thúc',
                 HISTORICAL_GAP:'Cần rà soát',MISSING_TERM:'Cần rà soát'
               };
-              const amount=Math.max(0,row.received-row.refunded);
-              return <tr key={row.id} className="transition-colors even:bg-muted/20 hover:bg-muted/40">
-                <td className="px-4 py-4 align-middle">
-                  <p className="max-w-[260px] font-semibold text-foreground">{row.school_name}</p>
+              return <tr key={row.id} className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 px-3 py-4 transition-colors even:bg-muted/20 hover:bg-muted/40 sm:grid-cols-3 xl:table-row xl:p-0">
+                <td className="col-span-2 min-w-0 align-middle sm:col-span-1 xl:px-3 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Nhà trường</p>
+                  <p className="line-clamp-2 break-words font-semibold text-foreground" title={row.school_name}>{row.school_name}</p>
                 </td>
-                <td className="px-3 py-4 align-middle">
-                  <p className="font-medium">{row.owner_name}</p>
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Sales phụ trách</p>
+                  <p className="line-clamp-2 break-words font-medium" title={row.owner_name}>{row.owner_name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
                 </td>
-                <td className="px-3 py-4 align-middle tabular-nums">
+                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Kỳ sử dụng</p>
                   {row.service_until?channelDate(row.service_until):'—'}
                   {row.next_service_start_on&&<p className="mt-1 text-xs text-muted-foreground">
                     Kỳ tiếp theo: {channelDate(row.next_service_start_on)}</p>}
                 </td>
-                <td className="px-3 py-4 align-middle">
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Dịch vụ</p>
                   <AppStatusBadge variant="kidsfit-service" status={state} label={label[state]??'Cần kiểm tra'} size="md"/>
-                  {row.threshold_on&&(['INTERRUPTED','THRESHOLD_REACHED','THRESHOLD_OVERDUE','RELEASED'].includes(state))&&
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {state==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(row.threshold_on)}
-                    </p>}
                 </td>
-                <td className="px-3 py-4 align-middle">
+                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Cần xử lý</p>
                   {row.action==='CONFIRM_RENEWAL'
                     ? <AppStatusBadge variant="kidsfit-action" status="CONFIRM_RENEWAL" label="Xác nhận tái ký"/>
                     :row.action==='REVIEW_PERIOD'
                       ? <AppStatusBadge variant="kidsfit-action" status="REVIEW_PERIOD" label="Kiểm tra kỳ dịch vụ"/>
                       :<span className="text-muted-foreground">—</span>}
                 </td>
-                <td className="px-3 py-4 text-left align-middle tabular-nums"
-                  aria-label={`Thanh toán của ${row.school_name}`}>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Giá trị hợp đồng</p>
-                      <p className="mt-1 font-semibold">{channelMoney(row.total_value)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Thực thu</p>
-                      <p className="mt-1 font-semibold">{channelMoney(amount)}</p>
-                    </div>
-                  </div>
+                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right"
+                  aria-label={`Tổng thực thu của ${row.school_name}`}>
+                  <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng thực thu</p>
+                  <p className="break-words font-semibold [overflow-wrap:anywhere]" title={channelMoney(row.received)}>{channelMoney(row.received)}</p>
                 </td>
-                <td className="px-3 py-4 text-left align-middle tabular-nums">
-                  <p className="text-xs text-muted-foreground">Hoa hồng ghi nhận</p>
-                  <p className="mt-1 font-semibold">{channelMoney(row.commission)}</p>
+                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right">
+                  <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng hoa hồng</p>
+                  <p className="break-words font-semibold [overflow-wrap:anywhere]" title={channelMoney(row.commission)}>{channelMoney(row.commission)}</p>
                 </td>
-                <td className="px-3 py-4 text-center align-middle">
+                <td className="flex items-center justify-end align-middle xl:table-cell xl:px-1 xl:py-3 xl:text-center"><span className="mr-2 text-xs text-muted-foreground xl:hidden">Thao tác</span>
                   <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}
                     label={`Xem chi tiết hợp đồng trường ${row.school_name}`}/>
                 </td>
@@ -831,7 +850,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </section>;
         })()}
         <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-          <h3 className="text-base font-bold text-foreground">Thông tin hợp đồng</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-base font-bold text-foreground">Thông tin hợp đồng gốc</h3><span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary">{detail.school_units.length} điểm triển khai</span></div>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&_dd]:break-words [&_dd]:leading-6 [&_dt]:text-xs">
             <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
             <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
@@ -844,25 +863,22 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
             <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
-          <div className="space-y-2">
-            <p className="text-muted-foreground">Trường điểm / Phân hiệu triển khai</p>
-            {detail.school_units.length > 0
-              ? <ul className="list-inside list-disc space-y-1">{detail.school_units.map(unit=><li key={unit.id} className="font-medium">{unit.name}</li>)}</ul>
-              : <p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
-          </div>
-          {detail.evidence.filter(x=>x.kind==='CONTRACT').map(x=><button key={x.id} type="button"
-            className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/40"
-            onClick={()=>void viewEvidence(x.id,x.file_name,true)} title="Mở hợp đồng trong tab mới">
-              <span className="flex min-w-0 items-center gap-2"><FileText className="size-4 shrink-0"/><span className="truncate">{x.file_name}</span></span>
-              <ExternalLink className="size-4 shrink-0" aria-hidden="true"/>
-            </button>)}
-          {detail.evidence.every(x=>x.kind!=='CONTRACT') && <p className="text-muted-foreground">Chưa có file hợp đồng đính kèm. {detail.data.evidence_reference ?? ''}</p>}
+          <details className="group rounded-xl border border-border/80 bg-muted/10">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold marker:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+              <span>Trường điểm / Phân hiệu ({detail.school_units.length})</span>
+              <span className="text-xs font-normal text-muted-foreground group-open:hidden">Xem danh sách</span>
+              <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Thu gọn</span>
+            </summary>
+            <div className="border-t border-border/70 px-4 py-3">
+              {detail.school_units.length>0?<ul className="grid gap-2 sm:grid-cols-2">{detail.school_units.map(unit=><li key={unit.id} className="min-w-0 rounded-lg bg-background px-3 py-2 text-sm font-medium break-words">{unit.name}</li>)}</ul>:<p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
+            </div>
+          </details>
           </section>
         <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>
           {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
           <div className="divide-y divide-border/70 rounded-lg border border-border/70">
-            {detail.schedules.map(x=>{
+            {(showAllSchedules?orderedSchedules:orderedSchedules.slice(0,6)).map(x=>{
               const paid = Math.max(0, Math.min(x.amount_due, x.amount_received));
               const percentage = x.amount_due > 0 ? Math.min(100, paid / x.amount_due * 100) : 0;
               const status = paymentScheduleLabel(x.status);
@@ -892,12 +908,19 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </div>;
             })}
           </div>
+          {detail.schedules.length>6&&<Button type="button" variant="outline" size="sm" className="w-full" onClick={()=>setShowAllSchedules(value=>!value)}>{showAllSchedules?`Thu gọn lịch thanh toán`:`Xem toàn bộ ${detail.schedules.length} đợt thanh toán`}</Button>}
         </section>
         <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
             {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
               onClick={openReceipt}><Plus className="size-4"/> Thêm khoản thu</Button>}
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <label className="space-y-1 text-xs font-medium">Năm nhận tiền
+              <select className="mt-1 block h-10 min-w-40 rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={receiptHistoryYear} onChange={e=>{setReceiptHistoryYear(e.target.value);setReceiptHistoryPage(1);}}><option value="ALL">Tất cả các năm</option>{receiptYears.map(year=><option key={year} value={year}>{year}</option>)}</select>
+            </label>
+            <p className="text-xs text-muted-foreground">{filteredReceipts.length}/{detail.receipts.length} khoản thu</p>
           </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[520px] text-left text-sm">
@@ -910,8 +933,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
-                {detail.receipts.length===0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Chưa có khoản thu nào.</td></tr>
-                  : detail.receipts.map(x=>{
+                {filteredReceipts.length===0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Không có khoản thu phù hợp.</td></tr>
+                  : visibleReceipts.map(x=>{
                     const proof = detail.evidence.find(e=>e.revenue_receipt_id===x.id);
                     return <tr key={x.id} className="hover:bg-muted/20">
                       <td className="whitespace-nowrap px-3 py-3">{channelDate(x.received_at)}</td>
@@ -928,8 +951,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </tbody>
             </table>
           </div>
+          {filteredReceipts.length>10&&<div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectiveReceiptPage}/{receiptPageCount}</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage<=1} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage>=receiptPageCount} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage+1)}>Sau</Button></div></div>}
         </section>
-        <section aria-labelledby="contract-commission-heading"
+        <section ref={payoutSectionRef} tabIndex={-1} aria-labelledby="contract-commission-heading"
           className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
             <div className="flex min-w-0 items-start gap-3">
@@ -1079,12 +1103,21 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 {detail.ledger.filter(entry=>entry.entry_type!=='ACCRUAL')
                   .map(entry=>`${entry.reason||'Điều chỉnh'} (${channelMoney(entry.amount)})`).join('; ')}
               </div>}
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h4 className="text-sm font-semibold text-foreground">Lịch sử phiếu chi</h4>
-                <p className="mt-1 text-xs text-muted-foreground">Theo dõi từ khi lập nháp đến khi đã chuyển khoản.</p>
-              </div>
-              <span className="text-xs tabular-nums text-muted-foreground">{detail.payouts.length} phiếu</span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h4 className="text-sm font-semibold text-foreground">Lịch sử phiếu chi</h4><p className="mt-1 text-xs text-muted-foreground">Lọc theo năm kỳ hoa hồng và trạng thái.</p></div>
+              <span className="text-xs tabular-nums text-muted-foreground">{payoutFiltered.length}/{detail.payouts.length} phiếu</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1 text-xs font-medium">Năm kỳ hoa hồng
+                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={payoutHistoryYear} onChange={e=>{setPayoutHistoryYear(e.target.value);setPayoutHistoryPage(1);}}>
+                  <option value="ALL">Tất cả các năm</option>{payoutYears.map(year=><option key={year} value={year}>{year}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs font-medium">Trạng thái phiếu
+                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={payoutHistoryStatus} onChange={e=>{setPayoutHistoryStatus(e.target.value);setPayoutHistoryPage(1);}}>
+                  <option value="ALL">Tất cả trạng thái</option>{["DRAFT","CHANGES_REQUESTED","PENDING_APPROVAL","APPROVED","PAID","CANCELLED","REJECTED"].map(status=><option key={status} value={status}>{payoutStatusLabel(status)}</option>)}
+                </select>
+              </label>
             </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[1000px] table-fixed text-left text-sm">
@@ -1099,7 +1132,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
-                {detail.payouts.length===0 ?
+                {payoutFiltered.length===0 ?
                   <tr><td colSpan={6} className="px-3 py-8 text-center">
                     <div className="flex flex-col items-center gap-1.5">
                       <WalletCards className="size-6 text-muted-foreground/60" aria-hidden="true"/>
@@ -1107,7 +1140,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                       <span className="text-xs text-muted-foreground">Phiếu sẽ xuất hiện sau khi lập từ hoa hồng đủ điều kiện.</span>
                     </div>
                   </td></tr>
-                  : detail.payouts.map(x=>{
+                  : payoutVisible.map(x=>{
                     const proof = detail.evidence.find(e=>e.payout_id===x.id);
                     const latestRequest = x.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1);
                     const tone = x.status==='PAID'
@@ -1163,6 +1196,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </tbody>
             </table>
           </div>
+          {payoutFiltered.length>10&&<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectivePayoutPage}/{payoutPageCount} · {payoutFiltered.length} phiếu</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage<=1} onClick={()=>setPayoutHistoryPage(effectivePayoutPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage>=payoutPageCount} onClick={()=>setPayoutHistoryPage(effectivePayoutPage+1)}>Sau</Button></div></div>}
           </div>
         </section>
       </div>}
@@ -1255,7 +1289,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>
     </AppDialog>
-    <AppDialog open={Boolean(detail&&payoutDialogOpen)}
+    <AppDialog returnFocusRef={payoutSectionRef} open={Boolean(detail&&payoutDialogOpen)}
       onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open){payoutKey.current=null;setEditingPayout(null);}}}}
       busy={saving} title={editingPayout?'Chỉnh sửa phiếu chi Nháp':'Lập phiếu chi hoa hồng'}
       description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh.">

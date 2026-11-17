@@ -32,9 +32,16 @@ test('Contract details list deployment units or explicitly say main school only'
   ];
   for (const screen of screens) {
     const source = read(screen);
-    assert.match(source, /Trường điểm \/ Phân hiệu triển khai/, screen);
-    assert.match(source, /detail\.school_units\.length > 0/, screen);
-    assert.match(source, /detail\.school_units\.map\(unit=><li key=\{unit.id\}/, screen);
+    if (screen.includes('/Accounting/')) {
+      assert.match(source, /Trường điểm \/ Phân hiệu \(\{detail\.school_units\.length\}\)/, screen);
+      assert.match(source, /detail\.school_units\.length>0/, screen);
+      assert.match(source, /detail\.school_units\.map\(unit=><li key=\{unit\.id\}/, screen);
+      assert.match(source, /<details className="group rounded-xl/, screen);
+    } else {
+      assert.match(source, /Trường điểm \/ Phân hiệu triển khai/, screen);
+      assert.match(source, /detail\.school_units\.length > 0/, screen);
+      assert.match(source, /detail\.school_units\.map\(unit=><li key=\{unit.id\}/, screen);
+    }
     assert.match(source, /Chỉ có trường chính, không có trường điểm \/ phân hiệu\./, screen);
     assert.doesNotMatch(source, /Chỉ trường chính \/ chưa khai báo/, screen);
   }

@@ -48,6 +48,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  onChanged:()=>Promise<void>;
 }){
  const [periods,setPeriods]=useState<ContractPeriod[]>([]);
+ const [showOlderPeriods,setShowOlderPeriods]=useState(false);
  const [selected,setSelected]=useState<string|null>(null);
  const [detail,setDetail]=useState<RenewalDetail|null>(null);
  const [decision,setDecision]=useState<Decision|null>(null);
@@ -63,11 +64,13 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  const canConfirm=abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*');
  const active=periods.find(p=>p.type+'-'+p.id===selected);
  const activeRenewal=active?.type==='RENEWAL'?active.id:null;
+ const visiblePeriods=showOlderPeriods||periods.length<=5?periods:periods.filter((period,index)=>index>=periods.length-5||period.type+'-'+period.id===selected||(period.type==='RENEWAL'&&period.status==='PENDING_ACCOUNTING'));
+ const olderPeriodCount=periods.length-visiblePeriods.length;
 
  useEffect(()=>{
    if(!canReview){setLoading(false);return;}
    let mounted=true;
-   setLoading(true);setError('');setPeriods([]);setSelected(null);setDetail(null);
+   setLoading(true);setError('');setPeriods([]);setSelected(null);setDetail(null);setShowOlderPeriods(false);
    void channelRequest<{data:ContractPeriod[]}>(apiBase,token,
      '/accounting/contracts/'+contractId+'/periods')
      .then(response=>{
@@ -154,7 +157,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
    :loading?<output className="block text-sm text-muted-foreground">Đang tải lịch sử hợp đồng...</output>
    :error?<p role="alert" className="text-sm text-destructive">{error}</p>
    :periods.length===0?<p className="text-sm text-muted-foreground">Chưa có hợp đồng trong phạm vi tài khoản.</p>
-   :<div className="space-y-2">{periods.map(period=>{
+   :<div className="space-y-2">{visiblePeriods.map(period=>{
      const key=period.type+'-'+period.id;
      const expanded=key===selected;
      return <div key={key} className="overflow-hidden rounded-xl border border-border">
@@ -221,7 +224,9 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
          </div>}
        </div>}
      </div>;
-   })}</div>}
+   })}
+    {periods.length>5&&<Button type="button" variant="outline" size="sm" className="w-full" onClick={()=>setShowOlderPeriods(value=>!value)}>{showOlderPeriods?'Thu gọn lịch sử tái ký':`Xem ${olderPeriodCount} hồ sơ cũ hơn`}</Button>}
+  </div>}
  </section>
  <AppDialog open={decision!==null} onOpenChange={open=>{if(!open)closeDecision();}}
    busy={busy} contentClassName="sm:max-w-lg"

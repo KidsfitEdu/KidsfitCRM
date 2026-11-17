@@ -8,8 +8,9 @@ test('Accounting has one workspace table, eight columns, one detail Drawer and n
  const shell=read('src/screens/Accounting/Revenue/RevenuePage.tsx');
  const ui=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
  assert.doesNotMatch(shell,/AccountingTab|ServiceInterruptionPanel|ContractRenewalAccountingPanel/);
- const firstTable=ui.slice(ui.indexOf('<table className="w-full min-w-[1280px]'),
-   ui.indexOf('</table>',ui.indexOf('<table className="w-full min-w-[1280px]'))+8);
+ const start=ui.indexOf('<table className="block w-full text-left text-sm xl:table xl:table-fixed');
+ const firstTable=ui.slice(start,ui.indexOf('</table>',start)+8);
+ assert.ok(start>=0);
  assert.equal((firstTable.match(/<th scope="col"/g)||[]).length,8);
  for(const label of ['Nhà trường','Sales phụ trách','Kỳ sử dụng','Dịch vụ','Cần xử lý','Thanh toán','Hoa hồng','Thao tác'])
   assert.ok(ui.includes(label),label);
@@ -43,6 +44,7 @@ test('Backend filters before pagination and scoping applies to all accounting ro
 test('GI-01 milestones differ from actual release and labels remain concise',()=>{
  const api=read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
  const ui=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+ const firstTable=ui.slice(ui.indexOf('<table className="block w-full text-left text-sm xl:table'),ui.indexOf('</table>',ui.indexOf('<table className="block w-full text-left text-sm xl:table'))+8);
  assert.match(api,/today == assessment\.ThresholdOn \? "THRESHOLD_REACHED" : "THRESHOLD_OVERDUE"/);
  assert.match(api,/e\.GapStartOn == assessment\.GapStartOn\.Value/);
  assert.match(api,/e\.Status == "RELEASED"/);
@@ -52,11 +54,18 @@ test('GI-01 milestones differ from actual release and labels remain concise',()=
   'Đủ 12 tháng','Quá 12 tháng','Đã hết bảo vệ','Cần rà soát']) {
   assert.ok(ui.includes(label),'Missing state '+label);
  }
- assert.match(ui,/Đạt mốc/);
- assert.match(ui,/Mốc 12 tháng/);
- assert.match(ui,/Giá trị hợp đồng<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(row\.total_value\)\}/);
- assert.match(ui,/Thực thu<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(amount\)\}/);
- assert.match(ui,/Hoa hồng ghi nhận<\/p>\s*<p className="mt-1 font-semibold">\{channelMoney\(row\.commission\)\}/);
+ // Milestone dates remain in backend and contract detail, not the compact list.
+ const tableStart=ui.indexOf('<table className="block w-full text-left text-sm xl:table');
+ const tableSection=ui.slice(tableStart,ui.indexOf('</table>',tableStart)+8);
+ assert.doesNotMatch(tableSection,/Mốc 12 tháng|Đạt mốc/);
+ assert.match(tableSection,/variant="kidsfit-service"/);
+ assert.match(tableSection,/w-\[16%\] px-2 py-3">Dịch vụ/);
+ assert.doesNotMatch(firstTable,/channelMoney\(row\.total_value\)/);
+ assert.match(firstTable,/Tổng thực thu/);
+ assert.match(firstTable,/channelMoney\(row\.received\)/);
+ assert.doesNotMatch(firstTable,/row\.received-row\.refunded/);
+ assert.match(firstTable,/Tổng hoa hồng/);
+ assert.match(firstTable,/channelMoney\(row\.commission\)/);
  assert.doesNotMatch(ui,/Đã thu sau hoàn tiền/);
  assert.doesNotMatch(ui,/Hoa hồng ghi nhận: \{channelMoney\(row\.commission\)\}/);
 });
@@ -80,4 +89,31 @@ test('Kidsfit branding differentiates service states from accounting actions wit
  assert.match(table,/variant="kidsfit-action" status="REVIEW_PERIOD"/);
  assert.match(table,/<span className="text-muted-foreground">—<\/span>/);
  assert.doesNotMatch(table,/font-semibold text-amber-800 dark:text-amber-200/);
+});
+
+
+test('Accounting contract list keeps eight fields without forced table min width',()=>{
+ const ui=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+ assert.doesNotMatch(ui,/min-w-\[1280px\]/);
+ assert.match(ui,/xl:table-fixed/);
+ assert.match(ui,/xl:hidden/);
+ assert.match(ui,/Tổng thực thu/);
+ assert.match(ui,/Tổng hoa hồng/);
+ assert.match(ui,/channelMoney\(row\.received\)/);
+ assert.doesNotMatch(ui,/const amount=Math\.max\(0,row\.received-row\.refunded\)/);
+ assert.match(ui,/onClick=\{\(\)=>setSelected\(row\.id\)\}/);
+});
+
+
+test('Service column gets enough desktop width without changing shared badges or GI-01 backend',()=>{
+ const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+ const start=page.indexOf('<table className="block w-full text-left text-sm xl:table');
+ const table=page.slice(start,page.indexOf('</table>',start)+8);
+ const headings=[...table.matchAll(/<th scope="col" className="w-\[(\d+)%\]/g)].map(m=>Number(m[1]));
+ assert.deepEqual(headings,[19,12,10,16,12,12,13,6]);
+ assert.equal(headings.reduce((sum,value)=>sum+value,0),100);
+ assert.doesNotMatch(table,/row\.threshold_on/);
+ assert.match(table,/AppStatusBadge variant="kidsfit-service"/);
+ assert.match(table,/Đang sử dụng/);
+ assert.match(table,/Quá 12 tháng/);
 });

@@ -493,8 +493,8 @@ export function ChannelSalesView({
       </Card>
 
       <AppDrawer open={detailCustomer !== null} onOpenChange={open => { if (!open) setDetailCustomer(null); }}
-        title="Thông tin trường học" compactHeader alignToViewportEdge extendHeaderToViewportEdge
-        bodyClassName="space-y-4 bg-muted/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        title="Thông tin trường học" compactHeader
+        bodyClassName="space-y-4 bg-muted/10">
         {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
         {!schoolProfile && !profileError && <output className="block text-sm text-muted-foreground">Đang tải thông tin trường…</output>}
         {schoolProfile && <>

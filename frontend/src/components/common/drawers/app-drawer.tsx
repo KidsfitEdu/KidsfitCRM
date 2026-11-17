@@ -20,12 +20,14 @@ type Props = {
   wide?: boolean;
   compactAccountingHeader?: boolean;
   compactHeader?: boolean;
+  alignToViewportEdge?: boolean;
 };
 
 /** Shared CRM right-side detail/history drawer; not a form or data access layer. */
-export function AppDrawer({ open, onOpenChange, title, description, children, footer, busy = false, bodyClassName, wide = false, compactAccountingHeader = false, compactHeader = false }: Props) {
+export function AppDrawer({ open, onOpenChange, title, description, children, footer, busy = false, bodyClassName, wide = false, compactAccountingHeader = false, compactHeader = false, alignToViewportEdge = false }: Props) {
   return <Sheet open={open} onOpenChange={next=>{if(!busy)onOpenChange(next);}}>
     <SheetContent side="right" showCloseButton={false}
+      style={alignToViewportEdge ? { right: "calc(100% - 100vw)" } : undefined}
       className={cn("right-0 h-dvh w-screen max-w-none gap-0 overflow-hidden border-l border-border bg-card p-0 shadow-[0_22px_80px_rgba(14,42,26,.22)]", wide ? "sm:!w-[min(800px,100vw)] sm:!max-w-[800px]" : "sm:!w-[min(560px,100vw)] sm:!max-w-[560px]")}>
       <header className={cn("relative w-full shrink-0 self-stretch bg-[#1b5e20] px-5 pr-16 text-white",
         compactAccountingHeader ? "py-3" : compactHeader ? "py-3.5" : "py-5")}>

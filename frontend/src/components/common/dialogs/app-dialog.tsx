@@ -32,9 +32,9 @@ export function AppDialog({
   return (
     <Dialog open={open} onOpenChange={next => { if (!busy) onOpenChange(next); }}>
       <DialogContent
-        onCloseAutoFocus={returnFocusRef ? event => {
-          event.preventDefault();
+        finalFocus={returnFocusRef ? () => {
           returnFocusRef.current?.focus({preventScroll:true});
+          return false;
         } : undefined}
         showCloseButton={false}
         className={cn(

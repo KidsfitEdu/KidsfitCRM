@@ -19,8 +19,8 @@ test('commission period is formatted for display without changing period submitt
   assert.match(page,/const payoutPeriodLabel = \(period: string\)/);
   assert.match(page,/const match = \/\^\(\\d\{4\}\)-\(\\d\{2\}\)\$\//);
   assert.match(page,/Tháng \$\{match\[2\]\}\/\$\{match\[1\]\}/);
-  assert.match(page,/value:period,label:/);
-  assert.match(page,/eligibleByPeriod\.get\(period\)/);
+  assert.match(page,/setPayoutPeriod\(intent\.period\)/);
+  assert.match(page,/eligibleByPeriod\.get\(chosenPeriod\)/);
   assert.match(page,/period:chosenPeriod/);
 });
 test('draft payout actions remain permission guarded in the central payout detail dialog',()=>{

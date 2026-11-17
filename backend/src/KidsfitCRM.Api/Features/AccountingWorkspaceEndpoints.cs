@@ -247,6 +247,13 @@ public static class AccountingWorkspaceEndpoints
                 threshold_on = assessment.ThresholdOn,
                 action, pending_renewal_id = waiting?.Id,
                 pending_renewal_no = waiting?.RenewalNo,
+                source_service_start_on = c.SourceStartOn,
+                source_service_end_on = c.SourceEndOn,
+                periods = attached.OrderBy(r => r.RenewalNo).Select(r => new {
+                    id = r.Id, renewal_no = r.RenewalNo, status = r.Status,
+                    service_start_on = r.ServiceStartOn, service_end_on = r.ServiceEndOn,
+                    total_value = r.TotalValue
+                }).ToArray(),
                 needs_info_renewal_id = needsInfo?.Id,
                 total_value = c.TotalValue, received = c.Received, refunded = c.Refunded,
                 commission = c.Commission, has_financial_history = c.HasFinancialHistory

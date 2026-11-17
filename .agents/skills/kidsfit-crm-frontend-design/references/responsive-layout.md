@@ -39,6 +39,16 @@ These are **test viewports**, not new breakpoint definitions. Use project Tailwi
 - **Focus and modal interaction:** manage focus trap/return, Escape close where allowed, background inertness, scroll lock and readable field errors. Verify touch, keyboard-only and 200% zoom for all four patterns.
 - **Color at different widths/themes:** distinguish semantic action-icon tones and status badge categories by text/icon and contrast, not hue alone; ensure dark tokens exist rather than hardcoded light-only styles.
 
+## Dashboard responsive and accessibility contract (BGĐ reference)
+
+- **1440px desktop:** show up to four equal KPI tiles across one row if space allows; below, optionally a wider main trend panel and narrower contextual status/task panel (roughly two-thirds / one-third) when both have meaningful content. Maintain breathing room rather than filling every pixel.
+- **1024px laptop:** allow KPI cards to reflow to two columns when labels/values would clip. Chart cards stack or share columns only if axes, legends and buttons remain readable.
+- **768px tablet:** two-column KPI grid where legible; single-column chart/insight regions. Period selector and refresh wrap under/alongside title without colliding with breadcrumb.
+- **375px phone (also 320px edge cases):** one KPI tile per row when long Vietnamese labels or VND amounts demand it; avoid horizontal page scrolling and ensure chart panels stay inside viewport. If two small cards fit, they must remain accessible at 200% zoom; do not force two columns solely to match screenshot.
+- **Chart responsiveness:** stable aspect/height, legible ticks, units and legend; rotate/reduce labels as needed, not hide all context. On narrow screens prefer compact tooltip/table alternative, and no inaccessible off-screen chart controls.
+- **Interactions:** filter and refresh have accessible labels, keyboard focus, loading feedback; charts must provide text/summary for screen reader users. Touch targets and tasks stay reachable below mobile bottom navigation.
+- **Data state at all widths:** check long amounts, missing values, loading, empty chart, partial error, no permission, and dark mode. No claim of chart correctness without actual API/source verification, and no visual test PASS without browser observation.
+
 ## Dark mode and zoom
 
 - Verify all table headers, badges, hover, inputs, selected navigation and focus states against \`.dark\` tokens. Existing \`AppButton\` and \`AdminIconAction\` provide dark variants; reuse before overriding.

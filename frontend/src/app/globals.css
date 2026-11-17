@@ -342,11 +342,19 @@ body { font-family: var(--font-brand); }
 }
 
 /*
- * Base UI modal scroll locking sets an inline scrollbar-gutter: stable on <html>.
- * With classic scrollbars this leaves a blank strip to the right of fixed
- * CRM drawers. Override only while a right-side Sheet is mounted: Base UI
- * still owns the page scroll lock and the drawer keeps its own scrolling.
+ * Base UI locks document scrolling while a modal Sheet is open and may set
+ * inline scrollbar-gutter: stable, overflow: hidden scroll on <html>, plus
+ * a scrollbar-compensated body width. That reserves a blank strip beside
+ * right-side drawers in browsers with classic scrollbars.
+ *
+ * Scope the overrides to a mounted right-side Sheet. Keep the page locked
+ * with overflow: hidden, but remove the reserved gutter and body width
+ * compensation. The Drawer body retains its own overflow-y-auto scrolling.
  */
 html:has([data-slot="sheet-content"][data-side="right"]) {
   scrollbar-gutter: auto !important;
+  overflow: hidden !important;
+}
+html:has([data-slot="sheet-content"][data-side="right"]) body {
+  width: 100% !important;
 }

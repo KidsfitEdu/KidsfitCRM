@@ -78,8 +78,8 @@ test('Sales tabs follow accounting underline pattern and proposal table retains 
   const proposals = read('src/components/crm/school-operations.tsx');
   const table = read('src/components/roles/SalesProposalTable.tsx');
   assert.doesNotMatch(focus, /lg:w-\\[30%\\]/);
-  assert.match(focus, /flex flex-wrap gap-x-6 gap-y-1 border-b border-border/);
-  assert.match(focus, /-mb-px border-b-2 px-1 py-3 text-sm font-semibold/);
+  assert.match(focus, /flex gap-5 overflow-x-auto border-b border-border/);
+  assert.match(focus, /-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2/);
   assert.match(focus, /border-\[#1b5e20\]/);
   assert.match(focus, /min-w-0 space-y-5/);
   assert.doesNotMatch(focus, /rounded-t-\[24px\]/);

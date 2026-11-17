@@ -951,7 +951,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         <div className="flex flex-wrap items-center gap-2">
           {canCreatePayout&&<Button type="button" size="sm"
             onClick={()=>{setPayoutPickerSearch('');setPayoutCandidateKey('');setPayoutPickerOpen(true);}}>
-            <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
+            <Plus className="size-4" aria-hidden="true"/> Thêm mới
           </Button>}
           <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu đang hiển thị · {financeOverview?.payout_total??displayedPayouts.length} phiếu trong kỳ</span>
         </div>
@@ -1020,10 +1020,16 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </td>
               <td className="whitespace-nowrap px-3 py-3 text-xs">{payoutPeriodLabel(p.period)}</td>
               <td className="px-3 py-3 text-center">
-                <Button type="button" size="sm" variant="outline" onClick={()=>setPayoutPreview(p)}
-                  aria-label={`Xem và xử lý phiếu chi ${p.code}`}>
-                  <Eye className="size-4" aria-hidden="true"/> Xem
-                </Button>
+                <div className="flex items-center justify-center gap-2">
+                  <AdminIconAction icon={Eye} label={'Xem phiếu chi '+p.code}
+                    onClick={()=>setPayoutPreview(p)}/>
+                  {(p.status==='DRAFT'||p.status==='CHANGES_REQUESTED')&&canCreatePayout
+                    &&p.contract_ids?.length===1&&
+                    <AdminIconAction icon={Pencil} label={'Sửa phiếu chi '+p.code}
+                      onClick={()=>openCentralPayout({contractId:p.contract_ids![0],
+                        beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
+                        period:p.period,mode:'EDIT',payoutId:p.id})}/>}
+                </div>
               </td>
             </tr>)}
             {!visiblePayouts.length&&<tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">

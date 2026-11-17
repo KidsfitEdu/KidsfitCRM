@@ -71,6 +71,24 @@ Refer to the actual implementation before modifying signatures or behavior. Path
 - Success = green, error = red, warning = amber, info = blue; loading feedback stays pending until the API has completed. Ordinary success/info can dismiss in about 4–5 seconds; errors requiring attention should stay readable/dismissible. The indicator cannot be the only measure of urgency. De-duplicate repeated identical notifications, avoid a tall stack and never expose sensitive backend details.
 - Announce feedback appropriately (e.g. `role="status"` for non-urgent updates, `role="alert"` for urgent errors). Do not show success on request start or optimistic UI alone.
 
+## Dashboard components: reuse contracts and behavior
+
+**Reference implementations on `develop`:**
+- `frontend/src/screens/Board/BoardDashboardPage.tsx` — BGĐ overview with real report period, `AppStatCard`, `ChartContainer`, Recharts line/pie, tooltip, legend and permission-aware API.
+- `frontend/src/components/roles/SalesDashboard.tsx` — Sales overview with four role-scoped KPI cards and upcoming consultations; **it does not currently include a verified historical trend API**.
+- `frontend/src/components/common/app-page-header.tsx`, `app-stat-card.tsx`, `admin-list-ui.tsx`, `app-pagination.tsx`, `frontend/src/components/ui/chart.tsx` — inspect these before creating a new Dashboard primitive.
+
+### Component contract
+
+1. **Header:** `AppPageHeader` owns breadcrumb, title, description and contextual action layout. “Kỳ báo cáo” needs a properly labeled month/date selector linked to actual period-specific data; “Làm mới” re-fetches the same period and has busy/disabled feedback. Do not show an inert filter.
+2. **Metrics:** `AppStatCard` displays a stable label, high-priority `vi-VN` formatted value, related icon and brief interpretation/time basis. Use a consistent grid and equal visual rhythm; treat missing/forbidden/unknown as “—” or a clear message, not fabricated zero. Keep action and metric scopes appropriate to the current role.
+3. **Chart card:** rounded white shared surface, title + timeframe/units, real data plotted using Recharts inside `ChartContainer`, accessible axes/legend/tooltips, theme-aware chart tokens; hide chart itself for invalid or empty input with useful empty-state explanation. Avoid adding new chart packages, generic wrappers that duplicate `ChartContainer`, or chart aesthetics that distort values.
+4. **Operational card:** show deadlines, tasks, school follow-ups or pending actions in a consistent list/table. Reuse `AdminListPanel`, `AdminIconAction` and semantic badges; keep controls wired to existing callbacks/permissions, with clear empty and error paths.
+5. **Chart type choice:** line for sequential trend, bars for comparable groups, donut for a small composition; never chart a single total as a multi-month series. Preserve units VND and calendar/date meaning, and verify totals if showing parts of a whole.
+6. **Loading and partial errors:** do not replace an API failure with illustrative statistics. Use a clear skeleton/loading message, distinct no-data/permission/preview cases and independent errors for optional insight areas. Announce state to assistive technology appropriately.
+
+**Reusable design boundary:** Dashboard pages can share `AppStatCard`, chart primitives, branded panel styles and status vocabulary without sharing the same data queries or KPI set. A UI-only task must not silently invent back-end endpoints, monthly trend tables, financial authority or metric definitions.
+
 ## Error, empty, disabled and preview semantics
 
 - Distinguish: empty dataset, no matching filter results, forbidden scope, server error, and preview-only data. Do not replace an API error with a fake empty or successful result.

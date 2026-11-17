@@ -58,7 +58,7 @@ test('Accounting schedule status is Vietnamese and progress reflects actual paid
 
 test('Accounting payout table includes approved and draft records instead of only paid payouts', () => {
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(page, /detail.payouts.map\(x=>/);
+  assert.match(page, /payoutVisible.map\(x=>/);
   assert.match(page, /payoutStatusLabel\(x.status\)/);
   assert.match(page, /x.status==='PENDING_APPROVAL'&&canApprovePayout/);
   assert.doesNotMatch(page, /Phiếu chi đang xử lý/);
@@ -74,4 +74,27 @@ test('Evidence image viewer is dark edge to edge with scroll zoom and drag', () 
   assert.match(viewer, /onPointerMove=\{moveDrag\}/);
   assert.match(viewer, /aria-label="Phóng to ảnh"/);
   assert.doesNotMatch(viewer, /bg-muted\/30 p-3 sm:p-5/);
+});
+
+
+test('Accounting payout history stays grouped by year with bounded visible rows', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page, /payoutHistoryYear/);
+  assert.match(page, /payoutHistoryStatus/);
+  assert.match(page, /x\.period\.startsWith\(payoutHistoryYear\+'-'\)/);
+  assert.match(page, /payoutFiltered\.slice\(\(effectivePayoutPage-1\)\*10,effectivePayoutPage\*10\)/);
+  assert.match(page, /payoutVisible\.map\(x=>/);
+  assert.match(page, /setPayoutHistoryPage\(1\)/);
+  assert.match(page, /Trước/);
+  assert.match(page, /Sau/);
+});
+
+test('Accounting detail refresh does not unmount all drawer content after a payout mutation', () => {
+  const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  const dialog = read('src/components/common/dialogs/app-dialog.tsx');
+  assert.match(page, /loadedContractId\.current !== selected/);
+  assert.match(page, /returnFocusRef=\{payoutSectionRef\}/);
+  assert.match(dialog, /finalFocus=\{returnFocusRef/);
+  assert.match(dialog, /focus\(\{preventScroll:true\}\)/);
+  assert.doesNotMatch(dialog, /onCloseAutoFocus/);
 });

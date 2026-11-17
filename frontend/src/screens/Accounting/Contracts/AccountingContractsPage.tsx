@@ -245,10 +245,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
   const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
-  const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
   const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
   const canAdjustCommission=abilities.includes('channel_sales.commission.adjust')||abilities.includes('*');
-  const canApprovePayout = abilities.includes('channel_sales.payout.approve') || abilities.includes('*');
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
   const connected = Boolean(apiBase && token && canView);
   const load = useCallback(async () => {

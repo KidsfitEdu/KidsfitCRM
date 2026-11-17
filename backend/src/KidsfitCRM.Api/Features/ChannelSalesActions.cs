@@ -537,7 +537,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             if (schedule.AmountReceived + amount > schedule.AmountDue) throw ApiValidationException.For("amount", "Khoản thu vượt số tiền còn lại của kỳ phải thu.");
 
             var receivedAt = request.ReceivedAt?.ToUniversalTime() ?? now;
-            if (receivedAt > now.AddMinutes(1) || ChannelSalesValidation.BusinessDate(receivedAt) < contract.SignedOn)
+            if (receivedAt > now.AddMinutes(1) || ChannelSalesValidation.BusinessDate(receivedAt) < (renewal?.SignedOn ?? contract.SignedOn))
                 throw ApiValidationException.For("received_at", "Thời điểm thu phải từ ngày ký đến hiện tại.");
             FinancialEvidence? receiptProof = null;
             if (request.EvidenceId.HasValue)

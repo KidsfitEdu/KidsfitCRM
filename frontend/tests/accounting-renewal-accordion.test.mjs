@@ -15,7 +15,9 @@ test('Accounting history visually matches Sales: source contract and renewals in
     'aria-expanded={expanded}','aria-controls={\'accounting-period-\'+key}',
     'Chứng từ ','Lịch sử xử lý','Giá trị hợp đồng','Kỳ sử dụng'])
     assert.ok(ui.includes(phrase),phrase);
-  for(const phrase of ['rounded-2xl border border-border bg-card','overflow-hidden rounded-xl border border-border',
+  assert.ok(ui.includes('rounded-2xl border border-border/70 bg-card p-4 shadow-sm'));
+  assert.ok(sales.includes('rounded-2xl border border-border bg-card'));
+  for(const phrase of ['overflow-hidden rounded-xl border border-border',
     'border-t border-border px-3 py-4','ChevronUp','ChevronDown','AppStatusBadge'])
     assert.ok(ui.includes(phrase)&&sales.includes(phrase),phrase);
   assert.match(ui,/response\.data\.find\(p=>p\.type==='RENEWAL'&&p\.status==='PENDING_ACCOUNTING'\)/);

@@ -39,6 +39,12 @@ const payoutStatusLabel = (status: string) => ({
   REJECTED: 'Đã từ chối',
 } as Record<string, string>)[status] ?? 'Chưa xác định';
 
+const payoutEventLabel = (eventType: string) => ({
+  CREATED:'Đã lập phiếu',EDITED:'Đã chỉnh sửa',SUBMITTED:'Đã gửi BGĐ',
+  CHANGES_REQUESTED:'BGĐ yêu cầu bổ sung',APPROVED:'BGĐ đã duyệt',
+  PAID:'Kế toán đã chi',REJECTED:'Đã từ chối',CANCELLED:'Đã hủy',
+} as Record<string,string>)[eventType] ?? 'Sự kiện phiếu chi';
+
 // Presentation only: preserve the YYYY-MM period used by payout API and accounting ledger.
 const payoutPeriodLabel = (period: string) => {
   const match = /^(\d{4})-(\d{2})$/.exec(period);
@@ -776,7 +782,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div><h2 className="text-base font-bold">Quản lý phiếu chi hoa hồng</h2>
           <p className="mt-1 text-xs text-muted-foreground">Lập phiếu theo trường, người hưởng và kỳ hoa hồng; gửi BGĐ duyệt trước khi chi.</p></div>
-        <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu đang hiển thị · {financeOverview?.payout_total??displayedPayouts.length} phiếu trong kỳ</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {canCreatePayout&&<Button type="button" size="sm"
+            onClick={()=>document.getElementById('accounting-eligible-payouts')?.scrollIntoView({behavior:'smooth',block:'start'})}>
+            <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
+          </Button>}
+          <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">{displayedPayouts.length} phiếu đang hiển thị · {financeOverview?.payout_total??displayedPayouts.length} phiếu trong kỳ</span>
+        </div>
       </div>
       <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
         onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);setEligiblePage(1);}}
@@ -859,7 +871,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <tr>
               <th scope="col" className="px-4 py-3">Mã phiếu / Người hưởng</th>
               <th scope="col" className="px-3 py-3">Trường / Hợp đồng</th>
-              <th scope="col" className="px-3 py-3 text-right">Thực chi</th>
+              <th scope="col" className="px-3 py-3 text-right">Số tiền phiếu</th>
               <th scope="col" className="px-3 py-3">Trạng thái</th>
               <th scope="col" className="px-3 py-3">Kỳ</th>
               <th scope="col" className="px-3 py-3 text-center">Thao tác</th>
@@ -926,7 +938,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <p className="mt-1 font-semibold tabular-nums">{channelMoney(payoutPreview.requested_amount)}</p>
             <p className="text-xs text-muted-foreground">Theo hệ thống: {channelMoney(payoutPreview.suggested_amount)}</p>
           </div>
-          <div><p className="text-xs text-muted-foreground">Thực chi sau khấu trừ</p>
+          <div><p className="text-xs text-muted-foreground">{payoutPreview.status==='PAID'?'Thực chi':'Số tiền sau khấu trừ'}</p>
             <p className="mt-1 text-lg font-bold tabular-nums text-primary">{channelMoney(payoutPreview.net_amount)}</p>
             <p className="text-xs text-muted-foreground">Khấu trừ: {channelMoney(payoutPreview.withholding_amount)}</p>
           </div>
@@ -945,7 +957,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <h3 className="font-semibold">Lịch sử xử lý</h3>
           {payoutPreview.events.length===0?<p className="text-xs text-muted-foreground">Chưa có lịch sử xử lý.</p>:
             payoutPreview.events.map((event,index)=><div key={index} className="border-l-2 border-border pl-3 text-xs">
-              <p className="font-semibold">{event.event_type}</p>
+              <p className="font-semibold">{payoutEventLabel(event.event_type)}</p>
               <p className="mt-1 text-muted-foreground">{channelDate(event.created_at)}</p>
               {event.reason&&<p className="mt-1 whitespace-pre-wrap break-words">{event.reason}</p>}
             </div>)}

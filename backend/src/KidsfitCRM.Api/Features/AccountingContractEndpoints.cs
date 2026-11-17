@@ -184,6 +184,9 @@ public static class AccountingContractEndpoints
             contract.source_payment_cycle, confirmedPeriods, ChannelSalesValidation.BusinessDate(DateTime.UtcNow));
         var schedules = await db.RevenueSchedules.AsNoTracking().Where(x => x.ContractId == id)
             .OrderBy(x => x.DueOn).Select(x => new { id = x.Id, due_on = x.DueOn,
+                contract_renewal_id = x.ContractRenewalId,
+                renewal_no = db.ContractRenewals.Where(r => r.Id == x.ContractRenewalId)
+                    .Select(r => (int?)r.RenewalNo).FirstOrDefault(),
                 amount_due = x.AmountDue, amount_received = x.AmountReceived, status = x.Status }).ToArrayAsync(ct);
         var receipts = await db.RevenueReceipts.AsNoTracking().Where(x => x.ContractId == id && x.Status == "COMPLETED")
             .OrderByDescending(x => x.ReceivedAt).Select(x => new {

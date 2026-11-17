@@ -953,6 +953,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           Phiếu lịch sử liên quan nhiều hợp đồng hoặc chưa xác định nguồn. Không thể tự chọn một trường để sửa hay chuyển khoản.
         </p>}
         <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
+          {payoutPreview.proof_id&&payoutPreview.proof_file_name&&<Button type="button" size="sm" variant="outline"
+            onClick={()=>void viewEvidence(payoutPreview.proof_id!,payoutPreview.proof_file_name!)}>
+            <ImageIcon className="size-4" aria-hidden="true"/> Xem chứng từ chi
+          </Button>}
           {payoutPreview.contract_ids?.length===1&&<Button type="button" size="sm" variant="outline"
             onClick={()=>{setSelected(payoutPreview.contract_ids![0]);setAccountingTab('CONTRACTS');setPayoutPreview(null);}}>
             <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng

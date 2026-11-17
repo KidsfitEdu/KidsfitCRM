@@ -128,7 +128,10 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(sales.includes('serverMine ? minePage?.total ?? 0 : customers.length'));
   assert.ok(sales.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
   assert.ok(sales.includes('aria-label={`Báo hợp đồng ${customer.display_name}`}'));
-  assert.ok(dashboard.includes('aria-label={`Xem hoạt động tư vấn ${customer.display_name}`}'));
+  // Shared icon actions generate aria-label from the supplied Vietnamese label.
+  assert.ok(dashboard.includes('label={`Mở hoạt động tư vấn ${customer.display_name}`}'));
+  const sharedActions = read('src/components/common/admin-list-ui.tsx');
+  assert.match(sharedActions, /aria-label=\{label\}/);
   assert.ok(operations.includes('Nhận trường ${x.school_name}'));
   assert.ok(operations.includes('Từ chối gia hạn ${x.school_name}'));
   assert.ok(operations.includes('<AppPagination page={page}'));

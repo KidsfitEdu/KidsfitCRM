@@ -3,7 +3,7 @@
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { Fragment, useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, Trash2, UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -98,6 +98,12 @@ type ReceiptRow = {
   status:string;schedule_id:number|null;proof_id:number|null;proof_file_name:string|null;
 };
 type ReceiptList = {data:ReceiptRow[];total:number;page:number;page_size:number};
+type ReceiptDraftApi={
+  id:number;contract_id:number;contract_code:string;school_name:string;
+  schedule_id:number|null;amount:number|null;received_at:string|null;
+  reference_code:string|null;payment_method:string;status:'DRAFT';
+};
+type ReceiptDraftList={data:ReceiptDraftApi[];total:number;page:number;page_size:number};
 type ReceivableContract={id:number;code:string;school_name:string;amount_remaining:number};
 type ReceivableList={data:ReceivableContract[];total:number;page:number;page_size:number};
 type PayoutRow=FinanceWorkspace['payouts'][number]&{
@@ -170,9 +176,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receiptAppliedSearch,setReceiptAppliedSearch]=useState('');
   const [receiptYear,setReceiptYear]=useState('ALL');
   const [receiptAppliedYear,setReceiptAppliedYear]=useState('ALL');
+  const [receiptStatus,setReceiptStatus]=useState<'COMPLETED'|'DRAFT'>('COMPLETED');
+  const [receiptAppliedStatus,setReceiptAppliedStatus]=useState<'COMPLETED'|'DRAFT'>('COMPLETED');
   const [receiptLoading,setReceiptLoading]=useState(false);
   const [receiptRevision,setReceiptRevision]=useState(0);
   const [receiptPreview,setReceiptPreview]=useState<ReceiptRow|null>(null);
+  const [editingReceiptDraft,setEditingReceiptDraft]=useState<ReceiptRow|null>(null);
+  const [cancelReceiptDraftId,setCancelReceiptDraftId]=useState<number|null>(null);
+  const [transactionDate,setTransactionDate]=useState(()=>accountingBusinessDay(new Date()));
+  const [transactionReference,setTransactionReference]=useState('');
   const [receivableSearch,setReceivableSearch]=useState('');
   const [receivablePage,setReceivablePage]=useState(1);
   const [receivableRows,setReceivableRows]=useState<ReceivableContract[]>([]);
@@ -318,13 +330,23 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setReceiptLoading(true);
     const params=new URLSearchParams({page:String(receiptPage),page_size:String(receiptPageSize)});
     if(receiptAppliedSearch)params.set('search',receiptAppliedSearch);
-    if(receiptAppliedYear!=='ALL')params.set('year',receiptAppliedYear);
-    void channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params)
-      .then(res=>{if(active){setReceiptRows(res.data);setReceiptTotal(res.total);}})
-      .catch(error=>{if(active)appNotice.error('Không tải được khoản thu.',error instanceof Error?error.message:'Thử lại sau.');})
+    const loadRows:Promise<ReceiptList>=receiptAppliedStatus==='DRAFT'
+      ?channelRequest<ReceiptDraftList>(apiBase,token,'/accounting/receipt-drafts?'+params)
+        .then(result=>({...result,data:result.data.map(draft=>({
+          ...draft,amount:draft.amount??0,received_at:draft.received_at??'',
+          reference_code:draft.reference_code??'',proof_id:null,proof_file_name:null
+        }))}))
+      :(()=>{
+        if(receiptAppliedYear!=='ALL')params.set('year',receiptAppliedYear);
+        return channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params);
+      })();
+    void loadRows.then(res=>{if(active){setReceiptRows(res.data);setReceiptTotal(res.total);}})
+      .catch(error=>{if(active)appNotice.error('Không tải được khoản thu.',
+        error instanceof Error?error.message:'Thử lại sau.');})
       .finally(()=>{if(active)setReceiptLoading(false);});
     return()=>{active=false;};
-  },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,receiptAppliedSearch,receiptAppliedYear,receiptRevision]);
+  },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,
+    receiptAppliedSearch,receiptAppliedYear,receiptAppliedStatus,receiptRevision]);
 
   useEffect(()=>{
     if(!connected||!canRecordRevenue||accountingTab!=='RECEIPTS'||!receiptIntent)return;
@@ -362,12 +384,21 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   // Resolve the selected school before opening the existing verified-cash form.
   useEffect(()=>{
     if(!receiptIntent||accountingTab!=='RECEIPTS'||!detail||detail.data.id!==selected)return;
-    const due=detail.schedules.find(x=>x.amount_received<x.amount_due);
+    const due=detail.schedules.find(x=>x.id===editingReceiptDraft?.schedule_id
+      &&x.amount_received<x.amount_due)
+      ??detail.schedules.find(x=>x.amount_received<x.amount_due);
     if(!due){appNotice.error('Hợp đồng này không còn đợt thanh toán có thể thu.');setReceiptIntent(false);setSelected(null);return;}
     setSelectedScheduleId(due.id);
-    setFieldErrors({});setAmountInput('');receiptAttempt.current=null;
+    setFieldErrors({});
+    setAmountInput(editingReceiptDraft?.amount?String(editingReceiptDraft.amount):'');
+    if(editingReceiptDraft){
+      setTransactionDate(editingReceiptDraft.received_at
+        ?accountingBusinessDay(new Date(editingReceiptDraft.received_at)):'');
+      setTransactionReference(editingReceiptDraft.reference_code);
+    }
+    receiptAttempt.current=null;
     setEntryMode('receipt');
-  },[receiptIntent,accountingTab,detail,selected]);
+  },[receiptIntent,accountingTab,detail,selected,editingReceiptDraft]);
 
   useEffect(()=>{
     if(!connected||selected===null){setGiHistory([]);return;}
@@ -428,6 +459,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
 
   const openReceiptForm=()=>{
     setSelected(null);setDetail(null);setReceivableSearch('');setReceivablePage(1);
+    setEditingReceiptDraft(null);
+    setTransactionDate(accountingBusinessDay(new Date()));setTransactionReference('');
     setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode(null);
   };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {

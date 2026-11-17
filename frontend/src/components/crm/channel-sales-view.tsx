@@ -737,23 +737,23 @@ function CustomerRow({
         ) : (
           <>
             <p className="font-medium">{customer.phone ?? '—'}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {customer.next_follow_up_at
-                ? `Hẹn ${dateTime(customer.next_follow_up_at)}`
-                : 'Chưa có lịch hẹn'}
-            </p>
+            {customer.next_follow_up_at && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Hẹn {dateTime(customer.next_follow_up_at)}
+              </p>
+            )}
           </>
         )}
       </div>}
       <div className="flex flex-wrap justify-end gap-2 xl:min-w-44">
         {mineMode && <>
-          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onOpenDetail}
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800 hover:bg-green-50 hover:text-green-900 dark:border-green-500 dark:text-green-300 dark:hover:bg-green-950" onClick={onOpenDetail}
             disabled={!onOpenDetail} title="Xem chi tiết trường" aria-label={`Xem chi tiết ${customer.display_name}`}><Eye className="size-4"/></Button>
           {canAddActivity && customer.can_manage_approach && customer.visible_status === 'APPROACHING' && (
-            <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onActivity}
+            <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-sky-600 text-sky-700 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950" onClick={onActivity}
               title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}><SquarePen className="size-4"/></Button>
           )}
-          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg" onClick={onHistory}
+          <Button type="button" size="icon" variant="outline" className="size-9 rounded-lg border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-800" onClick={onHistory}
             title="Lịch sử tiếp cận" aria-label={`Lịch sử tiếp cận ${customer.display_name}`}><History className="size-4"/></Button>
           {showExtension && (
             <span title={extensionHint} className="inline-flex" aria-label={extensionBlocked ? `${extensionHint} - ${customer.display_name}` : undefined}>
@@ -795,7 +795,7 @@ function CustomerRow({
         {!mineMode && customer.visible_status === 'APPROACHING' && (
           <>
             {canAddActivity && customer.can_manage_approach && (
-              <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-green-700 text-green-800"
+              <Button onClick={onActivity} size="icon" variant="outline" className="size-9 rounded-lg border-sky-600 text-sky-700 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950"
                 title="Cập nhật tư vấn" aria-label={`Cập nhật tư vấn ${customer.display_name}`}>
                 <SquarePen className="size-4" aria-hidden="true"/>
               </Button>

@@ -43,9 +43,11 @@ const showDate=(value:string|null)=>value?channelDate(value):'Chưa cập nhật
 const paymentLabel=(cycle:string|null)=>cycle==='MONTHLY'?'Theo tháng':cycle==='YEARLY'?'Theo năm':'Chưa cập nhật';
 
 /** Inline inside the existing Accounting contract drawer. No nested drawer or Sales endpoint. */
-export function AccountingRenewalInline({apiBase,token,contractId,abilities,onChanged}:{
+export function AccountingRenewalInline({apiBase,token,contractId,abilities,onChanged,focusRenewalId,focusAction}:{
  apiBase:string;token:string;contractId:number;abilities:string[];
  onChanged:()=>Promise<void>;
+ focusRenewalId?:number|null;
+ focusAction?:'view'|'confirm'|'request-info';
 }){
  const [periods,setPeriods]=useState<ContractPeriod[]>([]);
  const [showOlderPeriods,setShowOlderPeriods]=useState(false);
@@ -78,13 +80,15 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
        setPeriods(response.data);
        const pending=response.data.find(p=>p.type==='RENEWAL'&&p.status==='PENDING_ACCOUNTING');
        const latest=response.data.at(-1);
-       const chosen=pending??latest;
+       const focused=focusRenewalId
+         ?response.data.find(p=>p.type==='RENEWAL'&&p.id===focusRenewalId):null;
+       const chosen=focused??pending??latest;
        setSelected(chosen?chosen.type+'-'+chosen.id:null);
      })
      .catch(e=>{if(mounted)setError(e instanceof Error?e.message:'Không tải được lịch sử hợp đồng.');})
      .finally(()=>{if(mounted)setLoading(false);});
    return()=>{mounted=false;};
- },[apiBase,token,contractId,canReview,revision]);
+ },[apiBase,token,contractId,canReview,revision,focusRenewalId]);
 
  useEffect(()=>{
    if(!activeRenewal||!canReview){setDetail(null);setDetailLoading(false);return;}
@@ -124,6 +128,14 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
    }catch(e){if(tab&&!tab.closed)tab.close();appNotice.error('Không thể mở chứng từ.',e instanceof Error?e.message:'Thử lại sau.');}
    finally{setFileBusy(null);}
  };
+ // A row's action opens its exact renewal; do not force the accountant
+ // to rediscover a pending year inside the original contract drawer.
+ useEffect(()=>{
+   if(!focusRenewalId||!detail||detail.data.id!==focusRenewalId
+     ||detail.data.status!=='PENDING_ACCOUNTING')return;
+   if(focusAction==='confirm'&&canConfirm)setDecision('confirm');
+   if(focusAction==='request-info'&&canReview)setDecision('request-info');
+ },[detail,focusRenewalId,focusAction,canConfirm,canReview]);
  const closeDecision=()=>{if(!busy){setDecision(null);setReason('');}};
  const openDecision=(next:Decision)=>{setReason('');setDecision(next);};
  useEffect(()=>{

@@ -46,7 +46,9 @@ test('Accounting renewal decisions open a shared branded confirmation dialog ins
     assert.ok(ui.includes("openDecision('"+decision+"')"),decision);
   assert.match(ui, /onOpenChange=\{open=>\{if\(!open\)closeDecision\(\);\}\}/);
   assert.match(ui, /const closeDecision=\(\)=>\{if\(!busy\)/);
-  assert.match(ui, /<Textarea id="accounting-renewal-decision-reason" autoFocus required maxLength=\{1000\}/);
+  assert.match(ui, /<Textarea ref=\{reasonRef\} id="accounting-renewal-decision-reason" required maxLength=\{1000\}/);
+  assert.match(ui, /reasonRef\.current\?\.focus\(\)/);
+  assert.doesNotMatch(ui, /autoFocus/);
   assert.match(ui, /decision==='confirm'/);
   assert.match(ui, /disabled=\{!decision \|\| \(decision!=='confirm'&&!reason\.trim\(\)\)\}/);
   assert.match(ui, /<AppButton type="button" tone=\{decision==='reject'\?'danger':'green'\}/);

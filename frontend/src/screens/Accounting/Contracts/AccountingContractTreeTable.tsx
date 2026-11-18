@@ -100,6 +100,7 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
     </tr>
     {!collapsed&&contracts.map(p=>{
       const waiting=p.status==='PENDING_ACCOUNTING'||p.status==='NEEDS_INFO';
+      const draft=p.status==='DRAFT';
       const rejected=p.status==='REJECTED'||p.status==='CANCELLED';
       const expired=!!p.end&&p.end<today;
       const upcoming=!!p.start&&p.start>today;
@@ -107,6 +108,7 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
         :p.status==='NEEDS_INFO'?'Cần bổ sung'
         :p.status==='REJECTED'?'Đã từ chối'
         :p.status==='CANCELLED'?'Đã hủy'
+        :draft?'Nháp'
         :!p.start||!p.end?'Cần rà soát kỳ'
         :upcoming?'Chưa bắt đầu':expired?'Đã kết thúc'
         :p.end<=soon?'Sắp hết hạn':'Đang sử dụng';
@@ -125,7 +127,7 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
         <td className="px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(p.amount)}</td>
         <td className="px-3 py-3">
           <AppStatusBadge status={p.status} label={label}
-            tone={waiting?'warning':rejected?'danger':expired?'neutral':upcoming?'info':'success'} size="sm"/>
+            tone={waiting?'warning':rejected?'danger':draft||expired?'neutral':upcoming?'info':'success'} size="sm"/>
         </td>
         <td className="px-3 py-3 text-xs">
           {p.action==='CONFIRM_RENEWAL'?<span className="font-semibold text-amber-800 dark:text-amber-200">Xác nhận tái ký</span>

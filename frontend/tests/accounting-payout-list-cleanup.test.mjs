@@ -15,9 +15,9 @@ test('Accounting payout tab manages eligible candidates and tracked payout recor
   assert.match(page,/setPayoutPickerOpen\(true\)/);
   assert.match(page,/openCentralPayout\(\{contractId:candidate\.contract_id/);
   assert.match(part,/setPayoutPreview\(p\)/);
-  for (const name of ['Người hưởng','Nhà trường','Số tiền đề nghị / thực chi','Trạng thái','Kỳ','Thao tác'])
+  for (const name of ['Người hưởng','Nhà trường','Ngày lập','Ngày chi','Số tiền chi','Trạng thái','Thao tác'])
     assert.ok(part.includes(name),name);
-  assert.equal((part.match(/<th scope="col"/g)||[]).length,6);
+  assert.equal((part.match(/<th scope="col"/g)||[]).length,7);
 });
 test('All statuses label is concise, with complete payout lifecycle options',()=>{
   assert.match(part,/value:'ALL',label:'Tất cả trạng thái'/);
@@ -26,7 +26,9 @@ test('All statuses label is concise, with complete payout lifecycle options',()=
     assert.ok(part.includes("value:'"+value+"'"),value);
   assert.match(part,/payoutStatusLabel\(p.status\)/);
   assert.match(part,/<AppStatusBadge size="sm" status=\{p.status\}/);
-  assert.match(part,/payoutPeriodLabel\(p.period\)/);
+  assert.match(part,/channelDate\(p.created_at\)/);
+  assert.match(part,/channelDate\(p.paid_at\)/);
+  assert.match(part,/AppMonthPicker/);
 });
 test('Search applies on submission, pagination resets with filters, and uses all filtered rows',()=>{
   assert.match(page,/const \[financeAppliedSearch,setFinanceAppliedSearch\]/);
@@ -60,4 +62,14 @@ test('Accounting tabs use the same underline navigation visual language as Sales
   assert.match(page,/setAccountingTab\(item\.key\)/);
   assert.match(page,/overflow-x-auto overflow-y-hidden border-b border-border bg-transparent/);
   assert.doesNotMatch(page,/rounded-lg px-4 py-2 text-sm font-semibold transition-colors/);
+});
+
+test('Payout filters use creation month, not commission period',()=>{
+  assert.match(page,/financeCreatedMonth/);
+  assert.match(page,/params\.set\('year',financeCreatedMonth\.slice\(0,4\)\)/);
+  assert.match(page,/params\.set\('month',String\(Number\(financeCreatedMonth\.slice\(5,7\)\)\)\)/);
+  assert.doesNotMatch(part,/accounting-finance-period/);
+  assert.match(part,/Tháng lập phiếu/);
+  assert.match(part,/Ngày lập/);
+  assert.match(part,/Ngày chi/);
 });

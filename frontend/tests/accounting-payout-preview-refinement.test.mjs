@@ -7,15 +7,15 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const accounting=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const viewer=read('src/components/common/evidence-preview-dialog.tsx');
 
-test('payout history in contract drawer is compact and the central workspace stays actionable',()=>{
-  assert.doesNotMatch(accounting,/min-w-\[1000px\] table-fixed/);
-  assert.match(accounting,/Lịch sử phiếu chi liên quan/);
-  assert.match(accounting,/payoutVisible\.map\(x=>/);
-  assert.match(accounting,/channelMoney\(x\.net_amount\)/);
+test('Payout records remain in the central workspace rather than contract detail',()=>{
+  const detail=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
+  assert.doesNotMatch(detail,/Lịch sử phiếu chi liên quan|Hoa hồng & phiếu chi/);
+  assert.match(accounting,/visiblePayouts\.map\(p=>/);
   assert.match(accounting,/payoutPreview\.events\.map\(/);
   assert.match(accounting,/contract_ids\?\.length!==1/);
   assert.match(accounting,/setPayoutPreview\(p\)/);
 });
+
 test('Board change requests are readable in a central payout detail and still appear when editing',()=>{
   assert.match(accounting,/payoutPreview\.events/);
   assert.match(accounting,/event\.reason/);

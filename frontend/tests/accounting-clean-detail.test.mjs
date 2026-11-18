@@ -31,7 +31,7 @@ test('Contract details use the selected original or renewal record',()=>{
 test('Receipts and payouts remain in their own tabs; historic backfill stays reachable',()=>{
   for(const token of ["/accounting/receipts?","receiptRows.map(receipt=>",
     "label:'Khoản thu nhà trường'","label:'Phiếu chi hoa hồng'",
-    "payoutRows.map(p=>",'payoutPreview.can_approve','detail.ledger','canAdjustCommission&&<Button',
+    "visiblePayouts.map(p=>",'payoutPreview.can_approve','detail.ledger','canAdjustCommission&&<Button',
     'void openBackfill(receiptId)']) assert.ok(page.includes(token),token);
   assert.ok(page.includes('payoutStatusLabel(p.status)'));
 });

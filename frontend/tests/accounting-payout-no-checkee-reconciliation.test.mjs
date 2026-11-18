@@ -72,20 +72,18 @@ test('Legacy receipt requires explicit verified backfill and never silently reas
   assert.match(dto,/ManagerVerified = false/);
   assert.match(accounting,/Đối soát hoa hồng khoản thu cũ/);
   assert.match(accounting,/manager_verified:backfillManagerVerified/);
-  assert.match(accounting,/!detail.ledger.some\(entry=>entry.revenue_receipt_id===receipt.id\)/);
+  assert.match(accounting,/void openBackfill\(receiptId\)/);
+  assert.match(accounting,/canAdjustCommission&&<Button/);
 });
 
-test('Commission detail prioritizes actionable reconciliation and separate role summaries',()=>{
-  assert.match(accounting,/aria-labelledby="contract-commission-heading"/);
-  assert.match(accounting,/Cần đối soát khoản thu/);
-  assert.match(accounting,/pendingBackfillReceipts\.map\(receipt/);
+test('Receipt reconciliation and payout creation stay in their dedicated tabs',()=>{
+  assert.match(accounting,/label:'Khoản thu nhà trường'/);
   assert.match(accounting,/Kiểm tra & đối soát/);
-  assert.match(accounting,/Hoa hồng Sales/);
-  assert.match(accounting,/Hoa hồng Quản lý/);
-  assert.match(accounting,/Chưa đưa vào phiếu/);
-  assert.match(accounting,/Lịch sử phiếu chi/);
+  assert.match(accounting,/\/accounting\/payouts\?/);
   assert.match(accounting,/beneficiaries=beneficiaryEntries\.filter/);
   assert.match(accounting,/payoutChoices\.length===0/);
+  const detail=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
+  assert.doesNotMatch(detail,/Hoa hồng & phiếu chi|Nhà trường thanh toán/);
 });
 
 test('Backfill and payout dialogs show explicit reviewed amounts and never claim money was sent',()=>{

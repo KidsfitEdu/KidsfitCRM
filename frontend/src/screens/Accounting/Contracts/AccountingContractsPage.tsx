@@ -1226,11 +1226,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     :'Chọn nhà trường / hợp đồng trước'}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent align="start" side="bottom" sideOffset={5}
-                className="z-[90] max-h-[min(260px,45dvh)] rounded-xl border border-border bg-popover p-1.5 shadow-xl">
+              <SelectContent align="start" alignItemWithTrigger={false}
+                side="bottom" sideOffset={6} listClassName="space-y-1"
+                className="z-[90] w-(--anchor-width) max-h-[min(224px,40dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl">
                 {detail?.schedules.filter(x=>x.amount_received<x.amount_due).map(x=>
                   <SelectItem key={x.id} value={String(x.id)}
-                    className="min-h-12 rounded-lg px-3 py-2.5 pr-9 data-selected:bg-primary/10 data-highlighted:bg-primary/10">
+                    className="min-h-11 rounded-lg px-3 py-2 pr-9 data-selected:bg-primary/10 data-selected:text-primary data-highlighted:bg-primary/10">
                     <span className="flex min-w-0 flex-col gap-1 text-left">
                       <span className="text-sm font-semibold">{x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'}</span>
                       <span className="text-xs text-muted-foreground">{channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</span>

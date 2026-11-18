@@ -50,7 +50,10 @@ test('School picker closes after selection without focus-triggered reopening',()
 test('Receipt schedule uses branded, portaled select rather than native blue options',()=>{
   assert.ok(page.includes('<Select name="schedule_id"'));
   assert.ok(page.includes('<SelectTrigger id="receipt-schedule"'));
-  assert.ok(page.includes('<SelectContent'));
+  assert.ok(page.includes('<SelectContent align="start" alignItemWithTrigger={false}'));
+  assert.ok(page.includes('side="bottom" sideOffset={6} listClassName="space-y-1"'));
+  assert.ok(page.includes('w-(--anchor-width) max-h-[min(224px,40dvh)]'));
+  assert.ok(page.includes('data-selected:bg-primary/10 data-selected:text-primary'));
   assert.ok(page.includes('<SelectItem'));
   assert.ok(page.includes('onValueChange={value=>'));
   assert.doesNotMatch(page,/<select id="receipt-schedule"/);

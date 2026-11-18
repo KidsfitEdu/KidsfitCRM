@@ -151,7 +151,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
                 period, 0m, null, contractId, "SALES"),
             admin, Http(admin), Ct);
         var response = Json(await AccountingPayoutEndpoints.List(Http(admin), db,
-            period, null, "DRAFT", "SALES", scenario.OrgId, 1, 1, Ct));
+            period, null, "DRAFT", "SALES", scenario.OrgId, null, null, 1, 1, Ct));
         var row = response.GetProperty("data").EnumerateArray()
             .Single(x => x.GetProperty("id").GetInt64() == payoutId);
         Assert.True(row.GetProperty("can_edit").GetBoolean());

@@ -102,11 +102,11 @@ test('Contract tree fits the accounting panel and has no forced horizontal scrol
   assert.ok(css.includes('table.crm-accounting-contract-table tbody td.crm-contract-school-cell'));
 });
 
-test('Contract values and column heading shift left together while remaining right-aligned',()=>{
+test('Contract values are centered while the heading retains its prior position',()=>{
   const css=read('src/app/globals.css');
   assert.ok(tree.includes('className="crm-contract-amount-cell px-3 py-3 text-left whitespace-nowrap"'));
-  assert.ok(tree.includes('className="crm-contract-amount-cell whitespace-nowrap px-2 py-3 text-right font-semibold tabular-nums"'));
+  assert.ok(tree.includes('className="whitespace-nowrap px-2 py-3 text-center font-semibold tabular-nums"'));
   assert.ok(css.includes('thead th.crm-contract-amount-cell,'));
-  assert.ok(css.includes('tbody td.crm-contract-amount-cell {'));
+  assert.ok(!css.includes('tbody td.crm-contract-amount-cell {'));
   assert.ok(css.includes('padding-right: 1.25rem;'));
 });

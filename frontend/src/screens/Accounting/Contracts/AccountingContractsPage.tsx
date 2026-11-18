@@ -21,6 +21,8 @@ import { AppSkeleton, InlineLoading } from '@/components/common/app-loading';
 import { AccountingContractDetailContent } from './AccountingContractDetailContent';
 import { AccountingContractTreeTable } from './AccountingContractTreeTable';
 import { AppDatePicker } from '@/components/common/forms/app-date-picker';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
+import { AccountingReceivablePicker, type ReceivableContract } from './AccountingReceivablePicker';
 
 const payoutStatusLabel = (status: string) => ({
   DRAFT: 'Nháp',
@@ -91,8 +93,6 @@ type ReceiptRow = {
   status:string;schedule_id:number|null;proof_id:number|null;proof_file_name:string|null;
 };
 type ReceiptList = {data:ReceiptRow[];total:number;page:number;page_size:number};
-type ReceivableContract={id:number;code:string;school_name:string;amount_remaining:number;
-  owner_name:string;personnel_type:string|null;manager_name:string|null};
 type ReceivableList={data:ReceivableContract[];total:number;page:number;page_size:number};
 type PayoutRow=FinanceWorkspace['payouts'][number]&{
   can_edit:boolean;can_submit:boolean;can_approve:boolean;can_complete:boolean;
@@ -183,6 +183,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receivableChoice,setReceivableChoice]=useState<ReceivableContract|null>(null);
   const [receivablePickerOpen,setReceivablePickerOpen]=useState(false);
   const [receiptNoDue,setReceiptNoDue]=useState(false);
+  const [receiptProofSelected,setReceiptProofSelected]=useState(false);
+  const [pendingReceivable,setPendingReceivable]=useState<ReceivableContract|null>(null);
   const [receiptIntent,setReceiptIntent]=useState(false);
   const [financePeriod,setFinancePeriod]=useState(()=>new Intl.DateTimeFormat('sv-SE',{
     timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
@@ -361,7 +363,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   useEffect(()=>{
     if(!receiptIntent||accountingTab!=='RECEIPTS'||!detail||detail.data.id!==selected)return;
     const due=detail.schedules.find(x=>x.amount_received<x.amount_due);
-    if(!due){setReceiptNoDue(true);setEntryMode(null);return;}
+    if(!due){setReceiptNoDue(true);setSelectedScheduleId(null);return;}
     setReceiptNoDue(false);
     setSelectedScheduleId(due.id);
     setFieldErrors({});
@@ -429,9 +431,23 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const openReceiptForm=()=>{
     setSelected(null);setDetail(null);setReceivableSearch('');setReceivablePage(1);
     setReceivableChoice(null);setReceivablePickerOpen(false);setReceiptNoDue(false);
+    setReceiptProofSelected(false);setPendingReceivable(null);
     receiptAttempt.current=null;
     setTransactionDate(accountingBusinessDay(new Date()));setTransactionReference('');
-    setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode(null);
+    setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode('receipt');
+  };
+  const selectReceivable=(item:ReceivableContract)=>{
+    setReceivableChoice(item);setSelected(item.id);setEntryMode('receipt');
+    setDetail(null);setSelectedScheduleId(null);setReceiptNoDue(false);setFieldErrors({});
+    setAmountInput('');setReceiptProofSelected(false);setTransactionDate(accountingBusinessDay(new Date()));
+    setTransactionReference('');receiptAttempt.current=null;
+  };
+  const requestSelectReceivable=(item:ReceivableContract)=>{
+    if(saving||item.id===receivableChoice?.id)return;
+    const dirty=Boolean(amountInput||transactionReference||receiptProofSelected||
+      transactionDate!==accountingBusinessDay(new Date()));
+    if(receivableChoice&&dirty){setPendingReceivable(item);return;}
+    selectReceivable(item);
   };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -902,6 +918,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
       </form>
   ):null;
+  const receiptReady=Boolean(receivableChoice&&detail?.data.id===selected&&!receiptNoDue&&
+    selectedScheduleId!==null&&detail?.schedules.some(schedule=>schedule.id===selectedScheduleId&&
+      schedule.amount_received<schedule.amount_due));
   return <div className="min-w-0 space-y-5">
     <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM"
       title={accountingTab==='CONTRACTS'?'Hợp đồng & hoa hồng'
@@ -1138,81 +1157,115 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageChange={setFinancePage}
         onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
     </AdminListPanel>}
-    <AppDialog open={receiptIntent} onOpenChange={open=>{if(!open&&!saving){setReceiptIntent(false);setEntryMode(null);setSelected(null);setReceivableChoice(null);setReceivablePickerOpen(false);}}}
+    <AppDialog open={receiptIntent} onOpenChange={open=>{if(!open&&!saving){
+        setReceiptIntent(false);setEntryMode(null);setSelected(null);
+        setReceivableChoice(null);setReceivablePickerOpen(false);setPendingReceivable(null);
+      }}}
       busy={saving} title="Ghi nhận khoản thu nhà trường"
-      description={undefined}
       bodyClassName="py-4 sm:py-5"
       footer={<>
         <AppButton type="button" tone="neutral" disabled={saving} className="h-11 min-w-28"
-          onClick={()=>{setReceiptIntent(false);setEntryMode(null);setSelected(null);setReceivableChoice(null);setReceivablePickerOpen(false);}}>Hủy</AppButton>
+          onClick={()=>{setReceiptIntent(false);setEntryMode(null);setSelected(null);
+            setReceivableChoice(null);setReceivablePickerOpen(false);setPendingReceivable(null);}}>Hủy</AppButton>
         <AppButton type="submit" form="accounting-financial-transaction-form" tone="green"
-          disabled={saving||receivablePickerOpen||!receivableChoice||!detail||detail.data.id!==selected||entryMode!=='receipt'}
-          busy={saving} className="h-11 min-w-40">Ghi nhận khoản thu</AppButton>
+          disabled={saving||!receiptReady} busy={saving}
+          className="h-11 min-w-40">Ghi nhận khoản thu</AppButton>
       </>}>
       <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label htmlFor="receivable-contract-search" className="text-sm font-semibold">Nhà trường / Hợp đồng *</label>
-          {receivableChoice&&!receivablePickerOpen?
-            <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{receivableChoice.school_name}</p>
-                <p className="text-xs text-muted-foreground">{receivableChoice.code}</p>
-              </div>
-              <AppButton type="button" tone="outline" disabled={saving}
-                onClick={()=>{setReceivablePickerOpen(true);setReceivableSearch('');setReceivablePage(1);}}>
-                Thay đổi
-              </AppButton>
-            </div>:
-            <div className="relative">
-              <Input id="receivable-contract-search" autoComplete="off"
-                aria-expanded={receivablePickerOpen} aria-controls="receivable-contract-options"
-                value={receivableSearch} placeholder="Tìm tên trường hoặc mã hợp đồng..."
-                onFocus={()=>setReceivablePickerOpen(true)}
-                onChange={event=>{setReceivableSearch(event.target.value);setReceivablePage(1);setReceivablePickerOpen(true);}}
-                onKeyDown={event=>{if(event.key==='Escape'){setReceivablePickerOpen(false);event.stopPropagation();}}}/>
-              {receivablePickerOpen&&<div id="receivable-contract-options" aria-label="Hợp đồng còn phải thu"
-                className="absolute inset-x-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl">
-                {receivableLoading?<output className="block p-3 text-sm text-muted-foreground">Đang tìm hợp đồng...</output>
-                  :receivableRows.length===0?<p className="p-3 text-sm text-muted-foreground">Không có hợp đồng còn phải thu phù hợp.</p>
-                  :receivableRows.map(item=><button type="button" key={item.id}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-                    onClick={()=>{setReceivableChoice(item);setSelected(item.id);setEntryMode(null);
-                      setDetail(null);setSelectedScheduleId(null);setReceiptNoDue(false);setFieldErrors({});setAmountInput('');
-                      setTransactionReference('');receiptAttempt.current=null;setReceivablePickerOpen(false);}}>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">{item.school_name}</span>
-                      <span className="block text-xs text-muted-foreground">{item.code}</span>
-                    </span>
-                    <span className="shrink-0 text-xs tabular-nums text-primary">{channelMoney(item.amount_remaining)}</span>
-                  </button>)}
-                {receivableTotal>50&&<div className="flex items-center justify-between gap-2 border-t border-border p-2 text-xs">
-                  <span>Trang {receivablePage} / {Math.ceil(receivableTotal/50)}</span>
-                  <div className="flex gap-2">
-                    <Button type="button" size="sm" variant="outline" disabled={receivablePage<=1||receivableLoading}
-                      onClick={()=>setReceivablePage(v=>v-1)}>Trước</Button>
-                    <Button type="button" size="sm" variant="outline" disabled={receivablePage*50>=receivableTotal||receivableLoading}
-                      onClick={()=>setReceivablePage(v=>v+1)}>Sau</Button>
-                  </div>
-                </div>}
-              </div>}
-            </div>}
+        <div className="space-y-2">
+          <label htmlFor="receivable-contract-search" className="block text-sm font-semibold">Nhà trường / Hợp đồng *</label>
+          <AccountingReceivablePicker selected={receivableChoice} options={receivableRows}
+            query={receivableSearch} onQueryChange={value=>{setReceivableSearch(value);setReceivablePage(1);}}
+            open={receivablePickerOpen} onOpenChange={setReceivablePickerOpen}
+            loading={receivableLoading} total={receivableTotal} page={receivablePage}
+            onPageChange={setReceivablePage} onSelect={requestSelectReceivable} disabled={saving}/>
+          {receivableChoice&&<p className="text-xs text-muted-foreground">{receivableChoice.code}</p>}
         </div>
-        {receivableChoice&&<div className="grid gap-3 rounded-xl border border-border bg-muted/20 p-3 sm:grid-cols-2">
-          <div><p className="text-xs text-muted-foreground">Sales / CTV phụ trách</p>
-            <p className="mt-1 text-sm font-semibold">{receivableChoice.owner_name}</p>
-            <p className="text-xs text-muted-foreground">{receivableChoice.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
+        <div className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-muted/20 p-3">
+          <div className="min-w-0 space-y-2">
+            <p className="text-xs text-muted-foreground">Sales / CTV phụ trách</p>
+            <p className="break-words text-sm font-semibold">{receivableChoice?.owner_name||'Chưa chọn nhà trường'}</p>
+            {receivableChoice&&<p className="text-xs text-muted-foreground">
+              {receivableChoice.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}
+            </p>}
           </div>
-          <div><p className="text-xs text-muted-foreground">Quản lý phụ trách</p>
-            <p className="mt-1 text-sm font-semibold">{receivableChoice.manager_name||'Chưa xác định'}</p>
+          <div className="min-w-0 space-y-2">
+            <p className="text-xs text-muted-foreground">Quản lý phụ trách</p>
+            <p className="break-words text-sm font-semibold">{receivableChoice?.manager_name||'Chưa xác định'}</p>
           </div>
-        </div>}
-        {receivableChoice&&(detail?.data.id!==selected||entryMode!=='receipt')&&
-          <output className="block rounded-lg border border-border/70 p-3 text-sm text-muted-foreground">
-            {receiptNoDue?'Hợp đồng không còn đợt thanh toán có thể thu. Vui lòng chọn hợp đồng khác.':detail?.data.id===selected?'Đang kiểm tra các đợt thanh toán có thể thu...':'Đang tải thông tin hợp đồng...'}
-          </output>}
-        {!receivablePickerOpen&&entryMode==='receipt'&&detail?.data.id===selected&&financialTransactionForm}
+        </div>
+        {receivableChoice&&!receiptReady&&<p role="status" className="text-xs text-muted-foreground">
+          {receiptNoDue?'Hợp đồng không còn đợt thanh toán có thể thu. Vui lòng chọn hợp đồng khác.'
+            :'Đang tải các đợt thanh toán của hợp đồng...'}
+        </p>}
+        <form key={selected??'unselected'} id="accounting-financial-transaction-form" noValidate
+          className="space-y-4" onSubmit={event=>void sendRecord(event)}
+          onChange={event=>{
+            const name=event.target.getAttribute('name') as keyof FieldErrors | null;
+            if(!name)return;
+            setFieldErrors(current=>{if(!current[name])return current;
+              const next={...current};delete next[name];return next;});
+          }}>
+          <div className="space-y-2">
+            <label htmlFor="receipt-schedule" className="block text-sm font-medium">Đợt thanh toán *</label>
+            <select id="receipt-schedule" name="schedule_id" required disabled={!receiptReady}
+              value={receiptReady?selectedScheduleId??'':''}
+              onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);
+                receiptAttempt.current=null;setFieldErrors({});}}
+              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60">
+              {!receiptReady&&<option value="">Chọn nhà trường / hợp đồng trước</option>}
+              {receiptReady&&detail?.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
+                {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'} · {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}
+              </option>)}
+            </select>
+            {receiptReady&&<p className="text-xs text-muted-foreground">Còn phải thu: {channelMoney(Math.max(0,
+              (detail?.schedules.find(x=>x.id===selectedScheduleId)?.amount_due??0)-
+              (detail?.schedules.find(x=>x.id===selectedScheduleId)?.amount_received??0)))}</p>}
+            {fieldErrors.schedule_id&&<p role="alert" className="text-xs text-destructive">{fieldErrors.schedule_id}</p>}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="accounting-transaction-date" className="block text-sm font-medium">Ngày giao dịch *</label>
+              <Input id="accounting-transaction-date" type="date" name="transaction_date" required
+                disabled={!receiptReady} aria-invalid={Boolean(fieldErrors.transaction_date)}
+                value={transactionDate} onChange={e=>setTransactionDate(e.target.value)}/>
+              {fieldErrors.transaction_date&&<p role="alert" className="text-xs text-destructive">{fieldErrors.transaction_date}</p>}
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="accounting-amount" className="block text-sm font-medium">Số tiền nhà trường thực trả (VNĐ) *</label>
+              <div className="relative">
+                <AppCurrencyInput id="accounting-amount" name="amount" placeholder="0" required
+                  disabled={!receiptReady} aria-invalid={Boolean(fieldErrors.amount)}
+                  value={amountInput} onValueChange={setAmountInput}
+                  className="pr-12 tabular-nums text-right"/>
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">đ</span>
+              </div>
+              {fieldErrors.amount&&<p role="alert" className="text-xs text-destructive">{fieldErrors.amount}</p>}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="accounting-bank-reference" className="block text-sm font-medium">Mã giao dịch ngân hàng *</label>
+            <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}
+              disabled={!receiptReady} aria-invalid={Boolean(fieldErrors.reference_code)}
+              value={transactionReference} onChange={e=>setTransactionReference(e.target.value)}/>
+            {fieldErrors.reference_code&&<p role="alert" className="text-xs text-destructive">{fieldErrors.reference_code}</p>}
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="accounting-bank-proof" className="block text-sm font-medium">Ảnh chứng từ chuyển khoản *</label>
+            <Input id="accounting-bank-proof" name="proof" type="file" required
+              accept="image/jpeg,image/png,image/webp" disabled={!receiptReady}
+              aria-invalid={Boolean(fieldErrors.proof)}
+              onChange={e=>setReceiptProofSelected(Boolean(e.currentTarget.files?.length))}/>
+            {fieldErrors.proof&&<p role="alert" className="text-xs text-destructive">{fieldErrors.proof}</p>}
+            <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p>
+          </div>
+        </form>
       </div>
     </AppDialog>
+    <ConfirmDialog open={pendingReceivable!==null} onOpenChange={open=>{if(!open)setPendingReceivable(null);}}
+      title="Đổi nhà trường / hợp đồng?" confirmLabel="Đổi hợp đồng"
+      description="Thông tin khoản thu đang nhập sẽ bị xóa khi đổi hợp đồng."
+      onConfirm={()=>{if(pendingReceivable)selectReceivable(pendingReceivable);setPendingReceivable(null);}}/>
     <AppDialog open={receiptPreview!==null} onOpenChange={open=>{if(!open)setReceiptPreview(null);}}
       title="Chi tiết khoản thu"
       description="Khoản thu đã ghi nhận không được sửa/xóa trực tiếp vì có thể phát sinh hoa hồng.">

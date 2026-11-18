@@ -15,16 +15,16 @@ test('New payout uses one form without editable commission period or a next step
   assert.ok(form.includes('form="accounting-payout-draft-form"'));
   assert.ok(form.includes('{payoutCreateReady&&!payoutDetailError&&<div'));
   assert.ok(form.includes('{payoutDraftForm}'));
-  assert.ok(page.includes('setPayoutCreatePeriod(financePeriod)'));
+  assert.ok(page.includes('setPayoutCreatePeriod('')'));
 });
 test('Eligible beneficiaries scoped by school and exact period',()=>{
   assert.ok(page.includes("contract_id:String(payoutSchool.id),page:'1',page_size:'100'"));
   assert.ok(api.includes('if (contract_id.HasValue) entries = entries.Where(x => x.ContractId == contract_id.Value);'));
   assert.ok(api.includes('if (contract_id.HasValue && contract_id.Value <= 0)'));
-  assert.ok(page.includes('item.contract_id===payoutSchool.id&&item.period===payoutCreatePeriod'));
+  assert.ok(page.includes('item.contract_id===payoutSchool.id&&item.amount>0'));
   assert.ok(page.includes('choosePayoutSchool'));
   assert.ok(page.includes('choosePayoutBeneficiary'));
-  assert.ok(page.includes('candidate.period!==payoutCreatePeriod'));
+  assert.ok(page.includes('setPayoutCreatePeriod(candidate.period)'));
   assert.ok(form.includes('disabled={!payoutCreateReady||saving}'));
 });
 test('Existing approved payout workflow and edit dialog remain distinct',()=>{
@@ -114,9 +114,17 @@ test('Auto-fill completion does not invalidate save after loading intent clears'
   assert.ok(page.includes('const candidate=chosenCandidate'));
   assert.ok(page.includes('!payoutPickerOpen||!payoutCreateReady||!candidate'));
   assert.ok(page.includes('candidate.contract_id!==payoutSchool.id'));
-  assert.ok(page.includes('candidate.period!==payoutCreatePeriod'));
+  assert.ok(page.includes('setPayoutCreatePeriod(candidate.period)'));
   assert.ok(page.includes('currentBeneficiary?.id!==candidate.beneficiary_user_id'));
   assert.ok(page.includes('currentBeneficiary?.role!==candidate.beneficiary_role'));
   assert.ok(page.includes('period:payoutCreatePeriod,contract_id:candidate!.contract_id'));
   assert.doesNotMatch(page,/Kỳ hoặc người hưởng đã thay đổi\. Vui lòng chọn lại khoản hoa hồng\./);
+});
+
+test('Selecting a payout candidate chooses its ledger period independent of document search date',()=>{
+  assert.match(page,/setPayoutCreatePeriod\(candidate\.period\)/);
+  assert.match(page,/candidate\.period!==payoutCreatePeriod/);
+  assert.match(form,/payoutPeriodLabel\(item\.period\)/);
+  assert.match(page,/new URLSearchParams\(\{page:String\(eligiblePage\),page_size:'20'\}\)/);
+  assert.doesNotMatch(form,/type="month"/);
 });

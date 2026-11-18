@@ -13,7 +13,8 @@ test('New payout uses one form without editable commission period or a next step
   assert.ok(form.includes('Nhà trường / Hợp đồng *'));
   assert.ok(form.includes('Người hưởng hoa hồng *'));
   assert.ok(form.includes('form="accounting-payout-draft-form"'));
-  assert.ok(form.includes('{payoutCreateReady&&payoutDraftForm}'));
+  assert.ok(form.includes('{payoutCreateReady&&!payoutDetailError&&<div'));
+  assert.ok(form.includes('{payoutDraftForm}'));
   assert.ok(page.includes('setPayoutCreatePeriod(financePeriod)'));
 });
 test('Eligible beneficiaries scoped by school and exact period',()=>{
@@ -42,4 +43,30 @@ test('Creating a payout pins the selected period and beneficiary without fallbac
   assert.ok(page.includes("currentBeneficiary?.id!==centralPayoutIntent.beneficiaryUserId"));
   assert.ok(page.includes("currentBeneficiary?.role!==centralPayoutIntent.role"));
   assert.ok(page.includes("period:chosenPeriod,contract_id:detail.data.id"));
+});
+
+test('Payout form remains empty until both contract and eligible beneficiary are selected',()=>{
+  assert.ok(form.includes('!chosenCandidate&&!payoutSchoolLoading&&!eligibleLoading'));
+  assert.ok(form.includes('Chọn nhà trường và người hưởng để hệ thống tự điền'));
+  assert.ok(form.includes('Đang tải tỷ lệ và tiền hoa hồng từ hợp đồng đã chọn'));
+  assert.ok(form.includes('Đã tự điền thông tin hoa hồng theo hợp đồng và người hưởng'));
+  assert.ok(form.includes('payoutDetailError&&chosenCandidate'));
+  assert.ok(form.includes('Tải lại dữ liệu'));
+  assert.ok(page.includes("setPayoutSchool(school);setPayoutCandidateKey('');setPayoutDetailError('')"));
+  assert.ok(page.includes("setPayoutRate(String(base>0?Number((amount/base*100).toFixed(4)):0))"));
+  assert.ok(page.includes("setPayoutRequestedAmount(String(amount))"));
+  assert.ok(page.includes("setPayoutWithholding('0')"));
+  assert.ok(form.includes('disabled={!payoutCreateReady||saving}'));
+});
+
+test('Payout editing preserves manual adjustments, withholding and audit rationale',()=>{
+  assert.ok(page.includes('setPayoutRequestedAmount(String(Math.round(base*Number(rate)/100)))'));
+  assert.ok(page.includes('setPayoutAdjustmentReason(event.target.value)'));
+  assert.ok(page.includes('setPayoutWithholding(value)'));
+  assert.ok(page.includes('parseMoneyInput(payoutRequestedAmount)-parseMoneyInput(payoutWithholding)'));
+  assert.ok(page.includes('withholding_reason:withholding>0?payoutWithholdingReason.trim():null'));
+  assert.ok(page.includes('adjustment_reason:payoutAdjustmentReason.trim()||null'));
+  assert.ok(form.includes('editingPayout&&<div'));
+  assert.ok(form.includes('% Hoa hồng *'));
+  assert.ok(form.includes('Tiền hoa hồng (VNĐ) *'));
 });

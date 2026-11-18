@@ -987,10 +987,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}
             aria-invalid={Boolean(fieldErrors.reference_code)} value={transactionReference}
             onChange={event=>setTransactionReference(event.target.value)}/>{fieldErrors.reference_code && <p role="alert" className="text-xs text-red-700">{fieldErrors.reference_code}</p>}</div>
-        <div className="space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chứng từ chuyển khoản *</label>
-          <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required aria-invalid={Boolean(fieldErrors.proof)}/>
-          {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
-          <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
+        <div className="space-y-2">
+          <label htmlFor="accounting-bank-proof" className="block text-sm font-medium">Ảnh chứng từ chuyển khoản *</label>
+          <AccountingReceiptProofUpload key={entryMode==='payout'?`payout-${selectedPayoutId??'none'}`:'receipt'}
+            error={fieldErrors.proof}
+            onFileSelected={()=>setFieldErrors(current=>({...current,proof:undefined}))}/>
+        </div>
       </form>
   ):null;
   const receiptReady=Boolean(receivableChoice&&detail?.data.id===selected&&!receiptNoDue&&
@@ -1173,7 +1175,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <th scope="col" className="w-[21%] px-3 py-3">Nhà trường</th>
               <th scope="col" className="w-[11%] px-2 py-3">Ngày lập</th>
               <th scope="col" className="w-[11%] px-2 py-3">Ngày chi</th>
-              <th scope="col" className="w-[14%] px-2 py-3 text-right">Số tiền chi</th>
+              <th scope="col" className="w-[14%] pl-2 pr-7 py-3 text-right">Số tiền chi</th>
               <th scope="col" className="w-[11%] px-2 py-3">Trạng thái</th>
               <th scope="col" className="w-[14%] px-2 py-3 text-center">Thao tác</th>
             </tr>
@@ -1190,7 +1192,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </td>
               <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{channelDate(p.created_at)}</td>
               <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{p.status==='PAID'&&p.paid_at?channelDate(p.paid_at):'—'}</td>
-              <td className="whitespace-nowrap px-2 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
+              <td className="whitespace-nowrap pl-2 pr-7 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
               <td className="px-3 py-3">
                 <AppStatusBadge size="sm" status={p.status} label={payoutStatusLabel(p.status)}
                   tone={p.status==='PAID'||p.status==='APPROVED'?'success'
@@ -1211,6 +1213,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   {p.can_submit&&
                     <AdminIconAction icon={Send} label={'Gửi BGĐ phê duyệt phiếu chi '+p.code}
                       disabled={saving} onClick={()=>setPendingPayoutSubmit(p)}/>}
+                  {p.can_complete&&p.contract_ids?.length===1&&
+                    <AdminIconAction icon={WalletCards} label={'Ghi nhận chuyển khoản phiếu chi '+p.code}
+                      disabled={saving} onClick={()=>openCentralPayout({
+                        contractId:p.contract_ids[0],
+                        beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
+                        period:p.period,mode:'COMPLETE',payoutId:p.id
+                      })}/>}
                 </div>
               </td>
             </tr>)}
@@ -1717,7 +1726,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     </AppDialog>
     <AppDialog open={Boolean(detail && entryMode==='payout')} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}
       busy={saving} title="Ghi nhận chuyển khoản phiếu chi"
-      description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch."
       footer={<>
         <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</AppButton>
         <AppButton type="submit" form="accounting-financial-transaction-form"

@@ -208,6 +208,8 @@ public static class AccountingContractEndpoints
                 beneficiary_role = entry.BeneficiaryRole, policy_source = entry.PolicySource,
                 board_policy_version_id = entry.BoardPolicyVersionId,
                 beneficiary_organization_id = entry.BeneficiaryOrganizationId,
+                payout_id = db.PayoutItems.Where(item => item.CommissionLedgerEntryId == entry.Id)
+                    .Select(item => (long?)item.PayoutId).FirstOrDefault(),
                 assigned_to_payout = db.PayoutItems.Any(item => item.CommissionLedgerEntryId == entry.Id)
             }).ToArrayAsync(ct);
         var payoutIds = db.PayoutItems.Where(x => access.Commissions(db).Any(e => e.Id == x.CommissionLedgerEntryId && e.ContractId == id)).Select(x => x.PayoutId);

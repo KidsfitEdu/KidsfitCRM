@@ -172,8 +172,43 @@ public static class AccountingWorkspaceEndpoints
             .Where(r => ids.Contains(r.ContractId))
             .Select(r => new {
                 r.Id, r.ContractId, r.RenewalNo, r.Status, r.ServiceStartOn,
-                r.ServiceEndOn, r.SubmittedAt, r.TotalValue
+                r.ServiceEndOn, r.SubmittedAt, r.TotalValue, r.ContractCode, r.SignedOn, r.PaymentCycle
             }).ToArrayAsync(ct);
+
+        // One school group per verified original contract. Each legal renewal has
+        // separate schedules, cash and ledger, never the lifetime totals of its parent.
+        var receiptLines = await (from receipt in db.RevenueReceipts.AsNoTracking()
+            join schedule in db.RevenueSchedules.AsNoTracking()
+                on receipt.RevenueScheduleId equals schedule.Id into scheduled
+            from schedule in scheduled.DefaultIfEmpty()
+            where ids.Contains(receipt.ContractId) && receipt.Status == "COMPLETED"
+            select new { receipt.Id, receipt.ContractId, receipt.Amount,
+                RenewalId = schedule == null ? (long?)null : schedule.ContractRenewalId })
+            .ToArrayAsync(ct);
+        var receiptIds = receiptLines.Select(r => r.Id).ToArray();
+        var ledgerLines = await access.Commissions(db).AsNoTracking()
+            .Where(e => ids.Contains(e.ContractId))
+            .Select(e => new { e.ContractId, e.RevenueReceiptId, e.Amount })
+            .ToArrayAsync(ct);
+        var originalCash = receiptLines.Where(r => !r.RenewalId.HasValue)
+            .GroupBy(r => r.ContractId).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
+        var renewalCash = receiptLines.Where(r => r.RenewalId.HasValue)
+            .GroupBy(r => r.RenewalId!.Value).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
+        var renewalByReceipt = receiptLines.ToDictionary(r => r.Id, r => r.RenewalId);
+        var sourceCommission = new Dictionary<long, decimal>();
+        var renewalCommission = new Dictionary<long, decimal>();
+        foreach (var entry in ledgerLines)
+        {
+            // Unlinked historical corrections stay with the source period, not
+            // arbitrarily attributed to a renewal by transaction date.
+            var period = entry.RevenueReceiptId.HasValue
+                && renewalByReceipt.TryGetValue(entry.RevenueReceiptId.Value, out var rid)
+                    ? rid : null;
+            if (period.HasValue)
+                renewalCommission[period.Value] = renewalCommission.GetValueOrDefault(period.Value) + entry.Amount;
+            else
+                sourceCommission[entry.ContractId] = sourceCommission.GetValueOrDefault(entry.ContractId) + entry.Amount;
+        }
         var byContract = renewals.ToLookup(r => r.ContractId);
         var now = DateTime.UtcNow;
         var today = ChannelSalesValidation.BusinessDate(now);
@@ -253,11 +288,20 @@ public static class AccountingWorkspaceEndpoints
                 periods = attached.OrderBy(r => r.RenewalNo).Select(r => new {
                     id = r.Id, renewal_no = r.RenewalNo, status = r.Status,
                     service_start_on = r.ServiceStartOn, service_end_on = r.ServiceEndOn,
-                    total_value = r.TotalValue
+                    total_value = r.TotalValue,
+                    contract_code = r.ContractCode,
+                    signed_on = r.SignedOn,
+                    payment_cycle = r.PaymentCycle,
+                    received = renewalCash.GetValueOrDefault(r.Id),
+                    commission = renewalCommission.GetValueOrDefault(r.Id)
                 }).ToArray(),
                 needs_info_renewal_id = needsInfo?.Id,
-                total_value = c.TotalValue, received = c.Received, refunded = c.Refunded,
-                commission = c.Commission, has_financial_history = c.HasFinancialHistory
+                total_value = c.TotalValue,
+                received = originalCash.GetValueOrDefault(c.Id),
+                refunded = c.Refunded,
+                commission = sourceCommission.GetValueOrDefault(c.Id),
+                has_financial_history = c.HasFinancialHistory,
+                original_period_financials_only = true
             };
         }).Where(c => filter switch {
             "PENDING" => c.pending_renewal_id.HasValue,

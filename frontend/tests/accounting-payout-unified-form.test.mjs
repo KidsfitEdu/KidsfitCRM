@@ -15,7 +15,7 @@ test('New payout uses one form without editable commission period or a next step
   assert.ok(form.includes('form="accounting-payout-draft-form"'));
   assert.ok(form.includes('{payoutCreateReady&&!payoutDetailError&&<div'));
   assert.ok(form.includes('{payoutDraftForm}'));
-  assert.ok(page.includes('setPayoutCreatePeriod('')'));
+  assert.ok(page.includes("setPayoutCreatePeriod('')"));
 });
 test('Eligible beneficiaries scoped by school and exact period',()=>{
   assert.ok(page.includes("contract_id:String(payoutSchool.id),page:'1',page_size:'100'"));

@@ -26,7 +26,7 @@ test('Payout list and eligible chooser use authorized server pagination and row 
 
 test('Receipt selection and transaction details are in one dialog',()=>{
   assert.match(page,/open=\{receiptIntent\}/);
-  assert.match(page,/entryMode==='receipt'&&detail\?financialTransactionForm/);
+  assert.match(page,/entryMode==='receipt'&&detail\?\.data\.id===selected&&financialTransactionForm/);
   assert.match(page,/const financialTransactionForm=detail&&entryMode/);
   assert.doesNotMatch(page,/open=\{Boolean\(detail && entryMode\)\}/);
   assert.match(page,/setReceiptIntent\(true\)/);

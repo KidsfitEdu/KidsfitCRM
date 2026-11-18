@@ -182,6 +182,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receivableLoading,setReceivableLoading]=useState(false);
   const [receivableChoice,setReceivableChoice]=useState<ReceivableContract|null>(null);
   const [receivablePickerOpen,setReceivablePickerOpen]=useState(false);
+  const [receiptNoDue,setReceiptNoDue]=useState(false);
   const [receiptIntent,setReceiptIntent]=useState(false);
   const [financePeriod,setFinancePeriod]=useState(()=>new Intl.DateTimeFormat('sv-SE',{
     timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
@@ -360,7 +361,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   useEffect(()=>{
     if(!receiptIntent||accountingTab!=='RECEIPTS'||!detail||detail.data.id!==selected)return;
     const due=detail.schedules.find(x=>x.amount_received<x.amount_due);
-    if(!due){appNotice.error('Hợp đồng này không còn đợt thanh toán có thể thu. Vui lòng chọn hợp đồng khác.');setEntryMode(null);return;}
+    if(!due){setReceiptNoDue(true);setEntryMode(null);return;}
+    setReceiptNoDue(false);
     setSelectedScheduleId(due.id);
     setFieldErrors({});
     setAmountInput('');
@@ -426,7 +428,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
 
   const openReceiptForm=()=>{
     setSelected(null);setDetail(null);setReceivableSearch('');setReceivablePage(1);
-    setReceivableChoice(null);setReceivablePickerOpen(false);
+    setReceivableChoice(null);setReceivablePickerOpen(false);setReceiptNoDue(false);
     receiptAttempt.current=null;
     setTransactionDate(accountingBusinessDay(new Date()));setTransactionReference('');
     setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode(null);
@@ -1175,7 +1177,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   :receivableRows.map(item=><button type="button" key={item.id}
                     className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
                     onClick={()=>{setReceivableChoice(item);setSelected(item.id);setEntryMode(null);
-                      setDetail(null);setSelectedScheduleId(null);setFieldErrors({});setAmountInput('');
+                      setDetail(null);setSelectedScheduleId(null);setReceiptNoDue(false);setFieldErrors({});setAmountInput('');
                       setTransactionReference('');receiptAttempt.current=null;setReceivablePickerOpen(false);}}>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{item.school_name}</span>
@@ -1206,7 +1208,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>}
         {receivableChoice&&(detail?.data.id!==selected||entryMode!=='receipt')&&
           <output className="block rounded-lg border border-border/70 p-3 text-sm text-muted-foreground">
-            {detail?.data.id===selected?'Đang kiểm tra các đợt thanh toán có thể thu...':'Đang tải thông tin hợp đồng...'}
+            {receiptNoDue?'Hợp đồng không còn đợt thanh toán có thể thu. Vui lòng chọn hợp đồng khác.':detail?.data.id===selected?'Đang kiểm tra các đợt thanh toán có thể thu...':'Đang tải thông tin hợp đồng...'}
           </output>}
         {!receivablePickerOpen&&entryMode==='receipt'&&detail?.data.id===selected&&financialTransactionForm}
       </div>

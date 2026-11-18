@@ -94,3 +94,14 @@ test('Payout empty placeholder has icon and hides draft amounts until beneficiar
   assert.ok(form.includes('{payoutCreateReady&&!payoutDetailError&&<div'));
   assert.match(form,/disabled=\{!payoutCreateReady\|\|saving\}/);
 });
+
+test('Selected school clear action is icon-only and draft does not show redundant notice',()=>{
+  assert.match(form,/aria-label="Bỏ chọn nhà trường"/);
+  assert.match(form,/title="Bỏ chọn nhà trường"/);
+  assert.match(form,/<X className="size-4" aria-hidden="true"\/>/);
+  assert.doesNotMatch(form,/>Xóa<\/button>/);
+  assert.doesNotMatch(page,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
+  assert.doesNotMatch(page,/Giá trị chính thức sẽ được Backend kiểm tra/);
+  assert.ok(page.includes("setPayoutPickerSearch('');setPayoutSchool(null);setPayoutCandidateKey('')"));
+  assert.ok(page.includes("setPayoutDialogOpen(false)"));
+});

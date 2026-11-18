@@ -15,7 +15,7 @@ public static class ContractRenewalEndpoints
 {
     public sealed record SubmitRequest(string? IdempotencyKey, DateOnly? SignedOn,
         DateOnly? ServiceStartOn, DateOnly? ServiceEndOn, string? PaymentCycle,
-        decimal TotalValue, long? EvidenceId, string? GapReason = null);
+        decimal TotalValue, long? EvidenceId, string? GapReason = null, string? ContractCode = null);
     public sealed record DecisionRequest(string? Reason);
 
     // A service year includes its first day and ends the day before its next calendar anniversary.
@@ -107,6 +107,8 @@ public static class ContractRenewalEndpoints
 
     private static void Validate(SubmitRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.ContractCode) || request.ContractCode.Trim().Length > 64)
+            throw ApiValidationException.For("contract_code", "Cần mã hợp đồng tái ký từ 1 đến 64 ký tự.");
         if (!request.SignedOn.HasValue) throw ApiValidationException.For("signed_on", "Thiếu ngày ký hợp đồng tái ký.");
         if (request.SignedOn.Value > ChannelSalesValidation.BusinessDate(DateTime.UtcNow))
             throw ApiValidationException.For("signed_on", "Ngày ký không được trong tương lai.");
@@ -177,11 +179,15 @@ public static class ContractRenewalEndpoints
         var priorEnd = await PriorConfirmedEnd(db, contractId, source.ServiceEndOn, ct);
         ValidateYearAndGap(request.ServiceStartOn!.Value, request.ServiceEndOn!.Value, priorEnd, request.GapReason);
         var proof = await Proof(db, request.EvidenceId, access.UserId, ct);
+        var code = request.ContractCode!.Trim().ToUpperInvariant();
+        if (await db.SalesContracts.AnyAsync(c => c.ContractCode == code, ct)
+            || await db.ContractRenewals.AnyAsync(c => c.ContractCode == code, ct))
+            throw ApiValidationException.For("contract_code", "Mã hợp đồng đã tồn tại.");
         var no = (await db.ContractRenewals.Where(x => x.ContractId == contractId).MaxAsync(x => (int?)x.RenewalNo, ct) ?? 0) + 1;
         var now = DateTime.UtcNow;
         var renewal = new ContractRenewal
         {
-            ContractId = contractId, RenewalNo = no, IdempotencyKey = key,
+            ContractId = contractId, ContractCode = code, RenewalNo = no, IdempotencyKey = key,
             RequestFingerprint = fingerprint, SubmittedByUserId = access.UserId,
             SignedOn = request.SignedOn!.Value, ServiceStartOn = request.ServiceStartOn!.Value,
             ServiceEndOn = request.ServiceEndOn!.Value,
@@ -222,6 +228,11 @@ public static class ContractRenewalEndpoints
         ValidateYearAndGap(request.ServiceStartOn!.Value, request.ServiceEndOn!.Value, preceding, request.GapReason);
         var proof = await Proof(db, request.EvidenceId, access.UserId, ct);
         var now = DateTime.UtcNow;
+        var code = request.ContractCode!.Trim().ToUpperInvariant();
+        if (await db.SalesContracts.AnyAsync(c => c.ContractCode == code, ct)
+            || await db.ContractRenewals.AnyAsync(c => c.ContractCode == code && c.Id != id, ct))
+            throw ApiValidationException.For("contract_code", "Mã hợp đồng đã tồn tại.");
+        renewal.ContractCode = code;
         renewal.GapReason = string.IsNullOrWhiteSpace(request.GapReason) ? null : request.GapReason.Trim();
         renewal.SignedOn = request.SignedOn!.Value;
         renewal.ServiceStartOn = request.ServiceStartOn!.Value;
@@ -299,7 +310,7 @@ public static class ContractRenewalEndpoints
             where renewal.Id == id && renewal.SubmittedByUserId == access.UserId
                 && contract.OwnerUserId == access.UserId
             select new {
-                renewal.Id, renewal.ContractId, contract_code = contract.ContractCode,
+                renewal.Id, renewal.ContractId, contract_code = renewal.ContractCode, source_contract_code = contract.ContractCode,
                 school_name = school.DisplayName, renewal.RenewalNo,
                 renewal.SignedOn, renewal.ServiceStartOn, renewal.ServiceEndOn,
                 renewal.PaymentCycle, renewal.TotalValue, renewal.Status,
@@ -355,7 +366,7 @@ public static class ContractRenewalEndpoints
             .Skip((p - 1) * size).Take(size)
             .Select(x => new {
                 x.renewal.Id, x.renewal.ContractId, customer_id = x.contract.CustomerId,
-                contract_code = x.contract.ContractCode,
+                contract_code = x.renewal.ContractCode, source_contract_code = x.contract.ContractCode,
                 school_name = x.school.DisplayName, x.renewal.RenewalNo, x.renewal.SignedOn,
                 x.renewal.ServiceStartOn, x.renewal.ServiceEndOn, x.renewal.PaymentCycle,
                 x.renewal.TotalValue, x.renewal.Status, x.renewal.DecisionReason,
@@ -386,7 +397,7 @@ public static class ContractRenewalEndpoints
         var rows = await db.ContractRenewals.AsNoTracking().Where(x => x.ContractId == contractId
             && x.SubmittedByUserId == access.UserId)
             .OrderByDescending(x => x.RenewalNo)
-            .Select(x => new { x.Id, x.RenewalNo, x.SignedOn, x.ServiceStartOn, x.ServiceEndOn,
+            .Select(x => new { x.Id, x.RenewalNo, x.ContractCode, x.SignedOn, x.ServiceStartOn, x.ServiceEndOn,
                 x.PaymentCycle, x.TotalValue, x.GapReason, x.Status, x.DecisionReason, x.SubmittedAt }).ToArrayAsync(ct);
         return Results.Ok(new { data = rows });
     }
@@ -436,7 +447,7 @@ public static class ContractRenewalEndpoints
             var proof = evidence.FirstOrDefault(e => e.Kind == "RENEWAL" && e.ContractRenewalId == renewal.Id);
             result.Add(new {
                 type = "RENEWAL", id = renewal.Id, contract_id = contract.Id,
-                contract_code = contract.ContractCode, renewal_no = (int?)renewal.RenewalNo,
+                contract_code = renewal.ContractCode, source_contract_code = contract.ContractCode, renewal_no = (int?)renewal.RenewalNo,
                 signed_on = (DateOnly?)renewal.SignedOn,
                 service_start_on = (DateOnly?)renewal.ServiceStartOn,
                 service_end_on = (DateOnly?)renewal.ServiceEndOn,
@@ -503,7 +514,7 @@ public static class ContractRenewalEndpoints
             join owner in db.Users on c.OwnerUserId equals owner.Id
             where r.Id == id
             select new { data = new { r.Id, r.ContractId, c.ContractCode, school_name = school.DisplayName,
-                owner_name = owner.Name, r.RenewalNo, r.SignedOn, r.ServiceStartOn, r.ServiceEndOn,
+                owner_name = owner.Name, r.ContractCode, r.RenewalNo, r.SignedOn, r.ServiceStartOn, r.ServiceEndOn,
                 r.PaymentCycle, r.TotalValue, r.GapReason, r.Status, r.DecisionReason, r.SubmittedAt,
                 source_service_start_on = c.ServiceStartOn, source_service_end_on = c.ServiceEndOn,
                 source_payment_cycle = c.PaymentCycle, source_total_value = c.TotalValue } }).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();

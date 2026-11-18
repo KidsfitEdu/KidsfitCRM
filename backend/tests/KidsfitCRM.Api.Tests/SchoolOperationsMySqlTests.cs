@@ -949,7 +949,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var outsider = await AddMember(otherOrg.Id, "SALES_MANAGER", "SALES_MANAGER");
 
         var all = Json(await ManagerProgressEndpoints.List(Http(s.Manager.UserId), db,
-            null, null, null, 1, 20, null, null, null, Ct));
+            null, null, null, 1, 20, Ct));
         Assert.Equal(2, all.GetProperty("total").GetInt32());
         Assert.Equal(2, all.GetProperty("data").GetArrayLength());
         Assert.Contains(all.GetProperty("staff").EnumerateArray(),
@@ -972,7 +972,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
                 outsider.UserId, 1, 20, Ct));
 
         var outsiderList = Json(await ManagerProgressEndpoints.List(Http(outsider.UserId), db,
-            null, null, null, 1, 20, null, null, null, Ct));
+            null, null, null, 1, 20, Ct));
         Assert.Equal(0, outsiderList.GetProperty("total").GetInt32());
     }
 
@@ -1874,13 +1874,13 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             s.Peer.UserId, Http(s.Peer.UserId), Ct));
 
         var released = Json(await ManagerContractEndpoints.ReleasedSchools(
-            Http(s.Manager.UserId), db, null, 1, 20, null, null, null, Ct));
+            Http(s.Manager.UserId), db, null, 1, 20, Ct));
         Assert.Contains(released.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("id").GetInt64() == s.OtherSchoolId);
         await actions.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Peer.UserId, Http(), Ct);
         db.ChangeTracker.Clear();
         var noLongerAvailable = Json(await ManagerContractEndpoints.ReleasedSchools(
-            Http(s.Manager.UserId), db, null, 1, 20, null, null, null, Ct));
+            Http(s.Manager.UserId), db, null, 1, 20, Ct));
         Assert.DoesNotContain(noLongerAvailable.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("id").GetInt64() == s.OtherSchoolId);
     }
@@ -1937,7 +1937,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             new(Key(), "Nghỉ việc", "Bàn giao trường chưa ký", false),
             scenario.Manager.UserId, Http(scenario.Manager.UserId), Ct);
         var released = Json(await ManagerContractEndpoints.ReleasedSchools(
-            Http(scenario.Manager.UserId), db, null, 1, 20, null, null, null, Ct));
+            Http(scenario.Manager.UserId), db, null, 1, 20, Ct));
         Assert.Contains(released.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("id").GetInt64() == scenario.OtherSchoolId);
         Assert.Equal("REVOKED", await db.ApproachRegistrations
@@ -1947,7 +1947,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
                 new(Key(), "Trùng thao tác", null, false), scenario.Manager.UserId, Http(), Ct));
         await actions.RegisterCustomerApproach(Claim(scenario.OtherCustomerId), scenario.Peer.UserId, Http(), Ct);
         var nowUnavailable = Json(await ManagerContractEndpoints.ReleasedSchools(
-            Http(scenario.Manager.UserId), db, null, 1, 20, null, null, null, Ct));
+            Http(scenario.Manager.UserId), db, null, 1, 20, Ct));
         Assert.DoesNotContain(nowUnavailable.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("id").GetInt64() == scenario.OtherSchoolId);
     }
@@ -2054,7 +2054,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var other = await AddMember(careOrg, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
         var actions = new ChannelSalesActions(db);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.Assignments(
-            Http(scenario.Manager.UserId), db, null, 1, 20, null, null, null, Ct));
+            Http(scenario.Manager.UserId), db, null, 1, 20, Ct));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.LogCall(
             contract, new("Không được ghi khi chưa phân công", null), Http(care), db, Ct));
 
@@ -2062,7 +2062,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             admin, Http(admin), Ct);
         var contractCode = await db.SalesContracts.Where(x => x.Id == contract).Select(x => x.ContractCode).SingleAsync();
         var mine = Json(await CustomerCareEndpoints.Schools(Http(care), db,
-            new ConfigurationBuilder().Build(), contractCode, null, 1, 20, null, null, null, Ct));
+            new ConfigurationBuilder().Build(), contractCode, null, 1, 20, Ct));
         Assert.Contains(mine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
         Assert.Equal(1, mine.GetProperty("total").GetInt32());
         Assert.Contains(mine.GetProperty("data").EnumerateArray(), x =>
@@ -2072,7 +2072,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.True(careFiltered.GetProperty("total").GetInt32()
             <= mine.GetProperty("total").GetInt32());
         var notMine = Json(await CustomerCareEndpoints.Schools(Http(other.UserId), db,
-            new ConfigurationBuilder().Build(), null, null, 1, 20, null, null, null, Ct));
+            new ConfigurationBuilder().Build(), null, null, 1, 20, Ct));
         Assert.DoesNotContain(notMine.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == contract);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => CustomerCareEndpoints.SchoolDetail(
             contract, Http(other.UserId), db, Ct));
@@ -2096,7 +2096,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var checkeeQueue = Json(await CheckeeSupportEndpoints.List(Http(checkee), db, "ALL", "Lỗi máy chủ", 1, 20, Ct));
         Assert.Contains(checkeeQueue.GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == ticketId);
         Assert.DoesNotContain(Json(await CustomerCareEndpoints.Tickets(Http(other.UserId), db,
-            null, null, 1, 20, null, null, null, Ct)).GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == ticketId);
+            null, null, 1, 20, Ct)).GetProperty("data").EnumerateArray(), x => x.GetProperty("id").GetInt64() == ticketId);
         var summary = Json(await CustomerCareEndpoints.Summary(Http(care), db, Ct));
         Assert.True(summary.GetProperty("data").GetProperty("open_tickets").GetInt32() > 0);
     }
@@ -2437,7 +2437,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var kidsfit = await db.Organizations.Where(o => o.Code == "KIDSFIT")
             .Select(o => o.Id).SingleAsync(Ct);
         var caretaker = await AddMember(kidsfit, "CUSTOMER_SERVICE", "CUSTOMER_SERVICE");
-        var empty = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, null, null, null, Ct));
+        var empty = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, Ct));
         var care = empty.GetProperty("users").EnumerateArray()
             .Single(x => x.GetProperty("id").GetInt64() == caretaker.UserId);
         Assert.Equal(0, care.GetProperty("schools").GetInt32());
@@ -2467,7 +2467,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         });
         await db.SaveChangesAsync(Ct);
 
-        var result = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, null, null, null, Ct));
+        var result = Json(await CustomerCareEndpoints.Assignments(Http(admin), db, null, 1, 20, Ct));
         care = result.GetProperty("users").EnumerateArray()
             .Single(x => x.GetProperty("id").GetInt64() == caretaker.UserId);
         Assert.Equal(1, care.GetProperty("schools").GetInt32());

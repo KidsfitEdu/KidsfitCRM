@@ -611,17 +611,47 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
     .reduce((sum,entry)=>sum+entry.calculation_base,0);
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
-  const orderedSchedules=(detail?.schedules??[]).slice().sort((a,b)=>
+  // Client-side projections use the server-authoritative schedule and receipt links.
+  // The base contract and each renewal stay separate in this contract detail view.
+  const sourceRow=rows.find(row=>row.id===selected);
+  const focusedPeriod=sourceRow?.periods?.find(period=>period.id===selectedPeriodId);
+  const periodSchedules=(detail?.schedules??[]).filter(schedule=>
+    (schedule.contract_renewal_id??null)===selectedPeriodId);
+  const periodScheduleIds=new Set(periodSchedules.map(schedule=>schedule.id));
+  const periodReceipts=(detail?.receipts??[]).filter(receipt=>
+    receipt.revenue_schedule_id===null?selectedPeriodId===null:
+      periodScheduleIds.has(receipt.revenue_schedule_id));
+  const periodReceiptIds=new Set(periodReceipts.map(receipt=>receipt.id));
+  const periodLedger=(detail?.ledger??[]).filter(entry=>
+    entry.revenue_receipt_id===null?selectedPeriodId===null:
+      periodReceiptIds.has(entry.revenue_receipt_id));
+  const periodPayoutIds=new Set(periodLedger.map(entry=>entry.payout_id)
+    .filter((id):id is number=>id!==null&&id!==undefined));
+  const periodPayouts=(detail?.payouts??[]).filter(payout=>periodPayoutIds.has(payout.id));
+  const drawerDetail=detail?{...detail,
+    schedules:periodSchedules,receipts:periodReceipts,ledger:periodLedger,payouts:periodPayouts,
+    refunded_total:selectedPeriodId===null?detail.refunded_total:0,
+    evidence:detail.evidence.filter(e=>e.revenue_receipt_id===null||periodReceiptIds.has(e.revenue_receipt_id))
+  }:null;
+  const drawerTitle=selectedPeriodId===null?'Hợp đồng lần đầu':'Tái ký lần '+(focusedPeriod?.renewal_no??'?');
+  const drawerCode=selectedPeriodId===null?detail?.data.contract_code:
+    focusedPeriod?.contract_code??'Chưa có mã hợp đồng tái ký';
+  const drawerValue=selectedPeriodId===null?detail?.data.total_value:focusedPeriod?.total_value;
+  const drawerSigned=selectedPeriodId===null?detail?.data.signed_on:focusedPeriod?.signed_on;
+  const drawerStart=selectedPeriodId===null?detail?.data.source_service_start_on:focusedPeriod?.service_start_on;
+  const drawerEnd=selectedPeriodId===null?detail?.data.source_service_end_on:focusedPeriod?.service_end_on;
+  const drawerCycle=selectedPeriodId===null?detail?.data.source_payment_cycle:focusedPeriod?.payment_cycle;
+  const orderedSchedules=(accountingTab==='CONTRACTS'?periodSchedules:(detail?.schedules??[])).slice().sort((a,b)=>
     Number(a.amount_received>=a.amount_due)-Number(b.amount_received>=b.amount_due)||
     b.due_on.localeCompare(a.due_on)||b.id-a.id);
-  const receiptYears=[...new Set((detail?.receipts??[]).map(x=>x.received_at.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
-  const filteredReceipts=(detail?.receipts??[]).filter(x=>receiptHistoryYear==='ALL'||x.received_at.startsWith(receiptHistoryYear+'-'))
+  const receiptYears=[...new Set((accountingTab==='CONTRACTS'?periodReceipts:(detail?.receipts??[])).map(x=>x.received_at.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
+  const filteredReceipts=(accountingTab==='CONTRACTS'?periodReceipts:(detail?.receipts??[])).filter(x=>receiptHistoryYear==='ALL'||x.received_at.startsWith(receiptHistoryYear+'-'))
     .slice().sort((a,b)=>b.received_at.localeCompare(a.received_at)||b.id-a.id);
   const receiptPageCount=Math.max(1,Math.ceil(filteredReceipts.length/10));
   const effectiveReceiptPage=Math.min(receiptHistoryPage,receiptPageCount);
   const visibleReceipts=filteredReceipts.slice((effectiveReceiptPage-1)*10,effectiveReceiptPage*10);
-  const payoutYears=[...new Set((detail?.payouts??[]).map(x=>x.period.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
-  const payoutFiltered=(detail?.payouts??[]).filter(x=>(payoutHistoryYear==='ALL'||x.period.startsWith(payoutHistoryYear+'-'))&&(payoutHistoryStatus==='ALL'||x.status===payoutHistoryStatus));
+  const payoutYears=[...new Set((accountingTab==='CONTRACTS'?periodPayouts:(detail?.payouts??[])).map(x=>x.period.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
+  const payoutFiltered=(accountingTab==='CONTRACTS'?periodPayouts:(detail?.payouts??[])).filter(x=>(payoutHistoryYear==='ALL'||x.period.startsWith(payoutHistoryYear+'-'))&&(payoutHistoryStatus==='ALL'||x.status===payoutHistoryStatus));
   const payoutPageCount=Math.max(1,Math.ceil(payoutFiltered.length/10));
   const effectivePayoutPage=Math.min(payoutHistoryPage,payoutPageCount);
   const payoutVisible=payoutFiltered.slice((effectivePayoutPage-1)*10,effectivePayoutPage*10);
@@ -1396,35 +1426,35 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       </div>}
     </AppDialog>
     <AppDrawer wide compactAccountingHeader open={selected !== null && accountingTab==='CONTRACTS'} onOpenChange={open => { if (!open) {setSelected(null);setFocusedRenewal(null);setEntryMode(null);closePreview();} }}
-      title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
-      description="Kế toán / Chi tiết hợp đồng">
-      {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
+      title={sourceRow?.school_name??'Chi tiết hợp đồng'}
+      description={'Kế toán / '+drawerTitle}>
+      {!drawerDetail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
         <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-4 sm:p-5">
-          <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
+          <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">{drawerTitle} · {drawerCode}</p>
           <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>
           <p className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
-            <span>{[detail.data.school_address, detail.data.school_district, detail.data.school_province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</span>
+            <span>{[drawerDetail.data.school_address, drawerDetail.data.school_district, drawerDetail.data.school_province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</span>
           </p>
           <p className="flex items-center gap-2 text-muted-foreground"><UserRound className="size-4" aria-hidden="true"/>
-            Phụ trách: {detail.data.owner_name} · {detail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
+            Phụ trách: {drawerDetail.data.owner_name} · {drawerDetail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
           </p>
-          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
+          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{drawerDetail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : drawerDetail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : drawerDetail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : drawerDetail.data.status}</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Giá trị hợp đồng gốc" value={channelMoney(detail.data.total_value)}/>
-          <Metric label="Thực thu" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0)-(detail.refunded_total??0))}/>
-          <Metric label="Hoa hồng ghi nhận" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
-          <Metric label="Hoa hồng đã chi" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
+          <Metric label="Giá trị hợp đồng" value={channelMoney(drawerValue??0)}/>
+          <Metric label="Thực thu" value={channelMoney(drawerDetail.receipts.reduce((sum,x)=>sum+x.amount,0)-(drawerDetail.refunded_total??0))}/>
+          <Metric label="Hoa hồng ghi nhận" value={channelMoney(drawerDetail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
+          <Metric label="Hoa hồng thuộc phiếu đã chi" value={channelMoney(drawerDetail.ledger.filter(e=>e.payout_id&&drawerDetail.payouts.some(p=>p.id===e.payout_id&&p.status==='PAID')).reduce((sum,e)=>sum+e.amount,0))}/>
         </div>
-        {selected!==null&&<AccountingRenewalInline key={selected+':'+(focusedRenewal?.id??'all')+':'+(focusedRenewal?.action??'view')}
+        {selected!==null&&<AccountingRenewalInline key={selected+':'+(selectedPeriodId??'original')+':'+(focusedRenewal?.action??'view')}
           apiBase={apiBase} token={token}
           contractId={selected} abilities={abilities}
-          focusRenewalId={focusedRenewal?.id} focusAction={focusedRenewal?.action}
+          focusRenewalId={selectedPeriodId} focusAction={focusedRenewal?.action}
           onChanged={async()=>{setDetailRevision(v=>v+1);await load();await onChanged();}}/>}
         {rows.find(r=>r.id===selected)&&(()=>{
           const overview=rows.find(r=>r.id===selected)!;
           return <section className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-            <h3 className="text-base font-bold">Tình trạng dịch vụ & quyền bảo vệ</h3>
+            <h3 className="text-base font-bold">Tình trạng dịch vụ và quyền bảo vệ toàn nhà trường</h3>
             <AppStatusBadge variant="kidsfit-service" status={overview.service_status} label={{
               CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
               INTERRUPTED:'Gián đoạn',THRESHOLD_REACHED:'Đủ 12 tháng',
@@ -1438,8 +1468,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               {overview.service_status==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(overview.threshold_on)}
             </p>}
             {overview.next_service_start_on&&<p>Kỳ sử dụng tiếp theo: {channelDate(overview.next_service_start_on)}</p>}
-            <p>Quyền bảo vệ Sales: {detail.data.protection_until
-              ? 'Đến '+channelDate(detail.data.protection_until)
+            <p>Quyền bảo vệ Sales: {drawerDetail.data.protection_until
+              ? 'Đến '+channelDate(drawerDetail.data.protection_until)
               : 'Không có quyền bảo vệ đang hiệu lực'}</p>
             {giHistory.length>0&&<div className="space-y-2 border-t border-border pt-3">
               <h4 className="font-semibold">Lịch sử xử lý gián đoạn (GI-01)</h4>
@@ -1452,33 +1482,33 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </section>;
         })()}
         <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-base font-bold text-foreground">Thông tin hợp đồng gốc</h3><span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary">{detail.school_units.length} điểm triển khai</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-base font-bold text-foreground">Thông tin {drawerTitle.toLowerCase()}</h3><span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary">{drawerDetail.school_units.length} điểm triển khai</span></div>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&_dd]:break-words [&_dd]:leading-6 [&_dt]:text-xs">
-            <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
-            <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
-            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{getServicePlanLabel(detail.data.service_plan)}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_service_start_on?channelDate(detail.data.source_service_start_on):'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_service_end_on?channelDate(detail.data.source_service_end_on):'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Chu kỳ thanh toán (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_payment_cycle==='MONTHLY'?'Theo tháng':detail.data.source_payment_cycle==='YEARLY'?'Theo năm':'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Trạng thái dịch vụ hiện tại</dt><dd className="mt-1 font-medium">{detail.data.status==='CANCELLED'?'Đã hủy hợp đồng':detail.current_period?serviceStatus(detail.current_period.start_on,detail.current_period.end_on,detail.data.status):detail.next_confirmed_period?'Chưa bắt đầu sử dụng':detail.previous_period?'Đã kết thúc kỳ trước':'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
-            <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
+            <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{drawerCode}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{drawerSigned?channelDate(drawerSigned):'Chưa có ngày ký'}</dd></div>
+            <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{drawerDetail.data.verified_at ? channelDate(drawerDetail.data.verified_at) : 'Chưa xác minh'}</dd></div>
+            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{getServicePlanLabel(drawerDetail.data.service_plan)}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày bắt đầu sử dụng</dt><dd className="mt-1 font-medium">{drawerStart?channelDate(drawerStart):'Chưa cập nhật'}</dd></div>
+            <div><dt className="text-muted-foreground">Ngày kết thúc sử dụng</dt><dd className="mt-1 font-medium">{drawerEnd?channelDate(drawerEnd):'Chưa cập nhật'}</dd></div>
+            <div><dt className="text-muted-foreground">Chu kỳ thanh toán</dt><dd className="mt-1 font-medium">{drawerCycle==='MONTHLY'?'Theo tháng':drawerCycle==='YEARLY'?'Theo năm':'Chưa cập nhật'}</dd></div>
+            <div><dt className="text-muted-foreground">Trạng thái dịch vụ của kỳ</dt><dd className="mt-1 font-medium">{selectedPeriodId!==null&&focusedPeriod?.status!=='CONFIRMED'?(focusedPeriod?.status==='PENDING_ACCOUNTING'?'Chờ Kế toán xác nhận':focusedPeriod?.status==='NEEDS_INFO'?'Chờ Sales bổ sung':'Chưa được xác nhận'):drawerStart&&drawerEnd?serviceStatus(drawerStart,drawerEnd,drawerDetail.data.status):'Chưa cập nhật thời hạn'}</dd></div>
+            <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{drawerDetail.data.protection_until?channelDate(drawerDetail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
+            <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{drawerDetail.data.student_count ?? 'Chưa khai báo'}</dd></div>
           </dl>
           <details className="group rounded-xl border border-border/80 bg-muted/10">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold marker:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-              <span>Trường điểm / Phân hiệu ({detail.school_units.length})</span>
+              <span>Trường điểm / Phân hiệu ({drawerDetail.school_units.length})</span>
               <span className="text-xs font-normal text-muted-foreground group-open:hidden">Xem danh sách</span>
               <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Thu gọn</span>
             </summary>
             <div className="border-t border-border/70 px-4 py-3">
-              {detail.school_units.length>0?<ul className="grid gap-2 sm:grid-cols-2">{detail.school_units.map(unit=><li key={unit.id} className="min-w-0 rounded-lg bg-background px-3 py-2 text-sm font-medium break-words">{unit.name}</li>)}</ul>:<p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
+              {drawerDetail.school_units.length>0?<ul className="grid gap-2 sm:grid-cols-2">{drawerDetail.school_units.map(unit=><li key={unit.id} className="min-w-0 rounded-lg bg-background px-3 py-2 text-sm font-medium break-words">{unit.name}</li>)}</ul>:<p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
             </div>
           </details>
           </section>
         <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>
-          {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
+          {drawerDetail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
           <div className="divide-y divide-border/70 rounded-lg border border-border/70">
             {(showAllSchedules?orderedSchedules:orderedSchedules.slice(0,6)).map(x=>{
               const paid = Math.max(0, Math.min(x.amount_due, x.amount_received));
@@ -1510,19 +1540,19 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </div>;
             })}
           </div>
-          {detail.schedules.length>6&&<Button type="button" variant="outline" size="sm" className="w-full" onClick={()=>setShowAllSchedules(value=>!value)}>{showAllSchedules?`Thu gọn lịch thanh toán`:`Xem toàn bộ ${detail.schedules.length} đợt thanh toán`}</Button>}
+          {drawerDetail.schedules.length>6&&<Button type="button" variant="outline" size="sm" className="w-full" onClick={()=>setShowAllSchedules(value=>!value)}>{showAllSchedules?`Thu gọn lịch thanh toán`:`Xem toàn bộ ${drawerDetail.schedules.length} đợt thanh toán`}</Button>}
         </section>
         <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
-            {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
+            {canRecordRevenue && drawerDetail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !drawerDetail.schedules.some(x=>x.amount_received<x.amount_due)}
               onClick={()=>{setAccountingTab('RECEIPTS');openReceiptForm();}}><Plus className="size-4"/> Thêm khoản thu</Button>}
           </div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <label className="space-y-1 text-xs font-medium">Năm nhận tiền
               <select className="mt-1 block h-10 min-w-40 rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={receiptHistoryYear} onChange={e=>{setReceiptHistoryYear(e.target.value);setReceiptHistoryPage(1);}}><option value="ALL">Tất cả các năm</option>{receiptYears.map(year=><option key={year} value={year}>{year}</option>)}</select>
             </label>
-            <p className="text-xs text-muted-foreground">{filteredReceipts.length}/{detail.receipts.length} khoản thu</p>
+            <p className="text-xs text-muted-foreground">{filteredReceipts.length}/{drawerDetail.receipts.length} khoản thu</p>
           </div>
           <div className="overflow-x-auto rounded-lg border border-border/80">
             <table className="w-full min-w-[520px] text-left text-sm">
@@ -1537,7 +1567,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <tbody className="divide-y divide-border/70">
                 {filteredReceipts.length===0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Không có khoản thu phù hợp.</td></tr>
                   : visibleReceipts.map(x=>{
-                    const proof = detail.evidence.find(e=>e.revenue_receipt_id===x.id);
+                    const proof = drawerDetail.evidence.find(e=>e.revenue_receipt_id===x.id);
                     return <tr key={x.id} className="hover:bg-muted/20">
                       <td className="whitespace-nowrap px-3 py-3">{channelDate(x.received_at)}</td>
                       <td className="max-w-[160px] break-words px-3 py-3">{x.reference_code || '—'}</td>
@@ -1608,20 +1638,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     </div>)}
                 </div>
               </div>}
-            {detail.ledger.length===0 && pendingBackfillReceipts.length===0 &&
+            {drawerDetail.ledger.length===0 && pendingBackfillReceipts.length===0 &&
               <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
                 <WalletCards className="size-7 text-muted-foreground/70" aria-hidden="true"/>
                 <p className="font-semibold">Chưa có hoa hồng được ghi nhận</p>
                 <p className="max-w-sm text-xs leading-5 text-muted-foreground">
-                  {detail.receipts.length===0
+                  {drawerDetail.receipts.length===0
                     ?'Ghi nhận khoản thu tại mục “Nhà trường thanh toán” để phát sinh hoa hồng theo chính sách.'
                     :'Chưa có bút toán đủ điều kiện. Kiểm tra chính sách và quyền hưởng của hợp đồng.'}
                 </p>
               </div>}
-            {detail.ledger.length>0&&
+            {drawerDetail.ledger.length>0&&
               <div className="grid gap-3 sm:grid-cols-2">
                 {(['SALES','MANAGER'] as const).map(role=>{
-                  const entries=detail.ledger.filter(entry=>entry.beneficiary_role===role);
+                  const entries=drawerDetail.ledger.filter(entry=>entry.beneficiary_role===role);
                   const assigned=entries.filter(entry=>entry.assigned_to_payout);
                   const unassigned=entries.filter(entry=>!entry.assigned_to_payout);
                   const rates=[...new Set(entries.filter(entry=>entry.entry_type==='ACCRUAL').map(entry=>entry.rate_percent))];
@@ -1663,23 +1693,23 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 <WalletCards className="size-4" aria-hidden="true"/> Đến phiếu chi hoa hồng
               </Button>
             </div>}
-            {canCreatePayout && eligiblePeriods.length===0 && detail.ledger.length>0 &&
+            {canCreatePayout && eligiblePeriods.length===0 && drawerDetail.ledger.length>0 &&
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CheckCircle2 className="size-4 shrink-0" aria-hidden="true"/>
-                {detail.ledger.every(entry=>entry.assigned_to_payout)
+                {drawerDetail.ledger.every(entry=>entry.assigned_to_payout)
                   ?'Hoa hồng đã được đưa vào phiếu chi. Kiểm tra trạng thái ở lịch sử bên dưới.'
                   :'Chưa có hoa hồng dương chưa phân bổ. Kiểm tra bút toán điều chỉnh và kỳ hoa hồng.'}
               </p>}
-            {detail.ledger.some(entry=>entry.entry_type!=='ACCRUAL') &&
+            {drawerDetail.ledger.some(entry=>entry.entry_type!=='ACCRUAL') &&
               <div className="rounded-lg border border-border/80 px-3 py-2 text-xs leading-5 text-muted-foreground">
                 <strong className="text-foreground">Điều chỉnh hoa hồng:</strong>{' '}
-                {detail.ledger.filter(entry=>entry.entry_type!=='ACCRUAL')
+                {drawerDetail.ledger.filter(entry=>entry.entry_type!=='ACCRUAL')
                   .map(entry=>`${entry.reason||'Điều chỉnh'} (${channelMoney(entry.amount)})`).join('; ')}
               </div>}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><h4 className="text-sm font-semibold text-foreground">Lịch sử phiếu chi liên quan</h4>
                 <p className="mt-1 text-xs text-muted-foreground">Chỉ tra cứu tại hợp đồng; thao tác ở tab Phiếu chi hoa hồng.</p></div>
-              <span className="text-xs text-muted-foreground">{payoutFiltered.length}/{detail.payouts.length} phiếu</span>
+              <span className="text-xs text-muted-foreground">{payoutFiltered.length}/{drawerDetail.payouts.length} phiếu</span>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="space-y-1 text-xs font-medium">Năm kỳ hoa hồng
@@ -1702,7 +1732,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               {payoutVisible.map(x=><div key={x.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-3">
                 <div className="min-w-0 flex-1">
                   <p className="break-all text-xs font-semibold">{x.code}</p>
-                  <p className="mt-1 break-words text-xs text-muted-foreground">{x.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {detail.ledger.find(e=>e.beneficiary_user_id===x.beneficiary_user_id)?.beneficiary_name??'—'} · {payoutPeriodLabel(x.period)}</p>
+                  <p className="mt-1 break-words text-xs text-muted-foreground">{x.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {drawerDetail.ledger.find(e=>e.beneficiary_user_id===x.beneficiary_user_id)?.beneficiary_name??'—'} · {payoutPeriodLabel(x.period)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{payoutStatusLabel(x.status)}{x.paid_at?' · Đã chuyển '+channelDate(x.paid_at):''}</p>
                 </div>
                 <p className="font-bold tabular-nums">{channelMoney(x.net_amount)}</p>

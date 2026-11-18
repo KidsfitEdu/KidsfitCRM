@@ -66,13 +66,15 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  const canConfirm=abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*');
  const active=periods.find(p=>p.type+'-'+p.id===selected);
  const activeRenewal=active?.type==='RENEWAL'?active.id:null;
- const visiblePeriods=showOlderPeriods||periods.length<=5?periods:periods.filter((period,index)=>index>=periods.length-5||period.type+'-'+period.id===selected||(period.type==='RENEWAL'&&period.status==='PENDING_ACCOUNTING'));
+ const visiblePeriods=focusRenewalId
+    ? periods.filter(p=>p.type==='RENEWAL'&&p.id===focusRenewalId)
+    : periods.filter(p=>p.type==='ORIGINAL');
  const olderPeriodCount=periods.length-visiblePeriods.length;
 
  useEffect(()=>{
    if(!canReview){setLoading(false);return;}
    let mounted=true;
-   setLoading(true);setError('');setPeriods([]);setSelected(null);setDetail(null);setShowOlderPeriods(false);
+   setLoading(true);setError('');setPeriods([]);setSelected(null);setDetail(null);
    void channelRequest<{data:ContractPeriod[]}>(apiBase,token,
      '/accounting/contracts/'+contractId+'/periods')
      .then(response=>{
@@ -82,7 +84,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
        const latest=response.data.at(-1);
        const focused=focusRenewalId
          ?response.data.find(p=>p.type==='RENEWAL'&&p.id===focusRenewalId):null;
-       const chosen=focused??pending??latest;
+       const chosen=focused??(focusRenewalId?null:response.data.find(p=>p.type==='ORIGINAL'))??pending??latest;
        setSelected(chosen?chosen.type+'-'+chosen.id:null);
      })
      .catch(e=>{if(mounted)setError(e instanceof Error?e.message:'Không tải được lịch sử hợp đồng.');})
@@ -161,10 +163,10 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  <section aria-label="Hợp đồng và lịch sử tái ký"
    className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
    <div className="flex flex-wrap items-center justify-between gap-2">
-     <h3 className="flex items-center gap-2 font-bold"><Files className="size-4 text-primary" aria-hidden="true"/> Hợp đồng & lịch sử tái ký</h3>
+     <h3 className="flex items-center gap-2 font-bold"><Files className="size-4 text-primary" aria-hidden="true"/> Hồ sơ hợp đồng đang xem</h3>
      {!loading&&!error&&<span className="text-xs text-muted-foreground">{periods.length} hồ sơ</span>}
    </div>
-   <p className="text-xs leading-relaxed text-muted-foreground">Mở từng kỳ để xem thời hạn, giá trị, file hợp đồng và kết quả xác nhận.</p>
+   <p className="text-xs leading-relaxed text-muted-foreground">Xem đúng kỳ hợp đồng, chứng từ và kết quả xác nhận.</p>
    {!canReview?<p className="text-sm text-muted-foreground">Tài khoản không có quyền xem hồ sơ tái ký.</p>
    :loading?<output className="block text-sm text-muted-foreground">Đang tải lịch sử hợp đồng...</output>
    :error?<p role="alert" className="text-sm text-destructive">{error}</p>
@@ -178,7 +180,7 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
          className="flex min-h-16 w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
          <FileText className="size-5 shrink-0 text-primary" aria-hidden="true"/>
          <span className="min-w-0 flex-1">
-           <span className="block font-semibold">{period.type==='ORIGINAL'?'Hợp đồng gốc':'Tái ký lần '+period.renewal_no}</span>
+           <span className="block font-semibold">{period.type==='ORIGINAL'?'Hợp đồng lần đầu':'Tái ký lần '+period.renewal_no}</span>
            <span className="mt-1 block text-xs text-muted-foreground">{showDate(period.service_start_on)} – {showDate(period.service_end_on)}</span>
          </span>
          <AppStatusBadge status={period.status} label={labels[period.status]??period.status}/>
@@ -237,7 +239,6 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
        </div>}
      </div>;
    })}
-    {periods.length>5&&<Button type="button" variant="outline" size="sm" className="w-full" onClick={()=>setShowOlderPeriods(value=>!value)}>{showOlderPeriods?'Thu gọn lịch sử tái ký':`Xem ${olderPeriodCount} hồ sơ cũ hơn`}</Button>}
   </div>}
  </section>
  <AppDialog open={decision!==null} onOpenChange={open=>{if(!open)closeDecision();}}

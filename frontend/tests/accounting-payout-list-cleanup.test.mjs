@@ -15,7 +15,7 @@ test('Accounting payout tab manages eligible candidates and tracked payout recor
   assert.match(page,/setPayoutPickerOpen\(true\)/);
   assert.match(page,/openCentralPayout\(\{contractId:chosenCandidate\.contract_id/);
   assert.match(part,/setPayoutPreview\(p\)/);
-  for (const name of ['Mã phiếu','Người hưởng','Số tiền phiếu','Trạng thái','Kỳ','Trường','Thao tác'])
+  for (const name of ['Người hưởng','Nhà trường','Số tiền đề nghị / thực chi','Trạng thái','Kỳ','Thao tác'])
     assert.ok(part.includes(name),name);
   assert.equal((part.match(/<th scope="col"/g)||[]).length,6);
 });
@@ -41,10 +41,10 @@ test('Search applies on submission, pagination resets with filters, and uses all
 });
 test('Payout tracking is UI-only and contract detail workflow remains available',()=>{
   assert.match(page,/accountingTab==='CONTRACTS'/);
-  assert.match(page,/openContract\(row.id\)/);
+  assert.match(page,/openContract\(contractId,renewalId\)/);
   assert.match(page,/\/payouts\/\$\{.*\}\/submit/);
   assert.match(page,/\/accounting\/payouts\?/);
-  assert.match(part,/title=\{p.code\}/);
+  assert.match(part,/p.beneficiary_name/);
   assert.match(part,/channelMoney\(p.net_amount\)/);
 });
 

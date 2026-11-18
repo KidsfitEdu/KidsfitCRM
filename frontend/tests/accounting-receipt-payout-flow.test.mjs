@@ -35,5 +35,5 @@ test('Payout previews amount, withholding and approval process',()=>{
 test('Contract-scoped payout evidence and net receipts are shown',()=>{
   assert.ok(endpoint.includes('payoutIds.Contains(x.PayoutId.Value)'));
   assert.ok(endpoint.includes('refunded_total = refundedTotal'));
-  assert.ok(ui.includes('detail.refunded_total??0'));
+  assert.ok(ui.includes('drawerDetail.refunded_total??0'));
 });

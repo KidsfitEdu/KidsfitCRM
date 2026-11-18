@@ -74,7 +74,7 @@ test('KC-01 Accounting separates signed original term from the currently active 
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   const backend = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
   for (const key of ['source_service_start_on', 'source_service_end_on', 'source_payment_cycle']) {
-    assert.ok(ui.includes('detail.data.' + key), key);
+    assert.ok(ui.includes('drawerDetail.data.' + key)||ui.includes('detail?.data.' + key), key);
     assert.ok(backend.includes(key + ' = c.'), key);
   }
   // KC-02 history now appears once in the unified inline renewal section,
@@ -84,6 +84,6 @@ test('KC-01 Accounting separates signed original term from the currently active 
   assert.ok(renewal.includes('service_start_on'));
   assert.ok(renewal.includes('service_end_on'));
   assert.doesNotMatch(ui, /Kỳ sử dụng và tái ký đã xác nhận/);
-  assert.ok(ui.includes('Kỳ tiếp theo: {channelDate(row.next_service_start_on)}'));
+  assert.ok(ui.includes('const drawerStart=')&&ui.includes('const drawerEnd='));
   assert.ok(!ui.includes("detail.current_period?channelDate(detail.current_period.start_on):'Không có kỳ đang sử dụng'"));
 });

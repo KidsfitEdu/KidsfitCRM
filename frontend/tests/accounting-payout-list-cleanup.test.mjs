@@ -58,6 +58,6 @@ test('Accounting tabs use the same underline navigation visual language as Sales
   assert.match(page,/role="tab" key=\{item\.key\}/);
   assert.match(page,/aria-selected=\{accountingTab===item\.key\}/);
   assert.match(page,/setAccountingTab\(item\.key\)/);
-  assert.match(page,/overflow-x-auto border-b border-border bg-transparent/);
+  assert.match(page,/overflow-x-auto overflow-y-hidden border-b border-border bg-transparent/);
   assert.doesNotMatch(page,/rounded-lg px-4 py-2 text-sm font-semibold transition-colors/);
 });

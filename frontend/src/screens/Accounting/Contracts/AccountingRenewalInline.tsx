@@ -50,7 +50,6 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  focusAction?:'view'|'confirm'|'request-info';
 }){
  const [periods,setPeriods]=useState<ContractPeriod[]>([]);
- const [showOlderPeriods,setShowOlderPeriods]=useState(false);
  const [selected,setSelected]=useState<string|null>(null);
  const [detail,setDetail]=useState<RenewalDetail|null>(null);
  const [decision,setDecision]=useState<Decision|null>(null);
@@ -69,7 +68,6 @@ export function AccountingRenewalInline({apiBase,token,contractId,abilities,onCh
  const visiblePeriods=focusRenewalId
     ? periods.filter(p=>p.type==='RENEWAL'&&p.id===focusRenewalId)
     : periods.filter(p=>p.type==='ORIGINAL');
- const olderPeriodCount=periods.length-visiblePeriods.length;
 
  useEffect(()=>{
    if(!canReview){setLoading(false);return;}

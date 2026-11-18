@@ -2,7 +2,7 @@
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
-import { Fragment, useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal,  UserRound, UsersRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -133,7 +133,7 @@ type Detail = {
     protection_until:string|null };
   schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string; renewal_no?: number|null; contract_renewal_id?: number|null; renewal_signed_on?: string|null }[];
   refunded_total: number;
-  receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
+  receipts: { id: number; revenue_schedule_id:number|null; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; calculation_base:number;
     reason: string | null; occurred_at: string;
     period: string; beneficiary_user_id: number; beneficiary_name: string; beneficiary_organization_id: number;

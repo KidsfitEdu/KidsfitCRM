@@ -985,12 +985,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         <table className={adminTableClass+' table-fixed'}>
           <thead className={adminTableHeadClass}>
             <tr>
-              <th scope="col" className="w-[27%] px-4 py-3">Nhà trường</th>
-              <th scope="col" className="w-[14%] px-3 py-3">Ngày thu</th>
-              <th scope="col" className="w-[21%] px-3 py-3">Mã giao dịch</th>
-              <th scope="col" className="w-[17%] px-3 py-3 text-right">Số tiền</th>
-              <th scope="col" className="w-[13%] px-3 py-3">Trạng thái</th>
-              <th scope="col" className="w-[8%] px-2 py-3 text-center">Thao tác</th>
+              <th scope="col" className="w-[29%] whitespace-nowrap px-4 py-3">Nhà trường</th>
+              <th scope="col" className="w-[14%] whitespace-nowrap px-3 py-3">Ngày thu</th>
+              <th scope="col" className="w-[18%] whitespace-nowrap px-3 py-3 text-right">Số tiền</th>
+              <th scope="col" className="w-[21%] whitespace-nowrap px-3 py-3">Mã giao dịch</th>
+              <th scope="col" className="w-[10%] whitespace-nowrap px-2 py-3 text-center">Chứng từ</th>
+              <th scope="col" className="w-[8%] whitespace-nowrap px-2 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
@@ -1002,20 +1002,22 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <td className="whitespace-nowrap px-3 py-4 align-middle tabular-nums">
                 {channelDate(receipt.received_at)}
               </td>
-              <td className="min-w-0 break-all px-3 py-4 align-middle" title={receipt.reference_code||undefined}>
-                {receipt.reference_code}
-              </td>
               <td className="whitespace-nowrap px-3 py-4 text-right align-middle font-semibold tabular-nums">
                 {channelMoney(receipt.amount)}
               </td>
-              <td className="px-3 py-4 align-middle">
-                <AppStatusBadge status={receipt.status} tone="success" label="Đã ghi nhận" size="sm"/>
+              <td className="min-w-0 break-all px-3 py-4 align-middle" title={receipt.reference_code||undefined}>
+                {receipt.reference_code}
+              </td>
+              <td className="px-2 py-4 text-center align-middle">
+                {receipt.proof_id&&receipt.proof_file_name
+                  ?<AdminIconAction icon={ImageIcon} label={'Xem chứng từ khoản thu '+(receipt.reference_code||receipt.id)}
+                    onClick={()=>void viewEvidence(receipt.proof_id!,receipt.proof_file_name!)}/>
+                  :<span className="text-muted-foreground" aria-label="Không có chứng từ">—</span>}
               </td>
               <td className="px-2 py-4 text-center align-middle">
                 <div className="flex items-center justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem khoản thu '+(receipt.reference_code||receipt.id)}
                     onClick={()=>setReceiptPreview(receipt)}/>
-                  
                 </div>
               </td>
             </tr>)}

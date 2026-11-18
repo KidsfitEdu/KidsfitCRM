@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable jsx-a11y/prefer-tag-over-role -- Custom search combobox needs listbox semantics and remote pagination. */
+
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { AlertCircle, ArrowRight, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, WalletCards, X } from 'lucide-react';
@@ -833,7 +835,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setNeedsAction('ALL');
     setPage(1);
   };
-  const displayedPayouts=payoutRows;
   const visiblePayouts=payoutRows;
   const payoutChoices=eligibleRows;
   const candidateKey=(item:EligibleRow)=>[item.contract_id,item.beneficiary_user_id,item.beneficiary_role,item.period].join(':');

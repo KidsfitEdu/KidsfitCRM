@@ -66,7 +66,7 @@ test('Payout editing preserves manual adjustments, withholding and audit rationa
   assert.ok(page.includes('parseMoneyInput(payoutRequestedAmount)-parseMoneyInput(payoutWithholding)'));
   assert.ok(page.includes('withholding_reason:withholding>0?payoutWithholdingReason.trim():null'));
   assert.ok(page.includes('adjustment_reason:payoutAdjustmentReason.trim()||null'));
-  assert.ok(form.includes('editingPayout&&<div'));
-  assert.ok(form.includes('% Hoa hồng *'));
-  assert.ok(form.includes('Tiền hoa hồng (VNĐ) *'));
+  assert.ok(page.includes('editingPayout&&<div'));
+  assert.ok(page.includes('% Hoa hồng *'));
+  assert.ok(page.includes('Tiền hoa hồng (VNĐ) *'));
 });

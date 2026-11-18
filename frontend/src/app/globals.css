@@ -381,6 +381,12 @@ body { font-family: var(--font-brand); }
   padding-left: 2.25rem;
 }
 
+/* Keep contract amounts right-aligned, but move the header and values 12px left. */
+.crm-workspace-content table.crm-accounting-contract-table thead th.crm-contract-amount-cell,
+.crm-workspace-content table.crm-accounting-contract-table tbody td.crm-contract-amount-cell {
+  padding-right: 1.25rem;
+}
+
 /* Shared motion language: subtle, compositor-friendly, and accessible. */
 @keyframes crm-skeleton-shimmer {
   0% { background-position: 150% 0; }

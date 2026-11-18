@@ -36,7 +36,7 @@ export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,ca
         start:p.service_start_on,end:p.service_end_on,amount:p.total_value,
         status:p.status,action:p.status==='PENDING_ACCOUNTING'?'CONFIRM_RENEWAL':
           p.status==='NEEDS_INFO'?'NEEDS_INFO':null
-      })))
+      }))
     ];
     return {row,contracts:contracts.filter(p=>
       (!needsAction||p.action!==null)

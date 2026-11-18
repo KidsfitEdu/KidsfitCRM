@@ -332,7 +332,7 @@ public static class AccountingWorkspaceEndpoints
                 || (c.source_service_start_on.HasValue && c.source_service_start_on.Value.Year <= service_year.Value
                     && c.source_service_end_on.HasValue && c.source_service_end_on.Value.Year >= service_year.Value)
                 || c.periods.Any(p => p.service_start_on.Year <= service_year.Value
-                    && p.service_end_on.Year >= service_year.Value)))
+                    && p.service_end_on.Year >= service_year.Value))
             && ((!service_from.HasValue && !service_to.HasValue)
                 || (c.source_service_start_on.HasValue && c.source_service_end_on.HasValue
                     && (!service_from.HasValue || c.source_service_end_on.Value >= service_from.Value)

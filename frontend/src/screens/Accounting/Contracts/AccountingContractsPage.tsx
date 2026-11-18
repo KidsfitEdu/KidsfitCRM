@@ -833,7 +833,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
   };
   const payoutDraftForm=detail&&payoutDialogOpen?(
-    <form className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
+    <form id="accounting-payout-draft-form" className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
         {editingPayout?.status==='CHANGES_REQUESTED'&&<section className="rounded-xl border border-amber-300/70 bg-amber-50/70 p-4 dark:border-amber-800 dark:bg-amber-950/30">
           <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
             <MessageSquareText aria-hidden="true" className="size-4"/> BGĐ yêu cầu bổ sung
@@ -911,13 +911,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           Giá trị chính thức sẽ được Backend kiểm tra.
         </p>
         {payoutError&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{payoutError}</p>}
-        <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" className="w-full sm:w-auto"
-            disabled={saving} onClick={()=>{setPayoutDialogOpen(false);setPayoutPickerOpen(false);payoutKey.current=null;}}>Hủy</Button>
-          <Button type="submit" className="w-full sm:w-auto" disabled={saving||(!editingPayout&&!chosenPeriod)}>
-            {saving?'Đang lưu...':'Lưu nháp'}
-          </Button>
-        </div>
       </form>
   ):null;
   const financialTransactionForm=detail&&entryMode?(
@@ -1289,7 +1282,16 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       </div>}
     </AppDialog>
     <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!saving&&!open){setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);setEditingPayout(null);}}}
-      title="Lập phiếu chi hoa hồng" description="Chọn kỳ, nhà trường và người hưởng có hoa hồng đủ điều kiện. Sau đó kiểm tra số tiền trong form Nháp.">
+      busy={saving} title="Lập phiếu chi hoa hồng"
+      description="Chọn kỳ hoa hồng, nhà trường và người hưởng đủ điều kiện."
+      footer={!payoutDialogOpen&&!centralPayoutIntent?<>
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setPayoutPickerOpen(false)}>Hủy</AppButton>
+        <AppButton type="button" tone="green" disabled={!chosenCandidate||eligibleLoading||saving} onClick={()=>{
+          if(!chosenCandidate)return;
+          openCentralPayout({contractId:chosenCandidate.contract_id,beneficiaryUserId:chosenCandidate.beneficiary_user_id,
+            role:chosenCandidate.beneficiary_role,period:chosenCandidate.period,mode:'CREATE'});
+        }}>Tiếp tục lập phiếu</AppButton>
+      </>:undefined}>
       {payoutDialogOpen&&detail?payoutDraftForm:centralPayoutIntent?
         <output className="block py-6 text-center text-sm text-muted-foreground">Đang tải phiếu chi...</output>:
         <div className="space-y-4">
@@ -1332,15 +1334,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               onClick={()=>{setEligiblePage(x=>x+1);setPayoutCandidateKey('');}}>Sau</Button>
           </div>
         </div>}
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-          <Button type="button" variant="outline" onClick={()=>setPayoutPickerOpen(false)}>Hủy</Button>
-          <Button type="button" disabled={!chosenCandidate||eligibleLoading||saving}
-            onClick={()=>{
-              if(!chosenCandidate)return;
-              openCentralPayout({contractId:chosenCandidate.contract_id,beneficiaryUserId:chosenCandidate.beneficiary_user_id,
-                role:chosenCandidate.beneficiary_role,period:chosenCandidate.period,mode:'CREATE'});
-            }}>Tiếp tục lập phiếu</Button>
-        </div>
       </div>}
     </AppDialog>
     <AppDialog open={payoutPreview!==null}
@@ -1837,7 +1830,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       open={Boolean(detail&&payoutDialogOpen&&!payoutPickerOpen)}
       onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open){payoutKey.current=null;setEditingPayout(null);}}}}
       busy={saving} title={editingPayout?'Chỉnh sửa phiếu chi Nháp':'Lập phiếu chi hoa hồng'}
-      description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh.">
+      description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh."
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{
+          setPayoutDialogOpen(false);setPayoutPickerOpen(false);payoutKey.current=null;
+        }}>Hủy</AppButton>
+        <AppButton type="submit" form="accounting-payout-draft-form" tone="green"
+          busy={saving} disabled={!editingPayout&&!chosenPeriod}>Lưu nháp</AppButton>
+      </>}>
       {payoutDraftForm}
     </AppDialog>
     <AppDialog open={Boolean(detail && entryMode==='payout')} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}

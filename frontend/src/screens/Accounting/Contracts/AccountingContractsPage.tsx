@@ -921,7 +921,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       </form>
   ):null;
   const financialTransactionForm=detail&&entryMode?(
-    <form noValidate className="space-y-4" onChange={event=>{
+    <form id="accounting-financial-transaction-form" noValidate className="space-y-4" onChange={event=>{
         const name = event.target.getAttribute('name') as keyof FieldErrors | null;
         if (!name) return;
         setFieldErrors(current => {
@@ -934,9 +934,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
           <select name="schedule_id" required value={selectedScheduleId??''}
             onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);receiptAttempt.current=null;setFieldErrors({});}}
-            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+            className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
-              {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng gốc'} · {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
+              {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'} · {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
           </select>{selectedScheduleId!==null&&<p className="text-xs text-muted-foreground">
               Còn phải thu: {channelMoney(Math.max(0,
                 (detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_due??0)-
@@ -947,14 +947,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               const id=Number(e.target.value);
               setSelectedPayoutId(id);receiptAttempt.current=null;setFieldErrors({});
               setAmountInput(String(detail.payouts.find(x=>x.id===id)?.net_amount??''));
-            }} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+            }} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
           </select>{fieldErrors.payout_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.payout_id}</span>}</label>}
-        <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
+        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
           <Input id="accounting-transaction-date" type="date" name="transaction_date" required
             aria-invalid={Boolean(fieldErrors.transaction_date)} value={transactionDate}
             onChange={event=>setTransactionDate(event.target.value)}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
-        <div className="space-y-1"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
+        <div className="space-y-1.5"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
           <div className="relative">
             <AppCurrencyInput id="accounting-amount" name="amount"
               placeholder="0" required aria-invalid={Boolean(fieldErrors.amount)} value={amountInput}
@@ -963,6 +964,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">đ</span>
           </div>
           {fieldErrors.amount && <p role="alert" className="text-xs text-red-700">{fieldErrors.amount}</p>}</div>
+        </div>
         {entryMode==='payout' && <p className="text-xs text-muted-foreground">Số tiền chi phải khớp phiếu chi đã duyệt; chưa hỗ trợ chia nhỏ một phiếu chi.</p>}
         <div className="space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch ngân hàng *</label>
           <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}
@@ -972,10 +974,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required aria-invalid={Boolean(fieldErrors.proof)}/>
           {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
-        <div className="flex flex-wrap justify-end gap-3 border-t border-border/70 pt-4">
-          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{setEntryMode(null);if(entryMode==='receipt'){setReceiptIntent(false);setSelected(null);}}}>Hủy</AppButton>
-          <AppButton type="submit" tone="green" busy={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</AppButton>
-        </div>
       </form>
   ):null;
   return <div className="min-w-0 space-y-5">
@@ -1226,8 +1224,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
     </AdminListPanel>}
     <AppDialog open={receiptIntent} onOpenChange={open=>{if(!open&&!saving){setReceiptIntent(false);setEntryMode(null);setSelected(null);}}}
-      title="Thêm khoản thu từ nhà trường"
-      description="Chọn trường và kỳ thanh toán, nhập thông tin cùng chứng từ để ghi nhận tiền thực thu.">
+      busy={saving} title="Ghi nhận khoản thu nhà trường"
+      description="Chọn nhà trường, kỳ thanh toán và chứng từ. Khoản thu chỉ được ghi nhận sau khi xác nhận."
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} className="h-11 min-w-28"
+          onClick={()=>{setReceiptIntent(false);setEntryMode(null);setSelected(null);}}>Hủy</AppButton>
+        {entryMode==='receipt'&&detail&&
+          <AppButton type="submit" form="accounting-financial-transaction-form" tone="green"
+            busy={saving} className="h-11 min-w-40">Ghi nhận khoản thu</AppButton>}
+      </>}>
       {entryMode==='receipt'&&detail?financialTransactionForm:<div className="space-y-4">
         <label htmlFor="receivable-contract-search" className="block space-y-1 text-sm font-medium">
           <span>Tìm nhà trường / Hợp đồng</span>
@@ -1258,9 +1263,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               onClick={()=>setReceivablePage(v=>v+1)}>Sau</Button>
           </div>
         </div>}
-        <div className="flex justify-end border-t border-border pt-3">
-          <Button type="button" variant="outline" onClick={()=>{setReceiptIntent(false);setSelected(null);}}>Hủy</Button>
-        </div>
       </div>}
     </AppDialog>
     <AppDialog open={receiptPreview!==null} onOpenChange={open=>{if(!open)setReceiptPreview(null);}}
@@ -1840,7 +1842,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     </AppDialog>
     <AppDialog open={Boolean(detail && entryMode==='payout')} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}
       busy={saving} title="Ghi nhận chuyển khoản phiếu chi"
-      description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
+      description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch."
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</AppButton>
+        <AppButton type="submit" form="accounting-financial-transaction-form"
+          tone="green" busy={saving}>Xác nhận đã chuyển tiền</AppButton>
+      </>}>
       {financialTransactionForm}
     </AppDialog>
     <EvidencePreviewDialog preview={preview} onClose={closePreview}/>

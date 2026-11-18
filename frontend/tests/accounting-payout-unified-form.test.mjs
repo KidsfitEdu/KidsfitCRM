@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 const page=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingContractsPage.tsx'),'utf8');
 const api=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/AccountingPayoutEndpoints.cs'),'utf8');
 const start=page.indexOf('    <AppDialog open={payoutPickerOpen}');
-const end=page.indexOf('    <AppDialog open={payoutPreview!==null}',start);
+const end=page.indexOf('    <AppDrawer open={payoutPreview!==null}',start);
 const form=page.slice(start,end);
 test('New payout uses one form without editable commission period or a next step',()=>{
   assert.doesNotMatch(form,/payoutPeriodLabel\(payoutCreatePeriod\)|Kỳ hoa hồng/);

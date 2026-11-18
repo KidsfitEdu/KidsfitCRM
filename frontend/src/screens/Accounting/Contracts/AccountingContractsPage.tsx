@@ -315,8 +315,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     let active=true;setEligibleLoading(true);
     const params=new URLSearchParams({page:String(eligiblePage),page_size:'20'});
     if(payoutPickerSearch.trim())params.set('search',payoutPickerSearch.trim());
-    if(financeRole!=='ALL')params.set('role',financeRole);
-    if(financeOrganization!=='ALL')params.set('organization_id',financeOrganization);
+    // New drafts are independent of list-only role/organization filters.
     void channelRequest<EligibleRegister>(apiBase,token,'/accounting/eligible-payouts?'+params)
       .then(res=>{if(active){setEligibleRows(res.data);setEligibleTotal(res.total);}})
       .catch(cause=>{if(active)appNotice.error('Không tải được khoản hoa hồng đủ điều kiện.',
@@ -324,7 +323,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       .finally(()=>{if(active)setEligibleLoading(false);});
     return()=>{active=false;};
   },[apiBase,token,connected,canCreatePayout,accountingTab,
-    payoutPickerOpen,payoutPickerSearch,eligiblePage,financeRole,financeOrganization,detailRevision]);
+    payoutPickerOpen,payoutPickerSearch,eligiblePage,detailRevision]);
 
   // Retrieve all eligible role choices for the selected contract (not just the
   // current school-search page). The server owns authorization and eligibility.

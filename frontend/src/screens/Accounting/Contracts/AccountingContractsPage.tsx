@@ -214,6 +214,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [payoutSchool,setPayoutSchool]=useState<{id:number;code:string;name:string}|null>(null);
   const [payoutSchoolCandidates,setPayoutSchoolCandidates]=useState<EligibleRow[]>([]);
   const [payoutSchoolLoading,setPayoutSchoolLoading]=useState(false);
+  const [payoutDetailError,setPayoutDetailError]=useState('');
   const [payoutPreview,setPayoutPreview]=useState<PayoutRow|null>(null);
   const [centralPayoutIntent,setCentralPayoutIntent]=useState<{
     contractId:number;beneficiaryUserId:number;role:'SALES'|'MANAGER';period:string;
@@ -380,8 +381,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       setDetail(null);
     }
     void channelRequest<Detail>(apiBase, token, `/accounting/contracts/${selected}`)
-      .then(value => { if (live) setDetail(value); })
-      .catch(cause => { if (live) appNotice.error('Không tải được chi tiết hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); });
+      .then(value => { if (live) { setDetail(value); setPayoutDetailError(''); } })
+      .catch(cause => { if (live) {
+        setPayoutDetailError(cause instanceof Error?cause.message:'Vui lòng thử lại.');
+        appNotice.error('Không tải được chi tiết hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
+      } });
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
 
@@ -641,12 +645,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const choosePayoutSchool=(contractId:number)=>{
     const school=payoutSchools.find(x=>x.id===contractId);
     if(!school)return;
-    setPayoutSchool(school);setPayoutCandidateKey('');
+    setPayoutSchool(school);setPayoutCandidateKey('');setPayoutDetailError('');
     setPayoutDialogOpen(false);setCentralPayoutIntent(null);
     setEditingPayout(null);setSelected(null);setDetail(null);payoutKey.current=null;
   };
   const choosePayoutBeneficiary=(key:string)=>{
-    setPayoutCandidateKey(key);
+    setPayoutCandidateKey(key);setPayoutDetailError('');
     const candidate=payoutSchoolCandidates.find(x=>candidateKey(x)===key);
     if(!candidate||candidate.contract_id!==payoutSchool?.id||candidate.period!==payoutCreatePeriod)return;
     setPayoutDialogOpen(false);setEditingPayout(null);payoutKey.current=null;
@@ -665,7 +669,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         &&x.period===intent.period);
       const amount=entries.reduce((sum,x)=>sum+x.amount,0);
       if(amount<=0){
-        appNotice.error('Không còn hoa hồng đủ điều kiện để lập phiếu trong kỳ này.');
+        setPayoutDetailError('Không còn hoa hồng đủ điều kiện để lập phiếu trong kỳ này.');
       }else{
         const base=entries.filter(x=>x.entry_type==='ACCRUAL').reduce((sum,x)=>sum+x.calculation_base,0);
         setPayoutBeneficiary(intent.role+':'+intent.beneficiaryUserId);
@@ -674,7 +678,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         setPayoutRate(String(base>0?Number((amount/base*100).toFixed(4)):0));
         setPayoutRequestedAmount(String(amount));
         setPayoutAdjustmentReason('');setPayoutWithholding('0');
-        setPayoutWithholdingReason('');setPayoutError('');
+        setPayoutWithholdingReason('');setPayoutError('');setPayoutDetailError('');
         payoutKey.current=null;setPayoutDialogOpen(true);
       }
     }else{
@@ -847,7 +851,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             {editingPayout.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1)?.reason?.trim()||'Chưa có nội dung yêu cầu.'}
           </p>
         </section>}
-        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
+        {editingPayout&&<div className="rounded-xl border border-border/80 bg-muted/20 p-4">
           <p className="text-xs font-medium text-muted-foreground">Người hưởng</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <UserRound className="size-4 text-primary" aria-hidden="true"/>
@@ -859,7 +863,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {payoutPeriodLabel(editingPayout?.period??chosenPeriod)}</p>
-        </div>
+        </div>}
         <div className="space-y-3 rounded-xl border border-border/80 p-4">
           <p className="text-xs text-muted-foreground">Hệ thống đề xuất:{' '}
             {editingPayout?.suggested_rate_percent??suggestedRate}% ·
@@ -867,7 +871,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <label htmlFor="payout-rate" className="text-sm font-medium">% Hoa hồng</label>
+              <label htmlFor="payout-rate" className="text-sm font-medium">% Hoa hồng *</label>
               <Input id="payout-rate" type="number" min={0} max={100} step="0.0001"
                 value={payoutRate} onChange={event=>{
                   const rate=event.target.value;setPayoutRate(rate);payoutKey.current=null;
@@ -879,7 +883,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 }}/>
             </div>
             <div className="space-y-1">
-              <label htmlFor="payout-amount" className="text-sm font-medium">Tiền hoa hồng (VNĐ)</label>
+              <label htmlFor="payout-amount" className="text-sm font-medium">Tiền hoa hồng (VNĐ) *</label>
               <AppCurrencyInput id="payout-amount" value={payoutRequestedAmount}
                 onValueChange={value=>{setPayoutRequestedAmount(value);payoutKey.current=null;}}/>
             </div>
@@ -1454,15 +1458,22 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           {payoutSchool&&!payoutSchoolLoading&&payoutSchoolCandidates.length===0&&
             <p className="text-xs text-muted-foreground">Không còn người hưởng đủ điều kiện cho hợp đồng này.</p>}
         </div>
-        {chosenCandidate&&<div className="rounded-xl border border-border/80 bg-muted/20 p-3">
-          <p className="text-xs text-muted-foreground">Khoản hoa hồng được chọn</p>
-          <p className="mt-1 break-words text-sm font-semibold">{chosenCandidate.school_name} · {chosenCandidate.beneficiary_name}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{chosenCandidate.contract_code} · {payoutPeriodLabel(chosenCandidate.period)}</p>
-        </div>}
-        {chosenCandidate&&centralPayoutIntent&&<output className="block rounded-lg border border-border p-3 text-sm text-muted-foreground">
-          Đang kiểm tra hồ sơ và số liệu hoa hồng...
+        {chosenCandidate&&centralPayoutIntent&&<output aria-live="polite" className="block rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+          Đang tải tỷ lệ và tiền hoa hồng từ hợp đồng đã chọn...
         </output>}
-        {payoutCreateReady&&payoutDraftForm}
+        {payoutDetailError&&chosenCandidate&&<div role="alert" className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <p>{payoutDetailError}</p>
+          <Button type="button" variant="outline" size="sm" onClick={()=>{setPayoutDetailError('');setDetailRevision(value=>value+1);}}>Tải lại dữ liệu</Button>
+        </div>}
+        {!chosenCandidate&&!payoutSchoolLoading&&!eligibleLoading&&<div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          Chọn nhà trường và người hưởng để hệ thống tự điền tỷ lệ, tiền hoa hồng và dự kiến thực chi.
+        </div>}
+        {payoutCreateReady&&!payoutDetailError&&<div className="space-y-3" aria-live="polite">
+          <p className="flex items-center gap-2 text-xs font-medium text-primary">
+            <ClipboardCheck className="size-4" aria-hidden="true"/> Đã tự điền thông tin hoa hồng theo hợp đồng và người hưởng.
+          </p>
+          {payoutDraftForm}
+        </div>}
       </div>
     </AppDialog>
     <AppDialog open={payoutPreview!==null}

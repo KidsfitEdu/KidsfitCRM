@@ -17,7 +17,9 @@ test('New payout uses one form without editable commission period or a next step
   assert.ok(page.includes('setPayoutCreatePeriod(financePeriod)'));
 });
 test('Eligible beneficiaries scoped by school and exact period',()=>{
-  assert.ok(page.includes("search:payoutSchool.code,page:'1',page_size:'100'"));
+  assert.ok(page.includes("contract_id:String(payoutSchool.id),page:'1',page_size:'100'"));
+  assert.ok(api.includes('if (contract_id.HasValue) entries = entries.Where(x => x.ContractId == contract_id.Value);'));
+  assert.ok(api.includes('if (contract_id.HasValue && contract_id.Value <= 0)'));
   assert.ok(page.includes('item.contract_id===payoutSchool.id&&item.period===payoutCreatePeriod'));
   assert.ok(page.includes('choosePayoutSchool'));
   assert.ok(page.includes('choosePayoutBeneficiary'));
@@ -31,4 +33,13 @@ test('Existing approved payout workflow and edit dialog remain distinct',()=>{
   assert.ok(page.includes("if(intent.mode!=='CREATE')setPayoutPickerOpen(false)"));
   assert.ok(page.includes('setEditingPayout(payout)'));
   assert.ok(api.includes('Permissions.ChannelSalesPayoutCreate'));
+});
+
+test('Creating a payout pins the selected period and beneficiary without fallback',()=>{
+  assert.ok(page.includes("centralPayoutIntent?.mode==='CREATE'?payoutCreatePeriod"));
+  assert.ok(page.includes("centralPayoutIntent?.mode==='CREATE'?undefined:beneficiaries[0]"));
+  assert.ok(page.includes("chosenPeriod!==payoutCreatePeriod"));
+  assert.ok(page.includes("currentBeneficiary?.id!==centralPayoutIntent.beneficiaryUserId"));
+  assert.ok(page.includes("currentBeneficiary?.role!==centralPayoutIntent.role"));
+  assert.ok(page.includes("period:chosenPeriod,contract_id:detail.data.id"));
 });

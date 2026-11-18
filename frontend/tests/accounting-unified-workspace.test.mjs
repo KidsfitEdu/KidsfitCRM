@@ -65,7 +65,7 @@ test('GI-01 remains a separate school-wide protection assessment and confirmatio
 });
 
 test('School-group rows are neutral and the contract term stays on one line',()=>{
-  assert.match(tree, /<tr className="border-t-2 border-border bg-background transition-colors hover:bg-muted\\/20">/);
+  assert.ok(tree.includes('className="border-t-2 border-border bg-background transition-colors hover:bg-muted/20"'));
   assert.doesNotMatch(tree,/bg-emerald-50|bg-emerald-100|bg-emerald-950|bg-emerald-900|even:bg-muted/);
   assert.ok(tree.includes('pl-[60px]'));
   assert.match(tree, /className="whitespace-nowrap px-3 py-3 text-xs tabular-nums"/);

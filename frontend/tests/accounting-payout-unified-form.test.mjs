@@ -8,9 +8,9 @@ const start=page.indexOf('    <AppDialog open={payoutPickerOpen}');
 const end=page.indexOf('    <AppDialog open={payoutPreview!==null}',start);
 const form=page.slice(start,end);
 test('New payout uses one form without editable commission period or a next step',()=>{
-  assert.ok(form.includes('payoutPeriodLabel(payoutCreatePeriod)'));
+  assert.doesNotMatch(form,/payoutPeriodLabel\(payoutCreatePeriod\)|Kỳ hoa hồng/);
   assert.doesNotMatch(form,/type="month"|Tiếp tục lập phiếu/);
-  assert.ok(form.includes('Nhà trường / Hợp đồng *'));
+  assert.ok(form.includes('Nhà trường *'));
   assert.ok(form.includes('Người hưởng hoa hồng *'));
   assert.ok(form.includes('form="accounting-payout-draft-form"'));
   assert.ok(form.includes('{payoutCreateReady&&!payoutDetailError&&<div'));
@@ -46,8 +46,8 @@ test('Creating a payout pins the selected period and beneficiary without fallbac
 });
 
 test('Payout form remains empty until both contract and eligible beneficiary are selected',()=>{
-  assert.ok(form.includes('!chosenCandidate&&!payoutSchoolLoading&&!eligibleLoading'));
-  assert.ok(form.includes('Chọn nhà trường và người hưởng để hệ thống tự điền'));
+  assert.ok(form.includes('!chosenCandidate&&!payoutSchoolLoading'));
+  assert.ok(form.includes('Chọn nhà trường và người hưởng để hiển thị thông tin hoa hồng.'));
   assert.ok(form.includes('Đang tải tỷ lệ và tiền hoa hồng từ hợp đồng đã chọn'));
   assert.ok(form.includes('Đã tự điền thông tin hoa hồng theo hợp đồng và người hưởng'));
   assert.ok(form.includes('payoutDetailError&&chosenCandidate'));
@@ -69,4 +69,28 @@ test('Payout editing preserves manual adjustments, withholding and audit rationa
   assert.ok(page.includes('editingPayout&&<div'));
   assert.ok(page.includes('% Hoa hồng *'));
   assert.ok(page.includes('Tiền hoa hồng (VNĐ) *'));
+});
+
+test('School search is one accessible combobox with remote paging and selection',()=>{
+  assert.match(form,/role="combobox" aria-autocomplete="list"/);
+  assert.match(form,/role="listbox"/);
+  assert.match(form,/role="option"/);
+  assert.match(form,/onKeyDown=\{event=>/);
+  assert.match(form,/event\.key==='ArrowDown'/);
+  assert.match(form,/event\.key==='Enter'/);
+  assert.match(form,/choosePayoutSchool\(school\.id\)/);
+  assert.match(form,/aria-label="Bỏ chọn nhà trường"/);
+  assert.match(form,/setEligiblePage\(v=>v\+1\)/);
+  assert.doesNotMatch(form,/accounting-payout-school" aria-label="Chọn nhà trường và hợp đồng"/);
+  assert.doesNotMatch(form,/Nhà trường \/ Hợp đồng \*/);
+  assert.doesNotMatch(form,/description="Chọn nhà trường/);
+  assert.ok(page.includes('setPayoutSchool(school);setPayoutPickerSearch(school.name)'));
+  assert.ok(page.includes("setPayoutSchool(null);setPayoutCandidateKey('')"));
+});
+
+test('Payout empty placeholder has icon and hides draft amounts until beneficiary selected',()=>{
+  assert.match(form,/ClipboardCheck className="size-5 text-muted-foreground\/70"/);
+  assert.match(form,/Chọn nhà trường và người hưởng để hiển thị thông tin hoa hồng\./);
+  assert.ok(form.includes('{payoutCreateReady&&!payoutDetailError&&<div'));
+  assert.match(form,/disabled=\{!payoutCreateReady\|\|saving\}/);
 });

@@ -618,8 +618,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       &&entry.beneficiary_role===beneficiary.role)
     &&eligibleEntries.filter(entry=>entry.beneficiary_user_id===beneficiary.id
       &&entry.beneficiary_role===beneficiary.role).reduce((sum,entry)=>sum+entry.amount,0)>0);
+  // Do not silently choose a different beneficiary after the loading intent clears.
   const currentBeneficiary=beneficiaries.find(x=>x.key===payoutBeneficiary)
-    ??(centralPayoutIntent?.mode==='CREATE'?undefined:beneficiaries[0]);
+    ??(payoutPickerOpen&&!editingPayout?undefined:beneficiaries[0]);
   const eligibleByPeriod=new Map<string,number>();
   for(const entry of eligibleEntries){
     if(entry.beneficiary_user_id===currentBeneficiary?.id
@@ -630,7 +631,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const eligiblePeriods=[...eligibleByPeriod.entries()]
     .filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
   // A new draft must never silently jump to another month with eligible ledger entries.
-  const chosenPeriod=centralPayoutIntent?.mode==='CREATE'?payoutCreatePeriod:
+  const chosenPeriod=payoutPickerOpen&&!editingPayout?payoutCreatePeriod:
     (editingPayout?.period??(eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'')));
   const eligibleForSelection=eligibleEntries.filter(entry=>entry.period===chosenPeriod
     &&entry.beneficiary_role===currentBeneficiary?.role
@@ -739,12 +740,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     }finally{setBackfillBusy(false);}
   };
   const createPayout = async () => {
-    if(!detail||(!editingPayout&&(!chosenPeriod||!currentBeneficiary)))return;
-    if(!editingPayout&&(!centralPayoutIntent||centralPayoutIntent.mode!=='CREATE'
-      ||chosenPeriod!==payoutCreatePeriod||currentBeneficiary?.id!==centralPayoutIntent.beneficiaryUserId
-      ||currentBeneficiary?.role!==centralPayoutIntent.role)){
-      setPayoutError('Kỳ hoặc người hưởng đã thay đổi. Vui lòng chọn lại khoản hoa hồng.');return;
+    if(!detail)return;
+    // The loading intent is cleared after auto-fill; use the selected candidate
+    // and unassigned ledger as the source of truth for the draft.
+    const candidate=chosenCandidate;
+    if(!editingPayout&&(!payoutPickerOpen||!payoutCreateReady||!candidate
+      ||!payoutSchool||candidate.contract_id!==payoutSchool.id
+      ||detail.data.id!==candidate.contract_id||candidate.period!==payoutCreatePeriod
+      ||chosenPeriod!==payoutCreatePeriod
+      ||currentBeneficiary?.id!==candidate.beneficiary_user_id
+      ||currentBeneficiary?.role!==candidate.beneficiary_role
+      ||eligibleForSelection.reduce((sum,entry)=>sum+entry.amount,0)<=0)){
+      setPayoutError('Khoản hoa hồng không còn hợp lệ. Vui lòng kiểm tra lại nhà trường và người hưởng.');return;
     }
+    if(!editingPayout&&!currentBeneficiary)return;
     const rate=Number(payoutRate),amount=parseMoneyInput(payoutRequestedAmount),
       withholding=parseMoneyInput(payoutWithholding);
     if(!Number.isFinite(rate)||rate<0||rate>100||Math.round(rate*10000)!==rate*10000
@@ -770,8 +779,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         payoutKey.current??=crypto.randomUUID();
         await channelRequest(apiBase,token,'/payouts',{method:'POST',body:JSON.stringify({
           idempotency_key:payoutKey.current,organization_id:detail.data.owner_organization_id,
-          beneficiary_user_id:currentBeneficiary?.id,beneficiary_role:currentBeneficiary?.role,
-          period:chosenPeriod,contract_id:detail.data.id,withholding_amount:withholding,
+          beneficiary_user_id:candidate!.beneficiary_user_id,beneficiary_role:candidate!.beneficiary_role,
+          period:payoutCreatePeriod,contract_id:candidate!.contract_id,withholding_amount:withholding,
           withholding_reason:withholding>0?payoutWithholdingReason.trim():null,
           requested_rate_percent:rate,requested_amount:amount,
           adjustment_reason:payoutAdjustmentReason.trim()||null

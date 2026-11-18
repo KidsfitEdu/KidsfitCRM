@@ -105,7 +105,7 @@ export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,ca
             <th scope="col" className="px-4 py-3 whitespace-nowrap">Nhà trường</th>
             <th scope="col" className="px-3 py-3 whitespace-nowrap">Sales phụ trách</th>
             <th scope="col" className="px-2 py-3 text-left whitespace-nowrap">Thời hạn</th>
-            <th scope="col" className="crm-contract-amount-cell px-3 py-3 text-right whitespace-nowrap">Giá trị hợp đồng</th>
+            <th scope="col" className="crm-contract-amount-cell px-3 py-3 text-left whitespace-nowrap">Giá trị hợp đồng</th>
             <th scope="col" className="px-3 py-3 whitespace-nowrap">Tình trạng</th>
             <th scope="col" className="px-3 py-3 whitespace-nowrap">Cần xử lý</th>
             <th scope="col" className="px-2 py-3 text-center whitespace-nowrap">Thao tác</th>

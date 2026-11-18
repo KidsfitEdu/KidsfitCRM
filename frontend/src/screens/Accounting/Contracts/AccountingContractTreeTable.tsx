@@ -104,7 +104,7 @@ export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,ca
           <tr>
             <th scope="col" className="px-4 py-3 whitespace-nowrap">Nhà trường</th>
             <th scope="col" className="px-3 py-3 whitespace-nowrap">Sales phụ trách</th>
-            <th scope="col" className="px-3 py-3 text-right whitespace-nowrap">Thời hạn</th>
+            <th scope="col" className="px-2 py-3 text-left whitespace-nowrap">Thời hạn</th>
             <th scope="col" className="px-3 py-3 text-right whitespace-nowrap">Giá trị hợp đồng</th>
             <th scope="col" className="px-3 py-3 whitespace-nowrap">Tình trạng</th>
             <th scope="col" className="px-3 py-3 whitespace-nowrap">Cần xử lý</th>
@@ -176,7 +176,7 @@ function CompactGroup({row,contracts,collapsed,toggle,today,soon,canConfirm,canR
             <div className="min-w-0"><dt className="text-muted-foreground">Giá trị hợp đồng</dt>
               <dd className="mt-1 font-semibold tabular-nums">{channelMoney(p.amount)}</dd></div>
             <div className="col-span-2"><dt className="text-muted-foreground">Thời hạn</dt>
-              <dd className="mt-1 font-semibold tabular-nums">
+              <dd className="mt-1 font-normal tabular-nums">
                 {p.start&&p.end?channelDate(p.start)+' – '+channelDate(p.end):'Chưa cập nhật'}
               </dd></div>
             {p.action&&<div className="col-span-2"><dt className="text-muted-foreground">Cần xử lý</dt>
@@ -224,7 +224,7 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,canRequestI
           <p className="font-medium">{row.owner_name}</p>
           <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
         </td>
-        <td className="whitespace-nowrap px-2 py-3 text-right text-[13px] font-semibold tabular-nums">
+        <td className="whitespace-nowrap px-2 py-3 text-left text-[13px] font-normal tabular-nums">
           {p.start&&p.end?<span>{channelDate(p.start)} – {channelDate(p.end)}</span>:<span className="text-muted-foreground">Chưa cập nhật</span>}
         </td>
         <td className="whitespace-nowrap px-2 py-3 text-right font-semibold tabular-nums">{channelMoney(p.amount)}</td>

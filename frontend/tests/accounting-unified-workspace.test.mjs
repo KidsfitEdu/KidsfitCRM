@@ -68,7 +68,9 @@ test('School-group rows are neutral and the contract term stays on one line',()=
   assert.doesNotMatch(tree,/bg-emerald-50|bg-emerald-100|bg-emerald-950|bg-emerald-900|even:bg-muted/);
   assert.ok(tree.includes('crm-contract-school-cell'));
   assert.ok(tree.includes('font-semibold tabular-nums'));
-  assert.ok(tree.includes('whitespace-nowrap px-2 py-3 text-right text-[13px] font-semibold tabular-nums'));
+  assert.ok(tree.includes('<th scope="col" className="px-2 py-3 text-left whitespace-nowrap">Thời hạn</th>'));
+  assert.ok(tree.includes('whitespace-nowrap px-2 py-3 text-left text-[13px] font-normal tabular-nums'));
+  assert.ok(tree.includes('<dd className="mt-1 font-normal tabular-nums">'));
   assert.ok(tree.includes('{channelDate(p.start)} – {channelDate(p.end)}'));
   assert.doesNotMatch(tree,/đến \{channelDate\(p.end\)\}/);
   assert.ok(tree.includes('aria-expanded={!collapsed}'));

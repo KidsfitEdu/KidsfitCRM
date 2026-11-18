@@ -55,7 +55,7 @@ test('Payout form remains empty until both contract and eligible beneficiary are
   assert.ok(form.includes('Đã tự điền thông tin hoa hồng theo hợp đồng và người hưởng'));
   assert.ok(form.includes('payoutDetailError&&chosenCandidate'));
   assert.ok(form.includes('Tải lại dữ liệu'));
-  assert.ok(page.includes("setPayoutSchool(school);setPayoutCandidateKey('');setPayoutDetailError('')"));
+  assert.ok(page.includes("setPayoutSchool(school);setPayoutPickerSearch(school.name)"));
   assert.ok(page.includes("setPayoutRate(String(base>0?Number((amount/base*100).toFixed(4)):0))"));
   assert.ok(page.includes("setPayoutRequestedAmount(String(amount))"));
   assert.ok(page.includes("setPayoutWithholding('0')"));

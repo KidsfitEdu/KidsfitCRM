@@ -2,7 +2,7 @@
 
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, WalletCards } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -377,16 +377,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     return ()=>{active=false;};
   },[apiBase,token,selected,connected]);
 
-  const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
-    if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
-    if (!start || !end) return 'Chưa cập nhật';
-    const today = accountingBusinessDay(new Date());
-    if (today < start) return 'Chưa bắt đầu';
-    if (today > end) return 'Đã hết hạn';
-    const warning = new Date(today + 'T00:00:00Z');
-    warning.setUTCDate(warning.getUTCDate()+30);
-    return end <= warning.toISOString().slice(0,10)?'Sắp hết hạn':'Còn hiệu lực';
-  };
 
   const viewEvidence = async (id: number, name: string, inNewTab = false) => {
     // Open synchronously on click to avoid popup blockers, then load authenticated bytes.

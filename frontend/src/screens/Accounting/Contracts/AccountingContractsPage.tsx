@@ -329,7 +329,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     }
     let alive=true;setPayoutSchoolLoading(true);setPayoutSchoolCandidates([]);
     const params=new URLSearchParams({period:payoutCreatePeriod,
-      search:payoutSchool.code,page:'1',page_size:'100'});
+      contract_id:String(payoutSchool.id),page:'1',page_size:'100'});
     void channelRequest<EligibleRegister>(apiBase,token,'/accounting/eligible-payouts?'+params)
       .then(result=>{if(alive)setPayoutSchoolCandidates(result.data.filter(item=>
         item.contract_id===payoutSchool.id&&item.period===payoutCreatePeriod&&item.amount>0));})
@@ -612,7 +612,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       &&entry.beneficiary_role===beneficiary.role)
     &&eligibleEntries.filter(entry=>entry.beneficiary_user_id===beneficiary.id
       &&entry.beneficiary_role===beneficiary.role).reduce((sum,entry)=>sum+entry.amount,0)>0);
-  const currentBeneficiary=beneficiaries.find(x=>x.key===payoutBeneficiary)??beneficiaries[0];
+  const currentBeneficiary=beneficiaries.find(x=>x.key===payoutBeneficiary)
+    ??(centralPayoutIntent?.mode==='CREATE'?undefined:beneficiaries[0]);
   const eligibleByPeriod=new Map<string,number>();
   for(const entry of eligibleEntries){
     if(entry.beneficiary_user_id===currentBeneficiary?.id
@@ -622,7 +623,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   }
   const eligiblePeriods=[...eligibleByPeriod.entries()]
     .filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
-  const chosenPeriod=eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'');
+  // A new draft must never silently jump to another month with eligible ledger entries.
+  const chosenPeriod=centralPayoutIntent?.mode==='CREATE'?payoutCreatePeriod:
+    (editingPayout?.period??(eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'')));
   const eligibleForSelection=eligibleEntries.filter(entry=>entry.period===chosenPeriod
     &&entry.beneficiary_role===currentBeneficiary?.role
     &&entry.beneficiary_user_id===currentBeneficiary?.id);
@@ -729,6 +732,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   };
   const createPayout = async () => {
     if(!detail||(!editingPayout&&(!chosenPeriod||!currentBeneficiary)))return;
+    if(!editingPayout&&(!centralPayoutIntent||centralPayoutIntent.mode!=='CREATE'
+      ||chosenPeriod!==payoutCreatePeriod||currentBeneficiary?.id!==centralPayoutIntent.beneficiaryUserId
+      ||currentBeneficiary?.role!==centralPayoutIntent.role)){
+      setPayoutError('Kỳ hoặc người hưởng đã thay đổi. Vui lòng chọn lại khoản hoa hồng.');return;
+    }
     const rate=Number(payoutRate),amount=parseMoneyInput(payoutRequestedAmount),
       withholding=parseMoneyInput(payoutWithholding);
     if(!Number.isFinite(rate)||rate<0||rate>100||Math.round(rate*10000)!==rate*10000

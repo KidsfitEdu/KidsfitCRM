@@ -31,5 +31,5 @@ test('Accounting creation-month filter and ledger source period remain separate'
   assert.match(accounting,/setPayoutCreatePeriod\(candidate\.period\)/);
   assert.match(backend,/x\.CreatedAt >= from && x\.CreatedAt < to/);
   assert.match(backend,/x\.Period == commissionPeriod/);
-  assert.match(backend,/x\.Period == period/);
+  assert.match(backend,/entries\.Where\(x => x\.Period == commissionPeriod\)/);
 });

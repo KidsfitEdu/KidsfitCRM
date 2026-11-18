@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Eye, Check } from 'lucide-react';
+import { Pencil, Eye, Check, X } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AppButton } from '@/components/common/buttons/app-button';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { FormError } from '@/components/common/form-error';
@@ -27,12 +28,20 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
   const proposalServerPage=Math.floor(((page-1)*proposalPageSize)/100)+1;
   const [busy,setBusy]=useState(false);const [reasonError,setReasonError]=useState('');
   const [selected,setSelected]=useState<number|null>(null);const [reason,setReason]=useState('');
+  const [reviewMode,setReviewMode]=useState<'approve'|'reject'|null>(null);
+  const [decisionBusy,setDecisionBusy]=useState(false);
   const [editing,setEditing]=useState<number|null>(null);
   const [detailId,setDetailId]=useState<number|null>(null);
   const [detail,setDetail]=useState<AdminProposalProfile|null>(null);
   const [detailLoading,setDetailLoading]=useState(false);
   const can=(permission:string)=>abilities.includes('*')||abilities.includes(permission);
   const preview=!apiBase;
+  const openDecision=(id:number,mode:'approve'|'reject')=>{
+    setSelected(id);setReviewMode(mode);setReason('');setReasonError('');
+  };
+  const closeDecision=()=>{
+    setSelected(null);setReviewMode(null);setReason('');setReasonError('');
+  };
   const reload=useCallback(async()=>{
     if(preview||!token)return;setBusy(true);
     try{setOperations(await fetchAdminOperations(apiBase,token,proposalServerPage,search,statusFilter));}
@@ -40,11 +49,33 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
     finally{setBusy(false);}
   },[apiBase,token,preview,proposalServerPage,search,statusFilter]);
   useEffect(()=>{void reload();},[reload]);
-  const updateProposal=async(id:number,approve:boolean,duplicateReviewed:boolean)=>{
-    if(!reason.trim()){setReasonError('Cần nhập căn cứ quyết định.');return;}
-    setReasonError('');setBusy(true);
-    try{await reviewAdminProposal(apiBase,token,id,approve,reason,duplicateReviewed);setSelected(null);setReason('');appNotice.success(approve?'Đã phê duyệt đề xuất trường.':'Đã từ chối đề xuất trường.');await reload();try{await onChanged();}catch(e){appNotice.warning('Đã lưu, nhưng chưa cập nhật được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}}
-    catch(e){appNotice.error('Không lưu được quyết định đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');}finally{setBusy(false);}
+  const updateProposal=async(id:number,approve:boolean)=>{
+    if(decisionBusy)return;
+    if(!approve&&!reason.trim()){
+      setReasonError('Vui lòng nhập lý do từ chối.');
+      return;
+    }
+    const proposal=operations?.proposals.find(p=>p.id===id);
+    if(!proposal?.can_admin_review){
+      appNotice.error('Đề xuất không còn ở bước chờ Admin duyệt.','Vui lòng tải lại danh sách.');
+      await reload();
+      return;
+    }
+    if(approve&&proposal.possible_duplicate){
+      appNotice.warning('Đề xuất có dấu hiệu trùng.','Cần kiểm tra thông tin trường trước khi phê duyệt.');
+      return;
+    }
+    setReasonError('');setDecisionBusy(true);
+    try{
+      await reviewAdminProposal(apiBase,token,id,approve,approve?null:reason.trim(),false);
+      closeDecision();
+      appNotice.success(approve?'Đã phê duyệt đề xuất trường.':'Đã từ chối đề xuất trường.');
+      await reload();
+      try{await onChanged();}
+      catch(e){appNotice.warning('Đã lưu, nhưng chưa cập nhật được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng mở lại trang.');}
+    }catch(e){
+      appNotice.error('Không lưu được quyết định đề xuất.',e instanceof Error?e.message:'Vui lòng thử lại.');
+    }finally{setDecisionBusy(false);}
   };
   const openDetail=async(id:number)=>{
     if(preview)return;
@@ -66,6 +97,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
   };
   const proposalOffset=((page-1)*proposalPageSize)%100;
   const proposals=operations?.pagination?.page===proposalServerPage?operations.proposals.slice(proposalOffset,proposalOffset+proposalPageSize):[];
+  const selectedProposal=operations?.proposals.find(p=>p.id===selected);
   return <AdminPageStatus apiBase={apiBase}>
     <div className="space-y-5">
   <AppPageHeader eyebrow="QUẢN TRỊ / ĐỀ XUẤT TRƯỜNG" title="Quản lý đề xuất trường" description="Tiếp nhận, rà soát và phê duyệt đề xuất trường theo thẩm quyền."/>
@@ -89,9 +121,13 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
           <td className="px-5 py-4 text-center"><AdminStatusBadge status={p.status} label={workflowLabels[p.status]??p.status}/></td>
           <td className="px-5 py-4 text-center tabular-nums">{workflowDate(p.review_due_at)}</td>
           <td className="px-5 py-4"><div className="flex items-center justify-center gap-2">
-            {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <AdminIconAction icon={Pencil} tone="blue" label={`Chỉnh sửa ${p.name}`} onClick={()=>setEditing(p.id)}/>}
-            {!preview && !['DRAFT','NEEDS_REVISION'].includes(p.status) && can('channel_sales.school.directory.manage') && <AdminIconAction icon={Eye} tone="neutral" label={`Xem chi tiết ${p.name}`} onClick={()=>void openDetail(p.id)}/>}
-            {p.can_admin_review && !preview && <AdminIconAction icon={Check} tone="green" label={`Duyệt ${p.name}`} onClick={()=>{setSelected(p.id);setReason('');setReasonError('');}}/>}
+            {p.status==='PENDING_ADMIN' && can('channel_sales.school.directory.manage') && !preview && <AdminIconAction icon={Pencil} tone="blue" label={'Chỉnh sửa '+p.name} onClick={()=>setEditing(p.id)} disabled={decisionBusy}/>}
+            {!preview && !['DRAFT','NEEDS_REVISION'].includes(p.status) && can('channel_sales.school.directory.manage') && <AdminIconAction icon={Eye} tone="green" label={'Xem chi tiết '+p.name} onClick={()=>void openDetail(p.id)} disabled={decisionBusy}/>}
+            {p.can_admin_review && !preview && <AdminIconAction icon={Check} tone="green"
+              label={p.possible_duplicate?'Cần kiểm tra trùng trước khi duyệt '+p.name:'Phê duyệt '+p.name}
+              disabled={decisionBusy||!!p.possible_duplicate} onClick={()=>openDecision(p.id,'approve')}/>}
+            {p.can_admin_review && !preview && <AdminIconAction icon={X} tone="red"
+              label={'Từ chối '+p.name} disabled={decisionBusy} onClick={()=>openDecision(p.id,'reject')}/>}
           </div></td>
         </tr>)}</tbody>
       </table>
@@ -120,14 +156,37 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
           <SchoolProfileDetails units={profileUnits(detail)}/>
         </div>:<p className="text-sm text-muted-foreground">Không tải được thông tin đề xuất.</p>}
     </AppDrawer>
-    <AppDialog open={selected !== null} onOpenChange={open => {if(!open&&!busy)setSelected(null);}} busy={busy} title="Phê duyệt đề xuất trường" description="Kiểm tra thông tin và nhập căn cứ quyết định trước khi duyệt hoặc từ chối.">
-      {(() => { const p=operations?.proposals.find(x=>x.id===selected); return p ? <div className="space-y-3">
-        <p className="font-semibold">{p.name}</p><p className="text-sm text-muted-foreground">{[p.address,p.ward,p.province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</p>
-        <p className="text-sm">Liên hệ: {p.contact_name || 'Chưa có'} · {p.contact_phone || 'Chưa có'}</p>
-        {p.possible_duplicate && <p role="alert" className="text-sm text-amber-700">Có dấu hiệu trùng trường; vui lòng đối chiếu trước khi duyệt.</p>}
-        <label htmlFor="admin-proposal-review-reason" className="block text-sm font-medium">Lý do / căn cứ quyết định<Input id="admin-proposal-review-reason" className="mt-1" value={reason} onChange={e=>{setReason(e.target.value);setReasonError('');}}/><FormError>{reasonError}</FormError></label>
-        <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={()=>setSelected(null)}>Hủy</Button><Button variant="outline" disabled={busy} onClick={()=>void updateProposal(p.id,false,false)}>Từ chối</Button><Button disabled={busy || !!p.possible_duplicate} onClick={()=>void updateProposal(p.id,true,false)}>Duyệt</Button></div>
-      </div>:null; })()}
+    <ConfirmDialog open={reviewMode==='approve'&&selected!==null}
+      onOpenChange={open=>{if(!open&&!decisionBusy)closeDecision();}}
+      title="Xác nhận phê duyệt đề xuất"
+      description={selectedProposal?<>Bạn có xác nhận phê duyệt đề xuất trường <strong className="font-semibold text-foreground">{selectedProposal.name}</strong> và cập nhật vào danh bạ trường học chính thức không?</>:undefined}
+      confirmLabel="Xác nhận duyệt" busy={decisionBusy}
+      confirmDisabled={!selectedProposal?.can_admin_review||!!selectedProposal?.possible_duplicate}
+      onConfirm={()=>{if(selectedProposal)void updateProposal(selectedProposal.id,true);}}>
+      {selectedProposal?.possible_duplicate&&<p role="alert" className="text-sm text-amber-700 dark:text-amber-300">Đề xuất có dấu hiệu trùng trường. Cần đối chiếu hoặc chỉnh sửa thông tin trước khi phê duyệt.</p>}
+    </ConfirmDialog>
+    <AppDialog open={reviewMode==='reject'&&selected!==null}
+      onOpenChange={open=>{if(!open&&!decisionBusy)closeDecision();}}
+      busy={decisionBusy} contentClassName="sm:max-w-[520px]"
+      title="Từ chối đề xuất trường"
+      description="Vui lòng nhập lý do từ chối để Quản lý và Sales/CTV biết nội dung cần bổ sung."
+      footer={<>
+        <AppButton type="button" tone="neutral" className="min-w-24 rounded-full" disabled={decisionBusy} onClick={closeDecision}>Hủy</AppButton>
+        <AppButton type="button" tone="danger" className="min-w-36 rounded-full" busy={decisionBusy}
+          onClick={()=>{if(selectedProposal)void updateProposal(selectedProposal.id,false);}}>Xác nhận từ chối</AppButton>
+      </>}>
+      <div className="space-y-2">
+        <label htmlFor="admin-proposal-review-reason" className="block text-sm font-semibold">
+          Lý do từ chối <span className="text-destructive" aria-hidden="true">*</span>
+        </label>
+        <Textarea id="admin-proposal-review-reason" rows={3} maxLength={4000}
+          aria-required="true" aria-invalid={!!reasonError}
+          aria-describedby={reasonError?'admin-proposal-rejection-error':undefined}
+          placeholder="Nhập lý do từ chối đề xuất..."
+          className="min-h-[92px] resize-y rounded-xl bg-muted/25"
+          value={reason} onChange={e=>{setReason(e.target.value);setReasonError('');}} disabled={decisionBusy}/>
+        {reasonError&&<div id="admin-proposal-rejection-error"><FormError>{reasonError}</FormError></div>}
+      </div>
     </AppDialog>
     <AdminProposalProfileEditor open={editing!==null} proposalId={editing} apiBase={apiBase} token={token}
       onClose={()=>setEditing(null)} onSaved={async()=>{await reload();await onChanged();}}/>

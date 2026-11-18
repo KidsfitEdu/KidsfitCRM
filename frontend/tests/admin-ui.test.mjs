@@ -55,6 +55,21 @@ test('Admin proposal list hides school codes and reuses official school profile 
   assert.match(service, /JSON\.stringify\(\{\.\.\.payload,reason\}\)/);
 });
 
+test('Admin proposal approval uses confirmation and rejection requires a reason', () => {
+  const source = read('src/screens/Admin/Proposals/ProposalsPage.tsx');
+  assert.match(source, /icon=\{Check\} tone="green"/);
+  assert.match(source, /icon=\{X\} tone="red"/);
+  assert.match(source, /<ConfirmDialog open=\{reviewMode==='approve'/);
+  assert.match(source, /title="Xác nhận phê duyệt đề xuất"/);
+  assert.match(source, /reviewAdminProposal\(apiBase,token,id,approve,approve\?null:reason\.trim\(\),false\)/);
+  assert.match(source, /title="Từ chối đề xuất trường"/);
+  assert.match(source, /<Textarea id="admin-proposal-review-reason"/);
+  assert.match(source, /!approve&&!reason\.trim\(\)/);
+  assert.match(source, /disabled=\{decisionBusy\|\|!!p\.possible_duplicate\}/);
+  const service = read('src/services/proposal.service.ts');
+  assert.match(service, /reason:string\|null/);
+});
+
 test('All Admin views report server errors through shared toast; form errors stay inline', () => {
   for (const path of adminPages) {
     const source = read(path);

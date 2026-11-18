@@ -21,7 +21,7 @@ test('commission period is formatted for display without changing period submitt
   assert.match(page,/Tháng \$\{match\[2\]\}\/\$\{match\[1\]\}/);
   assert.match(page,/setPayoutPeriod\(intent\.period\)/);
   assert.match(page,/eligibleByPeriod\.get\(chosenPeriod\)/);
-  assert.match(page,/period:chosenPeriod/);
+  assert.match(page,/period:payoutCreatePeriod/);
 });
 test('draft payout actions remain permission guarded in the central payout detail dialog',()=>{
   assert.match(page,/payoutPreview\.can_edit/);

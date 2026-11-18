@@ -31,7 +31,7 @@ test('draft payout actions remain permission guarded in the central payout detai
   assert.match(page,/canCreatePayout/);
   assert.match(page,/mode:'EDIT'/);
   assert.match(page,/mode:'COMPLETE'/);
-  assert.match(page,/submitPayout\(id\)/);
+  assert.match(page,/submitPayout\(pendingPayoutSubmit\.id\)/);
   assert.match(page,/approvePayout\(id\)/);
   assert.match(page,/setReturningPayoutId\(payoutPreview\.id\)/);
 });

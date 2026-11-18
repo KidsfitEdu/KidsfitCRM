@@ -809,11 +809,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   };
   const displayedPayouts=payoutRows;
   const visiblePayouts=payoutRows;
-  const eligibleCandidates=eligibleRows;
   const payoutChoices=eligibleRows;
   const candidateKey=(item:EligibleRow)=>[item.contract_id,item.beneficiary_user_id,item.beneficiary_role,item.period].join(':');
-  const payoutSchools=Array.from(new Map(payoutChoices.map(item=>[item.contract_id,
-    {id:item.contract_id,code:item.contract_code,name:item.school_name}])).values());
+  const payoutSchools=Array.from(new Map<number,{id:number;code:string;name:string}>(
+    payoutChoices.map(item=>[item.contract_id,
+      {id:item.contract_id,code:item.contract_code,name:item.school_name}] as const)).values());
   const chosenCandidate=payoutSchoolCandidates.find(item=>candidateKey(item)===payoutCandidateKey);
   const payoutCreateReady=Boolean(payoutSchool&&chosenCandidate&&payoutDialogOpen&&
     !centralPayoutIntent&&!payoutSchoolLoading&&detail&&detail.data.id===payoutSchool.id&&
@@ -1424,7 +1424,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <label htmlFor="accounting-payout-beneficiary" className="block text-sm font-semibold">Người hưởng hoa hồng *</label>
           <Select value={chosenCandidate?candidateKey(chosenCandidate):''}
             disabled={!payoutSchool||payoutSchoolLoading||payoutSchoolCandidates.length===0}
-            onValueChange={choosePayoutBeneficiary}>
+            onValueChange={value=>{if(value)choosePayoutBeneficiary(value);}}>
             <SelectTrigger id="accounting-payout-beneficiary"
               className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left">
               <SelectValue placeholder="Chọn Sales hoặc Quản lý">

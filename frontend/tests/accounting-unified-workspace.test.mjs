@@ -66,8 +66,9 @@ test('GI-01 remains a separate school-wide protection assessment and confirmatio
 test('School-group rows are neutral and the contract term stays on one line',()=>{
   assert.ok(tree.includes('className="border-t-2 border-border bg-background transition-colors hover:bg-muted/20"'));
   assert.doesNotMatch(tree,/bg-emerald-50|bg-emerald-100|bg-emerald-950|bg-emerald-900|even:bg-muted/);
-  assert.ok(tree.includes('pl-[60px]'));
-  assert.match(tree, /className="whitespace-nowrap px-3 py-3 text-xs tabular-nums"/);
+  assert.ok(tree.includes('crm-contract-school-cell'));
+  assert.ok(tree.includes('font-semibold tabular-nums'));
+  assert.ok(tree.includes('whitespace-nowrap px-2 py-3 text-right text-[13px] font-semibold tabular-nums'));
   assert.ok(tree.includes('{channelDate(p.start)} – {channelDate(p.end)}'));
   assert.doesNotMatch(tree,/đến \{channelDate\(p.end\)\}/);
   assert.ok(tree.includes('aria-expanded={!collapsed}'));
@@ -75,7 +76,7 @@ test('School-group rows are neutral and the contract term stays on one line',()=
 
 test('Contract table reserves space for all three authorized review actions',()=>{
   assert.match(tree, /<colgroup>/);
-  for(const percent of ['23%','13%','16%','15%','11%','9%'])assert.ok(tree.includes(percent));
+  for(const percent of ['24%','13%','17%','7%'])assert.ok(tree.includes(percent));
   assert.ok(tree.includes("<col style={{width:'13%'}}/>"));
   assert.ok(tree.includes('whitespace-nowrap">Giá trị hợp đồng'));
   assert.ok(tree.includes('icon={Eye}'));
@@ -84,4 +85,17 @@ test('Contract table reserves space for all three authorized review actions',()=
   assert.ok(tree.includes("p.status==='PENDING_ACCOUNTING'&&canRequestInfo"));
   assert.ok(page.includes("openRenewal(contractId,renewalId,'request-info')"));
   assert.ok(page.includes("channel_sales.renewal.review"));
+});
+
+test('Contract tree fits the accounting panel and has no forced horizontal scroll',()=>{
+  const css=read('src/app/globals.css');
+  assert.ok(tree.includes("adminTableClass.replace('min-w-[760px]','min-w-0')"));
+  assert.doesNotMatch(tree,/min-w-\[1240px\]|overflow-x-auto/);
+  assert.ok(tree.includes('className="@container min-w-0"'));
+  assert.ok(tree.includes('@min-[1100px]:block'));
+  assert.ok(tree.includes('@min-[1100px]:hidden'));
+  assert.ok(tree.includes('<CompactGroup'));
+  assert.ok(tree.includes('<ContractActions'));
+  assert.ok(css.includes('table.crm-accounting-contract-table tbody td'));
+  assert.ok(css.includes('table.crm-accounting-contract-table tbody td.crm-contract-school-cell'));
 });

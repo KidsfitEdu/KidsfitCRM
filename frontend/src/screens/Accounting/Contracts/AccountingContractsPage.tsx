@@ -1144,7 +1144,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         <AppButton type="button" tone="neutral" disabled={saving} className="h-11 min-w-28"
           onClick={()=>{setReceiptIntent(false);setEntryMode(null);setSelected(null);setReceivableChoice(null);setReceivablePickerOpen(false);}}>Hủy</AppButton>
         <AppButton type="submit" form="accounting-financial-transaction-form" tone="green"
-          disabled={saving||!receivableChoice||!detail||detail.data.id!==selected||entryMode!=='receipt'}
+          disabled={saving||receivablePickerOpen||!receivableChoice||!detail||detail.data.id!==selected||entryMode!=='receipt'}
           busy={saving} className="h-11 min-w-40">Ghi nhận khoản thu</AppButton>
       </>}>
       <div className="space-y-4">
@@ -1162,18 +1162,17 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </AppButton>
             </div>:
             <div className="relative">
-              <Input id="receivable-contract-search" role="combobox" autoComplete="off"
+              <Input id="receivable-contract-search" autoComplete="off"
                 aria-expanded={receivablePickerOpen} aria-controls="receivable-contract-options"
                 value={receivableSearch} placeholder="Tìm tên trường hoặc mã hợp đồng..."
                 onFocus={()=>setReceivablePickerOpen(true)}
                 onChange={event=>{setReceivableSearch(event.target.value);setReceivablePage(1);setReceivablePickerOpen(true);}}
                 onKeyDown={event=>{if(event.key==='Escape'){setReceivablePickerOpen(false);event.stopPropagation();}}}/>
-              {receivablePickerOpen&&<div id="receivable-contract-options" role="listbox" aria-label="Hợp đồng còn phải thu"
+              {receivablePickerOpen&&<div id="receivable-contract-options" aria-label="Hợp đồng còn phải thu"
                 className="absolute inset-x-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl">
                 {receivableLoading?<output className="block p-3 text-sm text-muted-foreground">Đang tìm hợp đồng...</output>
                   :receivableRows.length===0?<p className="p-3 text-sm text-muted-foreground">Không có hợp đồng còn phải thu phù hợp.</p>
-                  :receivableRows.map(item=><button type="button" key={item.id} role="option"
-                    aria-selected={selected===item.id}
+                  :receivableRows.map(item=><button type="button" key={item.id}
                     className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
                     onClick={()=>{setReceivableChoice(item);setSelected(item.id);setEntryMode(null);
                       setDetail(null);setSelectedScheduleId(null);setFieldErrors({});setAmountInput('');
@@ -1209,7 +1208,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <output className="block rounded-lg border border-border/70 p-3 text-sm text-muted-foreground">
             {detail?.data.id===selected?'Đang kiểm tra các đợt thanh toán có thể thu...':'Đang tải thông tin hợp đồng...'}
           </output>}
-        {entryMode==='receipt'&&detail?.data.id===selected&&financialTransactionForm}
+        {!receivablePickerOpen&&entryMode==='receipt'&&detail?.data.id===selected&&financialTransactionForm}
       </div>
     </AppDialog>
     <AppDialog open={receiptPreview!==null} onOpenChange={open=>{if(!open)setReceiptPreview(null);}}

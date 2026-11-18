@@ -5,8 +5,8 @@ import test from 'node:test';
 const page=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingContractsPage.tsx'),'utf8');
 const api=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs'),'utf8');
 test('Receipt entry remains in one branded dialog with an inline school search',()=>{
-  assert.ok(page.includes('role="combobox"'));
-  assert.ok(page.includes('role="listbox"'));
+  assert.ok(page.includes('id="receivable-contract-search"'));
+  assert.ok(page.includes('id="receivable-contract-options"'));
   assert.ok(page.includes('receivableChoice'));
   assert.ok(page.includes('receivablePickerOpen'));
   assert.ok(page.includes("setSelected(item.id)"));

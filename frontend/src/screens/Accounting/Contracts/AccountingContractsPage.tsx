@@ -1216,7 +1216,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                   {p.can_complete&&p.contract_ids?.length===1&&
                     <AdminIconAction icon={WalletCards} label={'Ghi nhận chuyển khoản phiếu chi '+p.code}
                       disabled={saving} onClick={()=>openCentralPayout({
-                        contractId:p.contract_ids[0],
+                        contractId:p.contract_ids![0],
                         beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
                         period:p.period,mode:'COMPLETE',payoutId:p.id
                       })}/>}

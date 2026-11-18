@@ -73,3 +73,16 @@ test('School-group rows are neutral and the contract term stays on one line',()=
   assert.doesNotMatch(tree,/đến \{channelDate\(p.end\)\}/);
   assert.ok(tree.includes('aria-expanded={!collapsed}'));
 });
+
+test('Contract table reserves space for all three authorized review actions',()=>{
+  assert.match(tree, /<colgroup>/);
+  for(const percent of ['23%','13%','16%','15%','11%','9%'])assert.ok(tree.includes(percent));
+  assert.ok(tree.includes("<col style={{width:'13%'}}/>"));
+  assert.ok(tree.includes('whitespace-nowrap">Giá trị hợp đồng'));
+  assert.ok(tree.includes('icon={Eye}'));
+  assert.ok(tree.includes('icon={CheckCircle2}'));
+  assert.ok(tree.includes('icon={FilePenLine} tone="blue"'));
+  assert.ok(tree.includes("p.status==='PENDING_ACCOUNTING'&&canRequestInfo"));
+  assert.ok(page.includes("openRenewal(contractId,renewalId,'request-info')"));
+  assert.ok(page.includes("channel_sales.renewal.review"));
+});

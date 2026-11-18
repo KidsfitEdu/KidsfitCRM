@@ -26,12 +26,12 @@ export function AppDatePicker({value,onChange,label,className=''}:{
       <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true"/>
     </PopoverTrigger>
     <PopoverContent align="start" side="bottom" sideOffset={6}
-      className="z-[80] w-[min(320px,calc(100vw-24px))] rounded-xl border border-border bg-popover p-3 shadow-lg">
-      <p className="mb-2 text-sm font-semibold">{label}</p>
+      className="z-[80] w-[min(280px,calc(100vw-24px))] rounded-xl border border-border bg-popover p-2.5 shadow-lg">
+      <p className="mb-1.5 text-[13px] font-semibold">{label}</p>
       <Calendar mode="single" selected={selected} captionLayout="dropdown"
         startMonth={new Date(2000,0,1)} endMonth={new Date(2100,11,31)}
         showOutsideDays={false} locale={vi} weekStartsOn={1}
-        className="mx-auto w-fit max-w-full p-0"
+        className="mx-auto w-fit max-w-full p-0 [--cell-size:2rem]"
         onSelect={date=>{
           if(!date)return;
           onChange(format(date,'yyyy-MM-dd'));

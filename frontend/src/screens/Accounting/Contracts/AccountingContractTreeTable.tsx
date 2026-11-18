@@ -1,7 +1,7 @@
 'use client';
 
 import {useState} from 'react';
-import {CheckCircle2, ChevronDown, ChevronRight, Eye} from 'lucide-react';
+import {CheckCircle2, ChevronDown, ChevronRight, Eye, FilePenLine} from 'lucide-react';
 import {AdminIconAction, adminTableClass, adminTableHeadClass} from '@/components/common/admin-list-ui';
 import {AppStatusBadge} from '@/components/common/app-status-badge';
 import {Button} from '@/components/ui/button';
@@ -14,10 +14,11 @@ type PeriodRow={
   action:string|null;
 };
 
-export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,canConfirm,onView,onReview}:{
-  rows:ContractRow[];fromDate:string;toDate:string;needsAction:boolean;canConfirm:boolean;
+export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,canConfirm,canRequestInfo,onView,onReview,onRequestInfo}:{
+  rows:ContractRow[];fromDate:string;toDate:string;needsAction:boolean;canConfirm:boolean;canRequestInfo:boolean;
   onView:(contractId:number,renewalId:number|null)=>void;
   onReview:(contractId:number,renewalId:number)=>void;
+  onRequestInfo:(contractId:number,renewalId:number)=>void;
 }){
   const [collapsed,setCollapsed]=useState<Set<number>>(()=>new Set());
   const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -53,23 +54,30 @@ export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,ca
       </div>
     </div>
     <div className="w-full overflow-x-auto">
-      <table className={adminTableClass+' min-w-[1050px] table-fixed'}>
+      <table className={adminTableClass+' min-w-[1240px] table-fixed'}>
+        <colgroup>
+          <col style={{width:'23%'}}/><col style={{width:'13%'}}/>
+          <col style={{width:'16%'}}/><col style={{width:'15%'}}/>
+          <col style={{width:'11%'}}/><col style={{width:'9%'}}/>
+          <col style={{width:'13%'}}/>
+        </colgroup>
         <thead className={adminTableHeadClass}>
           <tr>
-            <th scope="col" className="w-[23%] px-4 py-3">Nhà trường</th>
-            <th scope="col" className="w-[13%] px-3 py-3">Sales phụ trách</th>
-            <th scope="col" className="w-[18%] px-3 py-3">Thời hạn</th>
-            <th scope="col" className="w-[12%] px-3 py-3 text-right">Giá trị hợp đồng</th>
-            <th scope="col" className="w-[13%] px-3 py-3">Tình trạng</th>
-            <th scope="col" className="w-[13%] px-3 py-3">Cần xử lý</th>
-            <th scope="col" className="w-[8%] px-2 py-3 text-center">Thao tác</th>
+            <th scope="col" className="px-4 py-3 whitespace-nowrap">Nhà trường</th>
+            <th scope="col" className="px-3 py-3 whitespace-nowrap">Sales phụ trách</th>
+            <th scope="col" className="px-3 py-3 whitespace-nowrap">Thời hạn</th>
+            <th scope="col" className="px-3 py-3 text-right whitespace-nowrap">Giá trị hợp đồng</th>
+            <th scope="col" className="px-3 py-3 whitespace-nowrap">Tình trạng</th>
+            <th scope="col" className="px-3 py-3 whitespace-nowrap">Cần xử lý</th>
+            <th scope="col" className="px-2 py-3 text-center whitespace-nowrap">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/70">
           {display.map(({row,contracts})=><Group key={row.id} row={row} contracts={contracts}
             collapsed={collapsed.has(row.id)} toggle={()=>setCollapsed(current=>{
               const next=new Set(current);if(next.has(row.id))next.delete(row.id);else next.add(row.id);return next;
-            })} today={today} soon={soon} canConfirm={canConfirm} onView={onView} onReview={onReview}/>)}
+            })} today={today} soon={soon} canConfirm={canConfirm} canRequestInfo={canRequestInfo}
+            onView={onView} onReview={onReview} onRequestInfo={onRequestInfo}/>)}
           {display.length===0&&<tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-muted-foreground">
             Không có hợp đồng phù hợp với bộ lọc.
           </td></tr>}
@@ -79,11 +87,12 @@ export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,ca
   </div>;
 }
 
-function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onReview}:{
+function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,canRequestInfo,onView,onReview,onRequestInfo}:{
   row:ContractRow;contracts:PeriodRow[];collapsed:boolean;toggle:()=>void;
-  today:string;soon:string;canConfirm:boolean;
+  today:string;soon:string;canConfirm:boolean;canRequestInfo:boolean;
   onView:(contractId:number,renewalId:number|null)=>void;
   onReview:(contractId:number,renewalId:number)=>void;
+  onRequestInfo:(contractId:number,renewalId:number)=>void;
 }){
   const tasks=contracts.filter(p=>p.action).length;
   return <>
@@ -136,12 +145,16 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
             :<span className="text-muted-foreground">—</span>}
         </td>
         <td className="px-2 py-3 text-center">
-          <div className="flex justify-center gap-1">
+          <div className="flex flex-nowrap items-center justify-center gap-2">
             <AdminIconAction icon={Eye} label={'Xem '+p.label+' của '+row.school_name}
               onClick={()=>onView(row.id,p.renewalId)}/>
             {p.renewalId!==null&&p.status==='PENDING_ACCOUNTING'&&canConfirm&&
               <AdminIconAction icon={CheckCircle2} label={'Xác nhận '+p.label}
                 onClick={()=>onReview(row.id,p.renewalId!)}/>}
+            {p.renewalId!==null&&p.status==='PENDING_ACCOUNTING'&&canRequestInfo&&
+              <AdminIconAction icon={FilePenLine} tone="blue"
+                label={'Yêu cầu bổ sung '+p.label+' của '+row.school_name}
+                onClick={()=>onRequestInfo(row.id,p.renewalId!)}/>}
           </div>
         </td>
       </tr>;

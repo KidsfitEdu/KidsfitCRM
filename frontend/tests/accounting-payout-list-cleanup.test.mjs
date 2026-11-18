@@ -13,7 +13,7 @@ test('Accounting payout tab manages eligible candidates and tracked payout recor
   assert.doesNotMatch(part,/accounting-eligible-payouts/);
   assert.match(page,/title="Lập phiếu chi hoa hồng"/);
   assert.match(page,/setPayoutPickerOpen\(true\)/);
-  assert.match(page,/openCentralPayout\(\{contractId:chosenCandidate\.contract_id/);
+  assert.match(page,/openCentralPayout\(\{contractId:candidate\.contract_id/);
   assert.match(part,/setPayoutPreview\(p\)/);
   for (const name of ['Người hưởng','Nhà trường','Số tiền đề nghị / thực chi','Trạng thái','Kỳ','Thao tác'])
     assert.ok(part.includes(name),name);

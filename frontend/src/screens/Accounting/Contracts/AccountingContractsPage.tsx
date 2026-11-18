@@ -210,6 +210,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [payoutPickerOpen,setPayoutPickerOpen]=useState(false);
   const [payoutPickerSearch,setPayoutPickerSearch]=useState('');
   const [payoutCandidateKey,setPayoutCandidateKey]=useState('');
+  const [payoutCreatePeriod,setPayoutCreatePeriod]=useState('');
+  const [payoutSchool,setPayoutSchool]=useState<{id:number;code:string;name:string}|null>(null);
+  const [payoutSchoolCandidates,setPayoutSchoolCandidates]=useState<EligibleRow[]>([]);
+  const [payoutSchoolLoading,setPayoutSchoolLoading]=useState(false);
   const [payoutPreview,setPayoutPreview]=useState<PayoutRow|null>(null);
   const [centralPayoutIntent,setCentralPayoutIntent]=useState<{
     contractId:number;beneficiaryUserId:number;role:'SALES'|'MANAGER';period:string;
@@ -304,7 +308,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   useEffect(()=>{
     if(!connected||!canCreatePayout||accountingTab!=='PAYOUTS'||!payoutPickerOpen)return;
     let active=true;setEligibleLoading(true);
-    const params=new URLSearchParams({period:financePeriod,page:String(eligiblePage),page_size:'20'});
+    const params=new URLSearchParams({period:payoutCreatePeriod||financePeriod,page:String(eligiblePage),page_size:'20'});
     if(payoutPickerSearch.trim())params.set('search',payoutPickerSearch.trim());
     if(financeRole!=='ALL')params.set('role',financeRole);
     if(financeOrganization!=='ALL')params.set('organization_id',financeOrganization);
@@ -314,8 +318,28 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         cause instanceof Error?cause.message:'Vui lòng thử lại.');})
       .finally(()=>{if(active)setEligibleLoading(false);});
     return()=>{active=false;};
-  },[apiBase,token,connected,canCreatePayout,accountingTab,financePeriod,
+  },[apiBase,token,connected,canCreatePayout,accountingTab,payoutCreatePeriod,financePeriod,
     payoutPickerOpen,payoutPickerSearch,eligiblePage,financeRole,financeOrganization,detailRevision]);
+
+  // Retrieve all eligible role choices for the selected contract (not just the
+  // current school-search page). The server owns authorization and eligibility.
+  useEffect(()=>{
+    if(!connected||!canCreatePayout||!payoutPickerOpen||!payoutSchool||!payoutCreatePeriod){
+      setPayoutSchoolCandidates([]);setPayoutSchoolLoading(false);return;
+    }
+    let alive=true;setPayoutSchoolLoading(true);setPayoutSchoolCandidates([]);
+    const params=new URLSearchParams({period:payoutCreatePeriod,
+      search:payoutSchool.code,page:'1',page_size:'100'});
+    void channelRequest<EligibleRegister>(apiBase,token,'/accounting/eligible-payouts?'+params)
+      .then(result=>{if(alive)setPayoutSchoolCandidates(result.data.filter(item=>
+        item.contract_id===payoutSchool.id&&item.period===payoutCreatePeriod&&item.amount>0));})
+      .catch(error=>{if(alive){
+        setPayoutSchoolCandidates([]);
+        appNotice.error('Không tải được người hưởng hoa hồng.',error instanceof Error?error.message:'Vui lòng thử lại.');
+      }})
+      .finally(()=>{if(alive)setPayoutSchoolLoading(false);});
+    return()=>{alive=false;};
+  },[apiBase,token,connected,canCreatePayout,payoutPickerOpen,payoutSchool,payoutCreatePeriod,detailRevision]);
 
   useEffect(()=>{
     if(!connected||accountingTab!=='RECEIPTS')return;
@@ -607,8 +631,25 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
   const openCentralPayout=(intent:NonNullable<typeof centralPayoutIntent>)=>{
     setPayoutPreview(null);
+    if(intent.mode!=='CREATE')setPayoutPickerOpen(false);
     setCentralPayoutIntent(intent);
     setSelected(intent.contractId);
+  };
+  const choosePayoutSchool=(contractId:number)=>{
+    const school=payoutSchools.find(x=>x.id===contractId);
+    if(!school)return;
+    setPayoutSchool(school);setPayoutCandidateKey('');
+    setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+    setEditingPayout(null);setSelected(null);setDetail(null);payoutKey.current=null;
+  };
+  const choosePayoutBeneficiary=(key:string)=>{
+    setPayoutCandidateKey(key);
+    const candidate=payoutSchoolCandidates.find(x=>candidateKey(x)===key);
+    if(!candidate||candidate.contract_id!==payoutSchool?.id||candidate.period!==payoutCreatePeriod)return;
+    setPayoutDialogOpen(false);setEditingPayout(null);payoutKey.current=null;
+    openCentralPayout({contractId:candidate.contract_id,
+      beneficiaryUserId:candidate.beneficiary_user_id,role:candidate.beneficiary_role,
+      period:candidate.period,mode:'CREATE'});
   };
   // The detail API is the authority for draft amounts and contract-scoped ledger.
   // It is loaded without opening the contract Drawer when working in the payout tab.
@@ -770,8 +811,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const visiblePayouts=payoutRows;
   const eligibleCandidates=eligibleRows;
   const payoutChoices=eligibleRows;
-  const candidateKey=(item:typeof eligibleCandidates[number])=>[item.contract_id,item.beneficiary_user_id,item.beneficiary_role,item.period].join(':');
-  const chosenCandidate=payoutChoices.find(item=>candidateKey(item)===payoutCandidateKey);
+  const candidateKey=(item:EligibleRow)=>[item.contract_id,item.beneficiary_user_id,item.beneficiary_role,item.period].join(':');
+  const payoutSchools=Array.from(new Map(payoutChoices.map(item=>[item.contract_id,
+    {id:item.contract_id,code:item.contract_code,name:item.school_name}])).values());
+  const chosenCandidate=payoutSchoolCandidates.find(item=>candidateKey(item)===payoutCandidateKey);
+  const payoutCreateReady=Boolean(payoutSchool&&chosenCandidate&&payoutDialogOpen&&
+    !centralPayoutIntent&&!payoutSchoolLoading&&detail&&detail.data.id===payoutSchool.id&&
+    chosenPeriod===payoutCreatePeriod);
   const receiptCurrentYear=Number(accountingBusinessDay(new Date()).slice(0,4));
   const receiptMonthOptions=[{value:'ALL',label:'Tất cả các tháng'},...Array.from({length:12},(_,i)=>({value:String(i+1),label:'Tháng '+String(i+1)}))];
   const receiptYearOptions=[{value:'ALL',label:'Tất cả các năm'},
@@ -940,7 +986,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         :accountingTab==='PAYOUTS'&&canCreatePayout
           ?<AppButton type="button" tone="green" premium
             leadingIcon={<Plus aria-hidden="true" className="size-4"/>}
-            onClick={()=>{setPayoutPickerSearch('');setEligiblePage(1);setPayoutCandidateKey('');setPayoutPickerOpen(true);}}>
+            onClick={()=>{setPayoutCreatePeriod(financePeriod);setPayoutPickerSearch('');setEligiblePage(1);
+              setPayoutCandidateKey('');setPayoutSchool(null);setPayoutSchoolCandidates([]);
+              setPayoutDialogOpen(false);setCentralPayoutIntent(null);setEditingPayout(null);
+              setPayoutError('');setPayoutPickerOpen(true);}}>
             Thêm mới
           </AppButton>:undefined}/>
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
@@ -1310,60 +1359,103 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>}
     </AppDialog>
-    <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!saving&&!open){setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);setEditingPayout(null);}}}
+    <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!open&&!saving){
+        setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+        setEditingPayout(null);setPayoutSchool(null);setPayoutCandidateKey('');payoutKey.current=null;
+      }}}
       busy={saving} title="Lập phiếu chi hoa hồng"
-      description="Chọn kỳ hoa hồng, nhà trường và người hưởng đủ điều kiện."
-      footer={!payoutDialogOpen&&!centralPayoutIntent?<>
-        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setPayoutPickerOpen(false)}>Hủy</AppButton>
-        <AppButton type="button" tone="green" disabled={!chosenCandidate||eligibleLoading||saving} onClick={()=>{
-          if(!chosenCandidate)return;
-          openCentralPayout({contractId:chosenCandidate.contract_id,beneficiaryUserId:chosenCandidate.beneficiary_user_id,
-            role:chosenCandidate.beneficiary_role,period:chosenCandidate.period,mode:'CREATE'});
-        }}>Tiếp tục lập phiếu</AppButton>
-      </>:undefined}>
-      {payoutDialogOpen&&detail?payoutDraftForm:centralPayoutIntent?
-        <output className="block py-6 text-center text-sm text-muted-foreground">Đang tải phiếu chi...</output>:
-        <div className="space-y-4">
-        <label htmlFor="accounting-payout-month" className="block space-y-1 text-sm font-medium">
-          <span>Kỳ hoa hồng *</span>
-          <Input id="accounting-payout-month" type="month" value={financePeriod}
-            onChange={event=>{setFinancePeriod(event.target.value);setEligiblePage(1);setPayoutCandidateKey('');}}/>
-        </label>
-        <label htmlFor="accounting-payout-search" className="block space-y-1 text-sm font-medium">
-          <span>Tìm nhà trường / hợp đồng</span>
-          <Input id="accounting-payout-search" value={payoutPickerSearch}
-            onChange={event=>{setPayoutPickerSearch(event.target.value);setEligiblePage(1);setPayoutCandidateKey('');}}
-            placeholder="Nhập tên trường, mã hợp đồng hoặc người hưởng"/>
-        </label>
-        <label htmlFor="accounting-payout-candidate" className="block space-y-1 text-sm font-medium">
-          <span>Nhà trường và người hưởng *</span>
-          <select id="accounting-payout-candidate" value={payoutCandidateKey}
-            onChange={event=>setPayoutCandidateKey(event.target.value)}
-            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm">
-            <option value="">Chọn khoản hoa hồng chưa lập phiếu</option>
-            {payoutChoices.map(item=><option key={candidateKey(item)} value={candidateKey(item)}>
-              {item.school_name} · {item.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}: {item.beneficiary_name} · {channelMoney(item.amount)}
-            </option>)}
-          </select>
-        </label>
-        {eligibleLoading?<output className="block text-xs text-muted-foreground">Đang tải khoản hoa hồng...</output>
-          :payoutChoices.length===0?<p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-            Chưa có hoa hồng đủ điều kiện ở kỳ hoặc bộ lọc này.</p>:null}
-        {chosenCandidate&&<div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-          <p className="text-sm font-semibold">{chosenCandidate.school_name}</p>
-          <p className="mt-1 break-words text-xs text-muted-foreground">{chosenCandidate.contract_code} · {chosenCandidate.beneficiary_name}</p>
-          <p className="mt-2 text-lg font-bold text-primary tabular-nums">Hoa hồng đề xuất: {channelMoney(chosenCandidate.amount)}</p>
-        </div>}
-        {eligibleTotal>20&&<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>{eligibleTotal} khoản đủ điều kiện · trang {eligiblePage}/{Math.ceil(eligibleTotal/20)}</span>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={eligiblePage<=1||eligibleLoading}
-              onClick={()=>{setEligiblePage(x=>x-1);setPayoutCandidateKey('');}}>Trước</Button>
-            <Button type="button" variant="outline" size="sm" disabled={eligiblePage*20>=eligibleTotal||eligibleLoading}
-              onClick={()=>{setEligiblePage(x=>x+1);setPayoutCandidateKey('');}}>Sau</Button>
+      description="Chọn nhà trường, người hưởng và nhập thông tin hoa hồng trong cùng một form."
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{
+          setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+          setEditingPayout(null);setPayoutSchool(null);setPayoutCandidateKey('');payoutKey.current=null;
+        }}>Hủy</AppButton>
+        <AppButton type="submit" form="accounting-payout-draft-form" tone="green" busy={saving}
+          disabled={!payoutCreateReady||saving}>Lưu nháp</AppButton>
+      </>}>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Kỳ hoa hồng</span>
+          <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
+            {payoutPeriodLabel(payoutCreatePeriod)}
+          </span>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="accounting-payout-search" className="block text-sm font-semibold">Nhà trường / Hợp đồng *</label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+            <Input id="accounting-payout-search" className="h-11 rounded-xl pl-10"
+              value={payoutPickerSearch} placeholder="Tìm tên trường hoặc mã hợp đồng..."
+              onChange={event=>{setPayoutPickerSearch(event.target.value);setEligiblePage(1);}}/>
           </div>
+          <Select value={payoutSchool?String(payoutSchool.id):''}
+            onValueChange={value=>choosePayoutSchool(Number(value))}>
+            <SelectTrigger id="accounting-payout-school" aria-label="Chọn nhà trường và hợp đồng"
+              disabled={eligibleLoading&&payoutSchools.length===0}
+              className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left">
+              <SelectValue placeholder="Chọn nhà trường / hợp đồng">
+                {payoutSchool?payoutSchool.name+' · '+payoutSchool.code:'Chọn nhà trường / hợp đồng'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start" alignItemWithTrigger={false} side="bottom" sideOffset={5}
+              className="z-[90] max-h-[min(240px,40dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5">
+              {payoutSchools.map(school=><SelectItem key={school.id} value={String(school.id)}
+                className="min-h-12 rounded-lg px-3 py-2 pr-9 data-selected:bg-primary/10 data-highlighted:bg-primary/10">
+                <span className="flex min-w-0 flex-col gap-1 text-left">
+                  <span className="text-sm font-semibold">{school.name}</span>
+                  <span className="text-xs text-muted-foreground">{school.code}</span>
+                </span>
+              </SelectItem>)}
+            </SelectContent>
+          </Select>
+          {eligibleLoading?<output className="block text-xs text-muted-foreground">Đang tìm hợp đồng đủ điều kiện...</output>
+            :payoutSchools.length===0?<p className="text-xs text-muted-foreground">Không có hợp đồng phù hợp trong kỳ này.</p>:null}
+          {eligibleTotal>20&&<div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>{eligibleTotal} khoản đủ điều kiện · Trang {eligiblePage}/{Math.ceil(eligibleTotal/20)}</span>
+            <div className="flex gap-2">
+              <Button size="sm" type="button" variant="outline" disabled={eligiblePage<=1||eligibleLoading}
+                onClick={()=>setEligiblePage(v=>v-1)}>Trước</Button>
+              <Button size="sm" type="button" variant="outline" disabled={eligiblePage*20>=eligibleTotal||eligibleLoading}
+                onClick={()=>setEligiblePage(v=>v+1)}>Sau</Button>
+            </div>
+          </div>}
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="accounting-payout-beneficiary" className="block text-sm font-semibold">Người hưởng hoa hồng *</label>
+          <Select value={chosenCandidate?candidateKey(chosenCandidate):''}
+            disabled={!payoutSchool||payoutSchoolLoading||payoutSchoolCandidates.length===0}
+            onValueChange={choosePayoutBeneficiary}>
+            <SelectTrigger id="accounting-payout-beneficiary"
+              className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left">
+              <SelectValue placeholder="Chọn Sales hoặc Quản lý">
+                {chosenCandidate?chosenCandidate.beneficiary_name+' · '+(chosenCandidate.beneficiary_role==='MANAGER'?'Quản lý':'Sales'):'Chọn Sales hoặc Quản lý'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start" alignItemWithTrigger={false} side="bottom" sideOffset={5}
+              className="z-[90] max-h-[min(240px,40dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5">
+              {payoutSchoolCandidates.map(item=><SelectItem key={candidateKey(item)} value={candidateKey(item)}
+                className="min-h-12 rounded-lg px-3 py-2 pr-9 data-selected:bg-primary/10 data-highlighted:bg-primary/10">
+                <span className="flex min-w-0 flex-col gap-1 text-left">
+                  <span className="text-sm font-semibold">{item.beneficiary_name} · {item.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</span>
+                  <span className="text-xs text-muted-foreground">Còn đủ điều kiện: {channelMoney(item.amount)}</span>
+                </span>
+              </SelectItem>)}
+            </SelectContent>
+          </Select>
+          {payoutSchoolLoading&&<output className="block text-xs text-muted-foreground">Đang tải người hưởng...</output>}
+          {payoutSchool&&!payoutSchoolLoading&&payoutSchoolCandidates.length===0&&
+            <p className="text-xs text-muted-foreground">Không còn người hưởng đủ điều kiện cho hợp đồng này.</p>}
+        </div>
+        {chosenCandidate&&<div className="rounded-xl border border-border/80 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground">Khoản hoa hồng được chọn</p>
+          <p className="mt-1 break-words text-sm font-semibold">{chosenCandidate.school_name} · {chosenCandidate.beneficiary_name}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{chosenCandidate.contract_code} · {payoutPeriodLabel(chosenCandidate.period)}</p>
         </div>}
-      </div>}
+        {chosenCandidate&&centralPayoutIntent&&<output className="block rounded-lg border border-border p-3 text-sm text-muted-foreground">
+          Đang kiểm tra hồ sơ và số liệu hoa hồng...
+        </output>}
+        {payoutCreateReady&&payoutDraftForm}
+      </div>
     </AppDialog>
     <AppDialog open={payoutPreview!==null}
       onOpenChange={open=>{if(!open)setPayoutPreview(null);}}

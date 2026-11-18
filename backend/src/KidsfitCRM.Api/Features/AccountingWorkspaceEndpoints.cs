@@ -130,7 +130,7 @@ public static class AccountingWorkspaceEndpoints
     public static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
         string? search, string? status, long? owner_user_id, int? page,
         int? page_size, string? contract_kind, int? service_year, bool? needs_action,
-        CancellationToken ct)
+        DateOnly? service_from, DateOnly? service_to, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
@@ -142,6 +142,8 @@ public static class AccountingWorkspaceEndpoints
             throw ApiValidationException.For("contract_kind", "Loại hợp đồng không hợp lệ.");
         if (service_year.HasValue && (service_year < 2000 || service_year > 2100))
             throw ApiValidationException.For("service_year", "Năm sử dụng không hợp lệ.");
+        if (service_from.HasValue && service_to.HasValue && service_from.Value > service_to.Value)
+            throw ApiValidationException.For("service_to", "Từ ngày không được sau Đến ngày.");
         var term = search?.Trim() ?? "";
         if (term.Length > 190)
             throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
@@ -331,6 +333,12 @@ public static class AccountingWorkspaceEndpoints
                     && c.source_service_end_on.HasValue && c.source_service_end_on.Value.Year >= service_year.Value)
                 || c.periods.Any(p => p.service_start_on.Year <= service_year.Value
                     && p.service_end_on.Year >= service_year.Value)))
+            && ((!service_from.HasValue && !service_to.HasValue)
+                || (c.source_service_start_on.HasValue && c.source_service_end_on.HasValue
+                    && (!service_from.HasValue || c.source_service_end_on.Value >= service_from.Value)
+                    && (!service_to.HasValue || c.source_service_start_on.Value <= service_to.Value))
+                || c.periods.Any(p => (!service_from.HasValue || p.service_end_on >= service_from.Value)
+                    && (!service_to.HasValue || p.service_start_on <= service_to.Value)))
             .Where(c => filter switch {
             "PENDING" => c.pending_renewal_id.HasValue,
             "INTERRUPTED" => c.service_status is "INTERRUPTED" or "THRESHOLD_REACHED"

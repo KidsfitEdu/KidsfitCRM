@@ -437,7 +437,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         async Task<string> State()
         {
             var response = Json(await AccountingWorkspaceEndpoints.List(
-                Http(accountant), db, contract.ContractCode, "ALL", null, 1, 20, null, null, null, Ct));
+                Http(accountant), db, contract.ContractCode, "ALL", null, 1, 20, null, null, null, null, null, Ct));
             var rows = response.GetProperty("data").EnumerateArray().ToArray();
             Assert.Single(rows);
             return rows[0].GetProperty("service_status").GetString()!;
@@ -496,7 +496,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await db.SaveChangesAsync(Ct);
 
         var result = Json(await AccountingWorkspaceEndpoints.List(Http(accountant), db,
-            source.ContractCode, "PENDING", null, 1, 20, null, null, null, Ct));
+            source.ContractCode, "PENDING", null, 1, 20, null, null, null, null, null, Ct));
         Assert.Equal(1, result.GetProperty("total").GetInt32());
         var rows = result.GetProperty("data").EnumerateArray().ToArray();
         Assert.Single(rows);
@@ -505,12 +505,25 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal("CONFIRM_RENEWAL", rows[0].GetProperty("action").GetString());
         Assert.Equal("CONTINUOUS", rows[0].GetProperty("service_status").GetString());
 
+        // Period filter is inclusive and must match an individual verified renewal.
+        var overlapping = Json(await AccountingWorkspaceEndpoints.List(Http(accountant), db,
+            source.ContractCode, "ALL", null, 1, 20, null, null, null,
+            today.AddDays(3), today.AddDays(12), Ct));
+        Assert.Equal(1, overlapping.GetProperty("total").GetInt32());
+        var outside = Json(await AccountingWorkspaceEndpoints.List(Http(accountant), db,
+            source.ContractCode, "ALL", null, 1, 20, null, null, null,
+            today.AddYears(5), today.AddYears(5).AddDays(7), Ct));
+        Assert.Equal(0, outside.GetProperty("total").GetInt32());
+        await Assert.ThrowsAsync<ApiValidationException>(() => AccountingWorkspaceEndpoints.List(
+            Http(accountant), db, source.ContractCode, "ALL", null, 1, 20, null, null, null,
+            today.AddDays(10), today, Ct));
+
         var renewals = Json(await AccountingWorkspaceEndpoints.Renewals(
             contractId, Http(accountant), db, Ct));
         Assert.Equal(2, renewals.GetProperty("data").GetArrayLength());
 
         var other = Json(await AccountingWorkspaceEndpoints.List(Http(accountant), db,
-            source.ContractCode, "HISTORY", null, 1, 20, null, null, null, Ct));
+            source.ContractCode, "HISTORY", null, 1, 20, null, null, null, null, null, Ct));
         Assert.Empty(other.GetProperty("data").EnumerateArray());
     }
 

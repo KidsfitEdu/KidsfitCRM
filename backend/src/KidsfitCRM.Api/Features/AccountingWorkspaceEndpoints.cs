@@ -118,13 +118,19 @@ public static class AccountingWorkspaceEndpoints
 
     public static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
         string? search, string? status, long? owner_user_id, int? page,
-        int? page_size, CancellationToken ct)
+        int? page_size, string? contract_kind, int? service_year, bool? needs_action,
+        CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
         var filter = (status ?? "ALL").Trim().ToUpperInvariant();
         if (filter is not ("ALL" or "PENDING" or "INTERRUPTED" or "HISTORY"))
             throw ApiValidationException.For("status", "Nhóm hồ sơ không hợp lệ.");
+        var kind = (contract_kind ?? "ALL").Trim().ToUpperInvariant();
+        if (kind is not ("ALL" or "ORIGINAL" or "RENEWAL"))
+            throw ApiValidationException.For("contract_kind", "Loại hợp đồng không hợp lệ.");
+        if (service_year.HasValue && (service_year < 2000 || service_year > 2100))
+            throw ApiValidationException.For("service_year", "Năm sử dụng không hợp lệ.");
         var term = search?.Trim() ?? "";
         if (term.Length > 190)
             throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
@@ -303,7 +309,16 @@ public static class AccountingWorkspaceEndpoints
                 has_financial_history = c.HasFinancialHistory,
                 original_period_financials_only = true
             };
-        }).Where(c => filter switch {
+        }).Where(c => (kind != "RENEWAL" || c.periods.Length > 0)
+            && (kind != "ORIGINAL" || c.source_service_start_on.HasValue)
+            && (!needs_action.GetValueOrDefault() || c.action != null
+                || c.periods.Any(p => p.status == "PENDING_ACCOUNTING" || p.status == "NEEDS_INFO"))
+            && (!service_year.HasValue
+                || (c.source_service_start_on.HasValue && c.source_service_start_on.Value.Year <= service_year.Value
+                    && c.source_service_end_on.HasValue && c.source_service_end_on.Value.Year >= service_year.Value)
+                || c.periods.Any(p => p.service_start_on.Year <= service_year.Value
+                    && p.service_end_on.Year >= service_year.Value)))
+            .Where(c => filter switch {
             "PENDING" => c.pending_renewal_id.HasValue,
             "INTERRUPTED" => c.service_status is "INTERRUPTED" or "THRESHOLD_REACHED"
                 or "THRESHOLD_OVERDUE" or "RELEASED" or "NEEDS_REVIEW",

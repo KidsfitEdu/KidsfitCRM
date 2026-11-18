@@ -24,12 +24,12 @@ export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,ca
   const soon=new Date(Date.parse(today+'T00:00:00Z')+30*86400000).toISOString().slice(0,10);
   const display=rows.map(row=>{
     const contracts:PeriodRow[]=[
-      ...[{
+      {
         key:'original',renewalId:null,label:'Hợp đồng lần đầu',code:row.contract_code,
         start:row.source_service_start_on??null,end:row.source_service_end_on??null,
         amount:row.total_value,status:row.contract_status,
         action:row.action==='REVIEW_PERIOD'?'REVIEW_PERIOD':null
-      }],
+      },
       ...(row.periods??[]).map(p=>({
         key:'renewal-'+p.id,renewalId:p.id,label:'Tái ký lần '+p.renewal_no,
         code:p.contract_code??'Chưa cập nhật mã tái ký',

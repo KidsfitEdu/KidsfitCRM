@@ -338,7 +338,7 @@ public static class AccountingWorkspaceEndpoints
                     && (!service_from.HasValue || c.source_service_end_on.Value >= service_from.Value)
                     && (!service_to.HasValue || c.source_service_start_on.Value <= service_to.Value))
                 || c.periods.Any(p => (!service_from.HasValue || p.service_end_on >= service_from.Value)
-                    && (!service_to.HasValue || p.service_start_on <= service_to.Value)))
+                    && (!service_to.HasValue || p.service_start_on <= service_to.Value))))
             .Where(c => filter switch {
             "PENDING" => c.pending_renewal_id.HasValue,
             "INTERRUPTED" => c.service_status is "INTERRUPTED" or "THRESHOLD_REACHED"

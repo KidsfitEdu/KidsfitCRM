@@ -61,6 +61,36 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
+    [MySqlFact] public async Task ReceivablePickerReturnsOnlyAssignedActiveManager()
+    {
+        var s = await Arrange();
+        var contractId = await ActiveContract(s);
+        var accountant = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var code = await db.SalesContracts.Where(c => c.Id == contractId)
+            .Select(c => c.ContractCode).SingleAsync(Ct);
+        var sellerName = await db.Users.Where(u => u.Id == s.Seller.UserId)
+            .Select(u => u.Name).SingleAsync(Ct);
+        var managerName = await db.Users.Where(u => u.Id == s.Manager.UserId)
+            .Select(u => u.Name).SingleAsync(Ct);
+
+        var response = Json(await AccountingWorkspaceEndpoints.ReceivableContracts(
+            Http(accountant), db, code, 1, Ct));
+        var result = response.GetProperty("data").EnumerateArray().Single();
+        Assert.Equal(contractId, result.GetProperty("id").GetInt64());
+        Assert.Equal(sellerName, result.GetProperty("owner_name").GetString());
+        Assert.Equal("COLLABORATOR", result.GetProperty("personnel_type").GetString());
+        Assert.Equal(managerName, result.GetProperty("manager_name").GetString());
+
+        // No implicit reassignment to an arbitrary manager when the direct link is absent.
+        await db.OrganizationMemberships.Where(m => m.Id == s.Seller.MembershipId)
+            .ExecuteUpdateAsync(m => m.SetProperty(x => x.ManagerUserId, (long?)null), Ct);
+        var unassigned = Json(await AccountingWorkspaceEndpoints.ReceivableContracts(
+            Http(accountant), db, code, 1, Ct));
+        Assert.Equal(JsonValueKind.Null, unassigned.GetProperty("data")[0]
+            .GetProperty("manager_name").ValueKind);
+    }
+
     [MySqlFact] public async Task AccountingDirectReceiptIsIdempotentAndAccruesCommissionOnlyOnce()
     {
         var scenario = await Arrange();

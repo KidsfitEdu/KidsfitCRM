@@ -52,9 +52,27 @@ public static class AccountingWorkspaceEndpoints
         var total = await scope.CountAsync(ct);
         var data = await (from contract in scope
             join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+            join owner in db.Users.AsNoTracking() on contract.OwnerUserId equals owner.Id
             orderby school.DisplayName, contract.Id
             select new { id = contract.Id, code = contract.ContractCode,
                 school_name = school.DisplayName,
+                owner_name = owner.Name,
+                personnel_type = contract.OwnerPersonnelType,
+                // Direct manager in the contract owner's organization. Never infer from other
+                // managers in the company; an unassigned or inactive relationship stays null.
+                manager_name = (from membership in db.OrganizationMemberships.AsNoTracking()
+                    join manager in db.Users.AsNoTracking()
+                        on membership.ManagerUserId equals (long?)manager.Id
+                    where membership.OrganizationId == contract.OwnerOrganizationId
+                        && membership.UserId == contract.OwnerUserId
+                        && membership.Status == "ACTIVE" && manager.Status == "ACTIVE"
+                        && db.OrganizationMemberships.Any(managerMembership =>
+                            managerMembership.OrganizationId == contract.OwnerOrganizationId
+                            && managerMembership.UserId == manager.Id
+                            && managerMembership.Status == "ACTIVE"
+                            && (managerMembership.MembershipType == "SALES_MANAGER"
+                                || managerMembership.MembershipType == "PARTNER_ADMIN"))
+                    select manager.Name).FirstOrDefault(),
                 amount_remaining = db.RevenueSchedules.Where(x => x.ContractId == contract.Id)
                     .Sum(x => (decimal?)(x.AmountDue - x.AmountReceived)) ?? 0m })
             .Skip((pn - 1) * 50).Take(50).ToArrayAsync(ct);

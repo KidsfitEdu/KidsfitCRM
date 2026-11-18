@@ -61,7 +61,8 @@ export function AccountingReceivablePicker({
           value={showSelected?selected.school_name+' · '+selected.code:query}
           placeholder="Tìm tên trường hoặc mã hợp đồng..."
           className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-9 text-sm shadow-xs focus-visible:border-primary"
-          onFocus={()=>{if(!open&&!disabled){setSearch('');onOpenChange(true);}}}
+          // The popover trigger opens on explicit interaction. Never reopen on
+          // focus restoration after choosing an item in the portaled list.
           onChange={e=>{if(!open)onOpenChange(true);setSearch(e.currentTarget.value);}}
           onKeyDown={e=>{
             if(e.key==='ArrowDown'){

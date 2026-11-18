@@ -21,6 +21,8 @@ import { AppSkeleton, InlineLoading } from '@/components/common/app-loading';
 import { AccountingContractDetailContent } from './AccountingContractDetailContent';
 import { AccountingContractTreeTable } from './AccountingContractTreeTable';
 import { AppDatePicker } from '@/components/common/forms/app-date-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AccountingReceiptProofUpload } from './AccountingReceiptProofUpload';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AccountingReceivablePicker, type ReceivableContract } from './AccountingReceivablePicker';
 
@@ -1208,16 +1210,34 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           }}>
           <div className="space-y-2">
             <label htmlFor="receipt-schedule" className="block text-sm font-medium">Đợt thanh toán *</label>
-            <select id="receipt-schedule" name="schedule_id" required disabled={!receiptReady}
-              value={receiptReady?selectedScheduleId??'':''}
-              onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);
-                receiptAttempt.current=null;setFieldErrors({});}}
-              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60">
-              {!receiptReady&&<option value="">Chọn nhà trường / hợp đồng trước</option>}
-              {receiptReady&&detail?.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
-                {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'} · {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}
-              </option>)}
-            </select>
+            <Select name="schedule_id" disabled={!receiptReady}
+              value={receiptReady&&selectedScheduleId!==null?String(selectedScheduleId):''}
+              onValueChange={value=>{setSelectedScheduleId(value?Number(value):null);
+                receiptAttempt.current=null;setFieldErrors({});}}>
+              <SelectTrigger id="receipt-schedule" aria-invalid={Boolean(fieldErrors.schedule_id)}
+                className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left shadow-xs focus-visible:border-primary focus-visible:ring-primary/20">
+                <SelectValue placeholder="Chọn đợt thanh toán">
+                  {receiptReady&&detail?.schedules.find(x=>x.id===selectedScheduleId)
+                    ?(()=>{const schedule=detail.schedules.find(x=>x.id===selectedScheduleId)!;
+                        return (schedule.renewal_no?'Tái ký lần '+schedule.renewal_no:'Hợp đồng lần đầu')+
+                          ' · '+channelDate(schedule.due_on)+' · Còn '+
+                          channelMoney(schedule.amount_due-schedule.amount_received);
+                      })()
+                    :'Chọn nhà trường / hợp đồng trước'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent align="start" side="bottom" sideOffset={5}
+                className="z-[90] max-h-[min(260px,45dvh)] rounded-xl border border-border bg-popover p-1.5 shadow-xl">
+                {detail?.schedules.filter(x=>x.amount_received<x.amount_due).map(x=>
+                  <SelectItem key={x.id} value={String(x.id)}
+                    className="min-h-12 rounded-lg px-3 py-2.5 pr-9 data-selected:bg-primary/10 data-highlighted:bg-primary/10">
+                    <span className="flex min-w-0 flex-col gap-1 text-left">
+                      <span className="text-sm font-semibold">{x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'}</span>
+                      <span className="text-xs text-muted-foreground">{channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</span>
+                    </span>
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
             {receiptReady&&<p className="text-xs text-muted-foreground">Còn phải thu: {channelMoney(Math.max(0,
               (detail?.schedules.find(x=>x.id===selectedScheduleId)?.amount_due??0)-
               (detail?.schedules.find(x=>x.id===selectedScheduleId)?.amount_received??0)))}</p>}
@@ -1252,12 +1272,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </div>
           <div className="space-y-2">
             <label htmlFor="accounting-bank-proof" className="block text-sm font-medium">Ảnh chứng từ chuyển khoản *</label>
-            <Input id="accounting-bank-proof" name="proof" type="file" required
-              accept="image/jpeg,image/png,image/webp" disabled={!receiptReady}
-              aria-invalid={Boolean(fieldErrors.proof)}
-              onChange={e=>setReceiptProofSelected(Boolean(e.currentTarget.files?.length))}/>
-            {fieldErrors.proof&&<p role="alert" className="text-xs text-destructive">{fieldErrors.proof}</p>}
-            <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p>
+            <AccountingReceiptProofUpload disabled={!receiptReady}
+              error={fieldErrors.proof} onFileSelected={setReceiptProofSelected}/>
           </div>
         </form>
       </div>

@@ -97,3 +97,28 @@ test('Payout table offers direct BGĐ submission only when backend authorizes it
   assert.match(page,/setPendingPayoutSubmit\(null\)/);
   assert.match(page,/\/payouts\/\$\{id\}\/submit/);
 });
+
+test('Approved payout can start existing complete workflow directly from the table',()=>{
+  assert.match(part,/p\.can_complete&&p\.contract_ids\?\.length===1&&/);
+  assert.match(part,/<AdminIconAction icon=\{WalletCards\}/);
+  assert.match(part,/Ghi nhận chuyển khoản phiếu chi/);
+  assert.match(part,/mode:'COMPLETE',payoutId:p\.id/);
+  assert.match(part,/disabled=\{saving\}/);
+  assert.match(page,/\/payouts\/\$\{payoutId\}\/complete/);
+});
+
+test('Payout evidence uses the receipt uploader while preserving FormData proof',()=>{
+  assert.match(page,/<AccountingReceiptProofUpload key=\{entryMode==='payout'/);
+  assert.match(page,/const proof = form\.get\('proof'\)/);
+  assert.match(page,/attachment\.set\('file',proof\)/);
+  assert.match(page,/attachment\.set\('payout_id',String\(payoutId\)\)/);
+  assert.match(page,/error=\{fieldErrors\.proof\}/);
+  assert.doesNotMatch(page,/description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch\."/);
+  const upload=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingReceiptProofUpload.tsx'),'utf8');
+  assert.match(upload,/name="proof" type="file" required/);
+  assert.match(upload,/MAX_PROOF_SIZE=5\*1024\*1024/);
+});
+test('Money heading and cells use matching padding to offset values slightly left',()=>{
+  assert.match(part,/pl-2 pr-7 py-3 text-right">Số tiền chi/);
+  assert.match(part,/pl-2 pr-7 py-3 text-right font-semibold tabular-nums/);
+});

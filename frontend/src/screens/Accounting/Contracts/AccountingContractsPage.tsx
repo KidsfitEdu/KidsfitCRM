@@ -2,7 +2,7 @@
 
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, WalletCards } from 'lucide-react';
+import { AlertCircle, ArrowRight, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, WalletCards, X } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
@@ -918,11 +918,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </strong>
           </div>
         </div>
-        <p className="flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
-          <ClipboardCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
-          Thao tác này chỉ lập phiếu ở trạng thái Nháp, chưa ghi nhận chuyển khoản.
-          Giá trị chính thức sẽ được Backend kiểm tra.
-        </p>
         {payoutError&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{payoutError}</p>}
       </form>
   ):null;
@@ -1421,6 +1416,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 }
               }}/>
             {payoutSchool&&<button type="button" aria-label="Bỏ chọn nhà trường"
+              title="Bỏ chọn nhà trường"
               onMouseDown={event=>event.preventDefault()}
               onClick={()=>{
                 setPayoutPickerSearch('');setPayoutSchool(null);setPayoutCandidateKey('');
@@ -1428,7 +1424,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 setCentralPayoutIntent(null);setSelected(null);setDetail(null);
                 setEligiblePage(1);setPayoutSchoolActiveIndex(0);setPayoutSchoolSearchOpen(true);
                 setPayoutDetailError('');payoutKey.current=null;
-              }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">Xóa</button>}
+              }} className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                <X className="size-4" aria-hidden="true"/>
+              </button>}
             {payoutSchoolSearchOpen&&<div id="accounting-payout-school-options" role="listbox"
               aria-label="Danh sách nhà trường đủ điều kiện"
               className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(290px,45dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">

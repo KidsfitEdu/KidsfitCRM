@@ -21,6 +21,7 @@ import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { AppSkeleton, InlineLoading } from '@/components/common/app-loading';
 import { AccountingRenewalInline } from './AccountingRenewalInline';
 import { AccountingContractTreeTable } from './AccountingContractTreeTable';
+import { AppDatePicker } from '@/components/common/forms/app-date-picker';
 
 const paymentScheduleLabel = (status: string) => ({
   PAID: 'Đã thanh toán',
@@ -158,13 +159,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [ownerUserId, setOwnerUserId] = useState('ALL');
-  const [workspaceStatus, setWorkspaceStatus] = useState('ALL');
-  const [contractKind,setContractKind]=useState('ALL');
-  const [serviceYear,setServiceYear]=useState('ALL');
   const [needsAction,setNeedsAction]=useState('ALL');
+  const [serviceFrom,setServiceFrom]=useState('');
+  const [serviceTo,setServiceTo]=useState('');
+  const [appliedServiceFrom,setAppliedServiceFrom]=useState('');
+  const [appliedServiceTo,setAppliedServiceTo]=useState('');
+  const [dateRangeError,setDateRangeError]=useState('');
   const [selectedPeriodId,setSelectedPeriodId]=useState<number|null>(null);
-  const [owners, setOwners] = useState<{ id: number; name: string }[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [accountingTab,setAccountingTab]=useState<'CONTRACTS'|'RECEIPTS'|'PAYOUTS'>('CONTRACTS');
@@ -270,16 +271,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     if (!connected) return;
     setBusy(true);
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), status:workspaceStatus });
-      if (ownerUserId !== 'ALL') params.set('owner_user_id', ownerUserId);
-      if (contractKind !== 'ALL') params.set('contract_kind',contractKind);
-      if (serviceYear !== 'ALL') params.set('service_year',serviceYear);
-      if (needsAction !== 'ALL') params.set('needs_action','true');
+      const params = new URLSearchParams({page:String(page),page_size:String(pageSize),status:'ALL'});
+      if(appliedServiceFrom)params.set('service_from',appliedServiceFrom);
+      if(appliedServiceTo)params.set('service_to',appliedServiceTo);
+      if(needsAction!=='ALL')params.set('needs_action','true');
       if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
       const result = await channelRequest<ContractList>(apiBase, token, `/accounting/workspace?${params.toString()}`);
       setRows(result.data);
-      // During staged deployments the previous API may not include owner options yet.
-      setOwners(Array.isArray(result.owners) ? result.owners : []);
       setTotal(result.total);
     } catch (cause) {
       // Preserve the current rows on transient failures so the list does not flash empty.
@@ -287,7 +285,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     } finally {
       setBusy(false);
     }
-  }, [apiBase, token, page, pageSize, appliedSearch, ownerUserId, workspaceStatus, contractKind, serviceYear, needsAction, connected]);
+  }, [apiBase,token,page,pageSize,appliedSearch,appliedServiceFrom,appliedServiceTo,needsAction,connected]);
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{
     if(!connected||accountingTab!=='PAYOUTS')return;
@@ -444,8 +442,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   };
   const submitSearch = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if(serviceFrom&&serviceTo&&serviceFrom>serviceTo){
+      setDateRangeError('Từ ngày không được sau Đến ngày.');
+      return;
+    }
+    setDateRangeError('');
     setPage(1);
     setAppliedSearch(search);
+    setAppliedServiceFrom(serviceFrom);
+    setAppliedServiceTo(serviceTo);
   };
 
   const openReceiptForm=()=>{
@@ -810,9 +815,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const resetFilters = () => {
     setSearch('');
     setAppliedSearch('');
-    setOwnerUserId('ALL');
-    setWorkspaceStatus('ALL');
-    setContractKind('ALL');setServiceYear('ALL');setNeedsAction('ALL');
+    setServiceFrom('');setServiceTo('');
+    setAppliedServiceFrom('');setAppliedServiceTo('');
+    setDateRangeError('');
+    setNeedsAction('ALL');
     setPage(1);
   };
   const displayedPayouts=payoutRows;
@@ -991,7 +997,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </AppButton>:undefined}/>
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
     <div role="tablist" aria-label="Nghiệp vụ Kế toán"
-      className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      className="flex min-h-12 gap-x-6 overflow-x-auto overflow-y-hidden border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {([{key:'CONTRACTS',label:'Hợp đồng',icon:FileCheck2},
          {key:'RECEIPTS',label:'Khoản thu nhà trường',icon:HandCoins},
          {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:WalletCards}] as const).map(item=>
@@ -1005,46 +1011,31 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </button>)}
     </div>
     {accountingTab==='CONTRACTS'&&<AdminListPanel className="min-w-0">
-      <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6">
-        <div className="relative min-w-[220px] flex-[1_1_320px]">
+      <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-2.5 border-b border-border/80 px-4 py-4 sm:px-5">
+        <div className="relative min-w-[210px] flex-[1_1_270px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
           <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-10 w-full rounded-lg bg-card pl-10"
-            placeholder="Tên trường, mã hợp đồng, người phụ trách..." value={search} onChange={e=>setSearch(e.target.value)}/>
+            placeholder="Tên trường, mã hợp đồng, Sales..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <AppSelect ariaLabel="Lọc nhóm hợp đồng Kế toán" value={workspaceStatus}
-          className="w-full sm:w-52" options={[
-            {value:'ALL',label:'Tất cả hợp đồng'},
-            {value:'PENDING',label:'Chờ xác nhận tái ký'},
-            {value:'INTERRUPTED',label:'Gián đoạn dịch vụ'},
-            {value:'HISTORY',label:'Lịch sử tài chính'},
-          ]} onValueChange={next=>{setWorkspaceStatus(next);setPage(1);}}/>
-        <AppSelect ariaLabel="Loại hợp đồng" value={contractKind} className="w-full sm:w-44"
-          options={[{value:'ALL',label:'Tất cả lần ký'},{value:'ORIGINAL',label:'Hợp đồng lần đầu'},{value:'RENEWAL',label:'Các lần tái ký'}]}
-          onValueChange={v=>{setContractKind(v);setPage(1);}}/>
-        <AppSelect ariaLabel="Năm sử dụng" value={serviceYear} className="w-full sm:w-40"
-          options={[{value:'ALL',label:'Tất cả các năm'},...Array.from({length:12},(_,i)=>{
-            const y=Number(accountingBusinessDay(new Date()).slice(0,4))+2-i;
-            return {value:String(y),label:'Năm '+y};
-          })]} onValueChange={v=>{setServiceYear(v);setPage(1);}}/>
-        <AppSelect ariaLabel="Bộ lọc cần xử lý" value={needsAction} className="w-full sm:w-40"
+        <AppDatePicker label="Từ ngày" value={serviceFrom}
+          onChange={value=>{setServiceFrom(value);setDateRangeError('');}} className="w-full sm:w-[148px]"/>
+        <AppDatePicker label="Đến ngày" value={serviceTo}
+          onChange={value=>{setServiceTo(value);setDateRangeError('');}} className="w-full sm:w-[148px]"/>
+        <AppSelect ariaLabel="Bộ lọc cần xử lý" value={needsAction} className="w-full sm:w-[154px]"
           options={[{value:'ALL',label:'Tất cả xử lý'},{value:'YES',label:'Cần xử lý'}]}
-          onValueChange={v=>{setNeedsAction(v);setPage(1);}}/>
-        <AppSelect ariaLabel="Lọc theo người phụ trách" value={ownerUserId}
-          className="w-full sm:w-60" options={[
-            {value:'ALL',label:'Tất cả người phụ trách'},
-            ...owners.map(owner=>({value:String(owner.id),label:owner.name})),
-          ]} onValueChange={next=>{setOwnerUserId(next);setPage(1);}}/>
+          onValueChange={value=>{setNeedsAction(value);setPage(1);}}/>
         <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
         <AppButton type="button" tone="outline" size="icon-lg" className="h-10 w-10 min-w-10 rounded-lg p-0"
           aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>
           <RotateCcw className="size-4" aria-hidden="true"/>
         </AppButton>
+        {dateRangeError&&<p role="alert" className="w-full text-xs text-destructive">{dateRangeError}</p>}
       </form>
       {busy&&rows.length>0&&<div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..."/></div>}
       {busy&&rows.length===0?<output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">
         {Array.from({length:6},(_,index)=><AppSkeleton key={index} className="h-11 w-full"/>)}
-      </output>:<AccountingContractTreeTable key={[appliedSearch,workspaceStatus,contractKind,serviceYear,needsAction,ownerUserId,page].join(':')}
-        rows={rows} kind={contractKind} year={serviceYear} needsAction={needsAction!=='ALL'}
+      </output>:<AccountingContractTreeTable key={[appliedSearch,appliedServiceFrom,appliedServiceTo,needsAction,page].join(':')}
+        rows={rows} fromDate={appliedServiceFrom} toDate={appliedServiceTo} needsAction={needsAction!=='ALL'}
         canConfirm={abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*')}
         onView={(contractId,renewalId)=>openContract(contractId,renewalId)}
         onReview={(contractId,renewalId)=>openRenewal(contractId,renewalId,'confirm')}/>}

@@ -41,12 +41,12 @@ test('Accounting filtering scopes authorized school groups before pagination',()
   assert.ok(api.includes('access.Contracts(db).AsNoTracking()'));
   assert.ok(api.includes('c.VerifiedAt.HasValue'));
   assert.ok(api.includes('ServiceInterruptionPolicy.Evaluate'));
-  assert.ok(api.includes('contract_kind'));
-  assert.ok(api.includes('service_year'));
+  assert.ok(api.includes('service_from'));
+  assert.ok(api.includes('service_to'));
   assert.ok(api.includes('needs_action'));
   assert.ok(api.includes('rows.Skip((pn - 1) * size).Take(size)'));
-  assert.ok(page.includes("params.set('contract_kind',contractKind)"));
-  assert.ok(page.includes("params.set('service_year',serviceYear)"));
+  assert.ok(page.includes("params.set('service_from',appliedServiceFrom)"));
+  assert.ok(page.includes("params.set('service_to',appliedServiceTo)"));
   assert.ok(page.includes("params.set('needs_action','true')"));
   assert.ok(page.includes("params.set('month',receiptAppliedMonth)"));
   assert.ok(page.includes('financeAdvancedOpen'));

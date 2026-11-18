@@ -14,8 +14,8 @@ type PeriodRow={
   action:string|null;
 };
 
-export function AccountingContractTreeTable({rows,kind,year,needsAction,canConfirm,onView,onReview}:{
-  rows:ContractRow[];kind:string;year:string;needsAction:boolean;canConfirm:boolean;
+export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,canConfirm,onView,onReview}:{
+  rows:ContractRow[];fromDate:string;toDate:string;needsAction:boolean;canConfirm:boolean;
   onView:(contractId:number,renewalId:number|null)=>void;
   onReview:(contractId:number,renewalId:number)=>void;
 }){
@@ -24,13 +24,13 @@ export function AccountingContractTreeTable({rows,kind,year,needsAction,canConfi
   const soon=new Date(Date.parse(today+'T00:00:00Z')+30*86400000).toISOString().slice(0,10);
   const display=rows.map(row=>{
     const contracts:PeriodRow[]=[
-      ...(kind==='RENEWAL'?[]:[{
+      ...[{
         key:'original',renewalId:null,label:'Hợp đồng lần đầu',code:row.contract_code,
         start:row.source_service_start_on??null,end:row.source_service_end_on??null,
         amount:row.total_value,status:row.contract_status,
         action:row.action==='REVIEW_PERIOD'?'REVIEW_PERIOD':null
-      }]),
-      ...(kind==='ORIGINAL'?[]:(row.periods??[]).map(p=>({
+      }],
+      ...(row.periods??[]).map(p=>({
         key:'renewal-'+p.id,renewalId:p.id,label:'Tái ký lần '+p.renewal_no,
         code:p.contract_code??'Chưa cập nhật mã tái ký',
         start:p.service_start_on,end:p.service_end_on,amount:p.total_value,
@@ -40,8 +40,8 @@ export function AccountingContractTreeTable({rows,kind,year,needsAction,canConfi
     ];
     return {row,contracts:contracts.filter(p=>
       (!needsAction||p.action!==null)
-      &&(year==='ALL'||(!!p.start&&!!p.end
-        &&Number(p.start.slice(0,4))<=Number(year)&&Number(p.end.slice(0,4))>=Number(year))))};
+      &&(!fromDate||(!!p.end&&p.end>=fromDate))
+      &&(!toDate||(!!p.start&&p.start<=toDate)))};
   }).filter(item=>item.contracts.length>0);
 
   return <div>
@@ -87,12 +87,12 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
 }){
   const tasks=contracts.filter(p=>p.action).length;
   return <>
-    <tr className="bg-muted/30">
+    <tr className="bg-emerald-50/85 text-emerald-950 transition-colors hover:bg-emerald-100/80 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:bg-emerald-900/45">
       <td colSpan={7} className="px-4 py-2">
         <button type="button" className="flex w-full items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-ring"
           aria-expanded={!collapsed} aria-label={(collapsed?'Mở':'Thu gọn')+' hợp đồng của '+row.school_name} onClick={toggle}>
           {collapsed?<ChevronRight className="size-4 shrink-0 text-primary"/>:<ChevronDown className="size-4 shrink-0 text-primary"/>}
-          <span className="min-w-0 flex-1 truncate font-semibold" title={row.school_name}>{row.school_name}</span>
+          <span className="min-w-0 flex-1 truncate font-bold" title={row.school_name}>{row.school_name}</span>
           <span className="shrink-0 text-xs text-muted-foreground">{contracts.length} hợp đồng</span>
           {tasks>0&&<span className="shrink-0 rounded-full border border-amber-300/50 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200">{tasks} cần xử lý</span>}
         </button>

@@ -160,7 +160,9 @@ public static class AccountingWorkspaceEndpoints
             scope = scope.Where(c => c.ContractCode.Contains(term)
                 || db.ChannelCustomers.Any(s => s.Id == c.CustomerId
                     && s.DisplayName.Contains(term))
-                || db.Users.Any(u => u.Id == c.OwnerUserId && u.Name.Contains(term)));
+                || db.Users.Any(u => u.Id == c.OwnerUserId && u.Name.Contains(term))
+                || db.ContractRenewals.Any(r => r.ContractId == c.Id
+                    && r.ContractCode != null && r.ContractCode.Contains(term)));
 
         var all = await (from c in scope
             join school in db.ChannelCustomers.AsNoTracking() on c.CustomerId equals school.Id

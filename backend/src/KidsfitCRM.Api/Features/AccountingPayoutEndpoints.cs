@@ -160,7 +160,8 @@ public static class AccountingPayoutEndpoints
 
     public static async Task<IResult> Eligible(
         HttpContext http, KidsfitDbContext db, string? period, string? search,
-        string? role, long? organization_id, int? page, int? page_size, CancellationToken ct)
+        string? role, long? organization_id, long? contract_id,
+        int? page, int? page_size, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesPayoutCreate)) return Results.Forbid();
@@ -172,10 +173,13 @@ public static class AccountingPayoutEndpoints
             throw ApiValidationException.For("role", "Vai trò không hợp lệ.");
         if (organization_id.HasValue && organization_id.Value <= 0)
             throw ApiValidationException.For("organization_id", "Tổ chức không hợp lệ.");
+        if (contract_id.HasValue && contract_id.Value <= 0)
+            throw ApiValidationException.For("contract_id", "Hợp đồng không hợp lệ.");
         var pn = Math.Max(page ?? 1, 1);
         var size = Math.Clamp(page_size ?? 20, 1, 100);
         var entries = access.Commissions(db).AsNoTracking()
             .Where(x => x.Period == month && !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id));
+        if (contract_id.HasValue) entries = entries.Where(x => x.ContractId == contract_id.Value);
         if (beneficiaryRole != "ALL") entries = entries.Where(x => x.BeneficiaryRole == beneficiaryRole);
         if (organization_id.HasValue) entries = entries.Where(x => x.BeneficiaryOrganizationId == organization_id.Value);
 

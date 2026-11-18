@@ -94,7 +94,14 @@ public static class AccountingPayoutEndpoints
                 on contract.CustomerId equals school.Id
             where ids.Contains(item.PayoutId)
             select new { item.PayoutId, contract_id = contract.Id,
-                contract_code = contract.ContractCode, school_name = school.DisplayName })
+                contract_code = (from receipt in db.RevenueReceipts.AsNoTracking()
+                    join schedule in db.RevenueSchedules.AsNoTracking()
+                        on receipt.RevenueScheduleId equals (long?)schedule.Id
+                    join renewal in db.ContractRenewals.AsNoTracking()
+                        on schedule.ContractRenewalId equals (long?)renewal.Id
+                    where receipt.Id == entry.RevenueReceiptId
+                    select renewal.ContractCode).FirstOrDefault() ?? contract.ContractCode,
+                school_name = school.DisplayName })
             .Distinct().ToArrayAsync(ct);
         var events = await db.PayoutEvents.AsNoTracking()
             .Where(x => ids.Contains(x.PayoutId))

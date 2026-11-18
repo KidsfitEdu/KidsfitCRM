@@ -1194,10 +1194,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <p className="break-words text-sm font-semibold">{receivableChoice?.manager_name||'Chưa xác định'}</p>
           </div>
         </div>
-        {receivableChoice&&!receiptReady&&<p role="status" className="text-xs text-muted-foreground">
+        {receivableChoice&&!receiptReady&&<output className="block text-xs text-muted-foreground">
           {receiptNoDue?'Hợp đồng không còn đợt thanh toán có thể thu. Vui lòng chọn hợp đồng khác.'
             :'Đang tải các đợt thanh toán của hợp đồng...'}
-        </p>}
+        </output>}
         <form key={selected??'unselected'} id="accounting-financial-transaction-form" noValidate
           className="space-y-4" onSubmit={event=>void sendRecord(event)}
           onChange={event=>{

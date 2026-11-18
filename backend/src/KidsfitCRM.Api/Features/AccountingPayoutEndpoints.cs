@@ -23,11 +23,16 @@ public static class AccountingPayoutEndpoints
     public static async Task<IResult> List(
         HttpContext http, KidsfitDbContext db, string? period,
         string? search, string? status, string? role, long? organization_id,
-        int? page, int? page_size, CancellationToken ct)
+        int? year, int? month, int? page, int? page_size, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
-        var month = ChannelSalesValidation.Period(period ?? ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow));
+        // Keep legacy period filtering separate from the document creation date.
+        var commissionPeriod = string.IsNullOrWhiteSpace(period)?null:ChannelSalesValidation.Period(period);
+        if (year is < 2000 or > 2100)
+            throw ApiValidationException.For("year", "Năm lập phiếu không hợp lệ.");
+        if (month.HasValue && (month < 1 || month > 12 || !year.HasValue))
+            throw ApiValidationException.For("month", "Chọn năm trước khi lọc tháng lập phiếu.");
         var term = (search ?? "").Trim();
         if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
         var state = (status ?? "ALL").Trim().ToUpperInvariant();
@@ -42,7 +47,15 @@ public static class AccountingPayoutEndpoints
         var pn = Math.Max(page ?? 1, 1);
         var size = Math.Clamp(page_size ?? 20, 1, 100);
 
-        var payoutScope = access.Payouts(db).AsNoTracking().Where(x => x.Period == month);
+        var payoutScope = access.Payouts(db).AsNoTracking();
+        if (commissionPeriod is not null) payoutScope = payoutScope.Where(x => x.Period == commissionPeriod);
+        if (year.HasValue)
+        {
+            var beginning = new DateTime(year.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddHours(-7);
+            var from = month.HasValue ? beginning.AddMonths(month.Value - 1) : beginning;
+            var to = month.HasValue ? from.AddMonths(1) : beginning.AddYears(1);
+            payoutScope = payoutScope.Where(x => x.CreatedAt >= from && x.CreatedAt < to);
+        }
         if (state != "ALL") payoutScope = payoutScope.Where(x => x.Status == state);
         if (beneficiaryRole != "ALL") payoutScope = payoutScope.Where(x => x.BeneficiaryRole == beneficiaryRole);
         if (organization_id.HasValue) payoutScope = payoutScope.Where(x => x.OrganizationId == organization_id.Value);
@@ -71,7 +84,7 @@ public static class AccountingPayoutEndpoints
             .ThenByDescending(x => x.payout.Id).Skip((pn - 1) * size).Take(size)
             .Select(x => new
             {
-                x.payout.Id, x.payout.OrganizationId, x.payout.CreatedByUserId,
+                x.payout.Id, x.payout.OrganizationId, x.payout.CreatedByUserId, x.payout.CreatedAt,
                 x.payout.BeneficiaryUserId, x.beneficiary_name,
                 x.payout.Code, x.payout.Period, beneficiary_role = x.payout.BeneficiaryRole,
                 x.payout.GrossAmount, x.payout.SuggestedRatePercent,
@@ -126,7 +139,7 @@ public static class AccountingPayoutEndpoints
             return new {
                 id = x.Id, organization_id = x.OrganizationId,
                 beneficiary_user_id = x.BeneficiaryUserId,
-                x.beneficiary_name, x.Code, x.Period, x.beneficiary_role,
+                x.beneficiary_name, x.Code, x.Period, x.CreatedAt, x.beneficiary_role,
                 x.GrossAmount, x.SuggestedRatePercent, x.RequestedRatePercent,
                 x.SuggestedAmount, x.RequestedAmount, x.AdjustmentReason,
                 x.SubmittedAt, x.WithholdingAmount, x.WithholdingReason,
@@ -165,7 +178,7 @@ public static class AccountingPayoutEndpoints
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesPayoutCreate)) return Results.Forbid();
-        var month = ChannelSalesValidation.Period(period ?? ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow));
+        var commissionPeriod = string.IsNullOrWhiteSpace(period)?null:ChannelSalesValidation.Period(period);
         var term = (search ?? "").Trim();
         if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
         var beneficiaryRole = (role ?? "ALL").Trim().ToUpperInvariant();
@@ -178,7 +191,8 @@ public static class AccountingPayoutEndpoints
         var pn = Math.Max(page ?? 1, 1);
         var size = Math.Clamp(page_size ?? 20, 1, 100);
         var entries = access.Commissions(db).AsNoTracking()
-            .Where(x => x.Period == month && !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id));
+            .Where(x => !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id));
+        if (commissionPeriod is not null) entries = entries.Where(x => x.Period == commissionPeriod);
         if (contract_id.HasValue) entries = entries.Where(x => x.ContractId == contract_id.Value);
         if (beneficiaryRole != "ALL") entries = entries.Where(x => x.BeneficiaryRole == beneficiaryRole);
         if (organization_id.HasValue) entries = entries.Where(x => x.BeneficiaryOrganizationId == organization_id.Value);

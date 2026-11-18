@@ -61,7 +61,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.GrantSchoolProtection(contract, await User("admin@kidsfit.vn"), Http(), Ct); return contract;
     }
 
-    [MySqlFact] public async Task AccountingReceiptDraftCanBeEditedCancelledOrPostedOnceWithoutEarlyCommission()
+    [MySqlFact] public async Task AccountingDirectReceiptIsIdempotentAndAccruesCommissionOnlyOnce()
     {
         var scenario = await Arrange();
         var contractId = await ActiveContract(scenario);
@@ -71,51 +71,37 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             .Select(x => x.Id).FirstAsync(Ct);
         var existingReceipts = await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct);
         var existingLedger = await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct);
-        var today = DateTime.UtcNow;
-        var value = new AccountingReceiptDraftEndpoints.DraftInput(
-            contractId, dueId, 100_000m, today, "DR-" + Key(), "BANK_TRANSFER");
-        var created = Json(await AccountingReceiptDraftEndpoints.Create(value, Http(actor), db, Ct));
-        var draftId = created.GetProperty("data").GetProperty("id").GetInt64();
-        Assert.Equal("DRAFT", await db.RevenueReceiptDrafts.Where(x => x.Id == draftId)
-            .Select(x => x.Status).SingleAsync(Ct));
-        Assert.Equal(existingReceipts, await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct));
-        Assert.Equal(existingLedger, await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct));
-
-        var changed = value with { Amount = 200_000m };
-        await AccountingReceiptDraftEndpoints.Update(draftId, changed, Http(actor), db, Ct);
-        Assert.Equal(200_000m, await db.RevenueReceiptDrafts.Where(x => x.Id == draftId)
-            .Select(x => x.Amount).SingleAsync(Ct));
+        var now = DateTime.UtcNow;
 
         var bankProof = new FinancialEvidence {
             Kind = "RECEIPT", ContractId = contractId, UploadedByUserId = actor,
-            FileName = "draft-bank.png", MimeType = "image/png",
+            FileName = "direct-bank.png", MimeType = "image/png",
             StorageKey = FixtureEvidenceStorage.Save(new byte[]{137,80,78,71,13,10,26,10}, "RECEIPT").StorageKey,
             FileSize = 8, Sha256 = new string('A', 64),
-            CreatedAt = today, UpdatedAt = today
+            CreatedAt = now, UpdatedAt = now
         };
         db.FinancialEvidences.Add(bankProof);
         await db.SaveChangesAsync(Ct);
-        var posted = Json(await AccountingReceiptDraftEndpoints.Post(draftId,
-            new(bankProof.Id), Http(actor), db, new ChannelSalesActions(db), Ct));
-        var receiptId = posted.GetProperty("data").GetProperty("id").GetInt64();
-        Assert.Equal("POSTED", await db.RevenueReceiptDrafts.Where(x => x.Id == draftId)
-            .Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal(existingReceipts, await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(existingLedger, await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct));
+
+        var actions = new ChannelSalesActions(db);
+        var request = new RecordRevenueReceiptRequest(
+            Key(), dueId, 200_000m, now, "DIRECT-" + Key(), "BANK_TRANSFER", bankProof.Id);
+        var receiptId = await actions.RecordRevenueReceipt(contractId, request, actor, Http(actor), Ct);
+        Assert.True(receiptId > 0);
         Assert.Equal(existingReceipts + 1, await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct));
         Assert.True(await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct) > existingLedger);
-        var replay = Json(await AccountingReceiptDraftEndpoints.Post(draftId,
-            new(bankProof.Id), Http(actor), db, new ChannelSalesActions(db), Ct));
-        Assert.Equal(receiptId, replay.GetProperty("data").GetProperty("id").GetInt64());
-        Assert.Equal(existingReceipts + 1, await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct));
-        await Assert.ThrowsAsync<ApiConflictException>(() =>
-            AccountingReceiptDraftEndpoints.Cancel(draftId, Http(actor), db, Ct));
+        Assert.Equal(200_000m, await db.RevenueSchedules.Where(x => x.Id == dueId)
+            .Select(x => x.AmountReceived).SingleAsync(Ct));
+        Assert.Equal(receiptId, await db.FinancialEvidences.Where(x => x.Id == bankProof.Id)
+            .Select(x => x.RevenueReceiptId).SingleAsync(Ct));
 
-        var another = Json(await AccountingReceiptDraftEndpoints.Create(
-            value with { ReferenceCode = "CANCEL-" + Key() }, Http(actor), db, Ct));
-        var cancelId = another.GetProperty("data").GetProperty("id").GetInt64();
-        await AccountingReceiptDraftEndpoints.Cancel(cancelId, Http(actor), db, Ct);
-        Assert.Equal("CANCELLED", await db.RevenueReceiptDrafts.Where(x => x.Id == cancelId)
-            .Select(x => x.Status).SingleAsync(Ct));
+        var replayId = await actions.RecordRevenueReceipt(contractId, request, actor, Http(actor), Ct);
+        Assert.Equal(receiptId, replayId);
         Assert.Equal(existingReceipts + 1, await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(200_000m, await db.RevenueSchedules.Where(x => x.Id == dueId)
+            .Select(x => x.AmountReceived).SingleAsync(Ct));
     }
 
     [MySqlFact] public async Task AccountingPayoutRegisterUsesServerPaginationAndCreatorActions()

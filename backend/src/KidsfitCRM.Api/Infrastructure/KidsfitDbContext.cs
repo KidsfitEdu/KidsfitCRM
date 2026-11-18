@@ -23,7 +23,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
     public DbSet<CustomerProtection> CustomerProtections => Set<CustomerProtection>();
     public DbSet<RevenueSchedule> RevenueSchedules => Set<RevenueSchedule>();
     public DbSet<RevenueReceipt> RevenueReceipts => Set<RevenueReceipt>();
-    public DbSet<RevenueReceiptDraft> RevenueReceiptDrafts => Set<RevenueReceiptDraft>();
     public DbSet<BoardCommissionPolicyVersion> BoardCommissionPolicyVersions => Set<BoardCommissionPolicyVersion>();
     public DbSet<CommissionLedgerEntry> CommissionLedgerEntries => Set<CommissionLedgerEntry>();
     public DbSet<Payout> Payouts => Set<Payout>();
@@ -218,17 +217,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         b.Entity<RevenueSchedule>().HasIndex(x => new { x.ContractRenewalId, x.DueOn }).IsUnique();
         DateOnlyProperty(b.Entity<RevenueSchedule>().Property(x => x.DueOn));
 
-        var receiptDraft = b.Entity<RevenueReceiptDraft>();
-        receiptDraft.ToTable("revenue_receipt_drafts");
-        receiptDraft.Property(x => x.ReferenceCode).HasMaxLength(64).UseCollation("utf8mb4_bin");
-        receiptDraft.Property(x => x.PaymentMethod).HasMaxLength(32);
-        receiptDraft.Property(x => x.Status).HasMaxLength(24);
-        receiptDraft.Property(x => x.Amount).HasPrecision(19, 0);
-        receiptDraft.HasIndex(x => new { x.CreatedByUserId, x.Status, x.UpdatedAt });
-        receiptDraft.HasIndex(x => x.ContractId);
-        receiptDraft.HasIndex(x => x.RevenueScheduleId);
-        receiptDraft.HasIndex(x => x.PostedReceiptId).IsUnique();
-
         Money<RevenueReceipt>(b, x => x.Amount);
         b.Entity<RevenueReceipt>().Property(x => x.ReferenceCode).HasMaxLength(64).UseCollation("utf8mb4_bin");
         b.Entity<RevenueReceipt>().Property(x => x.PaymentMethod).HasMaxLength(32);
@@ -318,10 +306,6 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         Restrict<CustomerProtection, ChannelCustomer>(x => x.CustomerId); Restrict<CustomerProtection, User>(x => x.OwnerUserId); Restrict<CustomerProtection, Organization>(x => x.OwnerOrganizationId); Restrict<CustomerProtection, ApproachRegistration>(x => x.ApproachRegistrationId); Restrict<CustomerProtection, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, SalesContract>(x => x.ContractId);
         Restrict<RevenueSchedule, ContractRenewal>(x => x.ContractRenewalId);
-        Restrict<RevenueReceiptDraft, SalesContract>(x => x.ContractId);
-        Restrict<RevenueReceiptDraft, RevenueSchedule>(x => x.RevenueScheduleId);
-        Restrict<RevenueReceiptDraft, RevenueReceipt>(x => x.PostedReceiptId);
-        Restrict<RevenueReceiptDraft, User>(x => x.CreatedByUserId);
         Restrict<RevenueReceipt, SalesContract>(x => x.ContractId); Restrict<RevenueReceipt, RevenueSchedule>(x => x.RevenueScheduleId); Restrict<RevenueReceipt, User>(x => x.RecordedByUserId);
         Restrict<CommissionLedgerEntry, SalesContract>(x => x.ContractId); Restrict<CommissionLedgerEntry, RevenueReceipt>(x => x.RevenueReceiptId); Restrict<CommissionLedgerEntry, BoardCommissionPolicyVersion>(x => x.BoardPolicyVersionId); Restrict<CommissionLedgerEntry, User>(x => x.BeneficiaryUserId); Restrict<CommissionLedgerEntry, Organization>(x => x.BeneficiaryOrganizationId); Restrict<CommissionLedgerEntry, User>(x => x.CreatedByUserId);
         Restrict<CommissionLedgerEntry, CommissionLedgerEntry>(x => x.RelatedEntryId);

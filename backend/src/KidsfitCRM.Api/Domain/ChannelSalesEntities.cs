@@ -160,20 +160,6 @@ public sealed class RevenueSchedule : EntityBase
     public string Status { get; set; } = "PENDING";
 }
 
-/// <summary>Editable staging only; never counts as collected revenue or commission.</summary>
-public sealed class RevenueReceiptDraft : EntityBase
-{
-    public long ContractId { get; set; }
-    public long? RevenueScheduleId { get; set; }
-    public decimal? Amount { get; set; }
-    public DateTime? ReceivedAt { get; set; }
-    public string? ReferenceCode { get; set; }
-    public string PaymentMethod { get; set; } = "BANK_TRANSFER";
-    public string Status { get; set; } = "DRAFT";
-    public long? PostedReceiptId { get; set; }
-    public long CreatedByUserId { get; set; }
-}
-
 public sealed class RevenueReceipt : EntityBase
 {
     public long ContractId { get; set; }

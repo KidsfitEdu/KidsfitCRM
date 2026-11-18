@@ -37,12 +37,15 @@ test('Existing approved payout workflow and edit dialog remain distinct',()=>{
 });
 
 test('Creating a payout pins the selected period and beneficiary without fallback',()=>{
-  assert.ok(page.includes("centralPayoutIntent?.mode==='CREATE'?payoutCreatePeriod"));
-  assert.ok(page.includes("centralPayoutIntent?.mode==='CREATE'?undefined:beneficiaries[0]"));
+  assert.ok(page.includes("payoutPickerOpen&&!editingPayout?payoutCreatePeriod"));
+  assert.ok(page.includes("payoutPickerOpen&&!editingPayout?undefined:beneficiaries[0]"));
   assert.ok(page.includes("chosenPeriod!==payoutCreatePeriod"));
-  assert.ok(page.includes("currentBeneficiary?.id!==centralPayoutIntent.beneficiaryUserId"));
-  assert.ok(page.includes("currentBeneficiary?.role!==centralPayoutIntent.role"));
-  assert.ok(page.includes("period:chosenPeriod,contract_id:detail.data.id"));
+  assert.ok(page.includes("currentBeneficiary?.id!==candidate.beneficiary_user_id"));
+  assert.ok(page.includes("currentBeneficiary?.role!==candidate.beneficiary_role"));
+  assert.ok(page.includes("period:payoutCreatePeriod,contract_id:candidate!.contract_id"));
+  assert.ok(page.includes("const candidate=chosenCandidate"));
+  assert.ok(page.includes("eligibleForSelection.reduce((sum,entry)=>sum+entry.amount,0)<=0"));
+  assert.doesNotMatch(page,/!centralPayoutIntent\|\|centralPayoutIntent.mode!=='CREATE'/);
 });
 
 test('Payout form remains empty until both contract and eligible beneficiary are selected',()=>{
@@ -104,4 +107,16 @@ test('Selected school clear action is icon-only and draft does not show redundan
   assert.doesNotMatch(page,/Giá trị chính thức sẽ được Backend kiểm tra/);
   assert.ok(page.includes("setPayoutPickerSearch('');setPayoutSchool(null);setPayoutCandidateKey('')"));
   assert.ok(page.includes("setPayoutDialogOpen(false)"));
+});
+
+test('Auto-fill completion does not invalidate save after loading intent clears',()=>{
+  assert.ok(page.includes('setCentralPayoutIntent(null)'));
+  assert.ok(page.includes('const candidate=chosenCandidate'));
+  assert.ok(page.includes('!payoutPickerOpen||!payoutCreateReady||!candidate'));
+  assert.ok(page.includes('candidate.contract_id!==payoutSchool.id'));
+  assert.ok(page.includes('candidate.period!==payoutCreatePeriod'));
+  assert.ok(page.includes('currentBeneficiary?.id!==candidate.beneficiary_user_id'));
+  assert.ok(page.includes('currentBeneficiary?.role!==candidate.beneficiary_role'));
+  assert.ok(page.includes('period:payoutCreatePeriod,contract_id:candidate!.contract_id'));
+  assert.doesNotMatch(page,/Kỳ hoặc người hưởng đã thay đổi\. Vui lòng chọn lại khoản hoa hồng\./);
 });

@@ -209,6 +209,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [eligibleLoading,setEligibleLoading]=useState(false);
   const [payoutPickerOpen,setPayoutPickerOpen]=useState(false);
   const [payoutPickerSearch,setPayoutPickerSearch]=useState('');
+  const [payoutSchoolSearchOpen,setPayoutSchoolSearchOpen]=useState(false);
+  const [payoutSchoolActiveIndex,setPayoutSchoolActiveIndex]=useState(0);
   const [payoutCandidateKey,setPayoutCandidateKey]=useState('');
   const [payoutCreatePeriod,setPayoutCreatePeriod]=useState('');
   const [payoutSchool,setPayoutSchool]=useState<{id:number;code:string;name:string}|null>(null);
@@ -645,7 +647,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const choosePayoutSchool=(contractId:number)=>{
     const school=payoutSchools.find(x=>x.id===contractId);
     if(!school)return;
-    setPayoutSchool(school);setPayoutCandidateKey('');setPayoutDetailError('');
+    setPayoutSchool(school);setPayoutPickerSearch(school.name);
+    setPayoutSchoolSearchOpen(false);setPayoutSchoolActiveIndex(0);
+    setPayoutCandidateKey('');setPayoutDetailError('');
     setPayoutDialogOpen(false);setCentralPayoutIntent(null);
     setEditingPayout(null);setSelected(null);setDetail(null);payoutKey.current=null;
   };
@@ -1001,7 +1005,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             onClick={()=>{setPayoutCreatePeriod(financePeriod);setPayoutPickerSearch('');setEligiblePage(1);
               setPayoutCandidateKey('');setPayoutSchool(null);setPayoutSchoolCandidates([]);
               setPayoutDialogOpen(false);setCentralPayoutIntent(null);setEditingPayout(null);
-              setPayoutError('');setPayoutPickerOpen(true);}}>
+              setPayoutError('');setPayoutSchoolSearchOpen(false);setPayoutSchoolActiveIndex(0);
+              setPayoutPickerOpen(true);}}>
             Thêm mới
           </AppButton>:undefined}/>
     {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
@@ -1376,7 +1381,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         setEditingPayout(null);setPayoutSchool(null);setPayoutCandidateKey('');payoutKey.current=null;
       }}}
       busy={saving} title="Lập phiếu chi hoa hồng"
-      description="Chọn nhà trường, người hưởng và nhập thông tin hoa hồng trong cùng một form."
       footer={<>
         <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{
           setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);
@@ -1386,51 +1390,72 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           disabled={!payoutCreateReady||saving}>Lưu nháp</AppButton>
       </>}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Kỳ hoa hồng</span>
-          <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
-            {payoutPeriodLabel(payoutCreatePeriod)}
-          </span>
-        </div>
         <div className="space-y-2">
-          <label htmlFor="accounting-payout-search" className="block text-sm font-semibold">Nhà trường / Hợp đồng *</label>
+          <label htmlFor="accounting-payout-search" className="block text-sm font-semibold">Nhà trường *</label>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
-            <Input id="accounting-payout-search" className="h-11 rounded-xl pl-10"
-              value={payoutPickerSearch} placeholder="Tìm tên trường hoặc mã hợp đồng..."
-              onChange={event=>{setPayoutPickerSearch(event.target.value);setEligiblePage(1);}}/>
+            <Search className="pointer-events-none absolute left-3 top-[22px] size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+            <Input id="accounting-payout-search" className="h-11 rounded-xl pl-10 pr-10"
+              role="combobox" aria-autocomplete="list" aria-expanded={payoutSchoolSearchOpen}
+              aria-controls="accounting-payout-school-options"
+              aria-activedescendant={payoutSchoolSearchOpen&&payoutSchools[payoutSchoolActiveIndex]
+                ?'accounting-payout-school-option-'+payoutSchools[payoutSchoolActiveIndex].id:undefined}
+              autoComplete="off" value={payoutPickerSearch} placeholder="Tìm và chọn nhà trường..."
+              onFocus={()=>{setPayoutSchoolSearchOpen(true);setPayoutSchoolActiveIndex(0);}}
+              onBlur={()=>setPayoutSchoolSearchOpen(false)}
+              onChange={event=>{
+                setPayoutPickerSearch(event.target.value);setEligiblePage(1);
+                setPayoutSchoolActiveIndex(0);setPayoutSchoolSearchOpen(true);
+                setPayoutSchool(null);setPayoutCandidateKey('');setPayoutSchoolCandidates([]);
+                setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+                setSelected(null);setDetail(null);setPayoutDetailError('');payoutKey.current=null;
+              }}
+              onKeyDown={event=>{
+                if(event.key==='Escape'){setPayoutSchoolSearchOpen(false);return;}
+                if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+                  event.preventDefault();setPayoutSchoolSearchOpen(true);
+                  setPayoutSchoolActiveIndex(index=>payoutSchools.length===0?0:
+                    (index+(event.key==='ArrowDown'?1:-1)+payoutSchools.length)%payoutSchools.length);
+                }
+                if(event.key==='Enter'&&payoutSchoolSearchOpen&&payoutSchools[payoutSchoolActiveIndex]){
+                  event.preventDefault();choosePayoutSchool(payoutSchools[payoutSchoolActiveIndex].id);
+                }
+              }}/>
+            {payoutSchool&&<button type="button" aria-label="Bỏ chọn nhà trường"
+              onMouseDown={event=>event.preventDefault()}
+              onClick={()=>{
+                setPayoutPickerSearch('');setPayoutSchool(null);setPayoutCandidateKey('');
+                setPayoutSchoolCandidates([]);setPayoutDialogOpen(false);
+                setCentralPayoutIntent(null);setSelected(null);setDetail(null);
+                setEligiblePage(1);setPayoutSchoolActiveIndex(0);setPayoutSchoolSearchOpen(true);
+                setPayoutDetailError('');payoutKey.current=null;
+              }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">Xóa</button>}
+            {payoutSchoolSearchOpen&&<div id="accounting-payout-school-options" role="listbox"
+              aria-label="Danh sách nhà trường đủ điều kiện"
+              className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(290px,45dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">
+              {eligibleLoading&&<output className="block px-3 py-3 text-xs text-muted-foreground">Đang tìm nhà trường...</output>}
+              {!eligibleLoading&&payoutSchools.length===0&&<p className="px-3 py-4 text-sm text-muted-foreground">Không tìm thấy nhà trường đủ điều kiện trong kỳ này.</p>}
+              {!eligibleLoading&&payoutSchools.map((school,index)=><button
+                key={school.id} id={'accounting-payout-school-option-'+school.id} role="option"
+                aria-selected={payoutSchool?.id===school.id}
+                type="button" onMouseDown={event=>event.preventDefault()}
+                onClick={()=>choosePayoutSchool(school.id)}
+                className={'flex w-full flex-col gap-1 rounded-lg px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent '+(index===payoutSchoolActiveIndex?'bg-accent/70':'')}>
+                <span className="font-semibold">{school.name}</span>
+                <span className="text-xs text-muted-foreground">{school.code}</span>
+              </button>)}
+              {eligibleTotal>20&&<div className="flex items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs text-muted-foreground">
+                <span>{eligibleTotal} khoản đủ điều kiện · Trang {eligiblePage}/{Math.ceil(eligibleTotal/20)}</span>
+                <div className="flex gap-1">
+                  <Button size="sm" type="button" variant="outline" disabled={eligiblePage<=1||eligibleLoading}
+                    onMouseDown={event=>event.preventDefault()}
+                    onClick={()=>{setEligiblePage(v=>v-1);setPayoutSchoolActiveIndex(0);}}>Trước</Button>
+                  <Button size="sm" type="button" variant="outline" disabled={eligiblePage*20>=eligibleTotal||eligibleLoading}
+                    onMouseDown={event=>event.preventDefault()}
+                    onClick={()=>{setEligiblePage(v=>v+1);setPayoutSchoolActiveIndex(0);}}>Sau</Button>
+                </div>
+              </div>}
+            </div>}
           </div>
-          <Select value={payoutSchool?String(payoutSchool.id):''}
-            onValueChange={value=>choosePayoutSchool(Number(value))}>
-            <SelectTrigger id="accounting-payout-school" aria-label="Chọn nhà trường và hợp đồng"
-              disabled={eligibleLoading&&payoutSchools.length===0}
-              className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left">
-              <SelectValue placeholder="Chọn nhà trường / hợp đồng">
-                {payoutSchool?payoutSchool.name+' · '+payoutSchool.code:'Chọn nhà trường / hợp đồng'}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="start" alignItemWithTrigger={false} side="bottom" sideOffset={5}
-              className="z-[90] max-h-[min(240px,40dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5">
-              {payoutSchools.map(school=><SelectItem key={school.id} value={String(school.id)}
-                className="min-h-12 rounded-lg px-3 py-2 pr-9 data-selected:bg-primary/10 data-highlighted:bg-primary/10">
-                <span className="flex min-w-0 flex-col gap-1 text-left">
-                  <span className="text-sm font-semibold">{school.name}</span>
-                  <span className="text-xs text-muted-foreground">{school.code}</span>
-                </span>
-              </SelectItem>)}
-            </SelectContent>
-          </Select>
-          {eligibleLoading?<output className="block text-xs text-muted-foreground">Đang tìm hợp đồng đủ điều kiện...</output>
-            :payoutSchools.length===0?<p className="text-xs text-muted-foreground">Không có hợp đồng phù hợp trong kỳ này.</p>:null}
-          {eligibleTotal>20&&<div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>{eligibleTotal} khoản đủ điều kiện · Trang {eligiblePage}/{Math.ceil(eligibleTotal/20)}</span>
-            <div className="flex gap-2">
-              <Button size="sm" type="button" variant="outline" disabled={eligiblePage<=1||eligibleLoading}
-                onClick={()=>setEligiblePage(v=>v-1)}>Trước</Button>
-              <Button size="sm" type="button" variant="outline" disabled={eligiblePage*20>=eligibleTotal||eligibleLoading}
-                onClick={()=>setEligiblePage(v=>v+1)}>Sau</Button>
-            </div>
-          </div>}
         </div>
         <div className="space-y-2">
           <label htmlFor="accounting-payout-beneficiary" className="block text-sm font-semibold">Người hưởng hoa hồng *</label>
@@ -1465,8 +1490,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <p>{payoutDetailError}</p>
           <Button type="button" variant="outline" size="sm" onClick={()=>{setPayoutDetailError('');setDetailRevision(value=>value+1);}}>Tải lại dữ liệu</Button>
         </div>}
-        {!chosenCandidate&&!payoutSchoolLoading&&!eligibleLoading&&<div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-          Chọn nhà trường và người hưởng để hệ thống tự điền tỷ lệ, tiền hoa hồng và dự kiến thực chi.
+        {!chosenCandidate&&!payoutSchoolLoading&&<div className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          <ClipboardCheck className="size-5 text-muted-foreground/70" aria-hidden="true"/>
+          <p>Chọn nhà trường và người hưởng để hiển thị thông tin hoa hồng.</p>
         </div>}
         {payoutCreateReady&&!payoutDetailError&&<div className="space-y-3" aria-live="polite">
           <p className="flex items-center gap-2 text-xs font-medium text-primary">

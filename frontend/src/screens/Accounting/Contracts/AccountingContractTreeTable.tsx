@@ -56,10 +56,10 @@ export function AccountingContractTreeTable({rows,fromDate,toDate,needsAction,ca
       <table className={adminTableClass+' min-w-[1050px] table-fixed'}>
         <thead className={adminTableHeadClass}>
           <tr>
-            <th scope="col" className="w-[25%] px-4 py-3">Nhà trường</th>
+            <th scope="col" className="w-[23%] px-4 py-3">Nhà trường</th>
             <th scope="col" className="w-[13%] px-3 py-3">Sales phụ trách</th>
-            <th scope="col" className="w-[15%] px-3 py-3">Thời hạn</th>
-            <th scope="col" className="w-[13%] px-3 py-3 text-right">Giá trị hợp đồng</th>
+            <th scope="col" className="w-[18%] px-3 py-3">Thời hạn</th>
+            <th scope="col" className="w-[12%] px-3 py-3 text-right">Giá trị hợp đồng</th>
             <th scope="col" className="w-[13%] px-3 py-3">Tình trạng</th>
             <th scope="col" className="w-[13%] px-3 py-3">Cần xử lý</th>
             <th scope="col" className="w-[8%] px-2 py-3 text-center">Thao tác</th>
@@ -87,8 +87,8 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
 }){
   const tasks=contracts.filter(p=>p.action).length;
   return <>
-    <tr className="bg-emerald-50/85 text-emerald-950 transition-colors hover:bg-emerald-100/80 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:bg-emerald-900/45">
-      <td colSpan={7} className="px-4 py-2">
+    <tr className="border-t-2 border-border bg-background transition-colors hover:bg-muted/20">
+      <td colSpan={7} className="px-4 py-3">
         <button type="button" className="flex w-full items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-ring"
           aria-expanded={!collapsed} aria-label={(collapsed?'Mở':'Thu gọn')+' hợp đồng của '+row.school_name} onClick={toggle}>
           {collapsed?<ChevronRight className="size-4 shrink-0 text-primary"/>:<ChevronDown className="size-4 shrink-0 text-primary"/>}
@@ -112,8 +112,8 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
         :!p.start||!p.end?'Cần rà soát kỳ'
         :upcoming?'Chưa bắt đầu':expired?'Đã kết thúc'
         :p.end<=soon?'Sắp hết hạn':'Đang sử dụng';
-      return <tr key={p.key} className="transition-colors even:bg-muted/10 hover:bg-muted/40">
-        <td className="min-w-0 py-3 pl-9 pr-3">
+      return <tr key={p.key} className="bg-background transition-colors hover:bg-muted/20">
+        <td className="min-w-0 py-3 pl-[60px] pr-3">
           <p className="break-words font-semibold" title={row.school_name}>{row.school_name}</p>
           <p className="mt-1 break-all text-xs text-muted-foreground">{p.label} · {p.code}</p>
         </td>
@@ -121,8 +121,8 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,onView,onRe
           <p className="font-medium">{row.owner_name}</p>
           <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
         </td>
-        <td className="px-3 py-3 text-xs tabular-nums">
-          {p.start&&p.end?<>{channelDate(p.start)}<p className="mt-1 text-muted-foreground">đến {channelDate(p.end)}</p></>:<span className="text-muted-foreground">Chưa cập nhật</span>}
+        <td className="whitespace-nowrap px-3 py-3 text-xs tabular-nums">
+          {p.start&&p.end?<span>{channelDate(p.start)} – {channelDate(p.end)}</span>:<span className="text-muted-foreground">Chưa cập nhật</span>}
         </td>
         <td className="px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(p.amount)}</td>
         <td className="px-3 py-3">

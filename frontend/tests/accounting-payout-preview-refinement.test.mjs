@@ -23,7 +23,7 @@ test('Board change requests are readable in a central payout detail and still ap
   assert.match(accounting,/editingPayout\.events\.filter\(event=>event\.event_type==='CHANGES_REQUESTED'\)\.at\(-1\)/);
   assert.match(accounting,/BGĐ yêu cầu bổ sung/);
   assert.match(accounting,/mode:'EDIT'/);
-  assert.match(accounting,/submitPayout\(id\)/);
+  assert.match(accounting,/submitPayout\(pendingPayoutSubmit\.id\)/);
 });
 test('shared image viewer is headerless/footerless and uses measured fit-to-screen presentation',()=>{
   assert.match(viewer,/min\(1, stageSize\.width\/imageSize\.width, stageSize\.height\/imageSize\.height\)/);

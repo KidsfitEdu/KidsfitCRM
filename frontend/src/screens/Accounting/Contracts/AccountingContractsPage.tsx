@@ -98,12 +98,6 @@ type ReceiptRow = {
   status:string;schedule_id:number|null;proof_id:number|null;proof_file_name:string|null;
 };
 type ReceiptList = {data:ReceiptRow[];total:number;page:number;page_size:number};
-type ReceiptDraftApi={
-  id:number;contract_id:number;contract_code:string;school_name:string;
-  schedule_id:number|null;amount:number|null;received_at:string|null;
-  reference_code:string|null;payment_method:string;status:'DRAFT';
-};
-type ReceiptDraftList={data:ReceiptDraftApi[];total:number;page:number;page_size:number};
 type ReceivableContract={id:number;code:string;school_name:string;amount_remaining:number};
 type ReceivableList={data:ReceivableContract[];total:number;page:number;page_size:number};
 type PayoutRow=FinanceWorkspace['payouts'][number]&{
@@ -176,13 +170,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receiptAppliedSearch,setReceiptAppliedSearch]=useState('');
   const [receiptYear,setReceiptYear]=useState('ALL');
   const [receiptAppliedYear,setReceiptAppliedYear]=useState('ALL');
-  const [receiptStatus,setReceiptStatus]=useState<'COMPLETED'|'DRAFT'>('COMPLETED');
-  const [receiptAppliedStatus,setReceiptAppliedStatus]=useState<'COMPLETED'|'DRAFT'>('COMPLETED');
   const [receiptLoading,setReceiptLoading]=useState(false);
   const [receiptRevision,setReceiptRevision]=useState(0);
   const [receiptPreview,setReceiptPreview]=useState<ReceiptRow|null>(null);
-  const [editingReceiptDraft,setEditingReceiptDraft]=useState<ReceiptRow|null>(null);
-  const [cancelReceiptDraftId,setCancelReceiptDraftId]=useState<number|null>(null);
   const [transactionDate,setTransactionDate]=useState(()=>accountingBusinessDay(new Date()));
   const [transactionReference,setTransactionReference]=useState('');
   const [receivableSearch,setReceivableSearch]=useState('');
@@ -330,23 +320,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setReceiptLoading(true);
     const params=new URLSearchParams({page:String(receiptPage),page_size:String(receiptPageSize)});
     if(receiptAppliedSearch)params.set('search',receiptAppliedSearch);
-    const loadRows:Promise<ReceiptList>=receiptAppliedStatus==='DRAFT'
-      ?channelRequest<ReceiptDraftList>(apiBase,token,'/accounting/receipt-drafts?'+params)
-        .then(result=>({...result,data:result.data.map(draft=>({
-          ...draft,amount:draft.amount??0,received_at:draft.received_at??'',
-          reference_code:draft.reference_code??'',proof_id:null,proof_file_name:null
-        }))}))
-      :(()=>{
-        if(receiptAppliedYear!=='ALL')params.set('year',receiptAppliedYear);
-        return channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params);
-      })();
+    if(receiptAppliedYear!=='ALL')params.set('year',receiptAppliedYear);
+    const loadRows=channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params);
     void loadRows.then(res=>{if(active){setReceiptRows(res.data);setReceiptTotal(res.total);}})
       .catch(error=>{if(active)appNotice.error('Không tải được khoản thu.',
         error instanceof Error?error.message:'Thử lại sau.');})
       .finally(()=>{if(active)setReceiptLoading(false);});
     return()=>{active=false;};
   },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,
-    receiptAppliedSearch,receiptAppliedYear,receiptAppliedStatus,receiptRevision]);
+    receiptAppliedSearch,receiptAppliedYear,receiptRevision]);
 
   useEffect(()=>{
     if(!connected||!canRecordRevenue||accountingTab!=='RECEIPTS'||!receiptIntent)return;
@@ -384,21 +366,16 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   // Resolve the selected school before opening the existing verified-cash form.
   useEffect(()=>{
     if(!receiptIntent||accountingTab!=='RECEIPTS'||!detail||detail.data.id!==selected)return;
-    const due=detail.schedules.find(x=>x.id===editingReceiptDraft?.schedule_id
-      &&x.amount_received<x.amount_due)
-      ??detail.schedules.find(x=>x.amount_received<x.amount_due);
+    const due=detail.schedules.find(x=>x.amount_received<x.amount_due);
     if(!due){appNotice.error('Hợp đồng này không còn đợt thanh toán có thể thu.');setReceiptIntent(false);setSelected(null);return;}
     setSelectedScheduleId(due.id);
     setFieldErrors({});
-    setAmountInput(editingReceiptDraft?.amount?String(editingReceiptDraft.amount):'');
-    if(editingReceiptDraft){
-      setTransactionDate(editingReceiptDraft.received_at
-        ?accountingBusinessDay(new Date(editingReceiptDraft.received_at)):'');
-      setTransactionReference(editingReceiptDraft.reference_code);
-    }
+    setAmountInput('');
+    setTransactionDate(accountingBusinessDay(new Date()));
+    setTransactionReference('');
     receiptAttempt.current=null;
     setEntryMode('receipt');
-  },[receiptIntent,accountingTab,detail,selected,editingReceiptDraft]);
+  },[receiptIntent,accountingTab,detail,selected]);
 
   useEffect(()=>{
     if(!connected||selected===null){setGiHistory([]);return;}
@@ -459,56 +436,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
 
   const openReceiptForm=()=>{
     setSelected(null);setDetail(null);setReceivableSearch('');setReceivablePage(1);
-    setEditingReceiptDraft(null);
+    receiptAttempt.current=null;
     setTransactionDate(accountingBusinessDay(new Date()));setTransactionReference('');
     setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode(null);
-  };
-  const openEditReceiptDraft=(draft:ReceiptRow)=>{
-    setEditingReceiptDraft(draft);
-    setSelected(draft.contract_id);setDetail(null);
-    setReceivableSearch('');setReceivablePage(1);
-    setTransactionDate(draft.received_at?accountingBusinessDay(new Date(draft.received_at)):'');
-    setTransactionReference(draft.reference_code);
-    setAmountInput(draft.amount?String(draft.amount):'');
-    setFieldErrors({});setEntryMode(null);setReceiptIntent(true);
-  };
-  const saveReceiptDraft=async()=>{
-    if(selected===null||!detail||saving)return;
-    const amount=amountInput.trim()?parseMoneyInput(amountInput):null;
-    if(amount!==null&&(!Number.isSafeInteger(amount)||amount<=0)){
-      setFieldErrors(previous=>({...previous,amount:'Số tiền phải là số nguyên dương.'}));return;
-    }
-    setSaving(true);
-    try{
-      const request={
-        contract_id:selected,revenue_schedule_id:selectedScheduleId,amount,
-        received_at:transactionDate?accountingTransactionTimestamp(transactionDate):null,
-        reference_code:transactionReference.trim()||null,payment_method:'BANK_TRANSFER'
-      };
-      await channelRequest(apiBase,token,
-        editingReceiptDraft?'/accounting/receipt-drafts/'+editingReceiptDraft.id:'/accounting/receipt-drafts',{
-        method:editingReceiptDraft?'PATCH':'POST',body:JSON.stringify(request)
-      });
-      setReceiptIntent(false);setEntryMode(null);setSelected(null);setEditingReceiptDraft(null);
-      setReceiptStatus('DRAFT');setReceiptAppliedStatus('DRAFT');
-      setReceiptPage(1);setReceiptRevision(value=>value+1);
-      appNotice.success('Đã lưu khoản thu Nháp. Chưa ghi nhận tiền hoặc hoa hồng.');
-    }catch(error){appNotice.error('Không lưu được khoản thu Nháp.',
-      error instanceof Error?error.message:'Vui lòng thử lại.');}
-    finally{setSaving(false);}
-  };
-  const cancelReceiptDraft=async()=>{
-    if(cancelReceiptDraftId===null||saving)return;
-    setSaving(true);
-    try{
-      await channelRequest(apiBase,token,
-        '/accounting/receipt-drafts/'+cancelReceiptDraftId+'/cancel',{method:'POST'});
-      setCancelReceiptDraftId(null);
-      setReceiptRevision(value=>value+1);
-      appNotice.success('Đã hủy Nháp; không xóa chứng từ tài chính đã ghi nhận.');
-    }catch(error){appNotice.error('Không hủy được khoản thu Nháp.',
-      error instanceof Error?error.message:'Vui lòng thử lại.');}
-    finally{setSaving(false);}
   };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -580,30 +510,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       }
       attemptedEvidenceId=attempt.evidenceId;
       if(entryMode==='receipt'){
-        if(editingReceiptDraft){
-          // Keep draft staging in sync; authoritative posting still performs
-          // all receipt, evidence, limit and commission checks on the server.
-          await channelRequest(apiBase,token,
-            '/accounting/receipt-drafts/'+editingReceiptDraft.id,{
-            method:'PATCH',body:JSON.stringify({
-              contract_id:selected,revenue_schedule_id:scheduleId,amount,
-              received_at:timestamp,reference_code:reference,
-              payment_method:'BANK_TRANSFER'
-            })
-          });
-          await channelRequest(apiBase,token,
-            '/accounting/receipt-drafts/'+editingReceiptDraft.id+'/post',{
-            method:'POST',body:JSON.stringify({evidence_id:attempt.evidenceId})
-          });
-        }else{
-          await channelRequest(apiBase,token,`/contracts/${selected}/revenue-receipts`,{
-            method:'POST',body:JSON.stringify({
-              idempotency_key:attempt.key,revenue_schedule_id:scheduleId,
-              received_at:timestamp,amount,reference_code:reference,
-              payment_method:'BANK_TRANSFER',evidence_id:attempt.evidenceId
-            })
-          });
-        }
+        await channelRequest(apiBase,token,`/contracts/${selected}/revenue-receipts`,{
+          method:'POST',body:JSON.stringify({
+            idempotency_key:attempt.key,revenue_schedule_id:scheduleId,
+            received_at:timestamp,amount,reference_code:reference,
+            payment_method:'BANK_TRANSFER',evidence_id:attempt.evidenceId
+          })
+        });
       }else{
         await channelRequest(apiBase,token,`/payouts/${payoutId}/complete`,{
           method:'POST',body:JSON.stringify({
@@ -616,8 +529,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       setEntryMode(null);
       setDetailRevision(v=>v+1);
       if(entryMode==='receipt'){
-        setReceiptRevision(v=>v+1);setReceiptIntent(false);setEditingReceiptDraft(null);
-        setReceiptStatus('COMPLETED');setReceiptAppliedStatus('COMPLETED');
+        setReceiptRevision(v=>v+1);setReceiptIntent(false);
         setReceiptPage(1);
       }
       appNotice.success(entryMode==='receipt'?'Đã ghi nhận khoản thu.':'Đã ghi nhận khoản chi hoa hồng.');
@@ -1015,9 +927,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
           <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
         <div className="flex flex-wrap justify-end gap-3 border-t border-border/70 pt-4">
-          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{setEntryMode(null);if(entryMode==='receipt'){setReceiptIntent(false);setSelected(null);setEditingReceiptDraft(null);}}}>Hủy</AppButton>
-          {entryMode==='receipt'&&<AppButton type="button" tone="outline" disabled={saving}
-            onClick={()=>void saveReceiptDraft()}>{editingReceiptDraft?'Cập nhật Nháp':'Lưu nháp'}</AppButton>}
+          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{setEntryMode(null);if(entryMode==='receipt'){setReceiptIntent(false);setSelected(null);}}}>Hủy</AppButton>
           <AppButton type="submit" tone="green" busy={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</AppButton>
         </div>
       </form>
@@ -1197,19 +1107,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     </AdminListPanel>}
     {accountingTab==='RECEIPTS'&&<AdminListPanel className="min-w-0">
       <AdminListToolbar search={receiptSearch} onSearchChange={setReceiptSearch}
-        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptAppliedStatus(receiptStatus);setReceiptPage(1);}}
-        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptStatus('COMPLETED');setReceiptAppliedStatus('COMPLETED');setReceiptPage(1);}}
+        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptPage(1);}}
+        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptPage(1);}}
         searchLabel="Tìm khoản thu nhà trường"
         placeholder="Tên trường, hợp đồng, mã giao dịch..."
-        filters={<div className="flex w-full flex-wrap gap-2 sm:w-auto">
-          <AppSelect ariaLabel="Lọc trạng thái khoản thu" className="w-full sm:w-[170px]"
-            value={receiptStatus}
-            options={[{value:'COMPLETED',label:'Đã ghi nhận'},{value:'DRAFT',label:'Nháp'}]}
-            onValueChange={status=>{const next=status as 'COMPLETED'|'DRAFT';setReceiptStatus(next);setReceiptAppliedStatus(next);setReceiptPage(1);}}/>
-          {receiptStatus==='COMPLETED'&&<AppSelect ariaLabel="Lọc năm nhận tiền"
-            className="w-full sm:w-[175px]" value={receiptYear} options={receiptYearOptions}
-            onValueChange={year=>setReceiptYear(year)}/>}
-        </div>}/>
+        filters={<AppSelect ariaLabel="Lọc năm nhận tiền"
+          className="w-full sm:w-[175px]" value={receiptYear} options={receiptYearOptions}
+          onValueChange={year=>setReceiptYear(year)}/>}/>
       {receiptLoading?<output className="block p-5 text-sm text-muted-foreground">Đang tải các khoản thu...</output>:
       <div className="w-full overflow-x-auto">
         <table className={adminTableClass+' table-fixed'}>
@@ -1230,34 +1134,27 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 <p className="mt-1 break-all text-xs text-muted-foreground">{receipt.contract_code}</p>
               </td>
               <td className="whitespace-nowrap px-3 py-4 align-middle tabular-nums">
-                {receipt.received_at?channelDate(receipt.received_at):'Chưa nhập'}
+                {channelDate(receipt.received_at)}
               </td>
               <td className="min-w-0 break-all px-3 py-4 align-middle" title={receipt.reference_code||undefined}>
-                {receipt.reference_code||'Chưa nhập'}
+                {receipt.reference_code}
               </td>
               <td className="whitespace-nowrap px-3 py-4 text-right align-middle font-semibold tabular-nums">
-                {receipt.amount>0?channelMoney(receipt.amount):'Chưa nhập'}
+                {channelMoney(receipt.amount)}
               </td>
               <td className="px-3 py-4 align-middle">
-                <AppStatusBadge status={receipt.status}
-                  tone={receipt.status==='DRAFT'?'neutral':'success'}
-                  label={receipt.status==='DRAFT'?'Nháp':'Đã ghi nhận'} size="sm"/>
+                <AppStatusBadge status={receipt.status} tone="success" label="Đã ghi nhận" size="sm"/>
               </td>
               <td className="px-2 py-4 text-center align-middle">
                 <div className="flex items-center justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem khoản thu '+(receipt.reference_code||receipt.id)}
                     onClick={()=>setReceiptPreview(receipt)}/>
-                  {receipt.status==='DRAFT'&&<>
-                    <AdminIconAction icon={Pencil} tone="blue" label={'Sửa khoản thu nháp '+receipt.id}
-                      onClick={()=>openEditReceiptDraft(receipt)}/>
-                    <AdminIconAction icon={Trash2} tone="red" label={'Hủy khoản thu nháp '+receipt.id}
-                      onClick={()=>setCancelReceiptDraftId(receipt.id)}/>
-                  </>}
+                  
                 </div>
               </td>
             </tr>)}
             {receiptRows.length===0&&<tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
-              Không có khoản thu phù hợp. Chọn Thêm mới để tạo Nháp hoặc ghi nhận giao dịch đã đối chiếu.
+              Không có khoản thu phù hợp. Chọn Thêm mới để ghi nhận giao dịch đã đối chiếu.
             </td></tr>}
           </tbody>
         </table>
@@ -1368,8 +1265,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
     </AdminListPanel>}
     <AppDialog open={receiptIntent} onOpenChange={open=>{if(!open&&!saving){setReceiptIntent(false);setEntryMode(null);setSelected(null);}}}
-      title={editingReceiptDraft?'Chỉnh sửa khoản thu Nháp':'Thêm khoản thu từ nhà trường'}
-      description="Chọn trường và đợt thanh toán; có thể lưu Nháp trước khi ghi nhận tiền và hoa hồng.">
+      title="Thêm khoản thu từ nhà trường"
+      description="Chọn trường và kỳ thanh toán, nhập thông tin cùng chứng từ để ghi nhận tiền thực thu.">
       {entryMode==='receipt'&&detail?financialTransactionForm:<div className="space-y-4">
         <label htmlFor="receivable-contract-search" className="block space-y-1 text-sm font-medium">
           <span>Tìm nhà trường / Hợp đồng</span>
@@ -1405,33 +1302,17 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>}
     </AppDialog>
-    <AppDialog open={cancelReceiptDraftId!==null}
-      onOpenChange={open=>{if(!open&&!saving)setCancelReceiptDraftId(null);}}
-      title="Hủy khoản thu Nháp"
-      description="Chỉ hủy Nháp chưa ghi nhận. Không xóa bất kỳ giao dịch hay hoa hồng đã phát sinh.">
-      <div className="space-y-4">
-        <p className="text-sm">Bạn có chắc chắn muốn hủy Nháp này? Hành động sẽ được lưu vào lịch sử hệ thống.</p>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" disabled={saving}
-            onClick={()=>setCancelReceiptDraftId(null)}>Giữ lại</Button>
-          <Button type="button" variant="destructive" disabled={saving}
-            onClick={()=>void cancelReceiptDraft()}>{saving?'Đang xử lý...':'Hủy Nháp'}</Button>
-        </div>
-      </div>
-    </AppDialog>
     <AppDialog open={receiptPreview!==null} onOpenChange={open=>{if(!open)setReceiptPreview(null);}}
-      title={receiptPreview?.status==='DRAFT'?'Chi tiết khoản thu Nháp':'Chi tiết khoản thu'}
-      description={receiptPreview?.status==='DRAFT'
-        ?'Nháp chưa ghi nhận tiền hoặc hoa hồng; có thể chỉnh sửa trước khi ghi nhận.'
-        :'Khoản thu đã ghi nhận không được sửa/xóa trực tiếp vì có thể phát sinh hoa hồng.'}>
+      title="Chi tiết khoản thu"
+      description="Khoản thu đã ghi nhận không được sửa/xóa trực tiếp vì có thể phát sinh hoa hồng.">
       {receiptPreview&&<div className="space-y-4 text-sm">
         <dl className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2">
           <div><dt className="text-xs text-muted-foreground">Nhà trường</dt><dd className="mt-1 font-semibold">{receiptPreview.school_name}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 break-all">{receiptPreview.contract_code}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Ngày nhận</dt><dd className="mt-1">{receiptPreview.received_at?channelDate(receiptPreview.received_at):'Chưa nhập'}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Mã giao dịch</dt><dd className="mt-1 break-all">{receiptPreview.reference_code||'Chưa nhập'}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Tổng tiền đã nhận</dt><dd className="mt-1 font-bold tabular-nums text-primary">{receiptPreview.amount>0?channelMoney(receiptPreview.amount):'Chưa nhập'}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Trạng thái</dt><dd className="mt-1">{receiptPreview.status==='DRAFT'?'Nháp':'Đã ghi nhận'}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Ngày nhận</dt><dd className="mt-1">{channelDate(receiptPreview.received_at)}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Mã giao dịch</dt><dd className="mt-1 break-all">{receiptPreview.reference_code}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Tổng tiền đã nhận</dt><dd className="mt-1 font-bold tabular-nums text-primary">{channelMoney(receiptPreview.amount)}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Trạng thái</dt><dd className="mt-1">Đã ghi nhận</dd></div>
         </dl>
         <div className="flex justify-end gap-2">
           {receiptPreview.proof_id&&receiptPreview.proof_file_name&&<Button type="button" variant="outline"

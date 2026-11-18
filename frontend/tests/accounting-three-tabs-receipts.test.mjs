@@ -35,6 +35,7 @@ test('Receipt recording requires an authorized contract, installment and private
   assert.match(workspace,/access\.Contracts\(db\)\.AsNoTracking\(\)/);
   assert.match(workspace,/receipt\.Status == "COMPLETED"/);
   assert.doesNotMatch(page,/method:'DELETE'.*revenue-receipts/);
+  assert.doesNotMatch(page,/receipt-drafts|ReceiptDraft|saveReceiptDraft/);
 });
 
 test('Renewal payment schedules are period-specific and linked without mutating original value',()=>{

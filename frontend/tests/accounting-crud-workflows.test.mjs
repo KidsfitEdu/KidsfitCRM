@@ -7,7 +7,6 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const renewal=read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
 const payoutApi=read('../backend/src/KidsfitCRM.Api/Features/AccountingPayoutEndpoints.cs');
-const draftApi=read('../backend/src/KidsfitCRM.Api/Features/AccountingReceiptDraftEndpoints.cs');
 
 test('Payout list and eligible chooser use authorized server pagination and row permissions',()=>{
   assert.match(page,/\/accounting\/payouts\?/);
@@ -34,18 +33,14 @@ test('Receipt selection and transaction details are in one dialog',()=>{
   assert.match(page,/setSelected\(item\.id\)/);
 });
 
-test('Receipt draft actions do not mutate the ledger until posting with evidence',()=>{
-  for(const term of ['/accounting/receipt-drafts','/cancel','/post','editingReceiptDraft',
-    'setReceiptAppliedStatus','saveReceiptDraft','cancelReceiptDraft'])
-    assert.ok(page.includes(term),term);
-  assert.match(page,/status=\{receipt\.status\}/);
-  assert.match(page,/tone="blue" label=\{'Sửa khoản thu nháp '/);
-  assert.match(page,/tone="red" label=\{'Hủy khoản thu nháp '/);
-  assert.match(draftApi,/draft\.Status = "POSTED"/);
-  assert.match(draftApi,/draft\.Status = "CANCELLED"/);
-  assert.match(draftApi,/RecordRevenueReceipt\(draft\.ContractId/);
-  assert.match(draftApi,/new RecordRevenueReceiptRequest\("ACCOUNTING-DRAFT-" \+ draft\.Id/);
-  assert.match(draftApi,/CreatedByUserId == access\.UserId/);
+test('Receipt recording uses existing endpoint without draft persistence',()=>{
+  assert.match(page,/\/contracts\/\$\{selected\}\/revenue-receipts/);
+  assert.match(page,/idempotency_key:attempt\.key/);
+  assert.match(page,/evidence_id:attempt\.evidenceId/);
+  assert.match(page,/\/accounting\/receipts\?/);
+  assert.doesNotMatch(page,/receipt-drafts|ReceiptDraft|saveReceiptDraft|cancelReceiptDraft/);
+  assert.doesNotMatch(page,/Lưu nháp.*Ghi nhận khoản thu|Hủy Nháp|Sửa khoản thu nháp/);
+  assert.match(page,/Khoản thu đã ghi nhận không được sửa\/xóa trực tiếp/);
 });
 
 test('Renewal row actions target the correct renewal and explicit review decision',()=>{

@@ -227,7 +227,7 @@ function Group({row,contracts,collapsed,toggle,today,soon,canConfirm,canRequestI
         <td className="whitespace-nowrap px-2 py-3 text-left text-[13px] font-normal tabular-nums">
           {p.start&&p.end?<span>{channelDate(p.start)} – {channelDate(p.end)}</span>:<span className="text-muted-foreground">Chưa cập nhật</span>}
         </td>
-        <td className="whitespace-nowrap px-2 py-3 text-center font-semibold tabular-nums">{channelMoney(p.amount)}</td>
+        <td className="whitespace-nowrap px-2 py-3 text-left font-semibold tabular-nums">{channelMoney(p.amount)}</td>
         <td className="px-3 py-3">
           <AppStatusBadge status={p.status} label={label} tone={tone} size="sm" className="whitespace-nowrap"/>
         </td>

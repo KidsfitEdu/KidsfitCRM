@@ -98,10 +98,14 @@ public sealed partial class ChannelSalesActions
     public Task<long> ReviewSchoolProposal(long id, ReviewSchoolProposalRequest request, bool finalReview, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await ChannelSalesAccess.Load(db, actorId, ct);
-        // Forwarding is a confirmation, not a form: the server supplies an auditable reason.
-        // Rejections and final Admin decisions still require an explicit explanation.
-        var reason = !finalReview && request.Approve && string.IsNullOrWhiteSpace(request.Reason)
-            ? "Quản lý xác nhận chuyển đề xuất lên Admin để xem xét."
+        // Confirmation-only approvals are audited using a stable server-side reason.
+        // Rejections and explicit duplicate-review overrides still require a human explanation.
+        var automaticReason = request.Approve && string.IsNullOrWhiteSpace(request.Reason)
+            && (!finalReview || !request.DuplicateReviewed);
+        var reason = automaticReason
+            ? finalReview
+                ? "Admin xác nhận phê duyệt đề xuất trường."
+                : "Quản lý xác nhận chuyển đề xuất lên Admin để xem xét."
             : Validation.Required(request.Reason, "reason", "Cần ghi rõ kết quả kiểm tra và lý do.", 4000);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         long? centralOrg = null;

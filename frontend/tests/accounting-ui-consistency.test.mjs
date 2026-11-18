@@ -25,7 +25,8 @@ test('Accounting contract and payout lists share rounded cards, action icons and
   assert.doesNotMatch(s, /ariaLabel="Lọc trạng thái khoản thu"/);
   assert.match(s, /ariaLabel="Lọc năm nhận tiền"/);
   assert.match(s, /tone="blue" label=\{'Sửa phiếu chi '/);
-  assert.match(s, /<AdminIconAction icon=\{Eye\} onClick=\{\(\)=>openContract\(row\.id\)\}/);
+  const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
+  assert.ok(tree.includes('<AdminIconAction icon={Eye}'));
   assert.match(s, /<AppStatusBadge size="sm" status=\{p\.status\}/);
   assert.match(s, /<item\.icon className="size-4 shrink-0"/);
   assert.match(s, /\[scrollbar-width:none\]/);
@@ -38,7 +39,7 @@ test('Accounting transaction form maintains validation and consistent actions',(
   assert.match(s, /<AppDialog open=\{receiptIntent\}/);
   assert.match(s, /<AppCurrencyInput id="accounting-amount"/);
   assert.match(s, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
-  assert.match(s, /<AppButton type="submit" tone="green" busy=\{saving\}/);
+  assert.ok(s.includes('form="accounting-financial-transaction-form"'));
   assert.match(s, /focus-visible:ring-ring\/50/);
   assert.match(s, /fieldErrors\.proof/);
   assert.match(s, /fieldErrors\.amount/);

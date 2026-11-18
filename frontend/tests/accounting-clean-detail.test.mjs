@@ -7,7 +7,7 @@ const read = path => readFileSync(resolve(import.meta.dirname, '..', path), 'utf
 
 test('Accounting detail groups summary, service terms, payment schedule, receipts and commissions', () => {
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  for (const label of ['Thông tin hợp đồng', 'Lịch thanh toán theo hợp đồng',
+  for (const label of ['Thông tin {drawerTitle.toLowerCase()}', 'Lịch thanh toán theo hợp đồng',
     'Nhà trường thanh toán', 'Hoa hồng Sales']) {
     assert.ok(page.includes(label), label);
   }
@@ -105,8 +105,8 @@ test('Accounting receipt history has year filtering and bounded rows without cha
   assert.match(page, /receiptHistoryYear/);
   assert.match(page, /filteredReceipts\.slice\(\(effectiveReceiptPage-1\)\*10,effectiveReceiptPage\*10\)/);
   assert.match(page, /visibleReceipts\.map\(x=>/);
-  assert.match(page, /detail\.receipts\.reduce\(\(sum,x\)=>sum\+x\.amount,0\)/);
-  assert.match(page, /detail\.refunded_total/);
+  assert.match(page, /drawerDetail\.receipts\.reduce\(\(sum,x\)=>sum\+x\.amount,0\)/);
+  assert.match(page, /drawerDetail\.refunded_total/);
 });
 
 test('Accounting service schedules prioritize outstanding payments and collapse long history', () => {
@@ -120,7 +120,7 @@ test('Accounting service schedules prioritize outstanding payments and collapse 
 test('Accounting school units are compact until expanded', () => {
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(page, /<details className="group rounded-xl/);
-  assert.match(page, /Trường điểm \/ Phân hiệu \(\{detail\.school_units\.length\}\)/);
+  assert.match(page, /Trường điểm \/ Phân hiệu \(\{drawerDetail\.school_units\.length\}\)/);
   assert.doesNotMatch(page, /list-inside list-disc space-y-1/);
 });
 
@@ -128,7 +128,7 @@ test('Accounting school units are compact until expanded', () => {
 test('Accounting original contract card does not duplicate contract evidence from renewal history', () => {
   const page = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   const renewal = read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
-  const card = page.slice(page.indexOf('Thông tin hợp đồng gốc'), page.indexOf('Lịch thanh toán theo hợp đồng'));
+  const card = page.slice(page.indexOf('Thông tin {drawerTitle.toLowerCase()}'), page.indexOf('Lịch thanh toán theo hợp đồng'));
   assert.ok(card.length > 0);
   assert.doesNotMatch(card, /detail\.evidence\.filter\(x=>x\.kind==='CONTRACT'\)/);
   assert.doesNotMatch(card, /Chưa có file hợp đồng đính kèm/);

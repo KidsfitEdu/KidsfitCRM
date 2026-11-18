@@ -44,8 +44,9 @@ test('Renewal payment schedules are period-specific and linked without mutating 
   assert.match(renewal,/installmentCount = renewal\.PaymentCycle == "MONTHLY" \? 12 : 1/);
   assert.match(revenue,/var periodValue = renewal\?\.TotalValue \?\? contract\.TotalValue/);
   assert.match(revenue,/schedule\.ContractRenewalId\.HasValue/);
-  assert.match(page,/x\.renewal_no\?'Tái ký lần '/);
-  assert.match(page,/row\.periods\?\.map\(period=>/);
+  const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
+  assert.ok(tree.includes('(row.periods??[]).map(p=>'));
+  assert.ok(tree.includes("'Tái ký lần '+p.renewal_no"));
 });
 
 test('Posted receipts remain readable and cannot be silently edited as drafts',()=>{

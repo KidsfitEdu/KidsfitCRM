@@ -44,10 +44,11 @@ test('Receipt recording uses existing endpoint without draft persistence',()=>{
 });
 
 test('Renewal row actions target the correct renewal and explicit review decision',()=>{
-  assert.match(page,/openRenewal\(row\.id,period\.id,'view'\)/);
-  assert.match(page,/openRenewal\(row\.id,period\.id,'confirm'\)/);
-  assert.match(page,/openRenewal\(row\.id,period\.id,'request-info'\)/);
-  assert.match(page,/focusRenewalId=\{focusedRenewal\?\.id\}/);
+  const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
+  assert.ok(page.includes("openRenewal(contractId,renewalId,'confirm')"));
+  assert.ok(page.includes('focusRenewalId={selectedPeriodId}'));
+  assert.ok(tree.includes('onReview(row.id,p.renewalId!)'));
+  assert.ok(tree.includes('onView(row.id,p.renewalId)'));
   assert.match(renewal,/focusAction==='confirm'/);
   assert.match(renewal,/focusAction==='request-info'/);
   assert.match(renewal,/detail\.data\.id!==focusRenewalId/);

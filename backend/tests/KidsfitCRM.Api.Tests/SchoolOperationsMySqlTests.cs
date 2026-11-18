@@ -640,7 +640,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         db.FinancialEvidences.Add(evidence);
         await db.SaveChangesAsync(Ct);
         var request = new ContractRenewalEndpoints.SubmitRequest(Key(), start,
-            newStart, newEnd, "YEARLY", 2_000_000m, evidence.Id);
+            newStart, newEnd, "YEARLY", 2_000_000m, evidence.Id, null, "RENEW-" + Key());
         var grant = await db.CustomerProtections.AsNoTracking().Where(p => p.ContractId == contractId).ToArrayAsync(Ct);
         Assert.True(grant.Length > 0, "No contract protection after KIDSFIT grant.");
         Assert.True(grant.Any(p => p.SourceType == "CONTRACT" && p.Status == "ACTIVE" &&
@@ -729,7 +729,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await db.SaveChangesAsync(Ct);
         var result = Json(await ContractRenewalEndpoints.Submit(contractId,
             new ContractRenewalEndpoints.SubmitRequest(Key(), originalStart,
-                renewalStart, renewalEnd, "MONTHLY", 1_000_001m, evidence.Id),
+                renewalStart, renewalEnd, "MONTHLY", 1_000_001m, evidence.Id, null, "RENEW-" + Key()),
             Http(scenario.Seller.UserId), db, Ct));
         var renewalId = result.GetProperty("data").GetProperty("id").GetInt64();
         await ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct);
@@ -765,7 +765,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             Sha256 = new string('B', 64), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.FinancialEvidences.Add(proof);
         await db.SaveChangesAsync(Ct);
-        var request = new ContractRenewalEndpoints.SubmitRequest(Key(), today, next, last, "MONTHLY", 1_500_000, proof.Id);
+        var request = new ContractRenewalEndpoints.SubmitRequest(Key(), today, next, last, "MONTHLY", 1_500_000, proof.Id, null, "RENEW-" + Key());
         await Assert.ThrowsAsync<KeyNotFoundException>(() => ContractRenewalEndpoints.Submit(
             contractId, request, Http(s.Peer.UserId), db, Ct));
         var first = Json(await ContractRenewalEndpoints.Submit(
@@ -783,7 +783,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         db.FinancialEvidences.Add(newProof);
         await db.SaveChangesAsync(Ct);
         await ContractRenewalEndpoints.Resubmit(renewalId,
-            new ContractRenewalEndpoints.SubmitRequest(Key(), today, next, last, "YEARLY", 1_500_000, newProof.Id),
+            new ContractRenewalEndpoints.SubmitRequest(Key(), today, next, last, "YEARLY", 1_500_000, newProof.Id, null, "RENEW-" + Key()),
             Http(s.Seller.UserId), db, Ct);
         await ContractRenewalEndpoints.Confirm(renewalId, Http(accountant), db, Ct);
         Assert.Equal("CONFIRMED", (await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == renewalId)).Status);
@@ -849,7 +849,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         db.FinancialEvidences.Add(document);
         await db.SaveChangesAsync(Ct);
         var submitted = Json(await ContractRenewalEndpoints.Submit(contractId,
-            new(Key(), today, next, end, "MONTHLY", 1_000_000, document.Id),
+            new(Key(), today, next, end, "MONTHLY", 1_000_000, document.Id, null, "RENEW-" + Key()),
             Http(scenario.Seller.UserId), db, Ct));
         var id = submitted.GetProperty("data").GetProperty("id").GetInt64();
         await ContractRenewalEndpoints.RequestInfo(id, new("Bổ sung hợp đồng"),
@@ -864,20 +864,20 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var overlappingStart = source.ServiceEndOn.Value.AddDays(-30);
         await Assert.ThrowsAsync<ApiValidationException>(() => ContractRenewalEndpoints.Resubmit(id,
             new(Key(), today, overlappingStart, overlappingStart.AddYears(1).AddDays(-1),
-                "YEARLY", 1_000_000, replacement.Id),
+                "YEARLY", 1_000_000, replacement.Id, null, "RENEW-" + Key()),
             Http(scenario.Seller.UserId), db, Ct));
         var gapStart = next.AddDays(14);
         var gapEnd = gapStart.AddYears(1).AddDays(-1);
         await Assert.ThrowsAsync<ApiValidationException>(() => ContractRenewalEndpoints.Resubmit(id,
-            new(Key(), today, gapStart, gapEnd, "YEARLY", 1_000_000, replacement.Id),
+            new(Key(), today, gapStart, gapEnd, "YEARLY", 1_000_000, replacement.Id, null, "RENEW-" + Key()),
             Http(scenario.Seller.UserId), db, Ct));
         await Assert.ThrowsAsync<ApiValidationException>(() => ContractRenewalEndpoints.Resubmit(id,
             new(Key(), today, gapStart, gapEnd.AddDays(1), "YEARLY", 1_000_000,
-                replacement.Id, "Trường tạm ngưng"),
+                replacement.Id, "Trường tạm ngưng", "RENEW-" + Key()),
             Http(scenario.Seller.UserId), db, Ct));
         await ContractRenewalEndpoints.Resubmit(id,
             new(Key(), today, gapStart, gapEnd, "YEARLY", 1_000_000,
-                replacement.Id, "Trường tạm ngưng sử dụng"),
+                replacement.Id, "Trường tạm ngưng sử dụng", "RENEW-" + Key()),
             Http(scenario.Seller.UserId), db, Ct);
         await ContractRenewalEndpoints.Confirm(id, Http(accountant), db, Ct);
         var persisted = await db.ContractRenewals.AsNoTracking().SingleAsync(x => x.Id == id, Ct);

@@ -17,11 +17,11 @@ test('All contract detail roles use a single Vietnamese service plan formatter',
   for (const path of [
     'src/screens/SalesManager/Contracts/ContractsPage.tsx',
     'src/screens/Checkee/Verification/VerificationPage.tsx',
-    'src/screens/Accounting/Contracts/AccountingContractsPage.tsx',
+    'src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx',
   ]) {
     const source = read(path);
     if(path.includes('/Accounting/'))
-      assert.match(source,/getServicePlanLabel\(drawerDetail\.data\.service_plan\)/,path);
+      assert.match(source,/getServicePlanLabel\(detail\.data\.service_plan\)/,path);
     else assert.match(source,/getServicePlanLabel\(detail\.data\.service_plan\)/,path);
     assert.match(source, /from '@\/lib\/contract-payment-plan'/, path);
   }
@@ -29,15 +29,15 @@ test('All contract detail roles use a single Vietnamese service plan formatter',
 
 test('Contract details list deployment units or explicitly say main school only', () => {
   const screens = [
-    'src/screens/Accounting/Contracts/AccountingContractsPage.tsx',
+    'src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx',
     'src/screens/SalesManager/Contracts/ContractsPage.tsx',
   ];
   for (const screen of screens) {
     const source = read(screen);
     if (screen.includes('/Accounting/')) {
-      assert.match(source, /Trường điểm \/ Phân hiệu \(\{drawerDetail\.school_units\.length\}\)/, screen);
-      assert.match(source, /drawerDetail\.school_units\.length>0/, screen);
-      assert.match(source, /drawerDetail\.school_units\.map\(unit=><li key=\{unit\.id\}/, screen);
+      assert.match(source, /Trường điểm \/ Phân hiệu \(\{detail\.school_units\.length\}\)/, screen);
+      assert.match(source, /detail\.school_units\.length>0/, screen);
+      assert.match(source, /detail\.school_units\.map\(unit=><li key=\{unit\.id\}/, screen);
       assert.match(source, /<details className="group rounded-xl/, screen);
     } else {
       assert.match(source, /Trường điểm \/ Phân hiệu triển khai/, screen);

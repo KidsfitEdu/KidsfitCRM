@@ -18,19 +18,18 @@ test('Accounting keeps three tabs and school-grouped seven-column contract tree'
   assert.ok(tree.includes('Mở tất cả')&&tree.includes('Thu gọn tất cả'));
   assert.ok(tree.includes('aria-expanded={!collapsed}'));
   assert.ok(tree.includes('onView(row.id,p.renewalId)'));
-  assert.ok(page.includes('<AppDrawer wide compactAccountingHeader'));
+  assert.ok(page.includes('<AppDrawer compactHeader'));
 });
 
 test('Original contract and each renewal are distinguished by ID, code and financial schedule',()=>{
   assert.ok(tree.includes('Hợp đồng lần đầu'));
   assert.ok(tree.includes("'Tái ký lần '+p.renewal_no"));
   assert.ok(tree.includes('p.contract_code'));
-  assert.ok(page.includes('periodScheduleIds.has'));
-  assert.ok(page.includes('periodReceiptIds.has'));
-  assert.ok(page.includes('const periodLedger='));
-  assert.ok(page.includes('const periodPayouts='));
-  assert.ok(page.includes('const drawerDetail='));
-  assert.ok(page.includes('focusRenewalId={selectedPeriodId}'));
+  const contractDetail=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
+  assert.ok(contractDetail.includes('renewal?.contract_code'));
+  assert.ok(contractDetail.includes('renewal?.total_value'));
+  assert.ok(contractDetail.includes('focusRenewalId={selectedPeriodId}'));
+  assert.doesNotMatch(contractDetail,/Lịch thanh toán theo hợp đồng|Nhà trường thanh toán|Hoa hồng & phiếu chi/);
   assert.ok(inline.includes("periods.filter(p=>p.type==='RENEWAL'&&p.id===focusRenewalId)"));
   assert.ok(api.includes('renewalCash.GetValueOrDefault(r.Id)'));
   assert.ok(api.includes('renewalCommission.GetValueOrDefault(r.Id)'));
@@ -56,7 +55,7 @@ test('GI-01 remains a separate school-wide protection assessment and confirmatio
   for(const token of ['ServiceInterruptionPolicy.Evaluate','today == assessment.ThresholdOn',
     'e.Status == "RELEASED"','!protectedCustomers.Contains(c.CustomerId)'])
     assert.ok(api.includes(token),token);
-  assert.ok(page.includes('Tình trạng dịch vụ và quyền bảo vệ toàn nhà trường'));
+  assert.ok(read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx').includes('Tình trạng dịch vụ và quyền bảo vệ toàn nhà trường'));
   assert.ok(inline.includes("'/accounting/renewals/'+activeRenewal"));
   assert.ok(inline.includes('channel_sales.renewal.confirm'));
   assert.ok(inline.includes("openDecision('confirm')"));

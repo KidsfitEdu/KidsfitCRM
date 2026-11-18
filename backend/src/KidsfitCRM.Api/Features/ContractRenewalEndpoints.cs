@@ -513,7 +513,7 @@ public static class ContractRenewalEndpoints
             join school in db.ChannelCustomers on c.CustomerId equals school.Id
             join owner in db.Users on c.OwnerUserId equals owner.Id
             where r.Id == id
-            select new { data = new { r.Id, r.ContractId, c.ContractCode, school_name = school.DisplayName,
+            select new { data = new { r.Id, r.ContractId, source_contract_code = c.ContractCode, school_name = school.DisplayName,
                 owner_name = owner.Name, r.ContractCode, r.RenewalNo, r.SignedOn, r.ServiceStartOn, r.ServiceEndOn,
                 r.PaymentCycle, r.TotalValue, r.GapReason, r.Status, r.DecisionReason, r.SubmittedAt,
                 source_service_start_on = c.ServiceStartOn, source_service_end_on = c.ServiceEndOn,

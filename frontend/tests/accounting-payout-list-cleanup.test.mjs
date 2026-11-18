@@ -73,3 +73,27 @@ test('Payout filters use creation month, not commission period',()=>{
   assert.match(part,/Ngày lập/);
   assert.match(part,/Ngày chi/);
 });
+
+test('Payout details use shared drawer with permission-aware fixed footer',()=>{
+  assert.match(page,/<AppDrawer open=\{payoutPreview!==null\}/);
+  assert.match(page,/title="Chi tiết phiếu chi"/);
+  assert.match(page,/footer=\{payoutPreview\?<div/);
+  assert.doesNotMatch(page,/<AppDialog open=\{payoutPreview!==null\}/);
+  assert.match(page,/payoutPreview\.events\.map/);
+  assert.match(page,/payoutPreview\.can_edit/);
+  assert.match(page,/payoutPreview\.can_approve/);
+  assert.match(page,/payoutPreview\.can_complete/);
+  assert.match(page,/payoutPreview\.can_submit/);
+});
+
+test('Payout table offers direct BGĐ submission only when backend authorizes it',()=>{
+  assert.match(part,/p\.can_submit&&\s*<AdminIconAction icon=\{Send\}/);
+  assert.match(part,/Gửi BGĐ phê duyệt phiếu chi/);
+  assert.match(part,/onClick=\{\(\)=>setPendingPayoutSubmit\(p\)\}/);
+  assert.match(page,/ConfirmDialog open=\{pendingPayoutSubmit!==null\}/);
+  assert.match(page,/confirmLabel="Xác nhận gửi"/);
+  assert.match(page,/submitPayout\(pendingPayoutSubmit\.id\)/);
+  assert.match(page,/if\(payoutSubmitPending\.current\)return/);
+  assert.match(page,/setPendingPayoutSubmit\(null\)/);
+  assert.match(page,/\/payouts\/\$\{id\}\/submit/);
+});

@@ -21,6 +21,7 @@ import { AppSkeleton, InlineLoading } from '@/components/common/app-loading';
 import { AccountingContractDetailContent } from './AccountingContractDetailContent';
 import { AccountingContractTreeTable } from './AccountingContractTreeTable';
 import { AppDatePicker } from '@/components/common/forms/app-date-picker';
+import { AppMonthPicker } from '@/components/common/forms/app-month-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AccountingReceiptProofUpload } from './AccountingReceiptProofUpload';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
@@ -188,9 +189,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receiptProofSelected,setReceiptProofSelected]=useState(false);
   const [pendingReceivable,setPendingReceivable]=useState<ReceivableContract|null>(null);
   const [receiptIntent,setReceiptIntent]=useState(false);
-  const [financePeriod,setFinancePeriod]=useState(()=>new Intl.DateTimeFormat('sv-SE',{
-    timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
-  }).format(new Date()));
+  const [financeCreatedMonth,setFinanceCreatedMonth]=useState('');
   const [financeStatus,setFinanceStatus]=useState('ALL');
   const [financeOrganization,setFinanceOrganization]=useState('ALL');
   const [financeSearch,setFinanceSearch]=useState('');
@@ -290,8 +289,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     if(!connected||accountingTab!=='PAYOUTS')return;
     let active=true;
     setFinanceLoading(true);
-    const params=new URLSearchParams({period:financePeriod,
-      page:String(financePage),page_size:String(financePageSize)});
+    const params=new URLSearchParams({page:String(financePage),page_size:String(financePageSize)});
+    if(financeCreatedMonth){
+      params.set('year',financeCreatedMonth.slice(0,4));
+      params.set('month',String(Number(financeCreatedMonth.slice(5,7))));
+    }
     if(financeAppliedSearch)params.set('search',financeAppliedSearch);
     if(financeStatus!=='ALL')params.set('status',financeStatus);
     if(financeRole!=='ALL')params.set('role',financeRole);
@@ -305,13 +307,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         cause instanceof Error?cause.message:'Vui lòng thử lại.');})
       .finally(()=>{if(active)setFinanceLoading(false);});
     return()=>{active=false;};
-  },[apiBase,token,connected,accountingTab,financePeriod,financePage,
+  },[apiBase,token,connected,accountingTab,financeCreatedMonth,financePage,
     financePageSize,financeAppliedSearch,financeStatus,financeRole,financeOrganization,detailRevision]);
 
   useEffect(()=>{
     if(!connected||!canCreatePayout||accountingTab!=='PAYOUTS'||!payoutPickerOpen)return;
     let active=true;setEligibleLoading(true);
-    const params=new URLSearchParams({period:payoutCreatePeriod||financePeriod,page:String(eligiblePage),page_size:'20'});
+    const params=new URLSearchParams({page:String(eligiblePage),page_size:'20'});
     if(payoutPickerSearch.trim())params.set('search',payoutPickerSearch.trim());
     if(financeRole!=='ALL')params.set('role',financeRole);
     if(financeOrganization!=='ALL')params.set('organization_id',financeOrganization);
@@ -321,28 +323,27 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         cause instanceof Error?cause.message:'Vui lòng thử lại.');})
       .finally(()=>{if(active)setEligibleLoading(false);});
     return()=>{active=false;};
-  },[apiBase,token,connected,canCreatePayout,accountingTab,payoutCreatePeriod,financePeriod,
+  },[apiBase,token,connected,canCreatePayout,accountingTab,
     payoutPickerOpen,payoutPickerSearch,eligiblePage,financeRole,financeOrganization,detailRevision]);
 
   // Retrieve all eligible role choices for the selected contract (not just the
   // current school-search page). The server owns authorization and eligibility.
   useEffect(()=>{
-    if(!connected||!canCreatePayout||!payoutPickerOpen||!payoutSchool||!payoutCreatePeriod){
+    if(!connected||!canCreatePayout||!payoutPickerOpen||!payoutSchool){
       setPayoutSchoolCandidates([]);setPayoutSchoolLoading(false);return;
     }
     let alive=true;setPayoutSchoolLoading(true);setPayoutSchoolCandidates([]);
-    const params=new URLSearchParams({period:payoutCreatePeriod,
-      contract_id:String(payoutSchool.id),page:'1',page_size:'100'});
+    const params=new URLSearchParams({contract_id:String(payoutSchool.id),page:'1',page_size:'100'});
     void channelRequest<EligibleRegister>(apiBase,token,'/accounting/eligible-payouts?'+params)
       .then(result=>{if(alive)setPayoutSchoolCandidates(result.data.filter(item=>
-        item.contract_id===payoutSchool.id&&item.period===payoutCreatePeriod&&item.amount>0));})
+        item.contract_id===payoutSchool.id&&item.amount>0));})
       .catch(error=>{if(alive){
         setPayoutSchoolCandidates([]);
         appNotice.error('Không tải được người hưởng hoa hồng.',error instanceof Error?error.message:'Vui lòng thử lại.');
       }})
       .finally(()=>{if(alive)setPayoutSchoolLoading(false);});
     return()=>{alive=false;};
-  },[apiBase,token,connected,canCreatePayout,payoutPickerOpen,payoutSchool,payoutCreatePeriod,detailRevision]);
+  },[apiBase,token,connected,canCreatePayout,payoutPickerOpen,payoutSchool,detailRevision]);
 
   useEffect(()=>{
     if(!connected||accountingTab!=='RECEIPTS')return;
@@ -650,14 +651,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     if(!school)return;
     setPayoutSchool(school);setPayoutPickerSearch(school.name);
     setPayoutSchoolSearchOpen(false);setPayoutSchoolActiveIndex(0);
-    setPayoutCandidateKey('');setPayoutDetailError('');
+    setPayoutCandidateKey('');setPayoutCreatePeriod('');setPayoutDetailError('');
     setPayoutDialogOpen(false);setCentralPayoutIntent(null);
     setEditingPayout(null);setSelected(null);setDetail(null);payoutKey.current=null;
   };
   const choosePayoutBeneficiary=(key:string)=>{
     setPayoutCandidateKey(key);setPayoutDetailError('');
     const candidate=payoutSchoolCandidates.find(x=>candidateKey(x)===key);
-    if(!candidate||candidate.contract_id!==payoutSchool?.id||candidate.period!==payoutCreatePeriod)return;
+    if(!candidate||candidate.contract_id!==payoutSchool?.id)return;
+    setPayoutCreatePeriod(candidate.period);
     setPayoutDialogOpen(false);setEditingPayout(null);payoutKey.current=null;
     openCentralPayout({contractId:candidate.contract_id,
       beneficiaryUserId:candidate.beneficiary_user_id,role:candidate.beneficiary_role,
@@ -852,7 +854,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     })];
   const resetFinanceFilters=()=>{
     setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
-    setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
+    setFinanceRole('ALL');setFinanceStatus('ALL');setFinanceCreatedMonth('');setFinancePage(1);
   };
   const payoutDraftForm=detail&&payoutDialogOpen?(
     <form id="accounting-payout-draft-form" className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
@@ -1006,7 +1008,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         :accountingTab==='PAYOUTS'&&canCreatePayout
           ?<AppButton type="button" tone="green" premium
             leadingIcon={<Plus aria-hidden="true" className="size-4"/>}
-            onClick={()=>{setPayoutCreatePeriod(financePeriod);setPayoutPickerSearch('');setEligiblePage(1);
+            onClick={()=>{setPayoutCreatePeriod('');setPayoutPickerSearch('');setEligiblePage(1);
               setPayoutCandidateKey('');setPayoutSchool(null);setPayoutSchoolCandidates([]);
               setPayoutDialogOpen(false);setCentralPayoutIntent(null);setEditingPayout(null);
               setPayoutError('');setPayoutSchoolSearchOpen(false);setPayoutSchoolActiveIndex(0);
@@ -1133,7 +1135,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
         onReset={resetFinanceFilters} searchLabel="Tìm phiếu chi"
         placeholder="Mã phiếu, nhà trường, người hưởng..."
-        filters={<AppSelect ariaLabel="Lọc trạng thái phiếu chi" className="w-full sm:w-[190px]"
+        filters={<div className="flex flex-wrap items-center gap-2"><AppSelect ariaLabel="Lọc trạng thái phiếu chi" className="w-full sm:w-[170px]"
           value={financeStatus}
           options={[{value:'ALL',label:'Tất cả trạng thái'},
             {value:'DRAFT',label:'Nháp'},
@@ -1143,48 +1145,32 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             {value:'PAID',label:'Đã chi'},
             {value:'CANCELLED',label:'Đã hủy'},
             {value:'REJECTED',label:'Đã từ chối'}]}
-          onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>}/>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-3 sm:px-6">
-        <label htmlFor="accounting-finance-period" className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          Kỳ hoa hồng
-          <Input id="accounting-finance-period" type="month" className="h-10 w-40 rounded-lg"
-            value={financePeriod} onChange={event=>{setFinancePeriod(event.target.value);setFinancePage(1);}}/>
-        </label>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {displayedPayouts.length} phiếu trang này · {payoutTotal} phiếu phù hợp
-          </span>
-          <Button type="button" variant="outline" size="sm" aria-controls="accounting-payout-advanced"
-            aria-expanded={financeAdvancedOpen} onClick={()=>setFinanceAdvancedOpen(value=>!value)}
-            className="h-10 rounded-lg text-xs">
-            <SlidersHorizontal className="size-4" aria-hidden="true"/>
-            Bộ lọc nâng cao
-            {(financeRole!=='ALL'||financeOrganization!=='ALL')&&<span className="sr-only">(đang áp dụng)</span>}
-          </Button>
-        </div>
-      </div>
-      {financeAdvancedOpen&&<div id="accounting-payout-advanced"
-        className="flex flex-wrap items-center gap-3 border-b border-border/80 bg-muted/20 px-5 py-3 sm:px-6">
-        <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-full sm:w-[220px]"
-          value={financeOrganization}
-          options={[{value:'ALL',label:'Tất cả tổ chức'},
-            ...payoutOrganizations.map(org=>({value:String(org.id),label:org.name}))]}
+          onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
+          <AppMonthPicker label="Tháng lập phiếu" className="w-full sm:w-[170px]" value={financeCreatedMonth}
+            onChange={next=>{setFinanceCreatedMonth(next);setFinancePage(1);}}/>
+          <Button type="button" variant="outline" size="sm" aria-expanded={financeAdvancedOpen}
+            aria-controls="accounting-payout-advanced" onClick={()=>setFinanceAdvancedOpen(v=>!v)}
+            className="h-10 rounded-lg text-xs"><SlidersHorizontal className="size-4"/> Bộ lọc nâng cao</Button>
+        </div>}/>
+      {financeAdvancedOpen&&<div id="accounting-payout-advanced" className="flex flex-wrap items-center gap-3 border-b border-border/80 bg-muted/20 px-5 py-3 sm:px-6">
+        <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-full sm:w-[220px]" value={financeOrganization}
+          options={[{value:'ALL',label:'Tất cả tổ chức'},...payoutOrganizations.map(org=>({value:String(org.id),label:org.name}))]}
           onValueChange={next=>{setFinanceOrganization(next);setFinancePage(1);}}/>
         <AppSelect ariaLabel="Lọc người hưởng hoa hồng" className="w-full sm:w-[190px]"
-          value={financeRole}
-          options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
+          value={financeRole} options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
           onValueChange={next=>{setFinanceRole(next);setFinancePage(1);}}/>
       </div>}
       <div className="overflow-x-auto">
         <table className={adminTableClass+' table-fixed'}>
           <thead className={adminTableHeadClass}>
             <tr>
-              <th scope="col" className="w-[19%] px-4 py-3">Người hưởng</th>
-              <th scope="col" className="w-[27%] px-3 py-3">Nhà trường</th>
-              <th scope="col" className="w-[17%] px-3 py-3 text-right">Số tiền đề nghị / thực chi</th>
-              <th scope="col" className="w-[15%] px-3 py-3">Trạng thái</th>
-              <th scope="col" className="w-[12%] px-3 py-3">Kỳ</th>
-              <th scope="col" className="w-[10%] px-3 py-3 text-center">Thao tác</th>
+              <th scope="col" className="w-[18%] px-3 py-3">Người hưởng</th>
+              <th scope="col" className="w-[25%] px-3 py-3">Nhà trường</th>
+              <th scope="col" className="w-[12%] px-2 py-3">Ngày lập</th>
+              <th scope="col" className="w-[12%] px-2 py-3">Ngày chi</th>
+              <th scope="col" className="w-[14%] px-2 py-3 text-right">Số tiền chi</th>
+              <th scope="col" className="w-[11%] px-2 py-3">Trạng thái</th>
+              <th scope="col" className="w-[8%] px-2 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
@@ -1194,17 +1180,19 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 <p className="mt-1 text-xs text-muted-foreground">{p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</p>
               </td>
               <td className="min-w-0 px-3 py-3">
-                <p className="max-w-[230px] break-words text-sm font-semibold">{p.school_names?.length?p.school_names.join(', '):'Chưa xác định nhà trường'}</p>
+                <p className="break-words text-sm font-semibold">{p.school_names?.length?p.school_names.join(', '):'Chưa xác định nhà trường'}</p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">{p.contract_codes?.length?p.contract_codes.join(', '):'Cần đối soát liên kết phiếu'}</p>
               </td>
-              <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
+              <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{channelDate(p.created_at)}</td>
+              <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{p.status==='PAID'&&p.paid_at?channelDate(p.paid_at):'—'}</td>
+              <td className="whitespace-nowrap px-2 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
               <td className="px-3 py-3">
                 <AppStatusBadge size="sm" status={p.status} label={payoutStatusLabel(p.status)}
                   tone={p.status==='PAID'||p.status==='APPROVED'?'success'
                     :p.status==='REJECTED'||p.status==='CANCELLED'?'danger'
                     :p.status==='CHANGES_REQUESTED'||p.status==='PENDING_APPROVAL'?'warning':'neutral'}/>
               </td>
-              <td className="whitespace-nowrap px-3 py-3 text-xs">{payoutPeriodLabel(p.period)}</td>
+              
               <td className="px-3 py-3 text-center">
                 <div className="flex items-center justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem phiếu chi '+p.code}
@@ -1217,7 +1205,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 </div>
               </td>
             </tr>)}
-            {!visiblePayouts.length&&<tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
+            {!visiblePayouts.length&&<tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-muted-foreground">
               {financeLoading?'Đang tải danh sách phiếu chi...':!connected?'Cần đăng nhập để xem phiếu chi.':'Không có phiếu chi phù hợp với bộ lọc.'}
             </td></tr>}
           </tbody>
@@ -1407,7 +1395,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               onFocus={()=>{setPayoutSchoolSearchOpen(true);setPayoutSchoolActiveIndex(0);}}
               onBlur={()=>setPayoutSchoolSearchOpen(false)}
               onChange={event=>{
-                setPayoutPickerSearch(event.target.value);setEligiblePage(1);
+                setPayoutPickerSearch(event.target.value);setEligiblePage(1);setPayoutCreatePeriod('');
                 setPayoutSchoolActiveIndex(0);setPayoutSchoolSearchOpen(true);
                 setPayoutSchool(null);setPayoutCandidateKey('');setPayoutSchoolCandidates([]);
                 setPayoutDialogOpen(false);setCentralPayoutIntent(null);
@@ -1428,7 +1416,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               title="Bỏ chọn nhà trường"
               onMouseDown={event=>event.preventDefault()}
               onClick={()=>{
-                setPayoutPickerSearch('');setPayoutSchool(null);setPayoutCandidateKey('');
+                setPayoutPickerSearch('');setPayoutSchool(null);setPayoutCandidateKey('');setPayoutCreatePeriod('');
                 setPayoutSchoolCandidates([]);setPayoutDialogOpen(false);
                 setCentralPayoutIntent(null);setSelected(null);setDetail(null);
                 setEligiblePage(1);setPayoutSchoolActiveIndex(0);setPayoutSchoolSearchOpen(true);
@@ -1472,7 +1460,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <SelectTrigger id="accounting-payout-beneficiary"
               className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left">
               <SelectValue placeholder="Chọn Sales hoặc Quản lý">
-                {chosenCandidate?chosenCandidate.beneficiary_name+' · '+(chosenCandidate.beneficiary_role==='MANAGER'?'Quản lý':'Sales'):'Chọn Sales hoặc Quản lý'}
+                {chosenCandidate?chosenCandidate.beneficiary_name+' · '+(chosenCandidate.beneficiary_role==='MANAGER'?'Quản lý':'Sales')+' · '+payoutPeriodLabel(chosenCandidate.period):'Chọn Sales hoặc Quản lý và kỳ hoa hồng'}
               </SelectValue>
             </SelectTrigger>
             <SelectContent align="start" alignItemWithTrigger={false} side="bottom" sideOffset={5}
@@ -1481,7 +1469,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 className="min-h-12 rounded-lg px-3 py-2 pr-9 data-selected:bg-primary/10 data-highlighted:bg-primary/10">
                 <span className="flex min-w-0 flex-col gap-1 text-left">
                   <span className="text-sm font-semibold">{item.beneficiary_name} · {item.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</span>
-                  <span className="text-xs text-muted-foreground">Còn đủ điều kiện: {channelMoney(item.amount)}</span>
+                  <span className="text-xs text-muted-foreground">{payoutPeriodLabel(item.period)} · Còn đủ điều kiện: {channelMoney(item.amount)}</span>
                 </span>
               </SelectItem>)}
             </SelectContent>

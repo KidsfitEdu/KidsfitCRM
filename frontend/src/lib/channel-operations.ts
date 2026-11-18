@@ -52,6 +52,7 @@ export type FinanceWorkspace = {
     beneficiary_role: 'SALES'|'MANAGER';
     code: string;
     period: string;
+    created_at: string;
     contract_ids?: number[];
     contract_codes?: string[];
     school_names?: string[];

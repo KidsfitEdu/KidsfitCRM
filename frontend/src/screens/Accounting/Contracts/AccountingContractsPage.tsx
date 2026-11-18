@@ -219,6 +219,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [payoutSchoolLoading,setPayoutSchoolLoading]=useState(false);
   const [payoutDetailError,setPayoutDetailError]=useState('');
   const [payoutPreview,setPayoutPreview]=useState<PayoutRow|null>(null);
+  const [pendingPayoutSubmit,setPendingPayoutSubmit]=useState<PayoutRow|null>(null);
+  const payoutSubmitPending=useRef(false);
   const [centralPayoutIntent,setCentralPayoutIntent]=useState<{
     contractId:number;beneficiaryUserId:number;role:'SALES'|'MANAGER';period:string;
     mode:'CREATE'|'EDIT'|'COMPLETE';payoutId?:number;
@@ -798,12 +800,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     }finally{setSaving(false);}
   };
   const submitPayout = async (id:number) => {
+    if(payoutSubmitPending.current)return;
+    payoutSubmitPending.current=true;
     setSaving(true);
     try{
       await channelRequest(apiBase,token,`/payouts/${id}/submit`,{method:'POST'});
+      setPendingPayoutSubmit(null);setPayoutPreview(null);
       setDetailRevision(v=>v+1);appNotice.success('Đã gửi BGĐ duyệt phiếu chi.');
     }catch(cause){appNotice.error('Không gửi duyệt được.',cause instanceof Error?cause.message:'Vui lòng thử lại.');}
-    finally{setSaving(false);}
+    finally{payoutSubmitPending.current=false;setSaving(false);}
   };
   const returnPayout = async () => {
     if(!returningPayoutId||!payoutReturnReason.trim())return;
@@ -1165,12 +1170,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <thead className={adminTableHeadClass}>
             <tr>
               <th scope="col" className="w-[18%] px-3 py-3">Người hưởng</th>
-              <th scope="col" className="w-[25%] px-3 py-3">Nhà trường</th>
-              <th scope="col" className="w-[12%] px-2 py-3">Ngày lập</th>
-              <th scope="col" className="w-[12%] px-2 py-3">Ngày chi</th>
+              <th scope="col" className="w-[21%] px-3 py-3">Nhà trường</th>
+              <th scope="col" className="w-[11%] px-2 py-3">Ngày lập</th>
+              <th scope="col" className="w-[11%] px-2 py-3">Ngày chi</th>
               <th scope="col" className="w-[14%] px-2 py-3 text-right">Số tiền chi</th>
               <th scope="col" className="w-[11%] px-2 py-3">Trạng thái</th>
-              <th scope="col" className="w-[8%] px-2 py-3 text-center">Thao tác</th>
+              <th scope="col" className="w-[14%] px-2 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70">
@@ -1199,9 +1204,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                     onClick={()=>setPayoutPreview(p)}/>
                   {p.can_edit&&
                     <AdminIconAction icon={Pencil} tone="blue" label={'Sửa phiếu chi '+p.code}
+                      disabled={saving}
                       onClick={()=>{setPayoutPickerOpen(true);openCentralPayout({contractId:p.contract_ids![0],
                         beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
                         period:p.period,mode:'EDIT',payoutId:p.id});}}/>}
+                  {p.can_submit&&
+                    <AdminIconAction icon={Send} label={'Gửi BGĐ phê duyệt phiếu chi '+p.code}
+                      disabled={saving} onClick={()=>setPendingPayoutSubmit(p)}/>}
                 </div>
               </td>
             </tr>)}
@@ -1497,10 +1506,43 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>}
       </div>
     </AppDialog>
-    <AppDialog open={payoutPreview!==null}
-      onOpenChange={open=>{if(!open)setPayoutPreview(null);}}
-      title={payoutPreview?'Phiếu chi · '+payoutPreview.code:'Chi tiết phiếu chi'}
-      description="Kiểm tra nguồn hoa hồng và lịch sử trước khi thao tác. Các chức năng chỉ xuất hiện theo quyền.">
+    <AppDrawer open={payoutPreview!==null}
+      onOpenChange={open=>{if(!open&&!saving)setPayoutPreview(null);}}
+      busy={saving}
+      title="Chi tiết phiếu chi"
+      description={payoutPreview?'Mã phiếu '+payoutPreview.code:'Thông tin phiếu chi'}
+      footer={payoutPreview?<div className="flex w-full flex-wrap items-center justify-end gap-2">
+        {payoutPreview.proof_id&&payoutPreview.proof_file_name&&<Button type="button" size="sm" variant="outline"
+          onClick={()=>void viewEvidence(payoutPreview.proof_id!,payoutPreview.proof_file_name!)}>
+          <ImageIcon className="size-4" aria-hidden="true"/> Xem chứng từ chi
+        </Button>}
+        {payoutPreview.contract_ids?.length===1&&<Button type="button" size="sm" variant="outline"
+          onClick={()=>{setSelected(payoutPreview.contract_ids![0]);setAccountingTab('CONTRACTS');setPayoutPreview(null);}}>
+          <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
+        </Button>}
+        {payoutPreview.can_edit&&<Button type="button" size="sm" variant="outline" disabled={saving}
+          onClick={()=>{setPayoutPickerOpen(true);openCentralPayout({contractId:payoutPreview.contract_ids![0],beneficiaryUserId:payoutPreview.beneficiary_user_id,
+            role:payoutPreview.beneficiary_role,period:payoutPreview.period,mode:'EDIT',payoutId:payoutPreview.id});setPayoutPreview(null);}}>
+          <Pencil className="size-4" aria-hidden="true"/> Sửa phiếu
+        </Button>}
+        {payoutPreview.can_submit&&<Button type="button" size="sm" disabled={saving}
+          onClick={()=>{setPendingPayoutSubmit(payoutPreview);setPayoutPreview(null);}}>
+          <Send className="size-4" aria-hidden="true"/> Gửi BGĐ duyệt
+        </Button>}
+        {payoutPreview.can_approve&&<>
+          <Button type="button" size="sm" variant="outline" disabled={saving}
+            onClick={()=>{setReturningPayoutId(payoutPreview.id);setPayoutPreview(null);}}>Yêu cầu bổ sung</Button>
+          <Button type="button" size="sm" disabled={saving}
+            onClick={()=>{const id=payoutPreview.id;setPayoutPreview(null);void approvePayout(id);}}>Duyệt phiếu</Button>
+        </>}
+        {payoutPreview.can_complete&&
+          <Button type="button" size="sm" disabled={saving}
+            onClick={()=>{openCentralPayout({contractId:payoutPreview.contract_ids![0],
+              beneficiaryUserId:payoutPreview.beneficiary_user_id,role:payoutPreview.beneficiary_role,
+              period:payoutPreview.period,mode:'COMPLETE',payoutId:payoutPreview.id});setPayoutPreview(null);}}>
+            <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
+          </Button>}
+      </div>:undefined}>
       {payoutPreview&&<div className="space-y-4 text-sm">
         <div className="grid gap-3 rounded-xl border border-border/80 bg-muted/20 p-4 sm:grid-cols-2">
           <div><p className="text-xs text-muted-foreground">Người hưởng</p>
@@ -1547,40 +1589,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         {payoutPreview.contract_ids?.length!==1&&<p className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           Phiếu lịch sử liên quan nhiều hợp đồng hoặc chưa xác định nguồn. Không thể tự chọn một trường để sửa hay chuyển khoản.
         </p>}
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
-          {payoutPreview.proof_id&&payoutPreview.proof_file_name&&<Button type="button" size="sm" variant="outline"
-            onClick={()=>void viewEvidence(payoutPreview.proof_id!,payoutPreview.proof_file_name!)}>
-            <ImageIcon className="size-4" aria-hidden="true"/> Xem chứng từ chi
-          </Button>}
-          {payoutPreview.contract_ids?.length===1&&<Button type="button" size="sm" variant="outline"
-            onClick={()=>{setSelected(payoutPreview.contract_ids![0]);setAccountingTab('CONTRACTS');setPayoutPreview(null);}}>
-            <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
-          </Button>}
-          {payoutPreview.can_edit&&<Button type="button" size="sm" variant="outline" disabled={saving}
-              onClick={()=>{setPayoutPickerOpen(true);openCentralPayout({contractId:payoutPreview.contract_ids![0],beneficiaryUserId:payoutPreview.beneficiary_user_id,
-                role:payoutPreview.beneficiary_role,period:payoutPreview.period,mode:'EDIT',payoutId:payoutPreview.id});}}>
-              <Pencil className="size-4" aria-hidden="true"/> Sửa phiếu
-            </Button>}
-          {payoutPreview.can_submit&&<Button type="button" size="sm" disabled={saving}
-              onClick={()=>{const id=payoutPreview.id;setPayoutPreview(null);void submitPayout(id);}}>
-              <Send className="size-4" aria-hidden="true"/> Gửi BGĐ duyệt
-            </Button>}
-          {payoutPreview.can_approve&&<>
-            <Button type="button" size="sm" variant="outline" disabled={saving}
-              onClick={()=>{setReturningPayoutId(payoutPreview.id);setPayoutPreview(null);}}>Yêu cầu bổ sung</Button>
-            <Button type="button" size="sm" disabled={saving}
-              onClick={()=>{const id=payoutPreview.id;setPayoutPreview(null);void approvePayout(id);}}>Duyệt phiếu</Button>
-          </>}
-          {payoutPreview.can_complete&&
-            <Button type="button" size="sm" disabled={saving}
-              onClick={()=>openCentralPayout({contractId:payoutPreview.contract_ids![0],
-                beneficiaryUserId:payoutPreview.beneficiary_user_id,role:payoutPreview.beneficiary_role,
-                period:payoutPreview.period,mode:'COMPLETE',payoutId:payoutPreview.id})}>
-              <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
-            </Button>}
-        </div>
       </div>}
-    </AppDialog>
+    </AppDrawer>
     <AppDrawer compactHeader open={selected!==null&&accountingTab==='CONTRACTS'}
       onOpenChange={open=>{if(!open){setSelected(null);setFocusedRenewal(null);setEntryMode(null);closePreview();}}}
       title="Chi tiết hợp đồng" description="Kế toán / Hồ sơ hợp đồng">
@@ -1669,6 +1679,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         </div>
       </div>}
     </AppDialog>
+    <ConfirmDialog open={pendingPayoutSubmit!==null}
+      onOpenChange={open=>{if(!open&&!saving)setPendingPayoutSubmit(null);}}
+      busy={saving} confirmLabel="Xác nhận gửi"
+      title="Xác nhận gửi BGĐ phê duyệt"
+      description={pendingPayoutSubmit
+        ?`Gửi phiếu chi của ${pendingPayoutSubmit.beneficiary_name}, số tiền ${channelMoney(pendingPayoutSubmit.net_amount)}, đến BGĐ phê duyệt?`
+        :undefined}
+      onConfirm={()=>{if(pendingPayoutSubmit&&!saving)void submitPayout(pendingPayoutSubmit.id);}}/>
     <AppDialog open={Boolean(returningPayoutId)}
       onOpenChange={open=>{if(!open&&!saving){setReturningPayoutId(null);setPayoutReturnReason('');}}}
       busy={saving} title="BGĐ yêu cầu bổ sung" description="Nêu lý do và trả phiếu về Kế toán chỉnh sửa.">

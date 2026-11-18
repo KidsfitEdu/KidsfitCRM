@@ -1195,7 +1195,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             onClick={()=>{const receiptId=receiptPreview.id;setReceiptPreview(null);void openBackfill(receiptId);}}>
             <ClipboardCheck className="size-4" aria-hidden="true"/> Kiểm tra & đối soát
           </Button>}
-          <Button type="button" onClick={()=>{setSelected(receiptPreview.contract_id);setAccountingTab('CONTRACTS');setReceiptPreview(null);}}>
+          <Button type="button" onClick={()=>{setSelectedPeriodId(null);setSelected(receiptPreview.contract_id);setAccountingTab('CONTRACTS');setReceiptPreview(null);}}>
             <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
           </Button>
         </div>
@@ -1343,7 +1343,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     <AppDrawer compactHeader open={selected!==null&&accountingTab==='CONTRACTS'}
       onOpenChange={open=>{if(!open){setSelected(null);setFocusedRenewal(null);setEntryMode(null);closePreview();}}}
       title="Chi tiết hợp đồng" description="Kế toán / Hồ sơ hợp đồng">
-      {!detail||selected===null
+      {!detail||selected===null||detail.data.id!==selected
         ?<output className="block space-y-3 p-2" aria-label="Đang tải chi tiết hợp đồng">
           <AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-36 w-full"/><AppSkeleton className="h-28 w-full"/>
         </output>

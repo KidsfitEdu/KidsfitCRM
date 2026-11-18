@@ -69,7 +69,7 @@ export function AccountingContractDetailContent({detail,sourceRow,contractId,sel
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium">{kind}</span>
             <AppStatusBadge status={state} label={statusLabel} size="sm"
-              tone={state==='PENDING_ACCOUNTING'||state==='NEEDS_INFO'?'warning':state==='REJECTED'||state==='CANCELLED'?'danger':'success'}/>
+              tone={state==='PENDING_ACCOUNTING'||state==='NEEDS_INFO'?'warning':state==='REJECTED'||state==='CANCELLED'?'danger':state==='ACTIVE'||state==='CONFIRMED'?'success':'neutral'}/>
           </div>
         </div>
       </div>

@@ -55,7 +55,7 @@ test('Accounting separates contracts and role-specific payout overview',()=>{
   assert.match(accounting,/label:'Hợp đồng'/);
   assert.match(accounting,/label:'Khoản thu nhà trường'/);
   assert.match(accounting,/Phiếu chi hoa hồng/);
-  assert.match(accounting,/beneficiary_role:currentBeneficiary\?\.role/);
+  assert.match(accounting,/beneficiary_role:candidate!\.beneficiary_role/);
   assert.match(accounting,/role="tab"/);
   assert.match(accounting,/\/accounting\/payouts\?/);
 });
@@ -81,7 +81,7 @@ test('Receipt reconciliation and payout creation stay in their dedicated tabs',(
   assert.match(accounting,/Kiểm tra & đối soát/);
   assert.match(accounting,/\/accounting\/payouts\?/);
   assert.match(accounting,/beneficiaries=beneficiaryEntries\.filter/);
-  assert.match(accounting,/payoutChoices\.length===0/);
+  assert.match(accounting,/payoutSchools\.length===0/);
   const detail=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
   assert.doesNotMatch(detail,/Hoa hồng & phiếu chi|Nhà trường thanh toán/);
 });
@@ -91,7 +91,7 @@ test('Backfill and payout dialogs show explicit reviewed amounts and never claim
   assert.match(accounting,/Bước 2 · Kiểm tra người hưởng/);
   assert.match(accounting,/Bước 3 · Lý do đối soát/);
   assert.match(accounting,/backfillManagerVerified/);
-  assert.match(accounting,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
+  assert.doesNotMatch(accounting,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
   assert.match(accounting,/Lưu nháp/);
   assert.match(accounting,/Gửi BGĐ duyệt/);
   assert.match(accounting,/Lý do điều chỉnh/);

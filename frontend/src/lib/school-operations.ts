@@ -84,19 +84,6 @@ export type SchoolOperationsWorkspace = {
     is_expired: boolean;
     can_review: boolean;
   }[];
-  disputes: {
-    id: number;
-    customer_id: number;
-    organization_id: number;
-    school_name: string;
-    opened_by: string;
-    reason: string;
-    evidence_reference: string;
-    status: string;
-    decision: string | null;
-    decision_reason: string | null;
-    can_resolve: boolean;
-  }[];
   deferrals: {
     id: number;
     directory_school_id: number;
@@ -239,8 +226,6 @@ export const workflowLabels: Record<string, string> = {
   SUPERSEDED: 'Đã thay phiên bản',
   SUSPENDED: 'Ngưng hoạt động',
   REVIEW_REQUIRED: 'Cần đối soát lại',
-  UPHOLD_CURRENT_RIGHTS: 'Giữ quyền hợp lệ hiện tại',
-  REJECT_CLAIM: 'Bác yêu cầu tranh chấp',
 };
 export function workflowDate(value: string | null) {
   if (!value) return '—';

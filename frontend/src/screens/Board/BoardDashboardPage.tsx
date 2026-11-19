@@ -35,8 +35,7 @@ function revenueComparison(current:number|null,previous:number|null){
 
 export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
   const [period,setPeriod] = useState(currentBusinessPeriod);
-  const permitted = abilities.includes('*') || abilities.includes('channel_sales.school.escalation.resolve')
-    || abilities.includes('channel_sales.school.dispute.resolve');
+  const permitted = abilities.includes('*') || abilities.includes('channel_sales.school.escalation.resolve');
   // Operations list is intentionally not loaded: only four KPIs and two real-data charts.
   const {report,connected} = useBoardData(permitted?apiBase:'',token,period,1,false);
   const metrics = report.data;

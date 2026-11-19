@@ -5,7 +5,6 @@ import { rolePageSections } from '@/config/role-pages';
 import { DashboardPage } from './Dashboard/DashboardPage';
 import { ProgressPage } from './Progress/ProgressPage';
 import { OverduePage } from './Overdue/OverduePage';
-import { DisputesPage } from './Disputes/DisputesPage';
 import { PoliciesPage } from './Policies/PoliciesPage';
 import { BoardPayoutsPage } from './BoardPayoutsPage';
 
@@ -16,7 +15,6 @@ const pages = {
   progress: ProgressPage,
   oversight: DashboardPage,
   overdue: OverduePage,
-  disputes: DisputesPage,
   policies: PoliciesPage,
   payouts: BoardPayoutsPage,
 };

@@ -1019,6 +1019,40 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(0, outsiderList.GetProperty("total").GetInt32());
     }
 
+    [MySqlFact] public async Task AdminApprovalWithoutEnteredReasonIsAuditedAndRejectionRequiresReason()
+    {
+        var sc = await Arrange();
+        var adminId = await User("admin@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+
+        var approvedId = await actions.SubmitSchoolProposal(Proposal(), sc.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(approvedId, new(true, null, null), false, sc.Manager.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(approvedId, new(true, null, null), true, adminId, Http(), Ct);
+        // A repeated confirmation must not create a second school or audit event.
+        await actions.ReviewSchoolProposal(approvedId, new(true, null, null), true, adminId, Http(), Ct);
+        var approved = await db.SchoolProposals.AsNoTracking().SingleAsync(x => x.Id == approvedId, Ct);
+        Assert.Equal("APPROVED", approved.Status);
+        Assert.Equal("Admin xác nhận phê duyệt đề xuất trường.", approved.DecisionReason);
+        Assert.NotNull(approved.DirectorySchoolId);
+        Assert.Equal(1, await db.AuditLogs.CountAsync(x => x.EntityType == nameof(SchoolProposal)
+            && x.EntityId == approvedId && x.Action == "ADMIN_REVIEW_SCHOOL_PROPOSAL", Ct));
+
+        var rejectedId = await actions.SubmitSchoolProposal(Proposal(), sc.Seller.UserId, Http(), Ct);
+        await actions.ReviewSchoolProposal(rejectedId, new(true, null, null), false, sc.Manager.UserId, Http(), Ct);
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.ReviewSchoolProposal(
+            rejectedId, new(false, null, null), true, adminId, Http(), Ct));
+        // Bypassing duplicate checks requires a written basis even for an approval.
+        await Assert.ThrowsAsync<ApiValidationException>(() => actions.ReviewSchoolProposal(
+            rejectedId, new(true, null, null, true), true, adminId, Http(), Ct));
+        await actions.ReviewSchoolProposal(rejectedId, new(false, "Hồ sơ trường chưa đủ căn cứ.", null),
+            true, adminId, Http(), Ct);
+        var rejected = await db.SchoolProposals.AsNoTracking().SingleAsync(x => x.Id == rejectedId, Ct);
+        Assert.Equal("REJECTED", rejected.Status);
+        Assert.Equal("Hồ sơ trường chưa đủ căn cứ.", rejected.DecisionReason);
+        Assert.Null(rejected.DirectorySchoolId);
+    }
+
     [MySqlFact] public async Task SalesDraftCanBeSavedEditedReturnedAndApprovedWithMultipleUnits()
     {
         var sc = await Arrange(); var admin = await User("admin@kidsfit.vn");

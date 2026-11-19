@@ -4,7 +4,7 @@ import type { SchoolOperationsWorkspace } from '@/lib/school-operations';
 export function fetchAdminOperations(apiBase:string,token:string,page:number,search:string,status:string='ALL') {
   return channelRequest<SchoolOperationsWorkspace>(apiBase,token,'/school-operations?page='+page+'&search='+encodeURIComponent(search)+(status!=='ALL'?'&status='+encodeURIComponent(status):''));
 }
-export function reviewAdminProposal(apiBase:string,token:string,id:number,approve:boolean,reason:string,duplicateReviewed:boolean) {
+export function reviewAdminProposal(apiBase:string,token:string,id:number,approve:boolean,reason:string|null,duplicateReviewed:boolean) {
   return channelRequest(apiBase,token,'/school-proposals/'+id+'/admin-review',{method:'POST',body:JSON.stringify({approve,reason,duplicate_reviewed:duplicateReviewed})});
 }
 export function editAdminProposal(apiBase:string,token:string,id:number,payload:Record<string,string|number>) {

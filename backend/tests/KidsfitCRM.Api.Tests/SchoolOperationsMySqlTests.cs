@@ -2179,6 +2179,17 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             && x.RefundedAt >= start && x.RefundedAt < end).SumAsync(x => (decimal?)x.Amount) ?? 0;
         Assert.Equal(expectedCollected - expectedRefunded,
             finance.GetProperty("summary").GetProperty("net_collected_revenue").GetDecimal());
+        // Dashboard charts must aggregate full authorized data, never capped ledger rows.
+        var trend = finance.GetProperty("revenue_trend");
+        Assert.Equal(6, trend.GetArrayLength());
+        var selectedMonth = trend[5];
+        Assert.Equal(selectedPeriod, selectedMonth.GetProperty("period").GetString());
+        Assert.Equal(expectedCollected - expectedRefunded, selectedMonth.GetProperty("net").GetDecimal());
+        Assert.Equal(finance.GetProperty("summary").GetProperty("accrued").GetDecimal(),
+            selectedMonth.GetProperty("accrued").GetDecimal());
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, finance.GetProperty("payout_statuses").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, finance.GetProperty("attention").ValueKind);
+        Assert.True(finance.GetProperty("summary").GetProperty("eligible_for_payout").GetDecimal() >= 0);
         Assert.Equal(250_000m, (await check.RevenueReceipts.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount))
             - (await check.RevenueRefunds.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount)));
         var cancellation = new CancelSalesContractRequest(Key(), "Chấm dứt theo quyết định", "TEST-CANCELLATION");

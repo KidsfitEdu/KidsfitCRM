@@ -54,3 +54,19 @@ test('Eligible KPI uses payout candidates and never mixes with reconciliation-on
   assert.doesNotMatch(page,/Hoa hồng chờ đối soát \/ chi/);
   assert.match(page,/Chưa có dữ liệu tài chính để hiển thị xu hướng/);
 });
+
+test('Accounting dashboard deep links to the right payout list and filters',()=>{
+  const contracts=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  assert.match(page,/window\.history\.replaceState\(null,'',window\.location\.pathname\+'\?'\+params\.toString\(\)\)/);
+  assert.match(page,/onClick=\{\(\)=>openWorkspace\('PAYOUTS',item\.key\)\}/);
+  assert.match(contracts,/const tab=query\.get\('tab'\)/);
+  assert.match(contracts,/const status=query\.get\('status'\)/);
+  assert.match(contracts,/setAccountingTab\(tab\)/);
+  assert.match(contracts,/setFinanceStatus\(status\)/);
+});
+test('Month picker for finance reports requires a specific month',()=>{
+  const picker=read('src/components/common/forms/app-month-picker.tsx');
+  assert.match(page,/<AppMonthPicker label="Kỳ báo cáo" allowAll=\{false\}/);
+  assert.match(picker,/allowAll=true/);
+  assert.match(picker,/allowAll&&<button/);
+});

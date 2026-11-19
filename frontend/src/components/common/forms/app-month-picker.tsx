@@ -5,8 +5,8 @@ import {CalendarDays, ChevronLeft, ChevronRight} from 'lucide-react';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 
 /** Compact Vietnamese month/year filter. Empty value means all time. */
-export function AppMonthPicker({value,onChange,label='Tháng/Năm',className=''}:{
-  value:string;onChange:(value:string)=>void;label?:string;className?:string;
+export function AppMonthPicker({value,onChange,label='Tháng/Năm',className='',allowAll=true}:{
+  value:string;onChange:(value:string)=>void;label?:string;className?:string;allowAll?:boolean;
 }){
   const [open,setOpen]=useState(false);
   const currentYear=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric'}).format(new Date()));
@@ -46,8 +46,8 @@ export function AppMonthPicker({value,onChange,label='Tháng/Năm',className=''}
           Tháng {m}
         </button>)}
       </div>}
-      <button type="button" className="mt-2 w-full rounded-lg border border-border px-2 py-2 text-xs text-muted-foreground hover:bg-muted"
-        onClick={()=>{onChange('');setOpen(false);}}>Tất cả thời gian</button>
+      {allowAll&&<button type="button" className="mt-2 w-full rounded-lg border border-border px-2 py-2 text-xs text-muted-foreground hover:bg-muted"
+        onClick={()=>{onChange('');setOpen(false);}}>Tất cả thời gian</button>}
     </PopoverContent>
   </Popover>;
 }

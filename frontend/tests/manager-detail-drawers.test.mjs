@@ -15,7 +15,7 @@ assert.match(detail,/is_overdue/);
 assert.match(detail,/is_expired/);
 });
 test('team detail preserves handover permissions and accurate capacity',()=>{
-assert.match(team,/role="progressbar"/);
+assert.match(team,/<progress aria-label="Mức sử dụng hạn mức tiếp cận"/);
 assert.match(team,/selected.school_approach_limit-selected.active_schools/);
 assert.match(team,/connected&&canHandover&&selected.status==='ACTIVE'/);
 assert.match(team,/<SalesHandoverDrawer/);

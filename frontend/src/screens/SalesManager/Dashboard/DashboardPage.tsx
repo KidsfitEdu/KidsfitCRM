@@ -126,7 +126,7 @@ export function DashboardPage({apiBase,token,abilities}:ManagerPageProps){
           </div>}
         {allocationCount>0&&report.isSuccess&&<div className="mt-2 space-y-1 text-xs text-muted-foreground">
           {allocation.map(row=><div key={row.label} className="flex justify-between gap-2"><span>{row.label}</span><span className="font-semibold tabular-nums">{number(row.count)}</span></div>)}
-          {limited&&<p role="status" className="pt-2 text-amber-700 dark:text-amber-300">Biểu đồ chỉ bao gồm tối đa 200 nhóm phân bổ đầu tiên do API giới hạn; không phải tổng toàn kỳ.</p>}
+          {limited&&<output className="pt-2 text-amber-700 dark:text-amber-300">Biểu đồ chỉ bao gồm tối đa 200 nhóm phân bổ đầu tiên do API giới hạn; không phải tổng toàn kỳ.</output>}
         </div>}
       </section>
     </div>

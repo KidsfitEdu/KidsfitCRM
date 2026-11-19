@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   UsersRound,
   HeartHandshake,
-  Scale,
   BarChart3,
   Settings2,
   Search,
@@ -124,8 +123,7 @@ export function SchoolOperations({
   const reportAccess =
     all ||
     manager ||
-    has('channel_sales.school.escalation.resolve') ||
-    has('channel_sales.school.dispute.resolve');
+    has('channel_sales.school.escalation.resolve');
   const api = <T,>(path: string, options?: RequestInit) =>
     channelRequest<T>(apiBase, token, path, options);
   const workspace = useQuery({
@@ -163,12 +161,6 @@ export function SchoolOperations({
       icon: Clock3,
       show: sales || manager || all,
     },
-    {
-      id: 'disputes',
-      label: 'Tranh chấp',
-      icon: Scale,
-      show: sales || manager || all || has('channel_sales.reconcile'),
-    },
     { id: 'care', label: 'Chăm sóc', icon: HeartHandshake, show: care || all },
     {
       id: 'handovers',
@@ -194,7 +186,7 @@ export function SchoolOperations({
     { id: 'report', label: 'Giám sát', icon: BarChart3, show: reportAccess },
   ].filter((t) => t.show);
   const active =
-    tabs.find((t) => t.id === tab)?.id ?? tabs[0]?.id ?? 'disputes';
+    tabs.find((t) => t.id === tab)?.id ?? tabs[0]?.id ?? 'proposals';
   const report = useQuery({
     queryKey: [...channelQueryKeys.all, 'school-operation-report', period],
     queryFn: () =>
@@ -445,11 +437,6 @@ export function SchoolOperations({
       (x) =>
         matches(x.school_name, x.requested_by, x.progress) &&
         (!pendingOnly || x.status === 'PENDING'),
-    ).length,
-    disputes: data.disputes.filter(
-      (x) =>
-        matches(x.school_name, x.opened_by, x.reason) &&
-        (!pendingOnly || x.status === 'OPEN'),
     ).length,
     care:
       data.support_cases.filter(
@@ -970,64 +957,6 @@ export function SchoolOperations({
                     </>
                   )}
                   {historyButton('extension', x.id, x.school_name)}
-                </div>
-              </WorkflowCard>
-            ))}
-        {active === 'disputes' &&
-          data.disputes
-            .filter(
-              (x) =>
-                matches(x.school_name, x.opened_by, x.reason) &&
-                (!pendingOnly || x.status === 'OPEN'),
-            )
-            .map((x) => (
-              <WorkflowCard
-                key={x.id}
-                title={x.school_name}
-                subtitle={x.opened_by}
-                status={x.status}
-              >
-                <p>{x.reason}</p>
-                <EvidenceReference value={x.evidence_reference} />
-                {x.decision && (
-                  <p className="font-medium">
-                    {workflowLabels[x.decision] ?? x.decision}
-                  </p>
-                )}
-                {x.decision_reason && <p>{x.decision_reason}</p>}
-                <div className="flex gap-2">
-                  {x.can_resolve && (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        setAction({
-                          title: 'Kết luận tranh chấp',
-                          description:
-                            'Kết luận được lưu cùng lịch sử, không tự chuyển quyền hợp lệ hoặc hoa hồng của người khác.',
-                          path: '/school-disputes/' + x.id + '/resolve',
-                          fields: [
-                            {
-                              name: 'decision',
-                              label: 'Kết luận',
-                              type: 'select',
-                              options: [
-                                'UPHOLD_CURRENT_RIGHTS',
-                                'REJECT_CLAIM',
-                                'RESOLVED',
-                              ].map((code) => ({
-                                value: code,
-                                label: workflowLabels[code],
-                              })),
-                            },
-                            reason,
-                          ],
-                        })
-                      }
-                    >
-                      Ghi kết luận
-                    </Button>
-                  )}
-                  {historyButton('dispute', x.id, x.school_name)}
                 </div>
               </WorkflowCard>
             ))}
@@ -1837,8 +1766,6 @@ const actionLabels: Record<string, string> = {
   CANCEL_SCHOOL_INVITATION: 'Hủy lời mời',
   REQUEST_SCHOOL_EXTENSION: 'Gửi yêu cầu gia hạn',
   REVIEW_SCHOOL_EXTENSION: 'Xét gia hạn',
-  OPEN_SCHOOL_DISPUTE: 'Mở tranh chấp',
-  RESOLVE_SCHOOL_DISPUTE: 'Kết luận tranh chấp',
   CREATE_CUSTOMER_SUPPORT_CASE: 'Tiếp nhận yêu cầu hỗ trợ',
   UPDATE_CUSTOMER_SUPPORT_CASE: 'Cập nhật xử lý hỗ trợ',
 };

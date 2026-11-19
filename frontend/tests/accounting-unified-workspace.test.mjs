@@ -79,7 +79,7 @@ test('School-group rows are neutral and the contract term stays on one line',()=
 test('Contract table reserves space for all three authorized review actions',()=>{
   assert.match(tree, /<colgroup>/);
   const widths=[...tree.slice(tree.indexOf('<colgroup>'),tree.indexOf('</colgroup>'))
-    .matchAll(/width:'(\\d+)%'/g)].map(match=>Number(match[1]));
+    .matchAll(/width:'(\d+)%'/g)].map(match=>Number(match[1]));
   assert.deepEqual(widths,[20,12,16,12,13,14,13]);
   assert.equal(widths.reduce((sum,width)=>sum+width,0),100);
   assert.ok(widths[5]>7,'Cần xử lý must have adequate width');

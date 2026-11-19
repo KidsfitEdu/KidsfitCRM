@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable jsx-a11y/prefer-tag-over-role -- Native select cannot support server-paginated asynchronous options. */
 
 import {useEffect,useId,useRef,useState} from 'react';
 import {useQuery} from '@tanstack/react-query';
@@ -65,8 +66,6 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
         <ChevronDown className="size-4" aria-hidden="true"/>
       </button>
     </div>
-    {/* A custom server-paginated popup cannot be represented by a native select. */}
-    {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role */}
     {opened&&<div id={listId} role="listbox" aria-label="Trường khả dụng"
       className="absolute left-0 right-0 top-full z-[90] mt-1 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
       <div className="max-h-64 overflow-y-auto p-1">

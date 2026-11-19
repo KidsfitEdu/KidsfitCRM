@@ -162,10 +162,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receiptPageSize,setReceiptPageSize]=useState(20);
   const [receiptSearch,setReceiptSearch]=useState('');
   const [receiptAppliedSearch,setReceiptAppliedSearch]=useState('');
-  const [receiptYear,setReceiptYear]=useState('ALL');
-  const [receiptMonth,setReceiptMonth]=useState('ALL');
-  const [receiptAppliedMonth,setReceiptAppliedMonth]=useState('ALL');
-  const [receiptAppliedYear,setReceiptAppliedYear]=useState('ALL');
+  const [receiptPeriod,setReceiptPeriod]=useState('');
+  const [receiptAppliedPeriod,setReceiptAppliedPeriod]=useState('');
   const [receiptLoading,setReceiptLoading]=useState(false);
   const [receiptRevision,setReceiptRevision]=useState(0);
   const [receiptPreview,setReceiptPreview]=useState<ReceiptRow|null>(null);
@@ -340,8 +338,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     setReceiptLoading(true);
     const params=new URLSearchParams({page:String(receiptPage),page_size:String(receiptPageSize)});
     if(receiptAppliedSearch)params.set('search',receiptAppliedSearch);
-    if(receiptAppliedYear!=='ALL')params.set('year',receiptAppliedYear);
-    if(receiptAppliedMonth!=='ALL')params.set('month',receiptAppliedMonth);
+    if(receiptAppliedPeriod){
+      params.set('year',receiptAppliedPeriod.slice(0,4));
+      params.set('month',String(Number(receiptAppliedPeriod.slice(5,7))));
+    }
     const loadRows=channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params);
     void loadRows.then(res=>{if(active){setReceiptRows(res.data);setReceiptTotal(res.total);}})
       .catch(error=>{if(active)appNotice.error('Không tải được khoản thu.',
@@ -349,7 +349,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       .finally(()=>{if(active)setReceiptLoading(false);});
     return()=>{active=false;};
   },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,
-    receiptAppliedSearch,receiptAppliedYear,receiptAppliedMonth,receiptRevision]);
+    receiptAppliedSearch,receiptAppliedPeriod,receiptRevision]);
 
   useEffect(()=>{
     if(!connected||!canRecordRevenue||accountingTab!=='RECEIPTS'||!receiptIntent)return;
@@ -804,13 +804,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const payoutCreateReady=Boolean(payoutSchool&&chosenCandidate&&payoutDialogOpen&&
     !centralPayoutIntent&&!payoutSchoolLoading&&detail&&detail.data.id===payoutSchool.id&&
     chosenPeriod===payoutCreatePeriod);
-  const receiptCurrentYear=Number(accountingBusinessDay(new Date()).slice(0,4));
-  const receiptMonthOptions=[{value:'ALL',label:'Tất cả các tháng'},...Array.from({length:12},(_,i)=>({value:String(i+1),label:'Tháng '+String(i+1)}))];
-  const receiptYearOptions=[{value:'ALL',label:'Tất cả các năm'},
-    ...Array.from({length:Math.min(32,receiptCurrentYear-2000+2)},(_,index)=>{
-      const year=String(receiptCurrentYear+1-index);
-      return {value:year,label:'Năm '+year};
-    })];
   const resetFinanceFilters=()=>{
     setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
     setFinanceRole('ALL');setFinanceStatus('ALL');setFinanceCreatedMonth('');setFinancePage(1);
@@ -1030,16 +1023,12 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     </AdminListPanel>}
     {accountingTab==='RECEIPTS'&&<AdminListPanel className="min-w-0">
       <AdminListToolbar search={receiptSearch} onSearchChange={setReceiptSearch}
-        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedYear(receiptYear);setReceiptAppliedMonth(receiptMonth);setReceiptPage(1);}}
-        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptYear('ALL');setReceiptAppliedYear('ALL');setReceiptMonth('ALL');setReceiptAppliedMonth('ALL');setReceiptPage(1);}}
+        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedPeriod(receiptPeriod);setReceiptPage(1);}}
+        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptPeriod('');setReceiptAppliedPeriod('');setReceiptPage(1);}}
         searchLabel="Tìm khoản thu nhà trường"
         placeholder="Tên trường, hợp đồng, mã giao dịch..."
-        filters={<div className="flex flex-wrap gap-2">
-          <AppSelect ariaLabel="Lọc năm nhận tiền" className="w-full sm:w-40"
-            value={receiptYear} options={receiptYearOptions} onValueChange={year=>{setReceiptYear(year);if(year==='ALL')setReceiptMonth('ALL');}}/>
-          <AppSelect ariaLabel="Lọc tháng nhận tiền" className="w-full sm:w-40"
-            value={receiptMonth} options={receiptMonthOptions} disabled={receiptYear==='ALL'} onValueChange={setReceiptMonth}/>
-        </div>}/>
+        filters={<AppMonthPicker label="Tháng nhận tiền" className="w-full sm:w-[170px]"
+          value={receiptPeriod} onChange={setReceiptPeriod}/>}/>
       {receiptLoading?<output className="block p-5 text-sm text-muted-foreground">Đang tải các khoản thu...</output>:
       <div className="w-full overflow-x-auto">
         <table className={adminTableClass+' table-fixed'}>

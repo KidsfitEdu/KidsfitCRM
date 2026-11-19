@@ -71,7 +71,7 @@ export function DashboardPage({apiBase,token,abilities}:ManagerPageProps){
     <AppPageHeader eyebrow="QUẢN LÝ BÁN HÀNG / KIDSFIT CRM"
       title="Tổng quan đội ngũ" description="Theo dõi đề xuất, phân bổ, gia hạn và hợp đồng trong phạm vi quản lý."
       actions={<div className="flex flex-wrap items-center gap-2">
-        <label className="text-sm font-medium">Kỳ báo cáo</label>
+        <span className="text-sm font-medium">Kỳ báo cáo</span>
         <AppMonthPicker label="Kỳ báo cáo" value={period} onChange={setPeriod}
           allowAll={false} className="w-[168px]"/>
         <AppButton tone="outline" disabled={!connected||overview.isFetching||report.isFetching}

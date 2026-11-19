@@ -186,6 +186,7 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
         {attentionTypes.map(item=>{
           const found=attention.find(x=>x.status===item.key);
           return <button type="button" key={item.key}
+            aria-label={'Xem phiếu chi: '+item.label}
             disabled={!connected||!finance.data||!onSalesNavigate}
             onClick={()=>openWorkspace('PAYOUTS',item.key)}
             className="flex items-start gap-3 rounded-xl border border-border p-4 text-left transition-colors enabled:hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default">

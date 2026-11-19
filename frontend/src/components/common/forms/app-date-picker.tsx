@@ -8,16 +8,18 @@ import {Calendar} from '@/components/ui/calendar';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 
 /** Date-only filter based on CRM's existing calendar and popover primitives. */
-export function AppDatePicker({value,onChange,label,className=''}:{
+export function AppDatePicker({value,onChange,label,className='',invalid=false,fieldName}:{
   value:string;onChange:(value:string)=>void;label:string;className?:string;
+  invalid?:boolean;fieldName?:string;
 }){
   const [open,setOpen]=useState(false);
   const parsed=value?parseISO(value):null;
   const selected=parsed&&isValid(parsed)?parsed:undefined;
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger render={
-      <button type="button" aria-label={label} aria-haspopup="dialog"
-        className={['flex h-10 min-w-0 items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 text-left text-sm shadow-xs transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',className].join(' ')}
+      <button type="button" aria-label={label} aria-haspopup="dialog" aria-invalid={invalid}
+      data-field={fieldName}
+        className={['flex h-10 min-w-0 items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 text-left text-sm shadow-xs transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-invalid:border-destructive',className].join(' ')}
         onClick={()=>setOpen(true)}/>
     }>
       <span className={selected?'truncate text-foreground':'truncate text-muted-foreground'}>

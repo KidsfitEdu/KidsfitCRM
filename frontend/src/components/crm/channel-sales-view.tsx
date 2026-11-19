@@ -38,6 +38,7 @@ import { AppButton } from '@/components/common/buttons/app-button';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { AppDatePicker } from '@/components/common/forms/app-date-picker';
 import { channelDate, channelRequest } from '@/lib/channel-operations';
 import { paymentCycleForPlan, getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { validateContract, type ContractErrors, type ContractField } from '@/lib/contract-validation';
@@ -1229,25 +1230,30 @@ function ContractDialog({
     } finally { setSaving(false); }
   };
 
-  return <SalesFormDialog title="Báo cáo hợp đồng"
-    subtitle="Gửi hồ sơ hợp đồng đã ký đến Quản lý bán hàng duyệt trước khi chuyển CHECKEE xác minh."
-    onClose={onClose}>
-    <form onSubmit={submit} noValidate>
+  return <SalesFormDialog title="Báo cáo hợp đồng" subtitle="" onClose={onClose} busy={saving}
+    footer={<>
+      <AppButton type="button" tone="neutral" disabled={saving} onClick={onClose}>Hủy</AppButton>
+      <AppButton type="submit" form="sales-contract-report-form" tone="green" busy={saving}>
+        {saving ? 'Đang gửi…' : 'Gửi Quản lý duyệt'}
+      </AppButton>
+    </>}>
+    <form id="sales-contract-report-form" onSubmit={submit} noValidate>
       <CustomerHighlight customer={customer}/>
       <div className="mt-4 space-y-4 [&_input:not([type=radio]):not([type=checkbox]):not([type=file])]:h-11 [&_input:not([type=radio]):not([type=checkbox]):not([type=file])]:rounded-xl [&_input:not([type=radio]):not([type=checkbox]):not([type=file])]:px-3 [&_legend]:leading-5">
         <Field label="Ngày ký hợp đồng *">
-          <Input name="signed_on" type="date" data-field="signed_on" aria-invalid={!!errors.signed_on} value={signedOn} onChange={e=>{setSignedOn(e.target.value);clearError("signed_on");}}/>
+          <AppDatePicker label="Ngày ký hợp đồng" value={signedOn} invalid={!!errors.signed_on} fieldName="signed_on" className="h-11 w-full rounded-xl"
+            onChange={value=>{setSignedOn(value);clearError('signed_on');}}/>
           {errors.signed_on && <p role="alert" className="text-xs text-red-700">{errors.signed_on}</p>}
         </Field>
-        <fieldset className="space-y-3 rounded-xl border border-border p-4">
+        <fieldset className="space-y-3 rounded-2xl border border-border bg-card p-4">
           <legend className="px-2 text-sm font-semibold">Thời hạn sử dụng theo hợp đồng *</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Ngày bắt đầu dịch vụ *">
-              <Input type="date" data-field="service_start_on" value={serviceStartOn}
-                aria-invalid={!!errors.service_start_on} onChange={e=>{
-                  setServiceStartOn(e.target.value);clearError('service_start_on');
-                  if(!serviceEndOn && e.target.value){
-                    const date = new Date(e.target.value+'T00:00:00Z');
+              <AppDatePicker label="Ngày bắt đầu dịch vụ" fieldName="service_start_on" value={serviceStartOn}
+                className="h-11 w-full rounded-xl" invalid={!!errors.service_start_on} onChange={value=>{
+                  setServiceStartOn(value);clearError('service_start_on');
+                  if(!serviceEndOn && value){
+                    const date = new Date(value+'T00:00:00Z');
                     date.setUTCFullYear(date.getUTCFullYear()+1);
                     date.setUTCDate(date.getUTCDate()-1);
                     setServiceEndOn(date.toISOString().slice(0,10));
@@ -1256,14 +1262,15 @@ function ContractDialog({
               {errors.service_start_on&&<p role="alert" className="text-xs text-red-700">{errors.service_start_on}</p>}
             </Field>
             <Field label="Ngày kết thúc dịch vụ *">
-              <Input type="date" data-field="service_end_on" value={serviceEndOn}
-                aria-invalid={!!errors.service_end_on} onChange={e=>{setServiceEndOn(e.target.value);clearError('service_end_on');}}/>
+              <AppDatePicker label="Ngày kết thúc dịch vụ" fieldName="service_end_on" value={serviceEndOn}
+                className="h-11 w-full rounded-xl" invalid={!!errors.service_end_on}
+                onChange={value=>{setServiceEndOn(value);clearError('service_end_on');}}/>
               {errors.service_end_on&&<p role="alert" className="text-xs text-red-700">{errors.service_end_on}</p>}
             </Field>
           </div>
           <p className="text-xs text-muted-foreground">Ngày kết thúc gợi ý sau một năm; vui lòng đối chiếu ngày thực tế trên hợp đồng. CHECKEE sẽ xác minh trước khi kỳ dịch vụ có hiệu lực.</p>
         </fieldset>
-        <fieldset className="space-y-2">
+        <fieldset className="space-y-3 rounded-2xl border border-border bg-card p-4">
           <legend className="text-sm font-semibold">Gói dịch vụ & hình thức thanh toán *</legend>
           <div className="grid grid-cols-2 gap-2">
             {(['SCHOOL_YEAR','MONTHLY_9'] as const).map(option=><label key={option}
@@ -1355,7 +1362,6 @@ function ContractDialog({
           {errors.contract_note && <p role="alert" className="text-xs text-red-700">{errors.contract_note}</p>}
         </Field>
       </div>
-      <DialogFooter saving={saving} error="" onClose={onClose} label="Gửi Quản lý duyệt"/>
     </form>
   </SalesFormDialog>;
 }
@@ -1495,14 +1501,20 @@ function SalesFormDialog({
   subtitle,
   onClose,
   children,
+  footer,
+  busy = false,
 }: {
   title: string;
   subtitle: string;
   onClose: () => void;
   children: ReactNode;
+  footer?: ReactNode;
+  busy?: boolean;
 }) {
   return (
-    <AppDialog open onOpenChange={(open) => { if (!open) onClose(); }} title={title} description={subtitle}>
+    <AppDialog open onOpenChange={(open) => { if (!open) onClose(); }} title={title}
+      description={subtitle || undefined} footer={footer} busy={busy}
+      footerClassName={footer ? 'relative z-20 bg-card shadow-[0_-6px_20px_rgba(0,0,0,.04)]' : undefined}>
       {children}
     </AppDialog>
   );}

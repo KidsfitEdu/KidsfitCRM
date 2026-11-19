@@ -45,13 +45,15 @@ test('Receipt recording uses existing endpoint without draft persistence',()=>{
   assert.doesNotMatch(page,/commission-backfill/);
 });
 
-test('Renewal row actions target the correct renewal and explicit review decision',()=>{
+test('Renewal table opens the selected period only for view; decisions remain within detail',()=>{
   const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
-  assert.ok(page.includes("openRenewal(contractId,renewalId,'confirm')"));
-  assert.ok(read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx').includes('focusRenewalId={selectedPeriodId}'));
-  assert.ok(tree.includes('onReview(row.id,p.renewalId!)'));
+  const detail=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
+  assert.ok(page.includes('onView={(contractId,renewalId)=>openContract(contractId,renewalId)}'));
+  assert.ok(page.includes('setSelectedPeriodId(renewalId);setSelected(id)'));
+  assert.ok(detail.includes('focusRenewalId={selectedPeriodId}'));
   assert.ok(tree.includes('onView(row.id,p.renewalId)'));
-  assert.match(renewal,/focusAction==='confirm'/);
-  assert.match(renewal,/focusAction==='request-info'/);
+  assert.doesNotMatch(tree,/onReview|onRequestInfo|CheckCircle2|FilePenLine/);
+  assert.match(renewal,/onClick=\{\(\)=>openDecision\('confirm'\)\}/);
+  assert.match(renewal,/onClick=\{\(\)=>openDecision\('request-info'\)\}/);
   assert.match(renewal,/detail\.data\.id!==focusRenewalId/);
 });

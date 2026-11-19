@@ -88,7 +88,9 @@ test('Contract table reserves space for a single view action and readable task b
   assert.ok(tree.includes('icon={Eye}'));
   assert.doesNotMatch(tree,/icon=\{CheckCircle2\}|icon=\{FilePenLine\}|onReview|onRequestInfo/);
   assert.ok(page.includes('onView={(contractId,renewalId)=>openContract(contractId,renewalId)}'));
-  assert.ok(page.includes("channel_sales.renewal.review"));
+  const inline=read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
+  assert.ok(inline.includes("channel_sales.renewal.review"));
+  assert.ok(inline.includes("channel_sales.renewal.confirm"));
 });
 
 test('Contract tree fits the accounting panel and has no forced horizontal scroll',()=>{

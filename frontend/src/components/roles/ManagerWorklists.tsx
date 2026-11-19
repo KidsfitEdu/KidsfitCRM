@@ -17,7 +17,6 @@ import { type SchoolAction, type SchoolActionField } from '@/components/crm/scho
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { channelRequest, channelQueryKeys, ChannelRequestError } from '@/lib/channel-operations';
-import { loadAllocationSchools } from '@/lib/manager-allocation';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { workflowLabels, workflowDate, type SchoolOperationsWorkspace } from '@/lib/school-operations';
 import type { ChannelCustomer } from '@/lib/channel-sales';
@@ -57,8 +56,6 @@ type Selection =
   | { kind: 'extension'; item: Extension }
   | { kind: 'progress'; item: ChannelCustomer | ProgressSchool };
 type Capacity = { id: number; name: string; organization_name: string; school_approach_limit: number; active: number };
-type School = { id: number; display_name: string; school_code: string; visible_status: string; can_register: boolean };
-type SchoolList = { data: School[]; total: number };
 type ReleasedSchool={id:number;customer_id:number;school_code:string;school_name:string;released_at:string};
 type ReleasedResult={data:ReleasedSchool[];total:number;page:number;page_size:number};
 type ProgressResult={data:ProgressSchool[];total:number;page:number;page_size:number;staff:{id:number;name:string}[]};
@@ -116,12 +113,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     },
     enabled: section === 'progress' && (!!token),
     placeholderData: previous=>previous,
-  });
-  const availableSchools = useQuery({
-    queryKey: [...channelQueryKeys.all, 'manager-available-schools'],
-    queryFn: () => loadAllocationSchools<School>((page, pageSize) =>
-      api<SchoolList>('/schools?page=' + page + '&pageSize=' + pageSize + '&status=AVAILABLE')),
-    enabled: section === 'allocations' && !!token,
   });
   const released = useQuery({
     queryKey: [...channelQueryKeys.all, 'manager-released-schools'],
@@ -182,7 +173,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     if (cause instanceof TypeError) return 'Không kết nối được Backend. Kiểm tra máy chủ và đường dẫn API.';
     return cause instanceof Error ? cause.message : 'Không thể tải dữ liệu. Vui lòng thử lại.';
   };
-  const queryFailure = section === 'progress' ? customers.error : operations.error ?? (section === 'allocations' ? availableSchools.error : null);
+  const queryFailure = section === 'progress' ? customers.error : operations.error;
   useEffect(() => {
     if (!queryFailure) {
       lastQueryFailure.current = null;
@@ -236,25 +227,10 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       appNotice.error('Không có quyền phân bổ', 'Tài khoản chưa được cấp quyền phân bổ trường.');
       return;
     }
-    if (operations.isPending || availableSchools.isPending) {
-      appNotice.info('Đang tải dữ liệu', 'Vui lòng thử lại khi danh sách trường và Sales/CTV tải xong.');
-      return;
-    }
-    if (operations.error || availableSchools.error) {
-      appNotice.error('Không thể tải danh sách phân bổ', describeApiError(operations.error ?? availableSchools.error));
-      return;
-    }
+    // The dialog opens immediately. School lookup runs only when its input opens.
+    // Member/capacity queries already belong to this worklist and are not refetched on click.
     const members = operations.data?.team.filter(t => t.can_receive_school && t.status === 'ACTIVE') ?? [];
-    const schools = availableSchools.data?.data.filter(s => s.visible_status === 'AVAILABLE') ?? [];
-    if(suggestedSchoolId && !schools.some(s=>s.id===suggestedSchoolId)){
-      appNotice.warning('Trường không còn khả dụng', 'Danh sách đã thay đổi; vui lòng tải lại trước khi phân bổ.');
-      return;
-    }
-    if (!members.length || !schools.length) {
-      appNotice.warning('Chưa đủ điều kiện phân bổ',
-        !schools.length ? 'Không có trường chưa đăng ký phù hợp.' : 'Không có Sales/CTV đủ điều kiện nhận trường.');
-      return;
-    }
+    const releasedSchool = suggestedSchoolId ? released.data?.data.find(s=>s.id===suggestedSchoolId) : undefined;
     setAction({
       title: 'Mời Sales/CTV nhận trường',
       description: '',
@@ -263,7 +239,9 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       fields: [
         { name: 'school_id', label: 'Trường chưa đăng ký', type: 'number',
           value: suggestedSchoolId?String(suggestedSchoolId):undefined,
-          options: schools.map(s => ({ value: String(s.id), label: s.display_name })) },
+          allocationSchoolPicker: {apiBase,token,initialOption: releasedSchool
+            ? {value:String(releasedSchool.id),label:releasedSchool.school_name+' · '+releasedSchool.school_code}
+            :undefined} },
         { name: 'assignee_user_id', label: 'Sales/CTV nhận phân bổ', type: 'number', options: members.map(m => {
           const cap = capacities.data?.data.find(c => c.id === m.id);
           return { value: String(m.user_id), label: m.name + (cap ? ' · ' + cap.active + '/' + cap.school_approach_limit + ' trường' : '') };
@@ -455,7 +433,18 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       }}>
       {extensionConfirmationError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{extensionConfirmationError}</p>}
     </ConfirmDialog>
-    <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
+    <SchoolActionDialog action={action?.path==='/school-invitations' ? {
+      ...action,
+      fields:action.fields.map(field=>field.name==='assignee_user_id'?{
+        ...field,
+        options:(operations.data?.team.filter(t=>t.can_receive_school&&t.status==='ACTIVE')??[]).map(m=>{
+          const cap=capacities.data?.data.find(c=>c.id===m.id);
+          return {value:String(m.user_id),label:m.name+(cap?' · '+cap.active+'/'+cap.school_approach_limit+' trường':'')};
+        }),
+        hint:operations.isPending?'Đang tải Sales/CTV đủ điều kiện…':
+          operations.isError?'Không tải được Sales/CTV; vui lòng thử lại.':undefined,
+      }:field),
+    }:action} onClose={() => setAction(null)} save={save} />
     <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}
       title={selectedProposal?.name ?? 'Chi tiết hồ sơ'}
       description={selectedProposal ? selectedProposal.school_code : 'Thông tin trong phạm vi quản lý được Backend cho phép truy cập.'}

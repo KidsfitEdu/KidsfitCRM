@@ -9,8 +9,7 @@ import {AppPageHeader} from '@/components/common/app-page-header';
 import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {ChartContainer,ChartTooltip,ChartTooltipContent} from '@/components/ui/chart';
 import {fetchAdminReport} from '@/services/report.service';
-import {fetchAdminOperations} from '@/services/proposal.service';
-import type {SchoolOperationsReport,SchoolOperationsWorkspace} from '@/lib/school-operations';
+import type {SchoolOperationsReport} from '@/lib/school-operations';
 import {appNotice} from '@/components/common/app-toast-provider';
 import {AdminPageStatus} from '@/components/admin/AdminPageStatus';
 import {currentBusinessPeriod} from '@/lib/channel-operations';
@@ -34,10 +33,9 @@ type RecentActivity = NonNullable<SchoolOperationsReport['recent_activity']>[num
 const fmt=(n:number|null|undefined)=>n==null?'—':n.toLocaleString('vi-VN');
 const fmtTime=(value:string)=>new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(value));
 
-export function DashboardPage({apiBase,token}:AdminPageProps) {
+export function DashboardPage({apiBase,token,onSalesNavigate}:AdminPageProps) {
   const [period,setPeriod]=useState(currentBusinessPeriod);
   const [report,setReport]=useState<SchoolOperationsReport|null>(null);
-  const [operations,setOperations]=useState<SchoolOperationsWorkspace|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState(false);
   const [selectedActivity,setSelectedActivity]=useState<RecentActivity|null>(null);
@@ -47,11 +45,7 @@ export function DashboardPage({apiBase,token}:AdminPageProps) {
     if(preview)return;
     setLoading(true);setError(false);
     try {
-      const [reportResult,operationsResult]=await Promise.all([
-        fetchAdminReport(apiBase,token,period),
-        fetchAdminOperations(apiBase,token,1,''),
-      ]);
-      setReport(reportResult);setOperations(operationsResult);
+      setReport(await fetchAdminReport(apiBase,token,period));
     } catch(e) {
       setError(true);setReport(null);
       appNotice.error('Không tải được dữ liệu tổng quan.',e instanceof Error?e.message:'Vui lòng thử lại.');
@@ -59,7 +53,7 @@ export function DashboardPage({apiBase,token}:AdminPageProps) {
   },[apiBase,token,period,preview]);
   useEffect(()=>{void reload();},[reload]);
 
-  const pending=operations?.proposals.filter(x=>x.status==='PENDING_ADMIN').length??null;
+  const pending=report?.pending_admin_proposals??null;
   const mix=report?.school_statuses;
   const distribution=mix?[
     {key:'available',name:'Chưa đăng ký',value:report?.available_schools??0,fill:'var(--color-available)'},
@@ -76,10 +70,10 @@ export function DashboardPage({apiBase,token}:AdminPageProps) {
     {label:'Hợp đồng hiệu lực',value:report?.active_contracts,icon:FileCheck2,description:'Trạng thái tại thời điểm hiện tại'},
   ];
   const tasks=[
-    {label:'Đề xuất chờ Admin',value:pending},
-    {label:'Đề xuất quá hạn',value:report?.overdue_proposals},
-    {label:'Tiếp cận hết hạn trong kỳ',value:report?.expired_approaches},
-    {label:'Gia hạn quá hạn',value:report?.overdue_extensions},
+    {label:'Đề xuất chờ Admin',value:pending,view:'admin-proposals' as const},
+    {label:'Đề xuất quá hạn',value:report?.overdue_proposals,view:'admin-proposals' as const},
+    {label:'Tiếp cận hết hạn trong kỳ',value:report?.expired_approaches,view:'admin-schools' as const},
+    {label:'Gia hạn quá hạn',value:report?.overdue_extensions,view:'admin-capacity' as const},
   ];
   const events=report?.recent_activity??[];
 
@@ -149,10 +143,12 @@ export function DashboardPage({apiBase,token}:AdminPageProps) {
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-labelledby="admin-work-queue">
         <h3 id="admin-work-queue" className="flex items-center gap-2 text-base font-semibold"><AlertTriangle className="size-4 text-primary"/>Công việc cần xử lý</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {tasks.map(x=><div key={x.label} className="rounded-xl border border-border p-3">
+          {tasks.map(x=><button type="button" key={x.label} onClick={()=>onSalesNavigate?.(x.view)}
+            disabled={!onSalesNavigate} aria-label={'Xem '+x.label}
+            className="rounded-xl border border-border p-3 text-left transition-colors enabled:hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default">
             <p className="text-xs text-muted-foreground">{x.label}</p>
             <p className="mt-2 text-xl font-bold tabular-nums">{fmt(x.value)}</p>
-          </div>)}
+          </button>)}
         </div>
       </section>
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-labelledby="admin-recent-activity">

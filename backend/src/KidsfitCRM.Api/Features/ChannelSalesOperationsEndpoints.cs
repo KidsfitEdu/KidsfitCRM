@@ -328,7 +328,44 @@ public static class ChannelSalesOperationsEndpoints
                                           where item.PayoutId == payout.Id select school.DisplayName).Distinct().ToArray(),
                           events = db.PayoutEvents.Where(e => e.PayoutId == payout.Id).OrderBy(e => e.CreatedAt).Select(e => new { e.EventType, e.CreatedAt, e.Reason }).ToArray(),
                       };
+        // Payment dates, not source commission periods, define cash paid during the month.
+        // A November transfer of October commission belongs to November cash flow.
         var paidInMonth = payoutsQuery.Where(x => x.Status == "PAID" && x.PaidAt >= start && x.PaidAt < end);
+
+        // A receipt/payout belongs to the reporting month by its actual timestamp.
+        // Keep reporting snapshots separate from actionable backlog across all periods.
+        var createdPayouts = payoutsQuery.Where(x => x.CreatedAt >= start && x.CreatedAt < end);
+        var payoutStatusCounts = await createdPayouts
+            .GroupBy(x => x.Status)
+            .Select(g => new { status = g.Key, count = g.Count() })
+            .ToListAsync(ct);
+        var outstandingPayouts = payoutsQuery.Where(x => x.Status == "PENDING_APPROVAL"
+            || x.Status == "CHANGES_REQUESTED" || x.Status == "APPROVED");
+        var attentionCounts = await outstandingPayouts.GroupBy(x => x.Status)
+            .Select(g => new { status = g.Key, count = g.Count(), amount = g.Sum(x => x.NetAmount) })
+            .ToListAsync(ct);
+
+        // Six bounded SQL aggregates, with exact Vietnam-local month boundaries.
+        // Values are never inferred from the capped ledger/payout arrays returned below.
+        var trend = new List<object>();
+        for (var i = 5; i >= 0; i--)
+        {
+            var monthStart = start.AddMonths(-i);
+            var monthEnd = monthStart.AddMonths(1);
+            var monthPeriod = monthStart.AddHours(7).ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+            var monthCollected = await db.RevenueReceipts.AsNoTracking()
+                .Where(x => access.Contracts(db).Select(c => c.Id).Contains(x.ContractId)
+                    && x.Status == "COMPLETED" && x.ReceivedAt >= monthStart && x.ReceivedAt < monthEnd)
+                .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+            var monthRefunded = await db.RevenueRefunds.AsNoTracking()
+                .Where(x => access.Contracts(db).Select(c => c.Id).Contains(x.ContractId)
+                    && x.RefundedAt >= monthStart && x.RefundedAt < monthEnd)
+                .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+            var monthAccrued = await scopedEntries.Where(x => x.Period == monthPeriod)
+                .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+            trend.Add(new { period = monthPeriod, collected = monthCollected, refunded = monthRefunded,
+                net = monthCollected - monthRefunded, accrued = monthAccrued });
+        }
         var contracts = access.Contracts(db).Select(x => x.Id);
         var eligible = entries.Where(x => !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id)
             && db.ReconciliationCases.Any(r => r.ContractId == x.ContractId && r.Status == "CONFIRMED"));
@@ -343,6 +380,8 @@ public static class ChannelSalesOperationsEndpoints
             {
                 accrued = await entries.SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
                 eligible = await eligible.SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
+                // Aligned with the CreatePayout candidate source (positive unassigned ledger groups).
+                eligible_for_payout = await eligiblePayouts.SumAsync(x => (decimal?)x.amount, ct) ?? 0,
                 approved = await payoutsQuery.Where(x => x.Period == selectedPeriod && x.Status == "APPROVED").SumAsync(x => (decimal?)x.NetAmount, ct) ?? 0,
                 paid = await paidInMonth.SumAsync(x => (decimal?)x.GrossAmount, ct) ?? 0,
                 withholding = await paidInMonth.SumAsync(x => (decimal?)x.WithholdingAmount, ct) ?? 0,
@@ -352,6 +391,9 @@ public static class ChannelSalesOperationsEndpoints
                 net_collected_revenue = (await db.RevenueReceipts.Where(x => contracts.Contains(x.ContractId) && x.Status == "COMPLETED" && x.ReceivedAt >= start && x.ReceivedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0)
                     - (await db.RevenueRefunds.Where(x => contracts.Contains(x.ContractId) && x.RefundedAt >= start && x.RefundedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0),
             },
+            revenue_trend = trend,
+            payout_statuses = payoutStatusCounts,
+            attention = attentionCounts,
             ledger = await ledgerQuery.Take(200).ToArrayAsync(ct),
             ledger_total = await entries.CountAsync(ct),
             payout_total = await payoutsQuery.Where(x => x.Period == selectedPeriod).CountAsync(ct),

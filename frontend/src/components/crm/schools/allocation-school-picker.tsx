@@ -65,16 +65,19 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
         <ChevronDown className="size-4" aria-hidden="true"/>
       </button>
     </div>
+    {/* A custom server-paginated popup cannot be represented by a native select. */}
+    {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role */}
     {opened&&<div id={listId} role="listbox" aria-label="Trường khả dụng"
       className="absolute left-0 right-0 top-full z-[90] mt-1 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
       <div className="max-h-64 overflow-y-auto p-1">
-        {query.isPending&&<p role="status" className="flex items-center gap-2 p-3 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/>Đang tải trường...</p>}
+        {query.isPending&&<output className="flex items-center gap-2 p-3 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/>Đang tải trường...</output>}
         {query.isError&&<div className="p-3 text-sm text-destructive">
           <p>Không thể tải danh sách trường.</p>
           <button type="button" className="mt-2 underline" onClick={()=>void query.refetch()}>Thử lại</button>
         </div>}
         {query.isSuccess&&query.data.data.length===0&&<p className="p-3 text-sm text-muted-foreground">Không tìm thấy trường phù hợp.</p>}
         {query.data?.data.map(s=><button key={s.id} type="button" role="option" aria-selected={value===String(s.id)}
+          aria-label={'Chọn '+s.display_name+' · '+s.school_code}
           onClick={()=>choose(s)}
           className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-2 focus-visible:outline-primary">
           <span className="min-w-0 truncate"><span className="font-semibold">{s.display_name}</span><span className="ml-1 text-xs text-muted-foreground">· {s.school_code}</span></span>

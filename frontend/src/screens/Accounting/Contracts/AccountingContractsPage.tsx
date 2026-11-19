@@ -22,7 +22,6 @@ import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { AppSkeleton, InlineLoading } from '@/components/common/app-loading';
 import { AccountingContractDetailContent } from './AccountingContractDetailContent';
 import { AccountingContractTreeTable } from './AccountingContractTreeTable';
-import { AppDatePicker } from '@/components/common/forms/app-date-picker';
 import { AppMonthPicker } from '@/components/common/forms/app-month-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AccountingReceiptProofUpload } from './AccountingReceiptProofUpload';
@@ -147,11 +146,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [needsAction,setNeedsAction]=useState('ALL');
-  const [serviceFrom,setServiceFrom]=useState('');
-  const [serviceTo,setServiceTo]=useState('');
+  const [contractServiceMonth,setContractServiceMonth]=useState('');
   const [appliedServiceFrom,setAppliedServiceFrom]=useState('');
   const [appliedServiceTo,setAppliedServiceTo]=useState('');
-  const [dateRangeError,setDateRangeError]=useState('');
   const [selectedPeriodId,setSelectedPeriodId]=useState<number|null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -439,15 +436,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   };
   const submitSearch = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if(serviceFrom&&serviceTo&&serviceFrom>serviceTo){
-      setDateRangeError('Từ ngày không được sau Đến ngày.');
-      return;
-    }
-    setDateRangeError('');
     setPage(1);
     setAppliedSearch(search);
-    setAppliedServiceFrom(serviceFrom);
-    setAppliedServiceTo(serviceTo);
+    // Match every contract term overlapping the selected Vietnam business month.
+    // Date-only ISO bounds avoid timezone conversion and preserve leap-year days.
+    const [year,month]=contractServiceMonth.split('-').map(Number);
+    const firstDay=contractServiceMonth?`${contractServiceMonth}-01`:'';
+    const lastDay=contractServiceMonth?`${contractServiceMonth}-${String(new Date(Date.UTC(year,month,0)).getUTCDate()).padStart(2,'0')}`:'';
+    setAppliedServiceFrom(firstDay);
+    setAppliedServiceTo(lastDay);
   };
 
   const openReceiptForm=()=>{
@@ -788,9 +785,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const resetFilters = () => {
     setSearch('');
     setAppliedSearch('');
-    setServiceFrom('');setServiceTo('');
+    setContractServiceMonth('');
     setAppliedServiceFrom('');setAppliedServiceTo('');
-    setDateRangeError('');
     setNeedsAction('ALL');
     setPage(1);
   };
@@ -991,10 +987,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-10 w-full rounded-lg bg-card pl-10"
             placeholder="Tên trường, mã hợp đồng, Sales..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <AppDatePicker label="Từ ngày" value={serviceFrom}
-          onChange={value=>{setServiceFrom(value);setDateRangeError('');}} className="w-full sm:w-[148px]"/>
-        <AppDatePicker label="Đến ngày" value={serviceTo}
-          onChange={value=>{setServiceTo(value);setDateRangeError('');}} className="w-full sm:w-[148px]"/>
+        <AppMonthPicker label="Tháng sử dụng hợp đồng" className="w-full sm:w-[170px]"
+          value={contractServiceMonth} onChange={setContractServiceMonth}/>
         <AppSelect ariaLabel="Bộ lọc cần xử lý" value={needsAction} className="w-full sm:w-[154px]"
           options={[{value:'ALL',label:'Tất cả xử lý'},{value:'YES',label:'Cần xử lý'}]}
           onValueChange={value=>{setNeedsAction(value);setPage(1);}}/>
@@ -1003,7 +997,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>
           <RotateCcw className="size-4" aria-hidden="true"/>
         </AppButton>
-        {dateRangeError&&<p role="alert" className="w-full text-xs text-destructive">{dateRangeError}</p>}
       </form>
       {busy&&rows.length>0&&<div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..."/></div>}
       {busy&&rows.length===0?<output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">

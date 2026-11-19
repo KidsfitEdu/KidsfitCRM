@@ -8,7 +8,10 @@ const source=readFileSync(resolve(import.meta.dirname,'../src/components/common/
 test('Evidence viewer has no frame padding, header or footer and respects image aspect ratio',()=>{
   assert.match(source,/max-w-\[min\(92vw,560px\)\] max-h-\[80dvh\]/);
   assert.match(source,/bg-transparent p-0 shadow-2xl/);
-  assert.match(source,/className="block h-auto max-h-\[80dvh\] w-auto max-w-full select-none object-contain"/);
+  assert.match(source,/fixed top-1\/2 left-1\/2 flex w-fit/);
+  assert.match(source,/-translate-x-1\/2 -translate-y-1\/2/);
+  assert.doesNotMatch(source,/className=\{`relative flex w-fit/);
+  assert.match(source,/className="mx-auto block h-auto max-h-\[80dvh\] w-auto max-w-full select-none object-contain"/);
   assert.match(source,/relative min-h-0 w-full overflow-hidden rounded-2xl/);
   assert.doesNotMatch(source,/<footer|fitRatio|onWheelZoom|<Maximize2/);
 });

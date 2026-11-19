@@ -64,3 +64,14 @@ test('school status chart uses current active protections and mutually exclusive
   assert.match(page,/statusMix\.approaching/);
   assert.match(page,/statusMix\.contracted/);
 });
+
+test('director uses the shared Vietnamese month picker and keeps refresh scoped to selected period',()=>{
+  assert.match(page,/import \{ AppMonthPicker \} from '@\/components\/common\/forms\/app-month-picker'/);
+  assert.match(page,/<AppMonthPicker label="Kỳ báo cáo" value=\{period\} onChange=\{setPeriod\}/);
+  assert.match(page,/allowAll=\{false\}/);
+  assert.doesNotMatch(page,/type="month"|import \{ Input \}/);
+  assert.match(page,/useBoardData\(permitted\?apiBase:'',token,period,1,false\)/);
+  assert.match(page,/disabled=\{!connected\|\|report.isFetching\}/);
+  assert.match(page,/onClick=\{\(\)=>\{void report.refetch\(\);\}\}/);
+  assert.doesNotMatch(page,/setPeriod\(currentBusinessPeriod\(\)\)/);
+});

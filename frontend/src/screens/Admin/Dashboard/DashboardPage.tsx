@@ -6,6 +6,7 @@ import {CartesianGrid,Line,LineChart,Pie,PieChart,XAxis,YAxis} from 'recharts';
 import {AppStatCard} from '@/components/common/app-stat-card';
 import {AppMonthPicker} from '@/components/common/forms/app-month-picker';
 import {AppPageHeader} from '@/components/common/app-page-header';
+import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {ChartContainer,ChartTooltip,ChartTooltipContent} from '@/components/ui/chart';
 import {fetchAdminReport} from '@/services/report.service';
 import {fetchAdminOperations} from '@/services/proposal.service';
@@ -29,6 +30,7 @@ const activityLabels:Record<string,string>={
   SchoolProposal:'Đề xuất trường',ApproachRegistration:'Đăng ký tiếp cận',
   SalesContract:'Hợp đồng',SchoolInvitation:'Phân bổ trường',
 };
+type RecentActivity = NonNullable<SchoolOperationsReport['recent_activity']>[number];
 const fmt=(n:number|null|undefined)=>n==null?'—':n.toLocaleString('vi-VN');
 const fmtTime=(value:string)=>new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(value));
 
@@ -38,6 +40,7 @@ export function DashboardPage({apiBase,token,workspace}:AdminPageProps) {
   const [operations,setOperations]=useState<SchoolOperationsWorkspace|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState(false);
+  const [selectedActivity,setSelectedActivity]=useState<RecentActivity|null>(null);
   const preview=!apiBase||!token;
 
   const reload=useCallback(async()=>{
@@ -159,17 +162,30 @@ export function DashboardPage({apiBase,token,workspace}:AdminPageProps) {
           <span className="text-xs text-muted-foreground">10 sự kiện mới nhất · Theo quyền Admin</span>
         </div>
         {events.length>0?<div className="mt-3 divide-y divide-border">
-          {events.map(x=><div key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+          {events.map(x=><button type="button" key={x.id} onClick={()=>setSelectedActivity(x)}
+            aria-label={'Xem nhật ký '+(activityLabels[x.entityType]??'CRM')}
+            className="flex w-full flex-wrap items-center justify-between gap-2 py-3 text-left text-sm hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary">
             <div className="min-w-0">
               <p className="font-medium"><Activity className="mr-1 inline size-4 text-primary" aria-hidden="true"/>{activityLabels[x.entityType]??'Nghiệp vụ CRM'} · {x.action}</p>
               <p className="mt-1 text-xs text-muted-foreground">{x.actor_name} · Hồ sơ #{x.entityId}</p>
             </div>
             <time className="text-xs text-muted-foreground" dateTime={x.createdAt}>{fmtTime(x.createdAt)}</time>
-          </div>)}
+          </button>)}
         </div>:<p className="mt-4 text-sm text-muted-foreground">
           {loading?'Đang tải nhật ký…':'Chưa có sự kiện gần đây hoặc tài khoản chưa được cấp quyền xem nhật ký.'}
         </p>}
       </section>
+      <AppDrawer open={selectedActivity!==null} onOpenChange={open=>{if(!open)setSelectedActivity(null);}}
+        title="Chi tiết nhật ký" compactHeader>
+        {selectedActivity&&<dl className="grid grid-cols-2 gap-4 text-sm">
+          <div><dt className="text-xs text-muted-foreground">Nghiệp vụ</dt><dd className="mt-1 font-medium">{activityLabels[selectedActivity.entityType]??selectedActivity.entityType}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Hành động</dt><dd className="mt-1 font-medium">{selectedActivity.action}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Người thao tác</dt><dd className="mt-1 font-medium">{selectedActivity.actor_name}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Thời điểm</dt><dd className="mt-1 font-medium">{fmtTime(selectedActivity.createdAt)}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Mã hồ sơ</dt><dd className="mt-1 font-medium">#{selectedActivity.entityId}</dd></div>
+        </dl>}
+        <p className="mt-5 text-xs text-muted-foreground">Dữ liệu chi tiết thay đổi được kiểm soát ở lịch sử hồ sơ gốc theo phân quyền.</p>
+      </AppDrawer>
     </div>
   </AdminPageStatus>;
 }

@@ -424,11 +424,6 @@
     "response_days": 1,
     "reason": "Trường chưa có người đăng ký và thuộc khu vực đối tác phụ trách."
   },
-  "dispute": {
-    "school_code": "SCH0007",
-    "reason": "Cần đối chiếu bằng chứng tiếp cận giữa các nhân sự.",
-    "evidence": "Lịch sử liên hệ và trao đổi nội bộ."
-  },
   "deferral": {
     "school_code": "SCH0010",
     "reason": "Chờ bổ sung người phụ trách phù hợp.",

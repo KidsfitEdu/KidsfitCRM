@@ -73,7 +73,7 @@ export function DashboardPage({apiBase,token,onSalesNavigate}:AdminPageProps) {
     {label:'Đề xuất chờ Admin',value:pending,view:'admin-proposals' as const},
     {label:'Đề xuất quá hạn',value:report?.overdue_proposals,view:'admin-proposals' as const},
     {label:'Tiếp cận hết hạn trong kỳ',value:report?.expired_approaches,view:'admin-schools' as const},
-    {label:'Gia hạn quá hạn',value:report?.overdue_extensions,view:'admin-capacity' as const},
+    {label:'Gia hạn quá hạn',value:report?.overdue_extensions,view:null},
   ];
   const events=report?.recent_activity??[];
 
@@ -143,8 +143,8 @@ export function DashboardPage({apiBase,token,onSalesNavigate}:AdminPageProps) {
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-labelledby="admin-work-queue">
         <h3 id="admin-work-queue" className="flex items-center gap-2 text-base font-semibold"><AlertTriangle className="size-4 text-primary"/>Công việc cần xử lý</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {tasks.map(x=><button type="button" key={x.label} onClick={()=>onSalesNavigate?.(x.view)}
-            disabled={!onSalesNavigate} aria-label={'Xem '+x.label}
+          {tasks.map(x=><button type="button" key={x.label} onClick={()=>{if(x.view)onSalesNavigate?.(x.view);}}
+            disabled={!onSalesNavigate||!x.view} aria-label={'Xem '+x.label}
             className="rounded-xl border border-border p-3 text-left transition-colors enabled:hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default">
             <p className="text-xs text-muted-foreground">{x.label}</p>
             <p className="mt-2 text-xl font-bold tabular-nums">{fmt(x.value)}</p>

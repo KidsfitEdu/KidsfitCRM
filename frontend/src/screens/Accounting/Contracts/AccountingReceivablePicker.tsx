@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable jsx-a11y/prefer-tag-over-role -- Remote-search combobox needs listbox semantics with custom keyboard navigation. */
+
 import {useState} from 'react';
 import {ChevronDown, Search, X} from 'lucide-react';
 import {Input} from '@/components/ui/input';

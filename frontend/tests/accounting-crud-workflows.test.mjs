@@ -41,7 +41,8 @@ test('Receipt recording uses existing endpoint without draft persistence',()=>{
   assert.match(page,/\/accounting\/receipts\?/);
   assert.doesNotMatch(page,/receipt-drafts|ReceiptDraft|saveReceiptDraft|cancelReceiptDraft/);
   assert.doesNotMatch(page,/Lưu nháp.*Ghi nhận khoản thu|Hủy Nháp|Sửa khoản thu nháp/);
-  assert.match(page,/Khoản thu đã ghi nhận không được sửa\/xóa trực tiếp/);
+  assert.match(page,/<AppDrawer open=\{receiptPreview!==null\}/);
+  assert.doesNotMatch(page,/commission-backfill/);
 });
 
 test('Renewal row actions target the correct renewal and explicit review decision',()=>{

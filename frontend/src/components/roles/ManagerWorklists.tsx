@@ -9,6 +9,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, AdminStatusBadge, adminTableCellClass, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AllocationDetail, ExtensionDetail } from '@/components/crm/schools/manager-detail-sections';
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { ProgressTableHeading, ProgressTableRows, type ProgressSchool } from '@/components/crm/schools/school-progress-table';
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
@@ -446,9 +447,9 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       }:field),
     }:action} onClose={() => setAction(null)} save={save} />
     <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}
-      title={selectedProposal?.name ?? 'Chi tiết hồ sơ'}
+      title={selectedProposal?.name ?? (selection?.kind==='invitation'?'Chi tiết phân bổ trường':selection?.kind==='extension'?'Chi tiết yêu cầu gia hạn':'Chi tiết hồ sơ')}
       description={selectedProposal ? selectedProposal.school_code : 'Thông tin trong phạm vi quản lý được Backend cho phép truy cập.'}
-      wide={selectedProposal !== null}>
+      wide={selectedProposal !== null} bodyClassName="bg-muted/10">
         {selectedProposal && <div className="space-y-4 text-sm">
           <section className="space-y-2">
             <p className="font-semibold text-base">Thông tin đề xuất</p>
@@ -480,22 +481,8 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
             {selectedProposal.decision_reason && <p>Phản hồi: {selectedProposal.decision_reason}</p>}
           </section>
         </div>}
-        {selection?.kind==='invitation' && <div className="space-y-3 text-sm">
-          <p className="font-semibold text-base">{selection.item.school_name}</p>
-          <p>{selection.item.assigned_by} → {selection.item.assignee_name}</p><p>Lý do: {selection.item.reason}</p>
-          <p>Hạn phản hồi: {nice(selection.item.respond_by)}</p><p>Trạng thái: {statusLabel(selection.item.status)}</p>
-          {selection.item.response_reason && <p>Phản hồi: {selection.item.response_reason}</p>}
-        </div>}
-        {selection?.kind==='extension' && <div className="space-y-3 text-sm">
-          <p className="font-semibold text-base">{selection.item.school_name} · {selection.item.requested_by}</p>
-          <p>Tiến độ: {selection.item.progress}</p>
-          <p>Bằng chứng: {selection.item.evidence_reference || 'Chưa có'}</p>
-          <p>Hạn gốc: {nice(selection.item.original_protected_until)} · Xin đến: {nice(selection.item.requested_until)}</p>
-          <p>Lịch hẹn: {nice(selection.item.next_appointment_at)} · Hạn duyệt: {nice(selection.item.review_due_at)}</p>
-          {selection.item.approved_until && <p>Đã duyệt đến: {nice(selection.item.approved_until)}</p>}
-          {selection.item.decision_reason && <p>Quyết định: {selection.item.decision_reason}</p>}
-          {selection.item.is_expired && <p className="rounded-xl bg-amber-50 p-3 text-amber-800">Quyền cũ đã hết hạn. Hồ sơ chờ duyệt không tự giữ suất tiếp cận.</p>}
-        </div>}
+        {selection?.kind==='invitation' && <AllocationDetail item={selection.item}/>}
+        {selection?.kind==='extension' && <ExtensionDetail item={selection.item}/>}
     </AppDrawer>
     <SchoolWorkLogDrawer key={workLog?.customerId ?? "closed"} open={workLog!==null} onOpenChange={v=>{if(!v)setWorkLog(null);}}
       customerId={workLog?.customerId ?? null} schoolName={workLog?.schoolName ?? ''} apiBase={apiBase} token={token}/>

@@ -1,0 +1,23 @@
+'use client';
+import {Building2,CalendarClock,ClipboardList,FileText,UserRound,ShieldAlert} from 'lucide-react';
+import {AdminStatusBadge} from '@/components/common/admin-list-ui';
+import {workflowDate,workflowLabels,type SchoolOperationsWorkspace} from '@/lib/school-operations';
+type Invitation=SchoolOperationsWorkspace['invitations'][number];
+type Extension=SchoolOperationsWorkspace['extensions'][number];
+const date=(s:string|null|undefined)=>s?workflowDate(s):'Chưa cập nhật';
+const status=(s:string)=>workflowLabels[s]??s;
+function Field({label,value}:{label:string;value:string|number|null|undefined}){return <div className="min-w-0 space-y-1"><dt className="text-xs font-medium text-muted-foreground">{label}</dt><dd className="break-words text-sm font-semibold">{value===null||value===undefined||value===''?'Chưa cập nhật':value}</dd></div>;}
+function Panel({title,icon:Icon,children}:{title:string;icon:typeof Building2;children:React.ReactNode}){return <section className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5"><h3 className="flex items-center gap-2 font-bold"><Icon aria-hidden="true" className="size-4 text-primary"/>{title}</h3>{children}</section>;}
+function Summary({name,caption,code,expired}:{name:string;caption:string;code:string;expired:boolean}){return <section className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"><span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Building2 className="size-6" aria-hidden="true"/></span><div className="min-w-0 space-y-2"><p className="text-xs text-muted-foreground">{caption}</p><h2 className="break-words text-lg font-bold">{name}</h2><AdminStatusBadge status={expired?'EXPIRED':code} label={status(expired?'EXPIRED':code)}/></div></section>;}
+export function AllocationDetail({item}:{item:Invitation}){return <div className="space-y-4">
+<Summary name={item.school_name} caption={'Lời mời phân bổ #'+item.id} code={item.status} expired={item.is_expired}/>
+<Panel icon={UserRound} title="Thông tin phân bổ"><dl className="grid gap-4 sm:grid-cols-2"><Field label="Người phân bổ" value={item.assigned_by}/><Field label="Sales/CTV nhận" value={item.assignee_name}/><Field label="Hạn phản hồi" value={date(item.respond_by)}/><Field label="Trạng thái" value={status(item.is_expired?'EXPIRED':item.status)}/></dl></Panel>
+<Panel icon={ClipboardList} title="Lý do và phản hồi"><dl className="space-y-4"><Field label="Lý do phân bổ" value={item.reason}/>{item.response_reason&&<Field label="Phản hồi Sales/CTV" value={item.response_reason}/>}</dl></Panel>
+{item.is_expired&&<output className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">Lời mời đã quá hạn. Điều kiện nhận trường do Backend kiểm tra.</output>}</div>;}
+export function ExtensionDetail({item}:{item:Extension}){return <div className="space-y-4">
+<Summary name={item.school_name} caption={'Yêu cầu gia hạn #'+item.id+' · '+item.requested_by} code={item.status} expired={item.is_expired}/>
+<Panel icon={CalendarClock} title="Các mốc thời gian"><dl className="grid gap-4 sm:grid-cols-2"><Field label="Hạn bảo vệ gốc" value={date(item.original_protected_until)}/><Field label="Đề nghị gia hạn đến" value={date(item.requested_until)}/><Field label="Lịch hẹn" value={date(item.next_appointment_at)}/><Field label="Hạn duyệt" value={date(item.review_due_at)}/>{item.approved_until&&<Field label="Đã duyệt đến" value={date(item.approved_until)}/>}{item.next_review_at&&<Field label="Rà soát tiếp" value={date(item.next_review_at)}/>}</dl></Panel>
+<Panel icon={ClipboardList} title="Tiến độ tiếp cận"><p className="whitespace-pre-wrap break-words text-sm leading-6">{item.progress||'Chưa cập nhật'}</p></Panel>
+<Panel icon={FileText} title="Bằng chứng và quyết định"><dl className="space-y-4"><Field label="Tham chiếu bằng chứng" value={item.evidence_reference}/>{item.decision_reason&&<Field label="Lý do quyết định" value={item.decision_reason}/>}</dl></Panel>
+{item.is_overdue&&item.status==='PENDING'&&<output className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"><ShieldAlert className="mr-2 inline size-4" aria-hidden="true"/>Yêu cầu đã quá hạn xử lý.</output>}
+{item.is_expired&&<output className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">Quyền cũ đã hết hạn. Hồ sơ chờ duyệt không tự giữ suất tiếp cận.</output>}</div>;}

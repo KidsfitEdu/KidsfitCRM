@@ -96,19 +96,14 @@ export function TeamPage({apiBase,token,abilities,onChanged,onSalesNavigate}:Man
     onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
   </AdminListPanel>
   <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open)setSelected(null);}}
-    title="Chi tiết nhân sự" description="Thông tin nhân sự được phân quyền quản lý">
-   {selected&&<div className="space-y-3 text-sm">
-     <p><strong>Họ tên:</strong> {selected.name}</p>
-     <p><strong>Đơn vị:</strong> {selected.organization_name}</p>
-     <p><strong>Email:</strong> {selected.email}</p>
-     <p><strong>Nhóm:</strong> {selected.membership_type}</p>
-     <p><strong>Hạn mức tiếp cận:</strong> {selected.active_schools}/{selected.school_approach_limit} trường</p>
-     <p><strong>Sắp hết hạn:</strong> {selected.expiring_schools} trường</p>
-     <p><strong>Hợp đồng đã báo cáo:</strong> {selected.contracts_reported}</p>
-     <p><strong>Trạng thái:</strong> {selected.status}</p>
-     {connected&&canHandover&&selected.status==='ACTIVE'&&<AppButton tone="danger" onClick={()=>{setHandoverId(selected.id);setSelected(null);}}>Thu hồi quyền tiếp cận</AppButton>}
-     <p className="border-t pt-3 text-muted-foreground">Thao tác phân bổ, gia hạn và xác minh hợp đồng được xử lý tại các màn nghiệp vụ tương ứng.</p>
-   </div>}
+    title="Chi tiết nhân sự" description="Thông tin nhân sự được phân quyền quản lý" bodyClassName="bg-muted/10">
+   {selected&&<div className="space-y-4 text-sm">
+<section className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"><span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><UsersRound className="size-6" aria-hidden="true"/></span><div className="min-w-0 space-y-2"><h2 className="break-words text-lg font-bold">{selected.name}</h2><p className="break-all text-xs text-muted-foreground">{selected.email}</p><div className="flex flex-wrap gap-2"><AdminStatusBadge status={selected.status} label={selected.status==='ACTIVE'?'Hoạt động':selected.status==='SUSPENDED'?'Tạm dừng':'Không hoạt động'}/><span className="rounded-full border bg-muted/50 px-2.5 py-1 text-xs">{selected.membership_type.includes('COLLABORATOR')?'CTV':'Sales'}</span></div></div></section>
+<section className="space-y-3 rounded-2xl border border-border bg-card p-4"><h3 className="flex items-center gap-2 font-bold"><Building2 className="size-4 text-primary" aria-hidden="true"/>Tổ chức & phân quyền</h3><dl className="grid gap-3 sm:grid-cols-2"><div><dt className="text-xs text-muted-foreground">Đơn vị</dt><dd className="break-words font-semibold">{selected.organization_name}</dd></div><div><dt className="text-xs text-muted-foreground">Loại nhân sự</dt><dd className="font-semibold">{selected.membership_type.includes('COLLABORATOR')?'Cộng tác viên':'Nhân viên bán hàng'}</dd></div></dl></section>
+<section className="space-y-4 rounded-2xl border border-border bg-card p-4"><h3 className="flex items-center gap-2 font-bold"><UserCheck className="size-4 text-primary" aria-hidden="true"/>Tình hình tiếp cận</h3><div className="grid grid-cols-3 gap-2">{[['Đang phụ trách',selected.active_schools],['Hạn mức',selected.school_approach_limit],['Còn suất',Math.max(0,selected.school_approach_limit-selected.active_schools)]].map(([label,value])=><div key={String(label)} className="min-w-0 rounded-xl bg-muted/50 p-2 text-center"><p className="text-xl font-bold tabular-nums">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>)}</div><div className="space-y-2"><div className="flex justify-between gap-2 text-xs"><span>Mức sử dụng hạn mức</span><span className="font-semibold">{selected.school_approach_limit>0?Math.round(selected.active_schools/selected.school_approach_limit*100)+'%':'Chưa đặt hạn mức'}</span></div><progress aria-label="Mức sử dụng hạn mức tiếp cận" max={100} value={selected.school_approach_limit>0?Math.min(100,selected.active_schools/selected.school_approach_limit*100):0} className="h-2 w-full accent-primary"/></div><dl className="grid grid-cols-2 gap-3"><div><dt className="text-xs text-muted-foreground">Trường sắp hết hạn</dt><dd className="font-semibold">{selected.expiring_schools}</dd></div><div><dt className="text-xs text-muted-foreground">Hợp đồng đã báo cáo</dt><dd className="font-semibold">{selected.contracts_reported}</dd></div></dl></section>
+{connected&&canHandover&&selected.status==='ACTIVE'&&<AppButton tone="danger" onClick={()=>{setHandoverId(selected.id);setSelected(null);}}>Thu hồi quyền tiếp cận</AppButton>}
+<p className="text-xs text-muted-foreground">Phân bổ và gia hạn được xử lý tại các màn nghiệp vụ tương ứng.</p>
+</div>}
   </AppDrawer>
   <SalesHandoverDrawer apiBase={apiBase} token={token} membershipId={handoverId}
     onClose={()=>setHandoverId(null)} onChanged={async()=>{await load();await onChanged();}}

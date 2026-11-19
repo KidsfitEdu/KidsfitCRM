@@ -18,6 +18,9 @@ public static class ContractRenewalEndpoints
         decimal TotalValue, long? EvidenceId, string? GapReason = null, string? ContractCode = null);
     public sealed record DecisionRequest(string? Reason);
 
+    internal static string GenerateRenewalContractCode(DateTime utcNow) =>
+        $"HD-TK-{utcNow:yyyy}-{Guid.NewGuid():N}".ToUpperInvariant();
+
     // A service year includes its first day and ends the day before its next calendar anniversary.
     // This follows the established KC-01 demo convention, including leap-year transitions.
     private static void ValidateYearAndGap(DateOnly start, DateOnly end, DateOnly? previousEnd, string? gapReason)
@@ -107,8 +110,10 @@ public static class ContractRenewalEndpoints
 
     private static void Validate(SubmitRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.ContractCode) || request.ContractCode.Trim().Length > 64)
-            throw ApiValidationException.For("contract_code", "Cần mã hợp đồng tái ký từ 1 đến 64 ký tự.");
+        // The server generates an internal renewal reference when the client omits it.
+        // Keep bounded explicit codes compatible with older integrations.
+        if (request.ContractCode?.Trim().Length > 64)
+            throw ApiValidationException.For("contract_code", "Mã hợp đồng tái ký tối đa 64 ký tự.");
         if (!request.SignedOn.HasValue) throw ApiValidationException.For("signed_on", "Thiếu ngày ký hợp đồng tái ký.");
         if (request.SignedOn.Value > ChannelSalesValidation.BusinessDate(DateTime.UtcNow))
             throw ApiValidationException.For("signed_on", "Ngày ký không được trong tương lai.");
@@ -179,7 +184,12 @@ public static class ContractRenewalEndpoints
         var priorEnd = await PriorConfirmedEnd(db, contractId, source.ServiceEndOn, ct);
         ValidateYearAndGap(request.ServiceStartOn!.Value, request.ServiceEndOn!.Value, priorEnd, request.GapReason);
         var proof = await Proof(db, request.EvidenceId, access.UserId, ct);
-        var code = request.ContractCode!.Trim().ToUpperInvariant();
+        // One internal code per new renewal; check both contract namespaces.
+        // The database additionally enforces uniqueness within contract_renewals.
+        var suppliedCode = request.ContractCode?.Trim();
+        var code = string.IsNullOrWhiteSpace(suppliedCode)
+            ? GenerateRenewalContractCode(DateTime.UtcNow)
+            : suppliedCode.ToUpperInvariant();
         if (await db.SalesContracts.AnyAsync(c => c.ContractCode == code, ct)
             || await db.ContractRenewals.AnyAsync(c => c.ContractCode == code, ct))
             throw ApiValidationException.For("contract_code", "Mã hợp đồng đã tồn tại.");
@@ -228,7 +238,11 @@ public static class ContractRenewalEndpoints
         ValidateYearAndGap(request.ServiceStartOn!.Value, request.ServiceEndOn!.Value, preceding, request.GapReason);
         var proof = await Proof(db, request.EvidenceId, access.UserId, ct);
         var now = DateTime.UtcNow;
-        var code = request.ContractCode!.Trim().ToUpperInvariant();
+        // A correction keeps its original internal identifier, even if a legacy
+        // client supplies a different code. Historical rows without a code get one.
+        var code = string.IsNullOrWhiteSpace(renewal.ContractCode)
+            ? GenerateRenewalContractCode(DateTime.UtcNow)
+            : renewal.ContractCode;
         if (await db.SalesContracts.AnyAsync(c => c.ContractCode == code, ct)
             || await db.ContractRenewals.AnyAsync(c => c.ContractCode == code && c.Id != id, ct))
             throw ApiValidationException.For("contract_code", "Mã hợp đồng đã tồn tại.");

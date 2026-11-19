@@ -62,7 +62,6 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
   const [pageSize,setPageSize]=useState(20);
   const [drawer,setDrawer]=useState<DrawerMode>(null);
   const [activeId,setActiveId]=useState<number|null>(null);
-  const [contractCode,setContractCode]=useState('');
   const [signedOn,setSignedOn]=useState(localDay());
   const [start,setStart]=useState('');
   const [end,setEnd]=useState('');
@@ -116,7 +115,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
 
 
   const resetForm=()=>{
-    setContractCode('');setSignedOn(localDay());setStart('');setEnd('');setCycle('YEARLY');
+    setSignedOn(localDay());setStart('');setEnd('');setCycle('YEARLY');
     setAmount('');setGapReason('');setFile(null);setFileRevision(x=>x+1);
   };
   const openCreate=()=>{
@@ -124,7 +123,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
   };
   const openResubmit=(r:Renewal)=>{
     resetForm();
-    setActiveId(r.id);setContractCode(r.contract_code??'');setSignedOn(r.signed_on.slice(0,10));
+    setActiveId(r.id);setSignedOn(r.signed_on.slice(0,10));
     setStart(r.service_start_on.slice(0,10));setEnd(r.service_end_on.slice(0,10));
     setCycle(r.payment_cycle);setAmount(String(r.total_value));
     setGapReason(r.gap_reason??'');setDrawer('resubmit');
@@ -136,7 +135,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
   };
   const send=async(e:SyntheticEvent<HTMLFormElement>)=>{
     e.preventDefault();
-    if(!selected||!file||!start||!end||!signedOn||!amount||!contractCode.trim()){appNotice.error('Vui lòng nhập đầy đủ thông tin và hợp đồng đã ký.');return;}
+    if(!selected||!file||!start||!end||!signedOn||!amount){appNotice.error('Vui lòng nhập đầy đủ thông tin và hợp đồng đã ký.');return;}
     if(end!==calendarYearEnd(start)){appNotice.error('Kỳ tái ký phải đủ một năm lịch tính từ ngày bắt đầu.');return;}
     if(!previousEnd){appNotice.error('Hợp đồng nguồn chưa có hạn dịch vụ được xác minh.');return;}
     if(start<=previousEnd.slice(0,10)){appNotice.error('Ngày bắt đầu phải sau ngày kết thúc kỳ liền trước.');return;}
@@ -146,7 +145,7 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     try{
       const form=new FormData();form.set('kind','RENEWAL');form.set('file',file);
       const proof=await channelRequest<{data:{id:number}}>(apiBase,token,'/evidence',{method:'POST',body:form});
-      const payload={idempotency_key:crypto.randomUUID(),contract_code:contractCode.trim(),signed_on:signedOn,
+      const payload={idempotency_key:crypto.randomUUID(),signed_on:signedOn,
         service_start_on:start,service_end_on:end,payment_cycle:cycle,total_value:Number(amount),
         gap_reason:gapDetected?gapReason.trim():null,evidence_id:proof.data.id};
       await channelRequest(apiBase,token,drawer==='resubmit'?`/renewals/${activeId}/resubmit`:`/contracts/${contractId}/renewals`,
@@ -268,11 +267,6 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
           <p>Kỳ gần nhất kết thúc: <strong>{previousEnd?channelDate(previousEnd):'Chưa có hạn dịch vụ từ KC-01'}</strong></p>
           {selected.pending&&drawer==='create'&&<p className="text-amber-700 dark:text-amber-300">Có hồ sơ đang chờ xử lý, không thể tạo hồ sơ trùng.</p>}
         </div>}
-        <div className="space-y-1.5">
-          <label htmlFor="kc02-contract-code" className="block text-[13px] font-medium">Mã hợp đồng tái ký *</label>
-          <Input id="kc02-contract-code" className="h-11 w-full rounded-xl px-3 text-sm" required maxLength={64}
-            value={contractCode} onChange={e=>setContractCode(e.target.value)} placeholder="Nhập mã trên hợp đồng tái ký đã ký"/>
-        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="kc02-signed" className="block text-[13px] font-medium">Ngày ký hợp đồng *</label>

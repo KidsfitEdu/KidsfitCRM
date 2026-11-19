@@ -534,6 +534,7 @@ public static class SchoolOperationsEndpoints
             expired_approaches = await registrations.CountAsync(x => x.ProtectedUntil <= now && x.RegisteredAt >= start && x.RegisteredAt < end && (x.Status == "ACTIVE" || x.Status == "EXPIRED"), ct),
             active_contracts = await contracts.CountAsync(x => x.Status == "ACTIVE", ct),
             collected_revenue = canMoney ? (decimal?)revenue : null, refunded_revenue = canMoney ? (decimal?)refunded : null, net_collected_revenue = canMoney ? (decimal?)(revenue - refunded) : null,
+            pending_admin_proposals = await Proposals(db, a).CountAsync(x => x.Status == "PENDING_ADMIN", ct),
             overdue_proposals = await Proposals(db, a).CountAsync(x => (x.Status == "PENDING_MANAGER" || x.Status == "PENDING_ADMIN") && x.ReviewDueAt <= now, ct),
             overdue_extensions = await Extensions(db, a).CountAsync(x => x.Status == "PENDING" && x.ReviewDueAt <= now, ct),
             allocation_performance = await Invitations(db, a).Where(x => x.CreatedAt >= start && x.CreatedAt < end)

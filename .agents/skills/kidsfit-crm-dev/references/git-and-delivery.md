@@ -80,6 +80,14 @@ One reviewable plan *if actual dependencies and diffs support it*:
 
 These are illustrative groupings, not instructions to rewrite the existing PR with 26 commits without checking who else uses its history. Testing changes closely tied to code may be included in commits 1–2, so a third test-only commit is optional.
 
+## CI evidence and failure triage
+
+- Before writing/pushing when execution is available: validate TSX syntax, run lint + TypeScript, focused tests and appropriate build. With GitHub-only edits and no local runnable checkout, disclose that pre-push checks were unavailable and rely on exact-SHA CI; keep PR Draft until verified.
+- After each push, wait for and inspect the **new HEAD** workflow run. Never attach a PASS from an older commit to a new SHA.
+- For any red unit suite, capture failing test names and compare unchanged baseline vs changed branch. Label new regression / base failure / obsolete assertion requiring authorized update / blocked; do not silently mark “known old”.
+- Integrate test changes with the behavior they exercise; avoid accumulating preventable red CI across many small commits.
+- Do not merge/deploy without separately authorized approval and successful required checks. A PR can be code-complete but validation-incomplete; report both separately.
+
 ## PR rules
 
 PR to `develop` with title/summary, requirements IDs, files changed, UI before/after if appropriate, migration + data safety notes, actual tests, breaking changes and OPEN blockers. No automatic merge, forced push or history rewrite unless explicit instruction and safety check. Do not claim a PR exists without successful GitHub action. Do not commit at all when user asks only for design/confirmation.

@@ -16,7 +16,7 @@ export function EvidencePreviewDialog({ preview, onClose }: {
 
   return <Dialog open={preview!==null} onOpenChange={open=>{if(!open)onClose();}}>
     <DialogContent showCloseButton={false}
-      className={`relative flex w-fit max-w-[min(92vw,560px)] max-h-[80dvh] flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-transparent p-0 shadow-2xl sm:p-0 ${isImage?'':'w-[min(92vw,560px)]'}`}>
+      className={`fixed top-1/2 left-1/2 flex w-fit max-w-[min(92vw,560px)] max-h-[80dvh] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0 overflow-hidden overscroll-contain rounded-2xl border-0 bg-transparent p-0 shadow-2xl sm:p-0 ${isImage?'':'w-[min(92vw,560px)]'}`}>
       <DialogTitle className="sr-only">{preview?.name??'Xem chứng từ'}</DialogTitle>
       <DialogDescription className="sr-only">Xem chứng từ được bảo vệ theo quyền truy cập.</DialogDescription>
       {preview&&<div className="relative min-h-0 w-full overflow-hidden rounded-2xl">
@@ -25,7 +25,7 @@ export function EvidencePreviewDialog({ preview, onClose }: {
               {/* Authenticated blob URL stays private; intrinsic image ratio determines the modal size. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview.url} alt={preview.name}
-                className="block h-auto max-h-[80dvh] w-auto max-w-full select-none object-contain"
+                className="mx-auto block h-auto max-h-[80dvh] w-auto max-w-full select-none object-contain"
                 draggable={false}/>
             </>
           :isPdf

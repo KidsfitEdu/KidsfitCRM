@@ -1307,10 +1307,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 className="z-[90] w-(--anchor-width) max-h-[min(224px,40dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl">
                 {detail?.schedules.filter(x=>x.amount_received<x.amount_due).map(x=>
                   <SelectItem key={x.id} value={String(x.id)}
-                    className="min-h-11 rounded-lg px-3 py-2 pr-9 data-selected:bg-primary/10 data-selected:text-primary data-highlighted:bg-primary/10">
-                    <span className="flex min-w-0 flex-col gap-1 text-left">
-                      <span className="text-sm font-semibold">{x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'}</span>
-                      <span className="text-xs text-muted-foreground">{channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</span>
+                    className="min-h-10 rounded-lg px-3 py-1.5 pr-9 data-selected:bg-primary/10 data-selected:text-primary data-highlighted:bg-primary/10">
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-1 text-left">
+                      <span className="min-w-0 truncate text-sm font-semibold">
+                        {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'}
+                        <span className="ml-1 font-normal text-muted-foreground">· {channelDate(x.due_on)}</span>
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-primary">
+                        Còn {channelMoney(x.amount_due-x.amount_received)}
+                      </span>
                     </span>
                   </SelectItem>)}
               </SelectContent>

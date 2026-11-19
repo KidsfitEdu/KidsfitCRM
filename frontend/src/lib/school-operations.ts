@@ -191,6 +191,8 @@ export type SchoolOperationsWorkspace = {
   }[];
 };
 export type SchoolOperationsReport = {
+  activity_trend?: {period:string;registrations:number;contracts_signed:number}[];
+  recent_activity?: {id:number;entityType:string;entityId:number;action:string;createdAt:string;actor_name:string}[] | null;
   period: string;
   available_schools: number;
   expired_approaches: number;

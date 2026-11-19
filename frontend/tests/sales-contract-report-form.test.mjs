@@ -65,3 +65,19 @@ test('contract report uses an opaque anchored dialog footer and external form su
   assert.doesNotMatch(form,/<DialogFooter /);
   assert.match(screen,/footerClassName=\{footer \? 'relative z-20 bg-card/);
 });
+
+test('shared date picker uses compact Vietnamese calendar and year jump without changing ISO payload',()=>{
+  const picker=readFileSync(resolve(import.meta.dirname,'../src/components/common/forms/app-date-picker.tsx'),'utf8');
+  assert.match(picker,/captionLayout="label" hideNavigation/);
+  assert.match(picker,/aria-label="Tháng trước"/);
+  assert.match(picker,/aria-label="Tháng sau"/);
+  assert.match(picker,/aria-label="Chọn nhanh tháng và năm"/);
+  assert.match(picker,/aria-label="Chọn năm"/);
+  assert.match(picker,/Array.from\(\{length:12\}/);
+  assert.match(picker,/locale=\{vi\} weekStartsOn=\{1\}/);
+  assert.match(picker,/onChange\(format\(date,'yyyy-MM-dd'\)\)/);
+  assert.match(picker,/setOpen\(false\)/);
+  assert.match(picker,/data-field=\{fieldName\}/);
+  assert.match(picker,/aria-invalid=\{invalid\}/);
+  assert.doesNotMatch(picker,/captionLayout="dropdown"/);
+});

@@ -200,6 +200,7 @@ export type SchoolOperationsReport = {
   collected_revenue: number | null;
   refunded_revenue: number | null;
   net_collected_revenue: number | null;
+  pending_admin_proposals: number;
   overdue_proposals: number;
   overdue_extensions: number;
   /** Last six Vietnam business months, ending at period. Null if financial permission is missing. */

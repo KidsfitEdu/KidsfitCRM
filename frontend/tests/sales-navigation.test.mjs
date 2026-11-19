@@ -38,7 +38,7 @@ test('Every legacy collaborator deep link resolves without losing invitation or 
   assert.equal(legacySalesWorkflowTab('role-collaborator-extensions'),'extensions');
   assert.equal(legacySalesWorkflowTab('role-sales-staff-activities'),undefined);
   const app = read('src/components/crm/crm-app.tsx');
-  assert.match(app, /isSales \? canonicalSalesView\(requested\) : requested/);
+  assert.match(app, /isSales \? canonicalSalesView\(normalized\) : normalized/);
   assert.match(app, /legacySalesWorkflowTab\(requested\)/);
 });
 

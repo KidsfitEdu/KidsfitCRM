@@ -64,7 +64,6 @@ export const nav: { id: View; label: string; shortLabel: string; icon: LucideIco
   { id: 'admin-team', label: 'Nhân sự & đối tác', shortLabel: 'Nhân sự', icon: UsersRound },
   { id: 'admin-capacity', label: 'Hạn mức tiếp cận', shortLabel: 'Hạn mức', icon: UsersRound },
   { id: 'admin-policies', label: 'Chính sách vận hành', shortLabel: 'Chính sách', icon: ShieldCheck },
-  { id: 'admin-reports', label: 'Báo cáo & nhật ký', shortLabel: 'Báo cáo', icon: TrendingUp },
   { id: 'admin-care-assignments', label: 'Phân công CSKH', shortLabel: 'Phân công CSKH', icon: Headset },
   { id: 'role-board-dashboard', label: 'Tổng quan', shortLabel: 'Tổng quan', icon: LayoutDashboard },
   { id: 'role-board-progress', label: 'Theo dõi tiến độ', shortLabel: 'Tiến độ', icon: TrendingUp },

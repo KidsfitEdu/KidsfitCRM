@@ -35,6 +35,7 @@ test('CHECKEE sections receive specific read-only display scopes while keeping r
 });
 
 test('Admin and role dashboards use flat follow-up sections, not redundant cards', () => {
-  assert.match(read('screens/Admin/Dashboard/DashboardPage.tsx'), /<section className="border-t/);
+  assert.match(read('screens/Admin/Dashboard/DashboardPage.tsx'), /Công việc cần xử lý/);
+  assert.match(read('screens/Admin/Dashboard/DashboardPage.tsx'), /<AppDrawer open=\{selectedActivity!==null\}/);
   assert.match(read('components/roles/RoleDashboard.tsx'), /<section className="border-t/);
 });

@@ -186,7 +186,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   // One Sales menu for both employee and collaborator. The legacy screen entrypoints
   // are only adapters until their page bodies are consolidated.
   const visibleNav = nav.filter(item =>
-    isAdmin ? ['dashboard','admin-schools','admin-proposals','admin-team','admin-capacity','admin-policies','admin-reports','admin-care-assignments'].includes(item.id)
+    isAdmin ? ['dashboard','admin-schools','admin-proposals','admin-team','admin-capacity','admin-policies','admin-care-assignments'].includes(item.id)
     : isManager ? item.id.startsWith('manager-')
     : isDirector ? item.id.startsWith('role-board-')
     : isAccountant ? item.id.startsWith('role-accounting-')
@@ -195,12 +195,13 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
     : isSales ? salesMenuIds.includes(item.id)
     : item.id === 'channel-sales' && has('channel_sales.customer.view')
   );
-  const currentView = visibleNav.some(item => item.id === view) ? view : visibleNav[0]?.id ?? 'channel-sales';
+  const currentView = isAdmin && view === 'admin-reports' ? 'dashboard' : visibleNav.some(item => item.id === view) ? view : visibleNav[0]?.id ?? 'channel-sales';
   useEffect(()=>{
     const onPop=()=>{
       const requested=pathToView(window.location.pathname);
       if (!requested) return;
-      const next = canonicalCareView(canonicalBoardView(canonicalCheckeeView(isSales ? canonicalSalesView(requested) : requested)));
+      const normalized = isAdmin && requested === 'admin-reports' ? 'dashboard' : requested;
+      const next = canonicalCareView(canonicalBoardView(canonicalCheckeeView(isSales ? canonicalSalesView(normalized) : normalized)));
       if (visibleNav.some(item=>item.id===next)) {
         setSalesWorkflow(isSales ? legacySalesWorkflowTab(requested) : undefined);
         setView(next);
@@ -208,7 +209,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
     };
     window.addEventListener('popstate',onPop);
     return ()=>window.removeEventListener('popstate',onPop);
-  },[visibleNav,isSales]);
+  },[visibleNav,isSales,isAdmin]);
   const navigate = (next: View) => {
     if (!visibleNav.some(item=>item.id===next)) return;
     setView(next);

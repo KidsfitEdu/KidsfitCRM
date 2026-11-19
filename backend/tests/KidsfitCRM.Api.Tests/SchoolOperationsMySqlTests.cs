@@ -1822,6 +1822,15 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var board = await User("board@kidsfit.vn");
         await using var db = fixture.Open();
         var report = Json(await SchoolOperationsEndpoints.Report(Http(board), db, "2026-03", Ct));
+        var activity = report.GetProperty("activity_trend");
+        Assert.Equal(6, activity.GetArrayLength());
+        Assert.Equal("2025-10", activity[0].GetProperty("period").GetString());
+        Assert.Equal("2026-03", activity[5].GetProperty("period").GetString());
+        foreach (var month in activity.EnumerateArray())
+        {
+            Assert.True(month.GetProperty("registrations").GetInt32() >= 0);
+            Assert.True(month.GetProperty("contracts_signed").GetInt32() >= 0);
+        }
         var trend = report.GetProperty("revenue_trend");
         Assert.Equal(JsonValueKind.Array, trend.ValueKind);
         Assert.Equal(6, trend.GetArrayLength());
@@ -1858,6 +1867,18 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             Http(scenario.Manager.UserId), managerDb, "2026-03", Ct));
         Assert.Equal(JsonValueKind.Null, managerReport.GetProperty("school_statuses").ValueKind);
         Assert.Equal(JsonValueKind.Null, managerReport.GetProperty("revenue_trend").ValueKind);
+        Assert.Equal(JsonValueKind.Null, managerReport.GetProperty("recent_activity").ValueKind);
+        var admin = await User("admin@kidsfit.vn");
+        var adminReport = Json(await SchoolOperationsEndpoints.Report(Http(admin), managerDb, "2026-03", Ct));
+        Assert.True(adminReport.GetProperty("pending_admin_proposals").GetInt32() >= 0);
+        var audit = adminReport.GetProperty("recent_activity");
+        Assert.Equal(JsonValueKind.Array, audit.ValueKind);
+        foreach (var entry in audit.EnumerateArray())
+        {
+            Assert.False(entry.TryGetProperty("oldValues", out _));
+            Assert.False(entry.TryGetProperty("newValues", out _));
+            Assert.False(entry.TryGetProperty("ipAddress", out _));
+        }
     }
 
     [MySqlFact] public async Task BoardOverdueFilterAppliesBeforeCountAndPaging()

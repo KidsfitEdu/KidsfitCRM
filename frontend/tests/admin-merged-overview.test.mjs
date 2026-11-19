@@ -14,6 +14,9 @@ test('Admin dashboard merges report KPIs and uses shared reporting-month control
   assert.match(dashboard,/allowAll=\{false\}/);
   assert.match(dashboard,/AppStatCard/);
   assert.match(dashboard,/Đề xuất quá hạn/);
+  assert.match(endpoint,/pending_admin_proposals = await Proposals\(db, a\)\.CountAsync\(x => x.Status == "PENDING_ADMIN"/);
+  assert.doesNotMatch(dashboard,/fetchAdminOperations\(apiBase,token,1/);
+  assert.match(dashboard,/onSalesNavigate\?\.\(x.view\)/);
   assert.match(dashboard,/Tiếp cận hết hạn trong kỳ/);
 });
 test('Operations chart is based on scoped actual records and covers six local months',()=>{

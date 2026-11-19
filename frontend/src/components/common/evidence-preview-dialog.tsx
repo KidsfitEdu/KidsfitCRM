@@ -117,13 +117,6 @@ export function EvidencePreviewDialog({ preview, onClose }: {
           </a>
         </footer>
       </>}
-            <a href={preview.url} download={preview.name} title="Tải chứng từ" aria-label="Tải chứng từ"
-              className="inline-flex size-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-              <Download aria-hidden="true" className="size-4"/>
-            </a>
-          </div>
-        </div>
-      </>}
     </DialogContent>
   </Dialog>;
 }

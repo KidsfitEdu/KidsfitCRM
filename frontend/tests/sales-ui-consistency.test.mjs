@@ -8,10 +8,11 @@ const read = path => readFileSync(resolve(root, path), 'utf8');
 
 test('Sales dashboard uses branded KPI and actionable task cards', () => {
   const source = read('src/components/roles/SalesDashboard.tsx');
-  assert.match(source, /<AppStatCard icon=\{Handshake\}/);
-  assert.match(source, /<section aria-labelledby="sales-priority-heading"/);
+  assert.match(source, /<AppStatCard key=\{card.label\}/);
+  assert.match(source, /icon:Handshake/);
+  assert.match(source, /Công việc cần xử lý/);
   assert.match(source, /<AdminIconAction icon=\{ArrowUpRight\}/);
-  assert.match(source, /onClick=\{\(\)=>go\(item\.target\)\}/);
+  assert.match(source, /onClick=\{\(\)=>go\(task\.target\)\}/);
 });
 
 test('Sales proposal list distinguishes actions and workflow statuses', () => {
@@ -71,16 +72,18 @@ test('Sales customer tabs use four semantic icons and preserve access controls',
   assert.match(source, /can\('channel_sales\.customer\.view'\)/);
 });
 
-test('Sales overview presents role-scoped KPI and operational tasks without fabricated history', () => {
+test('Sales overview uses authorized KPIs, actual series, and current actionable work', () => {
   const source = read('src/components/roles/SalesDashboard.tsx');
-  assert.match(source, /title="Tổng quan bán hàng"/);
-  assert.match(source, /<AppStatCard icon=\{Handshake\}/);
-  assert.match(source, /Công việc cần theo dõi/);
-  assert.doesNotMatch(source, /Lịch tư vấn sắp tới|nextFollowups|next_follow_up_at|adminTableHeadClass/);
-  assert.match(source, /md:grid-cols-3/);
-  assert.match(source, /operations\.data/);
-  assert.match(source, /Làm mới tổng quan bán hàng/);
-  assert.doesNotMatch(source, /revenue_trend|mockTrend|fakeData/);
+  assert.match(source,/title="Tổng quan bán hàng"/);
+  assert.match(source,/<AppStatCard key=\{card.label\}/);
+  assert.match(source,/Công việc cần xử lý/);
+  assert.match(source,/grid-cols-1 gap-4 xl:grid-cols-3/);
+  assert.match(source,/dashboard\/report\?period=/);
+  assert.match(source,/ChartContainer/);
+  assert.match(source,/AppMonthPicker/);
+  assert.match(source,/Làm mới/);
+  assert.doesNotMatch(source,/Lịch tư vấn sắp tới|nextFollowups|next_follow_up_at|adminTableHeadClass/);
+  assert.doesNotMatch(source,/revenue_trend|mockTrend|fakeData|workspace\.data/);
 });
 
 test('Sales school drawer and modal form reuse branded shared primitives', () => {

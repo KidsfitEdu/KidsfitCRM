@@ -8,8 +8,9 @@ const read = (path) => readFileSync(resolve(root, 'src', path), 'utf8');
 
 test('Sales dashboard prioritizes real operational work without unsupported appointments', () => {
   const source = read('components/roles/SalesDashboard.tsx');
-  assert.match(source, /Công việc cần theo dõi/);
-  assert.match(source, /<section aria-labelledby="sales-priority-heading"/);
+  assert.match(source, /Công việc cần xử lý/);
+  assert.match(source, /dashboard\/report\?period=/);
+  assert.match(source, /<AppMonthPicker/);
   assert.doesNotMatch(source, /Lịch tư vấn sắp tới|nextFollowups|<table\s|Lối tắt công việc/);
   assert.match(source, /onSalesNavigate/);
 });

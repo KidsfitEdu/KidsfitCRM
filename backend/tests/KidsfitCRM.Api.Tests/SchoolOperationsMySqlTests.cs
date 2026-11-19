@@ -1870,6 +1870,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(JsonValueKind.Null, managerReport.GetProperty("recent_activity").ValueKind);
         var admin = await User("admin@kidsfit.vn");
         var adminReport = Json(await SchoolOperationsEndpoints.Report(Http(admin), managerDb, "2026-03", Ct));
+        Assert.True(adminReport.GetProperty("pending_admin_proposals").GetInt32() >= 0);
         var audit = adminReport.GetProperty("recent_activity");
         Assert.Equal(JsonValueKind.Array, audit.ValueKind);
         foreach (var entry in audit.EnumerateArray())

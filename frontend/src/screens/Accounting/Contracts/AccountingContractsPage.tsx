@@ -4,7 +4,7 @@
 
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, WalletCards, X } from 'lucide-react';
+import { ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, WalletCards, X } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';

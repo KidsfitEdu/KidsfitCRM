@@ -44,7 +44,7 @@ test('Board policy screens use saved policy versions, not stale two-extension te
   assert.doesNotMatch(shared, /tối đa 2 lần và 14 ngày/);
 });
 
-test('Board has four menu items while historic reports route still loads dashboard', () => {
+test('Board keeps five menu items and redirects retired dispute and report links', () => {
   const nav = read('config/navigation.ts');
   const routes = read('config/routes.ts');
   const workspace = read('screens/Board/BoardWorkspace.tsx');
@@ -52,7 +52,9 @@ test('Board has four menu items while historic reports route still loads dashboa
   assert.doesNotMatch(nav, /\{ id: 'role-board-oversight', label:/);
   assert.match(nav, /\{ id: 'role-board-overdue', label: 'Hồ sơ quá hạn'/);
   assert.match(routes, /canonicalBoardView/);
-  assert.match(routes, /'role-board-oversight' \? 'role-board-dashboard'/);
+  assert.match(routes, /view === 'role-board-oversight'/);
+  assert.match(routes, /view === 'role-board-disputes'/);
+  assert.match(routes, /'role-board-dashboard' : view/);
   assert.match(workspace, /oversight: DashboardPage/);
   assert.match(dashboard, /Xu hướng doanh thu theo tháng/);
   assert.match(dashboard, /Cơ cấu trạng thái trường/);

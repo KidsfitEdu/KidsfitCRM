@@ -115,22 +115,6 @@ public sealed class SchoolExtensionRequest : EntityBase
     public string RequestFingerprint { get; set; } = "";
 }
 
-public sealed class SchoolDispute : EntityBase
-{
-    public long CustomerId { get; set; }
-    public long OrganizationId { get; set; }
-    public long OpenedByUserId { get; set; }
-    public string Reason { get; set; } = "";
-    public string EvidenceReference { get; set; } = "";
-    public string Status { get; set; } = "OPEN";
-    public string? Decision { get; set; }
-    public string? DecisionReason { get; set; }
-    public long? ResolvedByUserId { get; set; }
-    public DateTime? ResolvedAt { get; set; }
-    public string IdempotencyKey { get; set; } = "";
-    public string RequestFingerprint { get; set; } = "";
-}
-
 public sealed class SchoolDeferral : EntityBase
 {
     public long DirectorySchoolId { get; set; }

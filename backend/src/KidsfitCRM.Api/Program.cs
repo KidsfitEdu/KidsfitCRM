@@ -190,7 +190,6 @@ public static class Permissions
     public const string SchoolProposalReview = "channel_sales.school.proposal.review";
     public const string SchoolAllocationManage = "channel_sales.school.allocation.manage";
     public const string SchoolExtensionReview = "channel_sales.school.extension.review";
-    public const string SchoolDisputeResolve = "channel_sales.school.dispute.resolve";
     public const string SchoolEscalationResolve = "channel_sales.school.escalation.resolve";
     public const string SchoolHandoverManage = "channel_sales.school.handover.manage";
     public const string SchoolCareAssign = "channel_sales.school.care.assign";
@@ -204,7 +203,7 @@ public static class Permissions
     public const string ContractRenewalConfirm = "channel_sales.renewal.confirm";
     public const string ProtectionRenewalApprove = "channel_sales.protection.renewal.approve";
     public static readonly string[] SchoolOperations = [SchoolProposalSubmit, SchoolProposalReview, SchoolAllocationManage, SchoolExtensionReview,
-        SchoolDisputeResolve, SchoolEscalationResolve, SchoolHandoverManage, SchoolCareAssign, SchoolSupportManage, SchoolTechnicalSupportHandle, SchoolWorkflowPolicyManage,
+        SchoolEscalationResolve, SchoolHandoverManage, SchoolCareAssign, SchoolSupportManage, SchoolTechnicalSupportHandle, SchoolWorkflowPolicyManage,
         ChannelSalesContractCancel, ChannelSalesRevenueRefund, ContractRenewalSubmit, ContractRenewalReview, ContractRenewalConfirm, ProtectionRenewalApprove];
     public static readonly string[] All = [.. SchoolOperations, SchoolDirectoryManage, SchoolCapacityManage, SchoolContractReview, SchoolProtectionGrant, ChannelSalesView, ChannelSalesRegister, ChannelSalesActivity, ChannelSalesReportContract, ChannelSalesRecordRevenue, ChannelSalesCommissionView, ChannelSalesReconcile, ChannelSalesManage, ChannelSalesOrganizationScope, ChannelSalesAllScope, ChannelSalesPayoutCreate, ChannelSalesPayoutApprove, ChannelSalesPayoutComplete, ChannelSalesPolicyManage, ChannelSalesTeamManage, ChannelSalesIdentityManage, ChannelSalesCommissionAdjust];
 }

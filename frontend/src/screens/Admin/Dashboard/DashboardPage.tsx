@@ -34,7 +34,7 @@ type RecentActivity = NonNullable<SchoolOperationsReport['recent_activity']>[num
 const fmt=(n:number|null|undefined)=>n==null?'—':n.toLocaleString('vi-VN');
 const fmtTime=(value:string)=>new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(value));
 
-export function DashboardPage({apiBase,token,workspace}:AdminPageProps) {
+export function DashboardPage({apiBase,token}:AdminPageProps) {
   const [period,setPeriod]=useState(currentBusinessPeriod);
   const [report,setReport]=useState<SchoolOperationsReport|null>(null);
   const [operations,setOperations]=useState<SchoolOperationsWorkspace|null>(null);
@@ -59,7 +59,6 @@ export function DashboardPage({apiBase,token,workspace}:AdminPageProps) {
   },[apiBase,token,period,preview]);
   useEffect(()=>{void reload();},[reload]);
 
-  const metrics=workspace.metrics;
   const pending=operations?.proposals.filter(x=>x.status==='PENDING_ADMIN').length??null;
   const mix=report?.school_statuses;
   const distribution=mix?[
@@ -71,7 +70,7 @@ export function DashboardPage({apiBase,token,workspace}:AdminPageProps) {
   const trend=report?.activity_trend??[];
   const trendHasData=trend.some(x=>x.registrations>0||x.contracts_signed>0);
   const cards=[
-    {label:'Tổng trường học',value:preview?null:metrics.available+metrics.approaching+metrics.contracted,icon:Building2,description:'Danh bạ tại thời điểm hiện tại'},
+    {label:'Tổng trường học',value:report&&mix?schoolTotal:null,icon:Building2,description:'Danh bạ trường chính · snapshot hiện tại'},
     {label:'Chưa đăng ký',value:report?.available_schools,icon:Building2,description:'Trường khả dụng hiện tại'},
     {label:'Đang tiếp cận',value:mix?.approaching,icon:UsersRound,description:'Quyền bảo vệ tiếp cận đang hiệu lực'},
     {label:'Hợp đồng hiệu lực',value:report?.active_contracts,icon:FileCheck2,description:'Trạng thái tại thời điểm hiện tại'},

@@ -194,7 +194,6 @@ public static class SalesProtectionOverviewEndpoints
                 threshold_on = interruption?.Assessment.ThresholdOn,
                 next_service_start_on = interruption?.Assessment.NextServiceStartOn,
                 has_pending_renewal = interruption?.HasPendingRenewal ?? false,
-                has_open_dispute = interruption?.HasOpenDispute ?? false,
                 status = displayStatus
             });
         }

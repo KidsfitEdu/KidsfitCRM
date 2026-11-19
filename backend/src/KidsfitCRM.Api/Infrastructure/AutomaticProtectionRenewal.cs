@@ -52,7 +52,7 @@ public static class AutomaticProtectionRenewal
         // Never restore rights released by GI-01 or override another owner.
         var snapshot = await ServiceInterruptionService.AssessAsync(db, customerId.Value,
             ContractExpiryAlertService.BusinessDate(now), now, ct);
-        if (snapshot is null || snapshot.HasOpenDispute ||
+        if (snapshot is null ||
             snapshot.Assessment.Status is
                 (ServiceInterruptionPolicy.AssessmentStatus.ThresholdReached
                 or ServiceInterruptionPolicy.AssessmentStatus.HistoricalThresholdRequiresReview

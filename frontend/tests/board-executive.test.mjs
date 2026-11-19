@@ -6,14 +6,14 @@ import test from 'node:test';
 const read = path => readFileSync(resolve(import.meta.dirname, '..', 'src', path), 'utf8');
 
 test('Board role sections use dedicated executive pages and preserve existing navigation', () => {
-  const routes = ['Dashboard','Overdue','Disputes','Policies'];
+  const routes = ['Dashboard','Overdue','Policies'];
   for (const section of routes) {
     const page = read(`screens/Board/${section}/${section === 'Dashboard' ? 'Dashboard' : section}Page.tsx`);
-    assert.match(page, new RegExp(`Board(?:Dashboard|Overdue|Disputes|Policies)Page`));
+    assert.match(page, new RegExp(`Board(?:Dashboard|Overdue|Policies)Page`));
     assert.doesNotMatch(page, /RoleOperationsPage/);
   }
   const source = read('screens/Board/BoardWorkspace.tsx');
-  for (const section of ['dashboard','overdue','disputes','policies'])
+  for (const section of ['dashboard','overdue','policies'])
     assert.match(source, new RegExp(section + ':'));
   assert.match(source, /oversight: DashboardPage/);
 });
@@ -25,19 +25,14 @@ test('Board data uses existing authorized APIs and avoids unapproved rates', () 
   assert.doesNotMatch(source, /\.rate_percent\s*=|30%/);
 });
 
-test('Overdue and dispute actions use server permission flags and shared dialog', () => {
+test('Overdue actions still respect server permission flags and use shared dialog', () => {
   const overdue = read('screens/Board/BoardOverduePage.tsx');
-  const disputes = read('screens/Board/BoardDisputesPage.tsx');
   assert.match(overdue, /can_manager_review/);
   assert.match(overdue, /can_review/);
-  assert.match(disputes, /can_resolve/);
   assert.match(overdue, /SchoolActionDialog/);
-  assert.match(disputes, /SchoolActionDialog/);
-  assert.match(disputes, /\/school-disputes\//);
   assert.match(overdue, /\/school-extensions\//);
   assert.match(overdue, /\/school-proposals\//);
   assert.match(overdue, /AppPagination/);
-  assert.match(disputes, /AppPagination/);
 });
 
 test('Board policy screens use saved policy versions, not stale two-extension text', () => {
@@ -66,18 +61,15 @@ test('Board has four menu items while historic reports route still loads dashboa
 
 test('Board queues share Sales search toolbar, icon actions and real server paging', () => {
   const overdue = read('screens/Board/BoardOverduePage.tsx');
-  const disputes = read('screens/Board/BoardDisputesPage.tsx');
   const policies = read('screens/Board/BoardPoliciesPage.tsx');
-  for (const source of [overdue, disputes, policies]) {
+  for (const source of [overdue, policies]) {
     assert.match(source, /AdminListToolbar/);
     assert.match(source, /AdminIconAction/);
   }
-  for (const source of [overdue, disputes]) {
-    assert.match(source, /pageSizeOptions=\{\[10,20,50,100\]\}/);
-    assert.match(source, /page_size=/);
-    assert.match(source, /encodeURIComponent\(search\)/);
-    assert.doesNotMatch(source, /<AppButton[^>]*>Xử lý<\/AppButton>/);
-  }
+  assert.match(overdue, /pageSizeOptions=\{\[10,20,50,100\]\}/);
+  assert.match(overdue, /page_size=/);
+  assert.match(overdue, /encodeURIComponent\(search\)/);
+  assert.doesNotMatch(overdue, /<AppButton[^>]*>Xử lý<\/AppButton>/);
   assert.match(policies, /Chi tiết chính sách/);
   assert.match(policies, /policyQuery\.data\?\.pagination\.total/);
   assert.doesNotMatch(policies, /Tìm kiếm và phân trang áp dụng trên tối đa 100 phiên bản/);

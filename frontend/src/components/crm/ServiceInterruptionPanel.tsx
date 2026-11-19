@@ -13,19 +13,19 @@ type Entry = {
   customer_id:number; customer_name:string; contract_id:number;
   owner_user_id:number|null; gap_start_on:string|null; threshold_on:string|null;
   next_service_start_on:string|null; protection_until:string|null; status:string;
-  has_pending_renewal:boolean; has_open_dispute:boolean;
+  has_pending_renewal:boolean;
 };
 type List = {data:Entry[]; total:number; page:number; page_size:number};
 type History = {id:number;gap_start_on:string;threshold_on:string;status:string;reason:string;processed_at:string};
 type Detail = {data:{
   customerId:number; contractId:number; status:string; gapStartOn:string|null;
   thresholdOn:string|null; nextServiceStartOn:string|null;
-  hasPendingRenewal:boolean; hasOpenDispute:boolean;
+  hasPendingRenewal:boolean;
   protectionUntil:string|null; history:History[];
 }};
 const statusLabels:Record<string,string> = {
   INTERRUPTED:'Đang gián đoạn', THRESHOLD_REACHED:'Đủ 12 tháng',
-  EXCEPTION_ACCOUNTING:'Chờ Kế toán', EXCEPTION_DISPUTE:'Tranh chấp',
+  EXCEPTION_ACCOUNTING:'Chờ Kế toán',
   EXCEPTION_CONFIG_REQUIRED:'Chưa cấu hình hạn xử lý ngoại lệ',
   EXCEPTION_OVERDUE:'Ngoại lệ quá hạn, chuyển BGĐ',
   EXCEPTION_OWNERSHIP:'Cần rà soát quyền', RELEASED:'Đã mở lại',
@@ -140,7 +140,6 @@ export function ServiceInterruptionPanel({apiBase,token,mode}:{
         <p>Mốc đủ 12 tháng: {date(detail.thresholdOn)}</p>
         <p>Kỳ sử dụng tiếp theo: {date(detail.nextServiceStartOn)}</p>
         <p>Tái ký đang chờ Kế toán: {detail.hasPendingRenewal?'Có':'Không'}</p>
-        <p>Tranh chấp đang mở: {detail.hasOpenDispute?'Có':'Không'}</p>
         <h4 className="font-semibold">Lịch sử xử lý</h4>
         {detail.history.length===0&&<p className="text-muted-foreground">Chưa phát sinh quyết định.</p>}
         {detail.history.map(h=><div className="rounded-lg border p-3" key={h.id}>

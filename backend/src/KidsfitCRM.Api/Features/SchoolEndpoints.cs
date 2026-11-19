@@ -217,7 +217,6 @@ public static class SchoolEndpoints
             can_request_extension = current is not null && current.OwnerUserId == access.UserId && access.Has(Permissions.ChannelSalesRegister)
                 && !await db.SchoolExtensionRequests.AnyAsync(x => x.ApproachRegistrationId == current.Id && x.Status == "PENDING", ct),
             can_allocate = !school.IsDeleted && available && access.Has(Permissions.SchoolAllocationManage),
-            can_dispute = access.Has(Permissions.ChannelSalesRegister) || access.Has(Permissions.ChannelSalesReconcile) || access.Has(Permissions.SchoolDisputeResolve),
             units = units.Select(x => new { x.Id, x.Version, can_edit = canEdit && !school.IsDeleted, x.UnitType, x.Name, x.Province, x.Ward, x.Address,
                 contact_name = pii ? x.ContactName : null, contact_position = pii ? x.ContactPosition : null, contact_phone = pii ? x.ContactPhone : null,
                 school_phone = pii ? x.SchoolPhone : null, email = pii ? x.Email : null, note = pii ? x.Note : null }),

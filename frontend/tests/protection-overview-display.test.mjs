@@ -7,7 +7,7 @@ import { protectionAction, protectionServiceStatus } from '../src/components/crm
 const row=(patch={})=>({
   interruption_status:'CONTINUOUS', protection_status:'PROTECTED',
   renewal_status:'NOT_DUE', has_pending_renewal:false,
-  has_open_dispute:false, can_request:false,...patch,
+  can_request:false,...patch,
 });
 
 test('normal protected school has only service condition; no duplicate action',()=>{
@@ -28,13 +28,11 @@ test('accounting and manager queues override normal protection',()=>{
   assert.equal(protectionAction(row({has_pending_renewal:true}))?.status,'WAIT_ACCOUNTING');
   assert.equal(protectionAction(row({renewal_status:'PENDING_MANAGER'}))?.status,'WAIT_MANAGER');
 });
-test('dispute and accounting exceptions remain distinct from service milestone',()=>{
-  const dispute=row({interruption_status:'EXCEPTION_DISPUTE',has_open_dispute:true});
-  assert.equal(protectionServiceStatus(dispute),'THRESHOLD_REACHED');
-  assert.equal(protectionAction(dispute)?.status,'REVIEW_DISPUTE');
+test('accounting exception stays distinct from the service milestone after dispute removal',()=>{
   const accounting=row({interruption_status:'EXCEPTION_ACCOUNTING',has_pending_renewal:true});
   assert.equal(protectionServiceStatus(accounting),'THRESHOLD_REACHED');
   assert.equal(protectionAction(accounting)?.status,'WAIT_ACCOUNTING');
+  assert.doesNotMatch(readFileSync(resolve(import.meta.dirname,'../src/components/crm/protection-overview-presentation.ts'),'utf8'),/REVIEW_DISPUTE|EXCEPTION_DISPUTE/);
 });
 test('released rights do not accidentally offer old-owner work',()=>{
   const x=row({protection_status:'RELEASED',interruption_status:'RELEASED',can_request:true});

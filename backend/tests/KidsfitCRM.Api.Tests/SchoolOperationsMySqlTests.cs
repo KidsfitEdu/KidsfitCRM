@@ -2268,18 +2268,6 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             entry => entry.BeneficiaryRole == "MANAGER");
     }
 
-    [MySqlFact] public async Task DisputeDecisionCannotTakeCurrentOwnersRightsOrCreateOldOwnersCommission()
-    {
-        var s = await Arrange(); var board = await User("board@kidsfit.vn");
-        await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
-        await a.RegisterCustomerApproach(Claim(s.CustomerId), s.Peer.UserId, Http(), Ct);
-        var id = await a.OpenSchoolDispute(new(Key(), s.CustomerId, "Phản ánh quyền tiếp cận", "TEST-TIMELINE"), s.Seller.UserId, Http(), Ct);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => a.ResolveSchoolDispute(id, new("UPHOLD_CURRENT_RIGHTS", "Tự kết luận"), s.Seller.UserId, Http(), Ct));
-        await a.ResolveSchoolDispute(id, new("UPHOLD_CURRENT_RIGHTS", "Giữ quyền đăng ký mới hợp lệ"), board, Http(), Ct);
-        Assert.Equal(s.Peer.UserId, await db.CustomerProtections.Where(x => x.CustomerId == s.CustomerId && x.Status == "ACTIVE").Select(x => x.OwnerUserId).SingleAsync());
-        Assert.False(await db.CommissionLedgerEntries.AnyAsync(x => x.BeneficiaryUserId == s.Seller.UserId));
-    }
-
     [MySqlFact] public async Task QueuePaginationKeepsOldOverdueWorkVisibleAndSearchCannotBypassScope()
     {
         var s = await Arrange(); var prefix = "PAGE-" + Key(); var now = DateTime.UtcNow;

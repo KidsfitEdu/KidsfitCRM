@@ -49,7 +49,7 @@ public static class DatabaseSeeder
                 throw new InvalidOperationException("Review fixtures and legacy 30% accounting fixtures cannot run together.");
             var env = services.GetRequiredService<IHostEnvironment>();
             await CrmReviewSeeder.SeedAsync(db, hasher, password, DateTime.UtcNow,
-                env.ContentRootPath, includeReviewDispute: !config.GetValue<bool>("Seed:Gi01Scenarios"));
+                env.ContentRootPath);
             if (config.GetValue<bool>("Seed:ProtectionRenewalScenarios"))
                 await ProtectionRenewalDemoSeeder.SeedAsync(db, DateTime.UtcNow);
             // NT-01 UI scenarios are opt-in and allowed only with isolated review fixtures.
@@ -136,7 +136,6 @@ public static class DatabaseSeeder
             (Permissions.SchoolProposalReview, "Xét đề xuất của nhân sự"),
             (Permissions.SchoolAllocationManage, "Phân bổ và rà soát trường"),
             (Permissions.SchoolExtensionReview, "Xét gia hạn tiếp cận"),
-            (Permissions.SchoolDisputeResolve, "Kết luận tranh chấp trường"),
             (Permissions.SchoolEscalationResolve, "Xử lý công việc trường quá hạn"),
             (Permissions.SchoolHandoverManage, "Bàn giao nhân sự ngưng hoạt động"),
             (Permissions.SchoolCareAssign, "Phân công và bàn giao CSKH"),
@@ -197,7 +196,7 @@ public static class DatabaseSeeder
                 Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage, Permissions.ProtectionRenewalApprove];
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
-        rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
+        rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
         rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund, Permissions.ContractRenewalReview, Permissions.ContractRenewalConfirm];
         rolePermissions["SALES"] = [.. rolePermissions["SALES"], Permissions.ContractRenewalSubmit];
         rolePermissions["CUSTOMER_SERVICE"] = [.. rolePermissions["CUSTOMER_SERVICE"], Permissions.SchoolSupportManage];

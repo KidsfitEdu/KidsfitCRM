@@ -61,7 +61,7 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
         aria-label="Tìm và chọn nhà trường" aria-invalid={invalid}
         aria-expanded={opened} aria-controls="manager-allocation-school-options"
         aria-activedescendant={opened&&schools[active]?'manager-allocation-school-'+schools[active].id:undefined}
-        role="combobox" aria-autocomplete="list" type="search" autoComplete="off"
+        role="combobox" aria-autocomplete="list" type="text" inputMode="search" autoComplete="off"
         placeholder="Tìm tên trường hoặc mã trường..." value={display}
         className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-9 text-sm focus-visible:border-primary"
         onClick={()=>setOpened(true)}

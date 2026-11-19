@@ -41,6 +41,13 @@ test('Picker debounces server search, caches pages and supports retry and access
   assert.match(picker,/event.key==='Enter'/);
   assert.match(picker,/event.key==='Escape'/);
 });
+test('School search renders one custom clear control without a native search cancel button',()=>{
+  assert.match(picker,/role="combobox" aria-autocomplete="list" type="text" inputMode="search"/);
+  assert.doesNotMatch(picker,/type="search"/);
+  assert.match(picker,/aria-label="Xóa từ khóa tìm trường"/);
+  assert.match(picker,/onClick=\{\(\)=>search\(''\)\}/);
+  assert.equal((picker.match(/aria-label="Xóa từ khóa tìm trường"/g)??[]).length,1);
+});
 test('Previously selected school ID remains in form, including reallocation',()=>{
   assert.match(picker,/onChange\(option.value\)/);
   assert.match(invite,/value: suggestedSchoolId\?String\(suggestedSchoolId\):undefined/);

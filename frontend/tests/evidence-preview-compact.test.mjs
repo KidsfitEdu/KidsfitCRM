@@ -6,9 +6,9 @@ import {resolve} from 'node:path';
 const source=readFileSync(resolve(import.meta.dirname,'../src/components/common/evidence-preview-dialog.tsx'),'utf8');
 
 test('Evidence viewer has no frame padding, header or footer and respects image aspect ratio',()=>{
-  assert.match(source,/max-w-\[90vw\] max-h-\[85dvh\]/);
+  assert.match(source,/max-w-\[min\(92vw,560px\)\] max-h-\[80dvh\]/);
   assert.match(source,/bg-transparent p-0 shadow-2xl/);
-  assert.match(source,/className="block h-auto max-h-\[85dvh\] w-auto max-w-full select-none object-contain"/);
+  assert.match(source,/className="block h-auto max-h-\[80dvh\] w-auto max-w-full select-none object-contain"/);
   assert.match(source,/relative min-h-0 w-full overflow-hidden rounded-2xl/);
   assert.doesNotMatch(source,/<footer|fitRatio|onWheelZoom|<Maximize2/);
 });

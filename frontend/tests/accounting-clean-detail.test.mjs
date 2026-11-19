@@ -28,12 +28,12 @@ test('Contract details use the selected original or renewal record',()=>{
   assert.ok(detail.includes('detail.school_units.map(unit=>'));
 });
 
-test('Receipts and payouts remain in their own tabs; historic backfill stays reachable',()=>{
+test('Receipts and payouts remain in their own tabs without manual receipt backfill',()=>{
   for(const token of ["/accounting/receipts?","receiptRows.map(receipt=>",
     "label:'Khoản thu nhà trường'","label:'Phiếu chi hoa hồng'",
-    "visiblePayouts.map(p=>",'payoutPreview.can_approve','detail.ledger','canAdjustCommission&&<Button',
-    'void openBackfill(receiptId)']) assert.ok(page.includes(token),token);
+    "visiblePayouts.map(p=>",'payoutPreview.can_approve','detail.ledger','<AppDrawer open={receiptPreview!==null}']) assert.ok(page.includes(token),token);
   assert.ok(page.includes('payoutStatusLabel(p.status)'));
+  assert.doesNotMatch(page,/commission-backfill|openBackfill|confirmBackfill|backfillPreview/);
 });
 
 test('Currency inputs and evidence preview retain their behavior',()=>{

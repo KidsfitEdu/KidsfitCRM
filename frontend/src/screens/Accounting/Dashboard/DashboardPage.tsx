@@ -90,7 +90,14 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
     {label:'Hoa hồng đã chuyển',amount:summary?.take_home,icon:CheckCircle2,detail:'Theo ngày chi thực tế trong tháng'},
     {label:'Đủ điều kiện lập phiếu',amount:summary?.eligible_for_payout,icon:Wallet,detail:'Bút toán còn khả dụng để lập phiếu'},
   ];
-  const openWorkspace=()=>onSalesNavigate?.('role-accounting-revenue');
+  const openWorkspace=(tab:'CONTRACTS'|'RECEIPTS'|'PAYOUTS'='CONTRACTS',status?:string)=>{
+    if(!onSalesNavigate)return;
+    onSalesNavigate('role-accounting-revenue');
+    const params=new URLSearchParams();
+    params.set('tab',tab);
+    if(status)params.set('status',status);
+    window.history.replaceState(null,'',window.location.pathname+'?'+params.toString());
+  };
   return <div className="min-w-0 space-y-5">
     <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Tổng quan tài chính"
       description={`Theo dõi thực thu, hoa hồng phát sinh và thực chi tháng ${displayPeriod} theo phạm vi tài khoản.`}
@@ -171,21 +178,24 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
           <h2 id="accounting-attention" className="text-base font-semibold">Công việc cần xử lý</h2>
           <p className="mt-1 text-xs text-muted-foreground">Các phiếu chưa hoàn tất, bao gồm tồn đọng từ kỳ trước</p>
         </div>
-        {connected&&onSalesNavigate&&<AppButton type="button" tone="outline" size="sm" onClick={openWorkspace}>
+        {connected&&onSalesNavigate&&<AppButton type="button" tone="outline" size="sm" onClick={()=>openWorkspace('PAYOUTS')}>
           Xem danh sách <ArrowUpRight className="size-4" aria-hidden="true"/>
         </AppButton>}
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {attentionTypes.map(item=>{
           const found=attention.find(x=>x.status===item.key);
-          return <div key={item.key} className="flex items-start gap-3 rounded-xl border border-border p-4">
+          return <button type="button" key={item.key}
+            disabled={!connected||!finance.data||!onSalesNavigate}
+            onClick={()=>openWorkspace('PAYOUTS',item.key)}
+            className="flex items-start gap-3 rounded-xl border border-border p-4 text-left transition-colors enabled:hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default">
             <item.icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true"/>
             <div className="min-w-0">
               <p className="text-sm font-semibold">{item.label}</p>
               <p className="mt-1 text-lg font-bold tabular-nums">{connected&&finance.data?found?.count??0:'—'} <span className="text-xs font-normal text-muted-foreground">phiếu</span></p>
               <p className="mt-1 text-xs text-muted-foreground">{connected&&finance.data?channelMoney(found?.amount??0):'Chưa có dữ liệu'}</p>
             </div>
-          </div>;
+          </button>;
         })}
       </div>
     </section>
@@ -198,7 +208,7 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
           <p className="mt-1 text-xs text-muted-foreground">Kiểm tra hồ sơ hợp đồng, khoản thu và chứng từ chi theo quyền.</p>
         </div>
         {connected&&onSalesNavigate&&<AppButton type="button" tone="outline" size="sm"
-          aria-label="Mở Hợp đồng và hoa hồng" onClick={openWorkspace}>
+          aria-label="Mở Hợp đồng và hoa hồng" onClick={()=>openWorkspace('CONTRACTS')}>
           Xem danh sách <ArrowUpRight className="size-4" aria-hidden="true"/>
         </AppButton>}
       </div>

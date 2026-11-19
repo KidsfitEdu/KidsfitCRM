@@ -112,8 +112,8 @@ public static class SchoolEndpoints
                 && u.UnitType == "MAIN" && u.Ward == wardTerm));
         var selectedPage = Math.Max(1, page ?? 1);
         var selectedPageSize = pageSize ?? 20;
-        if (selectedPageSize is not (10 or 20 or 50))
-            throw ApiValidationException.For("page_size", "Số dòng mỗi trang phải là 10, 20 hoặc 50.");
+        if (selectedPageSize is not (5 or 10 or 20 or 50))
+            throw ApiValidationException.For("page_size", "Số dòng mỗi trang phải là 5, 10, 20 hoặc 50.");
         var selectedStatus = string.IsNullOrWhiteSpace(status) ? "ALL" : status.Trim().ToUpperInvariant();
         if (selectedStatus is not ("ALL" or "AVAILABLE" or "APPROACHING" or "CONTRACTED"))
             throw ApiValidationException.For("status", "Trạng thái lọc không hợp lệ.");

@@ -27,7 +27,7 @@ test('Picker fetches five authorized AVAILABLE schools only after input opens',(
 });
 test('Picker debounces server search, caches pages and supports retry and accessible paging',()=>{
   assert.match(picker,/setTimeout\(\(\)=>\{setTerm\(typed.trim\(\)\);setPage\(1\);\},300\)/);
-  assert.match(picker,/queryKey:\['manager-allocation-school-search',apiBase,token,term,page\]/);
+  assert.match(picker,/queryKey:\[\.\.\.channelQueryKeys\.all,'manager-allocation-school-search',apiBase,token,term,page\]/);
   assert.match(picker,/staleTime:30_000/);
   assert.match(picker,/Trang \{page\}\/\{totalPages\}/);
   assert.match(picker,/query.refetch\(\)/);

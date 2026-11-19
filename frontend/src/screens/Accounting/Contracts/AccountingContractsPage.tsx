@@ -179,6 +179,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [receiptIntent,setReceiptIntent]=useState(false);
   const [financeCreatedMonth,setFinanceCreatedMonth]=useState('');
   const [financeStatus,setFinanceStatus]=useState('ALL');
+  useEffect(()=>{
+    // Dashboard shortcuts use URL parameters; the list remains server-authorized.
+    const query=new URLSearchParams(window.location.search);
+    const tab=query.get('tab');
+    if(tab==='PAYOUTS'||tab==='RECEIPTS'||tab==='CONTRACTS')setAccountingTab(tab);
+    const status=query.get('status');
+    if(tab==='PAYOUTS'&&status&&['DRAFT','PENDING_APPROVAL','CHANGES_REQUESTED','APPROVED','PAID','CANCELLED','REJECTED'].includes(status))
+      setFinanceStatus(status);
+  },[]);
   const [financeOrganization,setFinanceOrganization]=useState('ALL');
   const [financeSearch,setFinanceSearch]=useState('');
   const [financeAppliedSearch,setFinanceAppliedSearch]=useState('');

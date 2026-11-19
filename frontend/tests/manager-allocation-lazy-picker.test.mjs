@@ -34,6 +34,12 @@ test('Picker debounces server search, caches pages and supports retry and access
   assert.match(picker,/role="combobox"/);
   assert.match(picker,/role="listbox"/);
   assert.match(picker,/role="option"/);
+  assert.match(picker,/<PopoverContent/);
+  assert.match(picker,/initialFocus=\{false\} finalFocus=\{false\}/);
+  assert.match(picker,/event.key==='ArrowDown'/);
+  assert.match(picker,/event.key==='ArrowUp'/);
+  assert.match(picker,/event.key==='Enter'/);
+  assert.match(picker,/event.key==='Escape'/);
 });
 test('Previously selected school ID remains in form, including reallocation',()=>{
   assert.match(picker,/onChange\(option.value\)/);

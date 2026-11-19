@@ -1179,8 +1179,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <th scope="col" className="w-[21%] px-3 py-3">Nhà trường</th>
               <th scope="col" className="w-[11%] px-2 py-3">Ngày lập</th>
               <th scope="col" className="w-[11%] px-2 py-3">Ngày chi</th>
-              <th scope="col" className="w-[14%] pl-2 pr-11 py-3 text-right">Số tiền chi</th>
-              <th scope="col" className="w-[11%] px-2 py-3">Trạng thái</th>
+              <th scope="col" className="w-[11%] px-2 py-3 text-center">Số tiền chi</th>
+              <th scope="col" className="w-[14%] px-2 py-3">Trạng thái</th>
               <th scope="col" className="w-[14%] px-2 py-3 text-center">Thao tác</th>
             </tr>
           </thead>
@@ -1196,9 +1196,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </td>
               <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{channelDate(p.created_at)}</td>
               <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{p.status==='PAID'&&p.paid_at?channelDate(p.paid_at):'—'}</td>
-              <td className="whitespace-nowrap pl-2 pr-11 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
+              <td className="whitespace-nowrap px-2 py-3 text-center font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
               <td className="px-3 py-3">
-                <AppStatusBadge size="sm" status={p.status} label={payoutStatusLabel(p.status)}
+                <AppStatusBadge size="sm" className="whitespace-nowrap [&>span]:whitespace-nowrap" status={p.status} label={payoutStatusLabel(p.status)}
                   tone={p.status==='PAID'||p.status==='APPROVED'?'success'
                     :p.status==='REJECTED'||p.status==='CANCELLED'?'danger'
                     :p.status==='CHANGES_REQUESTED'||p.status==='PENDING_APPROVAL'?'warning':'neutral'}/>

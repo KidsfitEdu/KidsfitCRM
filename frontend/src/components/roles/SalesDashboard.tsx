@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {ArrowUpRight,CalendarClock,ClipboardList,FileCheck2,Handshake,RefreshCw,ShieldAlert,UsersRound} from 'lucide-react';
-import {CartesianGrid,Line,LineChart,Pie,PieChart,Cell,XAxis,YAxis} from 'recharts';
+import {CartesianGrid,Line,LineChart,Pie,PieChart,XAxis,YAxis} from 'recharts';
 import {AdminIconAction} from '@/components/common/admin-list-ui';
 import {AppPageHeader} from '@/components/common/app-page-header';
 import {AppStatCard} from '@/components/common/app-stat-card';
@@ -52,8 +52,8 @@ export function SalesDashboard({apiBase,token,abilities,onSalesNavigate,onChange
     {label:'Lời mời chờ phản hồi',value:data?.pending_invitations,icon:UsersRound,description:'Lời mời còn hạn · hiện tại'}
   ];
   const distribution=[
-    {key:'approaching',name:'Đang tiếp cận',value:data?.protection_breakdown.approaching??0},
-    {key:'contracted',name:'Bảo vệ hợp đồng',value:data?.protection_breakdown.contracted??0}
+    {key:'approaching',name:'Đang tiếp cận',value:data?.protection_breakdown.approaching??0,fill:'var(--color-approaching)'},
+    {key:'contracted',name:'Bảo vệ hợp đồng',value:data?.protection_breakdown.contracted??0,fill:'var(--color-contracted)'}
   ];
   const distributionTotal=distribution.reduce((sum,item)=>sum+item.value,0);
   const tasks=[
@@ -72,7 +72,7 @@ export function SalesDashboard({apiBase,token,abilities,onSalesNavigate,onChange
         <AppButton tone="outline" leadingIcon={<RefreshCw className="size-4"/>}
           disabled={!connected||report.isFetching} onClick={refresh}>Làm mới</AppButton>
       </div>}/>
-    {!connected&&<p role="status" className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Chưa có kết nối để tải báo cáo Sales/CTV.</p>}
+    {!connected&&<output className="block rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Chưa có kết nối để tải báo cáo Sales/CTV.</output>}
     {report.isError&&<div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-card p-4 text-sm text-destructive">
       <span>Không tải được tổng quan bán hàng. Vui lòng kiểm tra kết nối hoặc quyền truy cập.</span>
       <AppButton type="button" tone="neutral" onClick={refresh}>Thử lại</AppButton>
@@ -110,9 +110,7 @@ export function SalesDashboard({apiBase,token,abilities,onSalesNavigate,onChange
             <PieChart accessibilityLayer>
               <ChartTooltip content={<ChartTooltipContent nameKey="name"/>}/>
               <Pie data={distribution} nameKey="name" dataKey="value" cx="50%" cy="50%"
-                innerRadius={65} outerRadius={95} paddingAngle={2} strokeWidth={0}>
-                {distribution.map(item=><Cell key={item.key} fill={'var(--color-'+item.key+')'}/>)}
-              </Pie>
+                innerRadius={65} outerRadius={95} paddingAngle={2} strokeWidth={0}/>
             </PieChart>
           </ChartContainer>
           :<div className="mt-4 flex h-[250px] items-center justify-center rounded-xl border border-dashed border-border px-5 text-center text-sm text-muted-foreground">

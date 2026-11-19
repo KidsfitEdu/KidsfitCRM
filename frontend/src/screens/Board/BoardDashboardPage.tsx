@@ -7,7 +7,7 @@ import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Input } from '@/components/ui/input';
+import { AppMonthPicker } from '@/components/common/forms/app-month-picker';
 import { useBoardData, currentBusinessPeriod, boardMoney, boardNumber } from './board-data';
 import type { RolePageProps } from '@/types/role-pages';
 
@@ -66,9 +66,9 @@ export function BoardDashboardPage({apiBase,token,abilities}:RolePageProps) {
     <AppPageHeader eyebrow="BAN GIÁM ĐỐC / KIDSFIT CRM" title="Tổng quan điều hành"
       description="Doanh thu trong kỳ, tình hình trường học và những hồ sơ cần theo dõi."
       actions={<div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="board-dashboard-period" className="text-sm font-medium">Kỳ báo cáo</label>
-        <Input id="board-dashboard-period" type="month" className="h-10 w-44 rounded-xl"
-          value={period} onChange={event=>setPeriod(event.target.value)}/>
+        <span className="text-sm font-medium">Kỳ báo cáo</span>
+        <AppMonthPicker label="Kỳ báo cáo" value={period} onChange={setPeriod}
+          allowAll={false} className="w-[168px]"/>
         <AdminIconAction icon={RefreshCw} label="Làm mới tổng quan điều hành"
           disabled={!connected||report.isFetching}
           onClick={()=>{void report.refetch();}}/>

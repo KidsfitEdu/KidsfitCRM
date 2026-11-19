@@ -119,6 +119,14 @@ test('Payout evidence uses the receipt uploader while preserving FormData proof'
   assert.match(upload,/MAX_PROOF_SIZE=5\*1024\*1024/);
 });
 test('Money heading and cells use matching padding to offset values slightly left',()=>{
-  assert.match(part,/pl-2 pr-7 py-3 text-right">Số tiền chi/);
-  assert.match(part,/pl-2 pr-7 py-3 text-right font-semibold tabular-nums/);
+  assert.match(part,/pl-2 pr-11 py-3 text-right">Số tiền chi/);
+  assert.match(part,/pl-2 pr-11 py-3 text-right font-semibold tabular-nums/);
+});
+
+test('Advanced payout filter uses a single accessible icon button',()=>{
+  assert.match(part,/aria-label="Bộ lọc nâng cao" title="Bộ lọc nâng cao"/);
+  assert.match(part,/aria-expanded=\{financeAdvancedOpen\} aria-controls="accounting-payout-advanced"/);
+  assert.match(part,/size-10 shrink-0 rounded-lg p-0/);
+  assert.match(part,/<SlidersHorizontal className="size-4" aria-hidden="true"\/>/);
+  assert.doesNotMatch(part,/<SlidersHorizontal className="size-4"\/> Bộ lọc nâng cao/);
 });

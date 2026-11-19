@@ -7,7 +7,7 @@ import {useQuery} from '@tanstack/react-query';
 import {ChevronDown,LoaderCircle,Search,X} from 'lucide-react';
 import {Popover,PopoverTrigger,PopoverContent} from '@/components/ui/popover';
 import {Input} from '@/components/ui/input';
-import {channelRequest} from '@/lib/channel-operations';
+import {channelRequest,channelQueryKeys} from '@/lib/channel-operations';
 
 const PAGE_SIZE=5;
 type School={id:number;display_name:string;school_code:string;visible_status:string};
@@ -32,7 +32,7 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
     return ()=>clearTimeout(timer);
   },[typed]);
   const query=useQuery({
-    queryKey:['manager-allocation-school-search',apiBase,token,term,page],
+    queryKey:[...channelQueryKeys.all,'manager-allocation-school-search',apiBase,token,term,page],
     queryFn:()=>{
       const params=new URLSearchParams({page:String(page),pageSize:String(PAGE_SIZE),status:'AVAILABLE'});
       if(term)params.set('search',term);

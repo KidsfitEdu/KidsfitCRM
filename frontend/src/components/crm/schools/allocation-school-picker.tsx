@@ -41,8 +41,9 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
     enabled:opened&&!!apiBase&&!!token,
     staleTime:30_000,retry:1,
   });
-  const schools=query.data?.data??[];
-  const totalPages=Math.max(1,Math.ceil((query.data?.total??0)/PAGE_SIZE));
+  const searching=typed.trim()!==term;
+  const schools=searching?[]:(query.data?.data??[]);
+  const totalPages=searching?1:Math.max(1,Math.ceil((query.data?.total??0)/PAGE_SIZE));
   const choose=(school:School)=>{
     const option={value:String(school.id),label:school.display_name+' · '+school.school_code};
     setChosen(option);onChange(option.value);setTyped('');setTerm('');setPage(1);setActive(0);setOpened(false);
@@ -73,7 +74,7 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
           }else if(event.key==='ArrowUp'&&opened){
             event.preventDefault();setActive(index=>Math.max(0,index-1));
           }else if(event.key==='Enter'&&opened){
-            event.preventDefault();if(!query.isPending&&schools[active])choose(schools[active]);
+            event.preventDefault();if(!query.isPending&&!searching&&schools[active])choose(schools[active]);
           }else if(event.key==='Escape'&&opened){
             event.preventDefault();event.stopPropagation();setOpened(false);
           }
@@ -91,13 +92,13 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
     <PopoverContent align="start" side="bottom" sideOffset={5} initialFocus={false} finalFocus={false}
       className="z-[90] w-[min(var(--anchor-width),calc(100vw-24px))] max-h-[min(315px,48dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-xl">
       <div id="manager-allocation-school-options" role="listbox" aria-label="Trường có thể phân bổ" className="space-y-0.5">
-        {query.isPending&&<output className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+        {(query.isPending||searching)&&<output className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
           <LoaderCircle className="size-4 animate-spin" aria-hidden="true"/>Đang tải trường...</output>}
-        {query.isError&&<div className="p-3 text-sm text-destructive">
+        {query.isError&&!searching&&<div className="p-3 text-sm text-destructive">
           <p>Không thể tải danh sách trường.</p>
           <button type="button" className="mt-2 underline" onClick={()=>void query.refetch()}>Thử lại</button>
         </div>}
-        {query.isSuccess&&schools.length===0&&<p className="p-3 text-sm text-muted-foreground">Không tìm thấy trường phù hợp.</p>}
+        {query.isSuccess&&!searching&&schools.length===0&&<p className="p-3 text-sm text-muted-foreground">Không tìm thấy trường phù hợp.</p>}
         {schools.map((school,index)=><button key={school.id} id={'manager-allocation-school-'+school.id}
           type="button" role="option" aria-selected={value===String(school.id)}
           aria-label={'Chọn '+school.display_name+' · '+school.school_code}
@@ -108,10 +109,10 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
         <div className="flex items-center justify-between border-t border-border px-2 py-2 text-xs text-muted-foreground">
           <span>Trang {page}/{totalPages}</span>
           <span className="flex gap-2">
-            <button type="button" disabled={page<=1||query.isPending}
+            <button type="button" disabled={page<=1||query.isPending||searching}
               onClick={()=>{setActive(0);setPage(p=>Math.max(1,p-1));}}
               className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Trước</button>
-            <button type="button" disabled={page>=totalPages||query.isPending}
+            <button type="button" disabled={page>=totalPages||query.isPending||searching}
               onClick={()=>{setActive(0);setPage(p=>p+1);}}
               className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Sau</button>
           </span>

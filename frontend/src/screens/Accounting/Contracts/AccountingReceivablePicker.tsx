@@ -64,7 +64,6 @@ export function AccountingReceivablePicker({
           className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-9 text-sm shadow-xs focus-visible:border-primary"
           // The popover trigger opens on explicit interaction. Never reopen on
           // focus restoration after choosing an item in the portaled list.
-          onFocus={()=>{if(!open&&!disabled)onOpenChange(true);}}
           onChange={e=>{setSearch(e.currentTarget.value);if(!open)onOpenChange(true);}}
           onKeyDown={e=>{
             if(e.key==='ArrowDown'){

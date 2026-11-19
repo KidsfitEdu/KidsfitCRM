@@ -118,9 +118,11 @@ test('Payout evidence uses the receipt uploader while preserving FormData proof'
   assert.match(upload,/name="proof" type="file" required/);
   assert.match(upload,/MAX_PROOF_SIZE=5\*1024\*1024/);
 });
-test('Money heading and cells use matching padding to offset values slightly left',()=>{
-  assert.match(part,/pl-2 pr-11 py-3 text-right">Số tiền chi/);
-  assert.match(part,/pl-2 pr-11 py-3 text-right font-semibold tabular-nums/);
+test('Payout money is centered and pending approval badge stays on one line',()=>{
+  assert.match(part,/w-\[11%\] px-2 py-3 text-center">Số tiền chi/);
+  assert.match(part,/whitespace-nowrap px-2 py-3 text-center font-semibold tabular-nums/);
+  assert.match(part,/w-\[14%\] px-2 py-3">Trạng thái/);
+  assert.match(part,/className="whitespace-nowrap \[&>span\]:whitespace-nowrap" status=\{p.status\}/);
 });
 
 test('Advanced payout filter uses a single accessible icon button',()=>{

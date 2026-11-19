@@ -1155,9 +1155,13 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
           <AppMonthPicker label="Tháng lập phiếu" className="w-full sm:w-[170px]" value={financeCreatedMonth}
             onChange={next=>{setFinanceCreatedMonth(next);setFinancePage(1);}}/>
-          <Button type="button" variant="outline" size="sm" aria-expanded={financeAdvancedOpen}
-            aria-controls="accounting-payout-advanced" onClick={()=>setFinanceAdvancedOpen(v=>!v)}
-            className="h-10 rounded-lg text-xs"><SlidersHorizontal className="size-4"/> Bộ lọc nâng cao</Button>
+          <Button type="button" variant="outline" size="sm"
+            aria-label="Bộ lọc nâng cao" title="Bộ lọc nâng cao"
+            aria-expanded={financeAdvancedOpen} aria-controls="accounting-payout-advanced"
+            onClick={()=>setFinanceAdvancedOpen(v=>!v)}
+            className={`size-10 shrink-0 rounded-lg p-0 ${financeAdvancedOpen?'border-primary bg-primary/10 text-primary':''}`}>
+            <SlidersHorizontal className="size-4" aria-hidden="true"/>
+          </Button>
         </div>}/>
       {financeAdvancedOpen&&<div id="accounting-payout-advanced" className="flex flex-wrap items-center gap-3 border-b border-border/80 bg-muted/20 px-5 py-3 sm:px-6">
         <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-full sm:w-[220px]" value={financeOrganization}
@@ -1175,7 +1179,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               <th scope="col" className="w-[21%] px-3 py-3">Nhà trường</th>
               <th scope="col" className="w-[11%] px-2 py-3">Ngày lập</th>
               <th scope="col" className="w-[11%] px-2 py-3">Ngày chi</th>
-              <th scope="col" className="w-[14%] pl-2 pr-7 py-3 text-right">Số tiền chi</th>
+              <th scope="col" className="w-[14%] pl-2 pr-11 py-3 text-right">Số tiền chi</th>
               <th scope="col" className="w-[11%] px-2 py-3">Trạng thái</th>
               <th scope="col" className="w-[14%] px-2 py-3 text-center">Thao tác</th>
             </tr>
@@ -1192,7 +1196,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               </td>
               <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{channelDate(p.created_at)}</td>
               <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{p.status==='PAID'&&p.paid_at?channelDate(p.paid_at):'—'}</td>
-              <td className="whitespace-nowrap pl-2 pr-7 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
+              <td className="whitespace-nowrap pl-2 pr-11 py-3 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
               <td className="px-3 py-3">
                 <AppStatusBadge size="sm" status={p.status} label={payoutStatusLabel(p.status)}
                   tone={p.status==='PAID'||p.status==='APPROVED'?'success'

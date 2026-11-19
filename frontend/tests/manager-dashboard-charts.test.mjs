@@ -22,7 +22,18 @@ test('dashboard distinguishes incomplete allocation samples and does not invent 
 test('overview preserves permission checks and period-dependent query key',()=>{
   assert.match(source,/allowed=abilities.includes/);
   assert.match(source,/queryKey:\['sales-manager-report',token,period\]/);
-  assert.match(source,/type="month"/);
+  assert.match(source,/AppMonthPicker/);
+  assert.match(source,/label="Kỳ báo cáo" value=\{period\} onChange=\{setPeriod\}/);
+  assert.match(source,/allowAll=\{false\}/);
+  assert.doesNotMatch(source,/type="month"/);
   assert.match(source,/overview.refetch\(\)/);
   assert.match(source,/report.refetch\(\)/);
+});
+
+test('manager refresh reloads overview and selected period without resetting the month',()=>{
+  assert.match(source,/const refresh=\(\)=>\{void overview.refetch\(\);void report.refetch\(\);\}/);
+  assert.match(source,/onClick=\{refresh\}/);
+  assert.match(source,/disabled=\{!connected\|\|overview.isFetching\|\|report.isFetching\}/);
+  assert.match(source,/queryKey:\['sales-manager-report',token,period\]/);
+  assert.doesNotMatch(source,/setPeriod\(currentBusinessPeriod\(\)\)/);
 });

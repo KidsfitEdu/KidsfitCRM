@@ -7,7 +7,7 @@ import {Bar,BarChart,CartesianGrid,Line,LineChart,XAxis,YAxis} from 'recharts';
 import {AppStatCard} from '@/components/common/app-stat-card';
 import {AppPageHeader} from '@/components/common/app-page-header';
 import {AppButton} from '@/components/common/buttons/app-button';
-import {Input} from '@/components/ui/input';
+import {AppMonthPicker} from '@/components/common/forms/app-month-picker';
 import {ChartContainer,ChartTooltip,ChartTooltipContent} from '@/components/ui/chart';
 import {channelRequest,currentBusinessPeriod} from '@/lib/channel-operations';
 import type {SchoolOperationsReport} from '@/lib/school-operations';
@@ -71,9 +71,9 @@ export function DashboardPage({apiBase,token,abilities}:ManagerPageProps){
     <AppPageHeader eyebrow="QUẢN LÝ BÁN HÀNG / KIDSFIT CRM"
       title="Tổng quan đội ngũ" description="Theo dõi đề xuất, phân bổ, gia hạn và hợp đồng trong phạm vi quản lý."
       actions={<div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="manager-dashboard-period" className="text-sm font-medium">Kỳ báo cáo</label>
-        <Input id="manager-dashboard-period" type="month" value={period} onChange={e=>setPeriod(e.currentTarget.value)}
-          className="h-10 w-40 rounded-xl"/>
+        <label className="text-sm font-medium">Kỳ báo cáo</label>
+        <AppMonthPicker label="Kỳ báo cáo" value={period} onChange={setPeriod}
+          allowAll={false} className="w-[168px]"/>
         <AppButton tone="outline" disabled={!connected||overview.isFetching||report.isFetching}
           onClick={refresh} leadingIcon={<RefreshCw className="size-4"/>}>Làm mới</AppButton>
       </div>}/>

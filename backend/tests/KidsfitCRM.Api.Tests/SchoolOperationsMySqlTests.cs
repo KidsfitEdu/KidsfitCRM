@@ -1150,6 +1150,13 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             province: main.Province, ward: main.Ward, availableOnly: true));
         Assert.Contains(before.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("id").GetInt64() == scenario.SchoolId);
+        // The allocation dropdown retrieves real server-filtered results five at a time.
+        var fivePerPage = Json(await SchoolEndpoints.List(Http(scenario.Seller.UserId), db, firstCode, 1, Ct,
+            status: "AVAILABLE", pageSize: 5));
+        Assert.Equal(5, fivePerPage.GetProperty("page_size").GetInt32());
+        Assert.True(fivePerPage.GetProperty("data").GetArrayLength() <= 5);
+        Assert.Contains(fivePerPage.GetProperty("data").EnumerateArray(),
+            x => x.GetProperty("id").GetInt64() == scenario.SchoolId);
         var areas = Json(await SchoolEndpoints.Areas(Http(scenario.Seller.UserId), db, Ct));
         Assert.Contains(areas.GetProperty("data").EnumerateArray(),
             x => x.GetProperty("province").GetString() == main.Province

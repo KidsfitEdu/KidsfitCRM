@@ -60,7 +60,7 @@ export function AllocationSchoolPicker({apiBase,token,value,onChange,initialOpti
         onKeyDown={event=>{if(event.key==='Escape'){setOpened(false);input.current?.blur();}else if(event.key==='ArrowDown'&&!opened){setOpened(true);}}}
         className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-10 text-sm focus-visible:outline-2 focus-visible:outline-primary"/>
       <button type="button" aria-label={opened?'Đóng danh sách trường':'Mở danh sách trường'}
-        aria-expanded={opened} onClick={()=>{setOpened(v=>!v);input.current?.focus();}}
+        aria-expanded={opened} onClick={()=>{if(opened){setOpened(false);input.current?.blur();}else{setOpened(true);input.current?.focus();}}}
         className="absolute right-2 top-1.5 flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
         <ChevronDown className="size-4" aria-hidden="true"/>
       </button>

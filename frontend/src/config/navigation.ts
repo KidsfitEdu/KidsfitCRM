@@ -127,6 +127,8 @@ export const viewCopy: Record<
   'role-board-progress': {eyebrow:'Ban giám đốc',title:'Theo dõi tiến độ',description:'Giám sát Sales/CTV và hoạt động tiếp cận toàn hệ thống theo phân quyền.'},
   'role-board-oversight': {eyebrow:'Ban giám đốc',title:'Báo cáo',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-overdue': {eyebrow:'Ban giám đốc',title:'Quá hạn',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
+  // Legacy deep link redirects to dashboard; not exposed in the sidebar.
+  'role-board-disputes': {eyebrow:'Ban giám đốc',title:'Tổng quan',description:'Đường dẫn cũ được chuyển về Tổng quan.'},
   'role-board-policies': {eyebrow:'Ban giám đốc',title:'Chính sách',description:'Giám sát kết quả, theo dõi hồ sơ và phê duyệt theo thẩm quyền.'},
   'role-board-payouts': {eyebrow:'Ban giám đốc',title:'Duyệt phiếu chi',description:'Xem đề nghị thanh toán Kế toán gửi và phê duyệt hoặc yêu cầu bổ sung.'},
   'role-accounting-dashboard': {eyebrow:'Kế toán',title:'Tổng quan',description:'Theo dõi doanh thu, đối soát và chứng từ tài chính theo phân quyền.'},

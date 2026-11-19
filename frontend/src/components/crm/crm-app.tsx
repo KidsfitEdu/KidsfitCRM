@@ -209,7 +209,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
     };
     window.addEventListener('popstate',onPop);
     return ()=>window.removeEventListener('popstate',onPop);
-  },[visibleNav,isSales]);
+  },[visibleNav,isSales,isAdmin]);
   const navigate = (next: View) => {
     if (!visibleNav.some(item=>item.id===next)) return;
     setView(next);

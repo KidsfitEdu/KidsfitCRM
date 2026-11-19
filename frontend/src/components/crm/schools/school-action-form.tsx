@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { workflowFormValue } from '@/lib/school-operations';
 import { AppCombobox } from '@/components/common/forms/app-combobox';
+import { AllocationSchoolPicker, type AllocationSchoolOption } from '@/components/crm/schools/allocation-school-picker';
 import { AppDateTimePicker } from '@/components/common/forms/app-date-time-picker';
 import { appNotice } from '@/components/common/app-toast-provider';
 
@@ -25,6 +26,7 @@ export type SchoolActionField = {
   optional?: boolean;
   value?: string;
   options?: { value: string; label: string }[];
+  allocationSchoolPicker?: {apiBase:string;token:string;initialOption?:AllocationSchoolOption};
   hint?: string;
   requiredMessage?: string;
 };
@@ -142,7 +144,12 @@ export function SchoolActionForm({
                   ' *'
                 )}
               </label>
-              {field.options ? (
+              {field.allocationSchoolPicker ? (
+                <Controller name={field.name} control={form.control}
+                  render={({field:control})=><AllocationSchoolPicker
+                    {...field.allocationSchoolPicker!} value={control.value??''}
+                    onChange={control.onChange} invalid={!!form.formState.errors[field.name]}/>}/>
+              ) : field.options ? (
                 <Controller
                   name={field.name}
                   control={form.control}

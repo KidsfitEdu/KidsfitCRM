@@ -85,6 +85,8 @@ const kidsfitServiceVisuals: Record<string, StatusVisual & { className:string }>
 const kidsfitActionVisuals: Record<string, StatusVisual & { className:string }> = {
   CONFIRM_RENEWAL: {tone:'info',icon:FileCheck2,
     className:'border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-700 dark:bg-sky-950/80 dark:text-sky-200'},
+  NEEDS_INFO: {tone:'warning',icon:FileClock,
+    className:'border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-700 dark:bg-orange-950/80 dark:text-orange-200'},
   REVIEW_PERIOD: {tone:'info',icon:ClipboardCheck,
     className:'border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-700 dark:bg-violet-950/80 dark:text-violet-200'},
   REQUEST_EVIDENCE: {tone:'warning',icon:FileClock,

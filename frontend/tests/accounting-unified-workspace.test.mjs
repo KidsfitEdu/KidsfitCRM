@@ -78,8 +78,11 @@ test('School-group rows are neutral and the contract term stays on one line',()=
 
 test('Contract table reserves space for all three authorized review actions',()=>{
   assert.match(tree, /<colgroup>/);
-  for(const percent of ['24%','13%','17%','7%'])assert.ok(tree.includes(percent));
-  assert.ok(tree.includes("<col style={{width:'13%'}}/>"));
+  const widths=[...tree.slice(tree.indexOf('<colgroup>'),tree.indexOf('</colgroup>'))
+    .matchAll(/width:'(\\d+)%'/g)].map(match=>Number(match[1]));
+  assert.deepEqual(widths,[20,12,16,12,13,14,13]);
+  assert.equal(widths.reduce((sum,width)=>sum+width,0),100);
+  assert.ok(widths[5]>7,'Cần xử lý must have adequate width');
   assert.ok(tree.includes('whitespace-nowrap">Giá trị hợp đồng'));
   assert.ok(tree.includes('icon={Eye}'));
   assert.ok(tree.includes('icon={CheckCircle2}'));

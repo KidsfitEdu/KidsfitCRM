@@ -95,7 +95,7 @@ export function DashboardPage({apiBase, token, abilities, onSalesNavigate}: Role
     <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM" title="Tổng quan tài chính"
       description={`Theo dõi thực thu, hoa hồng phát sinh và thực chi tháng ${displayPeriod} theo phạm vi tài khoản.`}
       actions={<div className="flex flex-wrap items-center gap-2">
-        <AppMonthPicker label="Kỳ báo cáo" value={period} onChange={value=>{if(value)setPeriod(value);}}
+        <AppMonthPicker label="Kỳ báo cáo" allowAll={false} value={period} onChange={setPeriod}
           className="w-[170px]"/>
         <AdminIconAction icon={RefreshCw} label="Làm mới tổng quan tài chính"
           onClick={()=>{void finance.refetch();}} disabled={!connected||finance.isFetching}/>

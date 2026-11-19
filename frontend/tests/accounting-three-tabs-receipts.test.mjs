@@ -50,7 +50,8 @@ test('Renewal payment schedules are period-specific and linked without mutating 
 });
 
 test('Posted receipts remain readable and cannot be silently edited as drafts',()=>{
-  assert.match(page,/Khoản thu đã ghi nhận không được sửa\/xóa trực tiếp/);
+  assert.match(page,/<AppDrawer open=\{receiptPreview!==null\}/);
+  assert.doesNotMatch(page,/Khoản thu đã ghi nhận không được sửa\/xóa trực tiếp/);
   assert.match(page,/setReceiptPreview\(receipt\)/);
   assert.match(page,/setReceiptRevision\(v=>v\+1\)/);
   assert.match(page,/canRecordRevenue/);

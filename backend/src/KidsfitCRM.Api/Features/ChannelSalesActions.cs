@@ -493,19 +493,51 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                     .Select(x => x.MembershipType).SingleOrDefaultAsync(cancellationToken));
                 contract.UpdatedAt = now;
             }
-            var collected = await db.RevenueReceipts.Where(x => x.ContractId == contract.Id && x.Status == "COMPLETED").SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0;
-            collected -= await db.RevenueRefunds.Where(x => x.ContractId == contract.Id).SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0;
             var amount = decimal.Round(request.Amount, 0);
-            if (collected + amount > contract.TotalValue) throw ApiValidationException.For("amount", "Khoản thu vượt giá trị còn phải thu của hợp đồng.");
-
             var schedule = request.RevenueScheduleId.HasValue
                 ? await db.RevenueSchedules.SingleOrDefaultAsync(x => x.Id == request.RevenueScheduleId && x.ContractId == contract.Id, cancellationToken)
-                : await db.RevenueSchedules.Where(x => x.ContractId == contract.Id && x.Status != "PAID").OrderBy(x => x.DueOn).FirstOrDefaultAsync(cancellationToken);
+                : await db.RevenueSchedules.Where(x => x.ContractId == contract.Id && x.Status != "PAID")
+                    .OrderBy(x => x.DueOn).FirstOrDefaultAsync(cancellationToken);
             if (schedule is null) throw ApiValidationException.For("revenue_schedule_id", "Không tìm thấy kỳ phải thu phù hợp.");
+
+            ContractRenewal? renewal = null;
+            if (schedule.ContractRenewalId.HasValue)
+            {
+                renewal = await db.ContractRenewals.AsNoTracking().SingleOrDefaultAsync(x =>
+                    x.Id == schedule.ContractRenewalId && x.ContractId == contract.Id
+                    && x.Status == "CONFIRMED", cancellationToken);
+                if (renewal is null)
+                    throw new ApiConflictException("Kỳ tái ký chưa được xác nhận hoặc không thuộc hợp đồng.");
+            }
+            // An original and every confirmed renewal each have independent face value.
+            // Only receipts assigned to the selected period consume that period's limit.
+            var periodReceipts = db.RevenueReceipts.Where(x => x.ContractId == contract.Id
+                && x.Status == "COMPLETED");
+            if (schedule.ContractRenewalId.HasValue)
+            {
+                var renewalId = schedule.ContractRenewalId.Value;
+                periodReceipts = periodReceipts.Where(x => db.RevenueSchedules.Any(due =>
+                    due.Id == x.RevenueScheduleId && due.ContractRenewalId == renewalId));
+            }
+            else
+            {
+                // Include pre-migration receipts without a schedule in the original term.
+                periodReceipts = periodReceipts.Where(x => x.RevenueScheduleId == null
+                    || db.RevenueSchedules.Any(due => due.Id == x.RevenueScheduleId
+                        && due.ContractRenewalId == null));
+            }
+            var collected = await periodReceipts.SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
+            if (renewal is null)
+                collected -= await db.RevenueRefunds.Where(x => x.ContractId == contract.Id)
+                    .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
+            var periodValue = renewal?.TotalValue ?? contract.TotalValue;
+            if (collected + amount > periodValue)
+                throw ApiValidationException.For("amount",
+                    "Khoản thu vượt giá trị còn phải thu của kỳ hợp đồng đã chọn.");
             if (schedule.AmountReceived + amount > schedule.AmountDue) throw ApiValidationException.For("amount", "Khoản thu vượt số tiền còn lại của kỳ phải thu.");
 
             var receivedAt = request.ReceivedAt?.ToUniversalTime() ?? now;
-            if (receivedAt > now.AddMinutes(1) || ChannelSalesValidation.BusinessDate(receivedAt) < contract.SignedOn)
+            if (receivedAt > now.AddMinutes(1) || ChannelSalesValidation.BusinessDate(receivedAt) < (renewal?.SignedOn ?? contract.SignedOn))
                 throw ApiValidationException.For("received_at", "Thời điểm thu phải từ ngày ký đến hiện tại.");
             FinancialEvidence? receiptProof = null;
             if (request.EvidenceId.HasValue)

@@ -19,9 +19,14 @@ test('Accounting dashboard uses real finance totals and shared KPI cards',()=>{
 test('Accounting contract and payout lists share rounded cards, action icons and status badges',()=>{
   const s=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
   assert.match(s, /accountingTab==='CONTRACTS'&&<AdminListPanel className="min-w-0"/);
-  assert.match(s, /accountingTab==='PAYOUTS'&&<AdminListPanel>/);
+  assert.match(s, /accountingTab==='PAYOUTS'&&<AdminListPanel className="min-w-0">/);
   assert.match(s, /<thead className=\{adminTableHeadClass\}>/);
-  assert.match(s, /<AdminIconAction icon=\{Eye\} onClick=\{\(\)=>setSelected\(row\.id\)\}/);
+  assert.match(s, /<AppPageHeader eyebrow="KẾ TOÁN \/ KIDSFIT CRM"/);
+  assert.doesNotMatch(s, /ariaLabel="Lọc trạng thái khoản thu"/);
+  assert.match(s, /ariaLabel="Lọc năm nhận tiền"/);
+  assert.match(s, /tone="blue" label=\{'Sửa phiếu chi '/);
+  const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
+  assert.ok(tree.includes('<AdminIconAction icon={Eye}'));
   assert.match(s, /<AppStatusBadge size="sm" status=\{p\.status\}/);
   assert.match(s, /<item\.icon className="size-4 shrink-0"/);
   assert.match(s, /\[scrollbar-width:none\]/);
@@ -29,10 +34,12 @@ test('Accounting contract and payout lists share rounded cards, action icons and
 
 test('Accounting transaction form maintains validation and consistent actions',()=>{
   const s=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(s, /<AppDialog open=\{Boolean\(detail && entryMode\)\}/);
+  assert.match(s, /<AppDialog open=\{Boolean\(detail && entryMode==='payout'\)\}/);
+  assert.match(s, /financialTransactionForm/);
+  assert.match(s, /<AppDialog open=\{receiptIntent\}/);
   assert.match(s, /<AppCurrencyInput id="accounting-amount"/);
   assert.match(s, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
-  assert.match(s, /<AppButton type="submit" tone="green" busy=\{saving\}/);
+  assert.ok(s.includes('form="accounting-financial-transaction-form"'));
   assert.match(s, /focus-visible:ring-ring\/50/);
   assert.match(s, /fieldErrors\.proof/);
   assert.match(s, /fieldErrors\.amount/);

@@ -7,32 +7,23 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const accounting=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const viewer=read('src/components/common/evidence-preview-dialog.tsx');
 
-test('payout table keeps six columns and displays a short copyable-reference-friendly voucher',()=>{
-  assert.match(accounting,/>Mã phiếu<\/th>/);
-  for(const name of ['Người hưởng','Ngày chuyển','Số tiền','Trạng thái','Thao tác'])
-    assert.match(accounting,new RegExp('>'+name+'<\\/th>'));
-  assert.match(accounting,/min-w-\[1000px\] table-fixed/);
-  assert.match(accounting,/truncate font-medium" title=\{x\.code\}/);
-  assert.match(accounting,/title=\{x\.payment_reference\}/);
-  assert.match(accounting,/whitespace-nowrap rounded-full/);
-  assert.match(accounting,/channelMoney\(x\.net_amount\)/);
-  assert.match(accounting,/x\.paid_at\?channelDate/);
-  assert.doesNotMatch(accounting,/BGĐ yêu cầu: \{x\.events/);
+test('Payout records remain in the central workspace rather than contract detail',()=>{
+  const detail=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
+  assert.doesNotMatch(detail,/Lịch sử phiếu chi liên quan|Hoa hồng & phiếu chi/);
+  assert.match(accounting,/visiblePayouts\.map\(p=>/);
+  assert.match(accounting,/payoutPreview\.events\.map\(/);
+  assert.match(accounting,/contract_ids\?\.length!==1/);
+  assert.match(accounting,/setPayoutPreview\(p\)/);
 });
-test('Board change requests open in a popover rather than expanding status rows',()=>{
-  assert.match(accounting,/PopoverTrigger type="button" title="Xem yêu cầu bổ sung từ BGĐ"/);
-  assert.match(accounting,/MessageSquareText/);
-  assert.match(accounting,/PopoverContent side="top" align="end"/);
-  assert.match(accounting,/latestRequest\?\.reason\?\.trim\(\)/);
-  assert.match(accounting,/max-h-52 overflow-y-auto whitespace-pre-wrap break-words/);
-  assert.match(accounting,/x\.status==='CHANGES_REQUESTED'&&<Popover>/);
-});
-test('editing a returned payout shows the latest Board request above the form',()=>{
+
+test('Board change requests are readable in a central payout detail and still appear when editing',()=>{
+  assert.match(accounting,/payoutPreview\.events/);
+  assert.match(accounting,/event\.reason/);
   assert.match(accounting,/editingPayout\?\.status==='CHANGES_REQUESTED'/);
   assert.match(accounting,/editingPayout\.events\.filter\(event=>event\.event_type==='CHANGES_REQUESTED'\)\.at\(-1\)/);
   assert.match(accounting,/BGĐ yêu cầu bổ sung/);
-  assert.match(accounting,/onClick=\{\(\)=>openDraft\(x\)\}/);
-  assert.match(accounting,/onClick=\{\(\)=>void submitPayout\(x\.id\)\}/);
+  assert.match(accounting,/mode:'EDIT'/);
+  assert.match(accounting,/submitPayout\(pendingPayoutSubmit\.id\)/);
 });
 test('shared image viewer is headerless/footerless and uses measured fit-to-screen presentation',()=>{
   assert.match(viewer,/min\(1, stageSize\.width\/imageSize\.width, stageSize\.height\/imageSize\.height\)/);

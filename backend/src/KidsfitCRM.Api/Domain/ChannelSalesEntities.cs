@@ -152,6 +152,8 @@ public sealed class CustomerProtection : EntityBase
 public sealed class RevenueSchedule : EntityBase
 {
     public long ContractId { get; set; }
+    // Null for the verified original contract; populated for each confirmed renewal.
+    public long? ContractRenewalId { get; set; }
     public decimal AmountDue { get; set; }
     public decimal AmountReceived { get; set; }
     public DateOnly DueOn { get; set; }
@@ -263,6 +265,8 @@ public sealed class ReconciliationEvent : EntityBase
 public sealed class ContractRenewal : EntityBase
 {
     public long ContractId { get; set; }
+    // Independent signed-document code; null only for legacy renewal records.
+    public string? ContractCode { get; set; }
     public int RenewalNo { get; set; }
     public string IdempotencyKey { get; set; } = "";
     public string RequestFingerprint { get; set; } = "";

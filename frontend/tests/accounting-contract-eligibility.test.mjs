@@ -6,16 +6,14 @@ import test from 'node:test';
 const root = resolve(import.meta.dirname, '..');
 const read = path => readFileSync(resolve(root, path), 'utf8');
 
-test('Accounting filters verified contracts with owner id and uses scoped owner options', () => {
+test('Accounting contract filters use server-scoped verified contracts and date-only range', () => {
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(ui, /status:workspaceStatus/);
+  const workspace = read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
   assert.match(ui, /\/accounting\/workspace/);
-  assert.match(ui, /params\.set\('owner_user_id', ownerUserId\)/);
-  assert.match(ui, /Array\.isArray\(result\.owners\) \? result\.owners : \[\]/);
-  assert.match(ui, /owners\?: \{ id: number; name: string \}\[\] \| null/);
-  assert.match(ui, /owner\.id/);
-  assert.match(ui, /value:String\(owner\.id\),label:owner\.name/);
-  assert.match(ui, /Tất cả người phụ trách/);
+  assert.match(ui, /params\.set\('service_from',appliedServiceFrom\)/);
+  assert.match(ui, /params\.set\('service_to',appliedServiceTo\)/);
+  assert.match(workspace, /access\.Contracts\(db\)\.AsNoTracking\(\)/);
+  assert.match(workspace, /c\.VerifiedAt\.HasValue/);
   const page = read('src/screens/Accounting/Revenue/RevenuePage.tsx');
   assert.doesNotMatch(page, /AccountingTab|ServiceInterruptionPanel|ContractRenewalAccountingPanel/);
   assert.match(page, /<AccountingContractsPage/);
@@ -31,9 +29,10 @@ test('Accounting backend enforces verification in both listing and detail', () =
   assert.match(api, /financial_view/);
 });
 
-test('Missing or null owners in legacy API responses never reach the dropdown map', () => {
+test('Removing redundant Sales filter does not change backend record permissions', () => {
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  assert.match(ui, /const \[owners, setOwners\] = useState<\{ id: number; name: string \}\[]>\(\[\]\)/);
-  assert.match(ui, /setOwners\(Array\.isArray\(result\.owners\) \? result\.owners : \[\]\)/);
-  assert.match(ui, /\.\.\.owners\.map\(owner=>/);
+  const workspace = read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
+  assert.doesNotMatch(ui, /ownerUserId|owners\.map\(|setOwners/);
+  assert.match(workspace, /access\.Has\(Permissions\.ChannelSalesCommissionView\)/);
+  assert.match(workspace, /access\.Contracts\(db\)\.AsNoTracking\(\)/);
 });

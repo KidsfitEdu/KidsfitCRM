@@ -366,6 +366,26 @@ body { font-family: var(--font-brand); }
   .crm-workspace-content table:not(.crm-school-table) :where(th, td) { white-space: nowrap; }
 }
 
+/* Only the Accounting contract tree uses compact cells. The shared CRM table
+   rules add 1rem side padding, which otherwise creates a false empty column. */
+.crm-workspace-content table.crm-accounting-contract-table thead th {
+  padding: 0.75rem 0.5rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+}
+.crm-workspace-content table.crm-accounting-contract-table tbody td {
+  padding: 0.75rem 0.5rem;
+}
+.crm-workspace-content table.crm-accounting-contract-table tbody td.crm-contract-school-cell {
+  padding-left: 2.25rem;
+}
+
+/* Offset only the contract-value heading. Values stay centered in their column. */
+.crm-workspace-content table.crm-accounting-contract-table thead th.crm-contract-amount-cell {
+  padding-right: 1.25rem;
+}
+
 /* Shared motion language: subtle, compositor-friendly, and accessible. */
 @keyframes crm-skeleton-shimmer {
   0% { background-position: 150% 0; }

@@ -184,6 +184,11 @@ public static class AccountingContractEndpoints
             contract.source_payment_cycle, confirmedPeriods, ChannelSalesValidation.BusinessDate(DateTime.UtcNow));
         var schedules = await db.RevenueSchedules.AsNoTracking().Where(x => x.ContractId == id)
             .OrderBy(x => x.DueOn).Select(x => new { id = x.Id, due_on = x.DueOn,
+                contract_renewal_id = x.ContractRenewalId,
+                renewal_no = db.ContractRenewals.Where(r => r.Id == x.ContractRenewalId)
+                    .Select(r => (int?)r.RenewalNo).FirstOrDefault(),
+                renewal_signed_on = db.ContractRenewals.Where(r => r.Id == x.ContractRenewalId)
+                    .Select(r => (DateOnly?)r.SignedOn).FirstOrDefault(),
                 amount_due = x.AmountDue, amount_received = x.AmountReceived, status = x.Status }).ToArrayAsync(ct);
         var receipts = await db.RevenueReceipts.AsNoTracking().Where(x => x.ContractId == id && x.Status == "COMPLETED")
             .OrderByDescending(x => x.ReceivedAt).Select(x => new {
@@ -203,6 +208,8 @@ public static class AccountingContractEndpoints
                 beneficiary_role = entry.BeneficiaryRole, policy_source = entry.PolicySource,
                 board_policy_version_id = entry.BoardPolicyVersionId,
                 beneficiary_organization_id = entry.BeneficiaryOrganizationId,
+                payout_id = db.PayoutItems.Where(item => item.CommissionLedgerEntryId == entry.Id)
+                    .Select(item => (long?)item.PayoutId).FirstOrDefault(),
                 assigned_to_payout = db.PayoutItems.Any(item => item.CommissionLedgerEntryId == entry.Id)
             }).ToArrayAsync(ct);
         var payoutIds = db.PayoutItems.Where(x => access.Commissions(db).Any(e => e.Id == x.CommissionLedgerEntryId && e.ContractId == id)).Select(x => x.PayoutId);

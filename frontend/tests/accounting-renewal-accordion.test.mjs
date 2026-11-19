@@ -11,7 +11,7 @@ const source=api.slice(api.indexOf('public static async Task<IResult> Accounting
   api.indexOf('private static IQueryable<ContractRenewal> ScopedAccounting('));
 
 test('Accounting history visually matches Sales: source contract and renewals in one accordion',()=>{
-  for(const phrase of ['Hợp đồng & lịch sử tái ký','Hợp đồng gốc','Tái ký lần ',
+  for(const phrase of ['Hồ sơ hợp đồng đang xem','Hợp đồng lần đầu','Tái ký lần ',
     'aria-expanded={expanded}','aria-controls={\'accounting-period-\'+key}',
     'Chứng từ ','Lịch sử xử lý','Giá trị hợp đồng','Kỳ sử dụng'])
     assert.ok(ui.includes(phrase),phrase);
@@ -22,6 +22,7 @@ test('Accounting history visually matches Sales: source contract and renewals in
     assert.ok(ui.includes(phrase)&&sales.includes(phrase),phrase);
   assert.match(ui,/response\.data\.find\(p=>p\.type==='RENEWAL'&&p\.status==='PENDING_ACCOUNTING'\)/);
   assert.match(ui,/const latest=response\.data\.at\(-1\)/);
+  assert.match(ui,/periods\.filter\(p=>p\.type==='RENEWAL'&&p\.id===focusRenewalId\)/);
   assert.match(ui,/setSelected\(expanded\?null:key\)/);
   assert.doesNotMatch(ui,/<AppDrawer/);
 });

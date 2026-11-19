@@ -7,11 +7,12 @@ const read = path => readFileSync(resolve(import.meta.dirname, '..', path), 'utf
 
 test('Accounting hides the redundant GI-01 explanatory copy but retains protection status and history', () => {
   const accounting = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  const details=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
   assert.doesNotMatch(accounting, /Đủ hoặc quá 12 tháng không đồng nghĩa đã hết bảo vệ/);
   assert.doesNotMatch(accounting, /Kế toán không tự kết thúc hoặc cấp quyền bảo vệ/);
-  assert.match(accounting, /Tình trạng dịch vụ & quyền bảo vệ/);
-  assert.match(accounting, /Quyền bảo vệ Sales:/);
-  assert.match(accounting, /Lịch sử xử lý gián đoạn \(GI-01\)/);
+  assert.match(details, /Tình trạng dịch vụ và quyền bảo vệ toàn nhà trường/);
+  assert.match(details, /Quyền bảo vệ Sales/);
+  assert.match(details, /Lịch sử xử lý gián đoạn \(GI-01\)/);
 });
 
 test('Accounting receipt and payout share the Sales currency input, with raw digit values in state', () => {

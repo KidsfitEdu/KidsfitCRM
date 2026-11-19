@@ -726,6 +726,52 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
     }
 
     [MySqlFact]
+    public async Task Finance_workspace_candidates_and_payouts_resolve_exact_scoped_contracts()
+    {
+        var seller = await Seller();
+        var (_, contractId) = await Contract(seller);
+        var accountant = await UserId("accountant@kidsfit.vn");
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        await actions.RecordRevenueReceipt(contractId, new RecordRevenueReceiptRequest(
+            Key(), null, 300_000m, DateTime.UtcNow, "RC-" + Key(), "BANK_TRANSFER"),
+            accountant, Http(), Ct);
+        var entry = await db.CommissionLedgerEntries.AsNoTracking().SingleAsync(x => x.ContractId == contractId);
+        var userContext = new DefaultHttpContext {
+            User = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, accountant.ToString())],
+                    "IntegrationTest"))
+        };
+        async Task<System.Text.Json.JsonElement> Workspace()
+        {
+            var response = await ChannelSalesOperationsEndpoints.Finance(userContext, db, entry.Period, Ct);
+            return System.Text.Json.JsonSerializer.SerializeToElement(
+                ((Microsoft.AspNetCore.Http.IValueHttpResult)response).Value);
+        }
+
+        var before = await Workspace();
+        Assert.Contains(before.GetProperty("eligible_payouts").EnumerateArray(),
+            candidate => candidate.GetProperty("contract_id").GetInt64() == contractId
+                && candidate.GetProperty("beneficiary_user_id").GetInt64() == seller
+                && candidate.GetProperty("amount").GetDecimal() > 0m);
+
+        var payoutId = await actions.CreatePayout(new CreatePayoutRequest(
+            Key(), entry.BeneficiaryOrganizationId, seller, entry.Period, 0m, null,
+            ContractId: contractId), accountant, Http(), Ct);
+        db.ChangeTracker.Clear();
+        var after = await Workspace();
+        Assert.DoesNotContain(after.GetProperty("eligible_payouts").EnumerateArray(),
+            candidate => candidate.GetProperty("contract_id").GetInt64() == contractId
+                && candidate.GetProperty("beneficiary_user_id").GetInt64() == seller);
+        var payout = Assert.Single(after.GetProperty("payouts").EnumerateArray()
+            .Where(item => item.GetProperty("Id").GetInt64() == payoutId));
+        Assert.Equal(contractId, Assert.Single(payout.GetProperty("contract_ids").EnumerateArray()).GetInt64());
+        Assert.NotEmpty(payout.GetProperty("contract_codes").EnumerateArray());
+        Assert.NotEmpty(payout.GetProperty("school_names").EnumerateArray());
+    }
+
+    [MySqlFact]
     public async Task Contract_to_payout_has_no_duplicate_cash_or_commissions_and_keeps_ledger_immutable()
     {
         var seller = await Seller();

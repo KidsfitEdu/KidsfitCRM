@@ -32,8 +32,9 @@ test('Payout previews amount, withholding and approval process',()=>{
   assert.ok(finance.includes('if (payout.Status != "APPROVED")'));
   assert.ok(ui.includes('amount!==payout.net_amount'));
 });
-test('Contract-scoped payout evidence and net receipts are shown',()=>{
+test('Backend retains payout and refund records while receipt evidence is accessible',()=>{
   assert.ok(endpoint.includes('payoutIds.Contains(x.PayoutId.Value)'));
   assert.ok(endpoint.includes('refunded_total = refundedTotal'));
-  assert.ok(ui.includes('detail.refunded_total??0'));
+  assert.ok(ui.includes('receiptRows.map(receipt=>'));
+  assert.ok(ui.includes('receipt.proof_id&&receipt.proof_file_name'));
 });

@@ -1,16 +1,17 @@
 'use client';
 
-import { getServicePlanLabel } from '@/lib/contract-payment-plan';
+/* eslint-disable jsx-a11y/prefer-tag-over-role -- Custom search combobox needs listbox semantics and remote pagination. */
+
 import { accountingTransactionTimestamp, contractSignedDay, validateTransactionDay } from '@/lib/accounting-transaction-date';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MapPin, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, UserRound, UsersRound, WalletCards } from 'lucide-react';
+import { ClipboardCheck, Eye, FileCheck2, HandCoins, Image as ImageIcon, MessageSquareText, Pencil, Plus, RotateCcw, Search, Send, SlidersHorizontal, UserRound, WalletCards, X } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppPagination } from '@/components/common/app-pagination';
+import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppSelect } from '@/components/common/app-select';
 import { AdminIconAction, AdminListPanel, AdminListToolbar, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
-import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,16 +20,13 @@ import { channelDate, channelMoney, channelRequest, ChannelRequestError, parseMo
 import { EvidencePreviewDialog } from '@/components/common/evidence-preview-dialog';
 import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { AppSkeleton, InlineLoading } from '@/components/common/app-loading';
-import { AccountingRenewalInline } from './AccountingRenewalInline';
-
-const paymentScheduleLabel = (status: string) => ({
-  PAID: 'Đã thanh toán',
-  PENDING: 'Chưa thanh toán',
-  PARTIAL: 'Thanh toán một phần',
-  PARTIALLY_PAID: 'Thanh toán một phần',
-  OVERDUE: 'Quá hạn',
-  CANCELLED: 'Đã hủy',
-} as Record<string, string>)[status] ?? 'Chưa xác định';
+import { AccountingContractDetailContent } from './AccountingContractDetailContent';
+import { AccountingContractTreeTable } from './AccountingContractTreeTable';
+import { AppMonthPicker } from '@/components/common/forms/app-month-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AccountingReceiptProofUpload } from './AccountingReceiptProofUpload';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
+import { AccountingReceivablePicker, type ReceivableContract } from './AccountingReceivablePicker';
 
 const payoutStatusLabel = (status: string) => ({
   DRAFT: 'Nháp',
@@ -39,6 +37,12 @@ const payoutStatusLabel = (status: string) => ({
   CANCELLED: 'Đã hủy',
   REJECTED: 'Đã từ chối',
 } as Record<string, string>)[status] ?? 'Chưa xác định';
+
+const payoutEventLabel = (eventType: string) => ({
+  CREATED:'Đã lập phiếu',EDITED:'Đã chỉnh sửa',SUBMITTED:'Đã gửi BGĐ',
+  CHANGES_REQUESTED:'BGĐ yêu cầu bổ sung',APPROVED:'BGĐ đã duyệt',
+  PAID:'Kế toán đã chi',REJECTED:'Đã từ chối',CANCELLED:'Đã hủy',
+} as Record<string,string>)[eventType] ?? 'Sự kiện phiếu chi';
 
 // Presentation only: preserve the YYYY-MM period used by payout API and accounting ledger.
 const payoutPeriodLabel = (period: string) => {
@@ -54,7 +58,7 @@ type FieldErrors = Partial<Record<'transaction_date' | 'amount' | 'reference_cod
 
 type ServicePeriod = { start_on:string; end_on:string; payment_cycle:string;
   renewal_id:number|null; renewal_no:number|null; gap_reason:string|null };
-type ContractRow = {
+export type ContractRow = {
   current_period:ServicePeriod|null;
   next_confirmed_period:ServicePeriod|null;
   latest_confirmed_period:ServicePeriod|null;
@@ -82,18 +86,28 @@ type ContractRow = {
   action:string|null;
   pending_renewal_id:number|null;
   has_financial_history:boolean;
+  source_service_start_on?:string|null;source_service_end_on?:string|null;
+  periods?:{id:number;renewal_no:number;status:string;service_start_on:string;service_end_on:string;total_value:number;
+    contract_code:string|null;signed_on:string;payment_cycle:string;received:number;commission:number}[];
 };
 type ContractList = { data: ContractRow[]; owners?: { id: number; name: string }[] | null; total: number; page: number; page_size: number };
-type BackfillPreview={
-  receipt_id:number;contract_id:number;eligible_cash:number;
-  sales_user_id:number;manager_user_id:number|null;manager_name:string|null;
-  manager_review_required:boolean;requires_manager_verification:boolean;
-  sales_percent:number;manager_percent:number;
-  sales_amount:number;manager_amount:number;
-  policy_source:string;board_policy_version_id:number|null;
-  has_existing_ledger:boolean;can_apply:boolean;
+type ReceiptRow = {
+  id:number;contract_id:number;contract_code:string;school_name:string;
+  amount:number;received_at:string;reference_code:string;payment_method:string;
+  status:string;schedule_id:number|null;proof_id:number|null;proof_file_name:string|null;
 };
-type Detail = {
+type ReceiptList = {data:ReceiptRow[];total:number;page:number;page_size:number};
+type ReceivableList={data:ReceivableContract[];total:number;page:number;page_size:number};
+type PayoutRow=FinanceWorkspace['payouts'][number]&{
+  can_edit:boolean;can_submit:boolean;can_approve:boolean;can_complete:boolean;
+};
+type PayoutRegister={
+  data:PayoutRow[];total:number;page:number;page_size:number;
+  organizations:FinanceWorkspace['organizations'];
+};
+type EligibleRow=NonNullable<FinanceWorkspace['eligible_payouts']>[number];
+type EligibleRegister={data:EligibleRow[];total:number;page:number;page_size:number};
+export type Detail = {
   current_period:ServicePeriod|null;
   next_confirmed_period:ServicePeriod|null;
   latest_confirmed_period:ServicePeriod|null;
@@ -104,15 +118,15 @@ type Detail = {
     source_service_start_on:string|null;source_service_end_on:string|null;source_payment_cycle:string|null;
     service_start_on:string|null;service_end_on:string|null;payment_cycle:string|null;
     protection_until:string|null };
-  schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string }[];
+  schedules: { id: number; due_on: string; amount_due: number; amount_received: number; status: string; renewal_no?: number|null; contract_renewal_id?: number|null; renewal_signed_on?: string|null }[];
   refunded_total: number;
-  receipts: { id: number; received_at: string; amount: number; reference_code: string; payment_method: string }[];
+  receipts: { id: number; revenue_schedule_id:number|null; received_at: string; amount: number; reference_code: string; payment_method: string }[];
   ledger: { id: number; entry_type: string; amount: number; rate_percent: number; calculation_base:number;
     reason: string | null; occurred_at: string;
     period: string; beneficiary_user_id: number; beneficiary_name: string; beneficiary_organization_id: number;
     revenue_receipt_id:number|null;
     beneficiary_role: 'SALES'|'MANAGER'; policy_source: string; board_policy_version_id: number|null;
-    assigned_to_payout: boolean }[];
+    assigned_to_payout: boolean;payout_id?:number|null }[];
   payouts: { id: number; code: string; net_amount: number; status: string; paid_at: string | null; payment_reference: string | null;
     beneficiary_role:'SALES'|'MANAGER'; beneficiary_user_id:number;
     suggested_rate_percent:number; requested_rate_percent:number;
@@ -131,16 +145,49 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [ownerUserId, setOwnerUserId] = useState('ALL');
-  const [workspaceStatus, setWorkspaceStatus] = useState('ALL');
-  const [owners, setOwners] = useState<{ id: number; name: string }[]>([]);
+  const [needsAction,setNeedsAction]=useState('ALL');
+  const [contractServiceMonth,setContractServiceMonth]=useState('');
+  const [appliedServiceFrom,setAppliedServiceFrom]=useState('');
+  const [appliedServiceTo,setAppliedServiceTo]=useState('');
+  const [selectedPeriodId,setSelectedPeriodId]=useState<number|null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [accountingTab,setAccountingTab]=useState<'CONTRACTS'|'PAYOUTS'>('CONTRACTS');
-  const [financePeriod,setFinancePeriod]=useState(()=>new Intl.DateTimeFormat('sv-SE',{
-    timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
-  }).format(new Date()));
+  const [accountingTab,setAccountingTab]=useState<'CONTRACTS'|'RECEIPTS'|'PAYOUTS'>('CONTRACTS');
+  const [receiptRows,setReceiptRows]=useState<ReceiptRow[]>([]);
+  const [receiptTotal,setReceiptTotal]=useState(0);
+  const [receiptPage,setReceiptPage]=useState(1);
+  const [receiptPageSize,setReceiptPageSize]=useState(20);
+  const [receiptSearch,setReceiptSearch]=useState('');
+  const [receiptAppliedSearch,setReceiptAppliedSearch]=useState('');
+  const [receiptPeriod,setReceiptPeriod]=useState('');
+  const [receiptAppliedPeriod,setReceiptAppliedPeriod]=useState('');
+  const [receiptLoading,setReceiptLoading]=useState(false);
+  const [receiptRevision,setReceiptRevision]=useState(0);
+  const [receiptPreview,setReceiptPreview]=useState<ReceiptRow|null>(null);
+  const [transactionDate,setTransactionDate]=useState(()=>accountingBusinessDay(new Date()));
+  const [transactionReference,setTransactionReference]=useState('');
+  const [receivableSearch,setReceivableSearch]=useState('');
+  const [receivablePage,setReceivablePage]=useState(1);
+  const [receivableRows,setReceivableRows]=useState<ReceivableContract[]>([]);
+  const [receivableTotal,setReceivableTotal]=useState(0);
+  const [receivableLoading,setReceivableLoading]=useState(false);
+  const [receivableChoice,setReceivableChoice]=useState<ReceivableContract|null>(null);
+  const [receivablePickerOpen,setReceivablePickerOpen]=useState(false);
+  const [receiptNoDue,setReceiptNoDue]=useState(false);
+  const [receiptProofSelected,setReceiptProofSelected]=useState(false);
+  const [pendingReceivable,setPendingReceivable]=useState<ReceivableContract|null>(null);
+  const [receiptIntent,setReceiptIntent]=useState(false);
+  const [financeCreatedMonth,setFinanceCreatedMonth]=useState('');
   const [financeStatus,setFinanceStatus]=useState('ALL');
+  useEffect(()=>{
+    // Dashboard shortcuts use URL parameters; the list remains server-authorized.
+    const query=new URLSearchParams(window.location.search);
+    const tab=query.get('tab');
+    if(tab==='PAYOUTS'||tab==='RECEIPTS'||tab==='CONTRACTS')setAccountingTab(tab);
+    const status=query.get('status');
+    if(tab==='PAYOUTS'&&status&&['DRAFT','PENDING_APPROVAL','CHANGES_REQUESTED','APPROVED','PAID','CANCELLED','REJECTED'].includes(status))
+      setFinanceStatus(status);
+  },[]);
   const [financeOrganization,setFinanceOrganization]=useState('ALL');
   const [financeSearch,setFinanceSearch]=useState('');
   const [financeAppliedSearch,setFinanceAppliedSearch]=useState('');
@@ -148,19 +195,44 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [financePageSize,setFinancePageSize]=useState(20);
   const [financeLoading,setFinanceLoading]=useState(false);
   const [financeRole,setFinanceRole]=useState('ALL');
-  const [financeOverview,setFinanceOverview]=useState<FinanceWorkspace|null>(null);
+  const [financeAdvancedOpen,setFinanceAdvancedOpen]=useState(false);
+  const [payoutRows,setPayoutRows]=useState<PayoutRow[]>([]);
+  const [payoutTotal,setPayoutTotal]=useState(0);
+  const [payoutOrganizations,setPayoutOrganizations]=useState<FinanceWorkspace['organizations']>([]);
+  const [eligibleRows,setEligibleRows]=useState<EligibleRow[]>([]);
+  const [eligibleTotal,setEligibleTotal]=useState(0);
+  const [eligiblePage,setEligiblePage]=useState(1);
+  const [eligibleLoading,setEligibleLoading]=useState(false);
+  const [payoutPickerOpen,setPayoutPickerOpen]=useState(false);
+  const [payoutPickerSearch,setPayoutPickerSearch]=useState('');
+  const [payoutSchoolSearchOpen,setPayoutSchoolSearchOpen]=useState(false);
+  const [payoutSchoolActiveIndex,setPayoutSchoolActiveIndex]=useState(0);
+  const [payoutCandidateKey,setPayoutCandidateKey]=useState('');
+  const [payoutCreatePeriod,setPayoutCreatePeriod]=useState('');
+  const [payoutSchool,setPayoutSchool]=useState<{id:number;code:string;name:string}|null>(null);
+  const [payoutSchoolCandidates,setPayoutSchoolCandidates]=useState<EligibleRow[]>([]);
+  const [payoutSchoolLoading,setPayoutSchoolLoading]=useState(false);
+  const [payoutDetailError,setPayoutDetailError]=useState('');
+  const [payoutPreview,setPayoutPreview]=useState<PayoutRow|null>(null);
+  const [pendingPayoutSubmit,setPendingPayoutSubmit]=useState<PayoutRow|null>(null);
+  const payoutSubmitPending=useRef(false);
+  const [centralPayoutIntent,setCentralPayoutIntent]=useState<{
+    contractId:number;beneficiaryUserId:number;role:'SALES'|'MANAGER';period:string;
+    mode:'CREATE'|'EDIT'|'COMPLETE';payoutId?:number;
+  }|null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [focusedRenewal,setFocusedRenewal]=useState<{id:number;action:'view'|'confirm'|'request-info'}|null>(null);
+  const openContract=(id:number,renewalId:number|null=null)=>{
+    setFocusedRenewal(null);setSelectedPeriodId(renewalId);setSelected(id);
+  };
+  const openRenewal=(contractId:number,renewalId:number,action:'view'|'confirm'|'request-info')=>{
+    setSelectedPeriodId(renewalId);setFocusedRenewal({id:renewalId,action});setSelected(contractId);
+  };
   const [detail, setDetail] = useState<Detail | null>(null);
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
   const loadedContractId = useRef<number | null>(null);
-  const payoutSectionRef = useRef<HTMLElement | null>(null);
-  const [payoutHistoryYear,setPayoutHistoryYear] = useState('ALL');
-  const [payoutHistoryStatus,setPayoutHistoryStatus] = useState('ALL');
-  const [payoutHistoryPage,setPayoutHistoryPage] = useState(1);
-  const [receiptHistoryYear,setReceiptHistoryYear] = useState('ALL');
-  const [receiptHistoryPage,setReceiptHistoryPage] = useState(1);
-  const [showAllSchedules,setShowAllSchedules] = useState(false);
+
   const [payoutPeriod, setPayoutPeriod] = useState('');
   const [payoutBeneficiary, setPayoutBeneficiary] = useState('');
   const [payoutDialogOpen,setPayoutDialogOpen] = useState(false);
@@ -170,10 +242,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [payoutAdjustmentReason,setPayoutAdjustmentReason]=useState('');
   const [returningPayoutId,setReturningPayoutId]=useState<number|null>(null);
   const [payoutReturnReason,setPayoutReturnReason]=useState('');
-  const [backfillPreview,setBackfillPreview]=useState<BackfillPreview|null>(null);
-  const [backfillReason,setBackfillReason]=useState('');
-  const [backfillManagerVerified,setBackfillManagerVerified]=useState(false);
-  const [backfillBusy,setBackfillBusy]=useState(false);
   const [payoutWithholding,setPayoutWithholding] = useState('0');
   const [payoutWithholdingReason,setPayoutWithholdingReason] = useState('');
   const [payoutError,setPayoutError] = useState('');
@@ -187,19 +255,21 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
+  const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
+  const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
   const canView = abilities.includes('channel_sales.commission.view') || abilities.includes('*');
   const connected = Boolean(apiBase && token && canView);
   const load = useCallback(async () => {
     if (!connected) return;
     setBusy(true);
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), status:workspaceStatus });
-      if (ownerUserId !== 'ALL') params.set('owner_user_id', ownerUserId);
+      const params = new URLSearchParams({page:String(page),page_size:String(pageSize),status:'ALL'});
+      if(appliedServiceFrom)params.set('service_from',appliedServiceFrom);
+      if(appliedServiceTo)params.set('service_to',appliedServiceTo);
+      if(needsAction!=='ALL')params.set('needs_action','true');
       if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
       const result = await channelRequest<ContractList>(apiBase, token, `/accounting/workspace?${params.toString()}`);
       setRows(result.data);
-      // During staged deployments the previous API may not include owner options yet.
-      setOwners(Array.isArray(result.owners) ? result.owners : []);
       setTotal(result.total);
     } catch (cause) {
       // Preserve the current rows on transient failures so the list does not flash empty.
@@ -207,21 +277,98 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     } finally {
       setBusy(false);
     }
-  }, [apiBase, token, page, pageSize, appliedSearch, ownerUserId, workspaceStatus, connected]);
+  }, [apiBase,token,page,pageSize,appliedSearch,appliedServiceFrom,appliedServiceTo,needsAction,connected]);
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{
     if(!connected||accountingTab!=='PAYOUTS')return;
     let active=true;
     setFinanceLoading(true);
-    setFinanceOverview(null);
-    void channelRequest<FinanceWorkspace>(apiBase,token,
-      `/finance?period=${encodeURIComponent(financePeriod)}`)
-      .then(value=>{if(active)setFinanceOverview(value);})
+    const params=new URLSearchParams({page:String(financePage),page_size:String(financePageSize)});
+    if(financeCreatedMonth){
+      params.set('year',financeCreatedMonth.slice(0,4));
+      params.set('month',String(Number(financeCreatedMonth.slice(5,7))));
+    }
+    if(financeAppliedSearch)params.set('search',financeAppliedSearch);
+    if(financeStatus!=='ALL')params.set('status',financeStatus);
+    if(financeRole!=='ALL')params.set('role',financeRole);
+    if(financeOrganization!=='ALL')params.set('organization_id',financeOrganization);
+    void channelRequest<PayoutRegister>(apiBase,token,'/accounting/payouts?'+params)
+      .then(value=>{if(active){
+        setPayoutRows(value.data);setPayoutTotal(value.total);
+        setPayoutOrganizations(value.organizations);
+      }})
       .catch(cause=>{if(active)appNotice.error('Không tải được danh sách phiếu chi.',
         cause instanceof Error?cause.message:'Vui lòng thử lại.');})
       .finally(()=>{if(active)setFinanceLoading(false);});
     return()=>{active=false;};
-  },[apiBase,token,connected,accountingTab,financePeriod,detailRevision]);
+  },[apiBase,token,connected,accountingTab,financeCreatedMonth,financePage,
+    financePageSize,financeAppliedSearch,financeStatus,financeRole,financeOrganization,detailRevision]);
+
+  useEffect(()=>{
+    if(!connected||!canCreatePayout||accountingTab!=='PAYOUTS'||!payoutPickerOpen)return;
+    let active=true;setEligibleLoading(true);
+    const params=new URLSearchParams({page:String(eligiblePage),page_size:'20'});
+    if(payoutPickerSearch.trim())params.set('search',payoutPickerSearch.trim());
+    // New drafts are independent of list-only role/organization filters.
+    void channelRequest<EligibleRegister>(apiBase,token,'/accounting/eligible-payouts?'+params)
+      .then(res=>{if(active){setEligibleRows(res.data);setEligibleTotal(res.total);}})
+      .catch(cause=>{if(active)appNotice.error('Không tải được khoản hoa hồng đủ điều kiện.',
+        cause instanceof Error?cause.message:'Vui lòng thử lại.');})
+      .finally(()=>{if(active)setEligibleLoading(false);});
+    return()=>{active=false;};
+  },[apiBase,token,connected,canCreatePayout,accountingTab,
+    payoutPickerOpen,payoutPickerSearch,eligiblePage,detailRevision]);
+
+  // Retrieve all eligible role choices for the selected contract (not just the
+  // current school-search page). The server owns authorization and eligibility.
+  useEffect(()=>{
+    if(!connected||!canCreatePayout||!payoutPickerOpen||!payoutSchool){
+      setPayoutSchoolCandidates([]);setPayoutSchoolLoading(false);return;
+    }
+    let alive=true;setPayoutSchoolLoading(true);setPayoutSchoolCandidates([]);
+    const params=new URLSearchParams({contract_id:String(payoutSchool.id),page:'1',page_size:'100'});
+    void channelRequest<EligibleRegister>(apiBase,token,'/accounting/eligible-payouts?'+params)
+      .then(result=>{if(alive)setPayoutSchoolCandidates(result.data.filter(item=>
+        item.contract_id===payoutSchool.id&&item.amount>0));})
+      .catch(error=>{if(alive){
+        setPayoutSchoolCandidates([]);
+        appNotice.error('Không tải được người hưởng hoa hồng.',error instanceof Error?error.message:'Vui lòng thử lại.');
+      }})
+      .finally(()=>{if(alive)setPayoutSchoolLoading(false);});
+    return()=>{alive=false;};
+  },[apiBase,token,connected,canCreatePayout,payoutPickerOpen,payoutSchool,detailRevision]);
+
+  useEffect(()=>{
+    if(!connected||accountingTab!=='RECEIPTS')return;
+    let active=true;
+    setReceiptLoading(true);
+    const params=new URLSearchParams({page:String(receiptPage),page_size:String(receiptPageSize)});
+    if(receiptAppliedSearch)params.set('search',receiptAppliedSearch);
+    if(receiptAppliedPeriod){
+      params.set('year',receiptAppliedPeriod.slice(0,4));
+      params.set('month',String(Number(receiptAppliedPeriod.slice(5,7))));
+    }
+    const loadRows=channelRequest<ReceiptList>(apiBase,token,'/accounting/receipts?'+params);
+    void loadRows.then(res=>{if(active){setReceiptRows(res.data);setReceiptTotal(res.total);}})
+      .catch(error=>{if(active)appNotice.error('Không tải được khoản thu.',
+        error instanceof Error?error.message:'Thử lại sau.');})
+      .finally(()=>{if(active)setReceiptLoading(false);});
+    return()=>{active=false;};
+  },[apiBase,token,connected,accountingTab,receiptPage,receiptPageSize,
+    receiptAppliedSearch,receiptAppliedPeriod,receiptRevision]);
+
+  useEffect(()=>{
+    if(!connected||!canRecordRevenue||accountingTab!=='RECEIPTS'||!receiptIntent)return;
+    let active=true;
+    setReceivableLoading(true);
+    const params=new URLSearchParams({page:String(receivablePage)});
+    if(receivableSearch.trim())params.set('search',receivableSearch.trim());
+    void channelRequest<ReceivableList>(apiBase,token,'/accounting/receivable-contracts?'+params)
+      .then(res=>{if(active){setReceivableRows(res.data);setReceivableTotal(res.total);}})
+      .catch(error=>{if(active)appNotice.error('Không tải được hợp đồng còn phải thu.',error instanceof Error?error.message:'Thử lại sau.');})
+      .finally(()=>{if(active)setReceivableLoading(false);});
+    return()=>{active=false;};
+  },[apiBase,token,connected,canRecordRevenue,accountingTab,receiptIntent,receivableSearch,receivablePage,receiptRevision]);
 
   useEffect(() => {
     if (!connected || selected === null) { loadedContractId.current=null; setDetail(null); return; }
@@ -230,18 +377,30 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     if (loadedContractId.current !== selected) {
       loadedContractId.current = selected;
       setDetail(null);
-      setPayoutHistoryYear('ALL');
-      setPayoutHistoryStatus('ALL');
-      setPayoutHistoryPage(1);
-      setReceiptHistoryYear('ALL');
-      setReceiptHistoryPage(1);
-      setShowAllSchedules(false);
     }
     void channelRequest<Detail>(apiBase, token, `/accounting/contracts/${selected}`)
-      .then(value => { if (live) setDetail(value); })
-      .catch(cause => { if (live) appNotice.error('Không tải được chi tiết hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'); });
+      .then(value => { if (live) { setDetail(value); setPayoutDetailError(''); } })
+      .catch(cause => { if (live) {
+        setPayoutDetailError(cause instanceof Error?cause.message:'Vui lòng thử lại.');
+        appNotice.error('Không tải được chi tiết hợp đồng.', cause instanceof Error ? cause.message : 'Vui lòng thử lại.');
+      } });
     return () => { live = false; };
   }, [apiBase, token, selected, connected, detailRevision]);
+
+  // Resolve the selected school before opening the existing verified-cash form.
+  useEffect(()=>{
+    if(!receiptIntent||accountingTab!=='RECEIPTS'||!detail||detail.data.id!==selected)return;
+    const due=detail.schedules.find(x=>x.amount_received<x.amount_due);
+    if(!due){setReceiptNoDue(true);setSelectedScheduleId(null);return;}
+    setReceiptNoDue(false);
+    setSelectedScheduleId(due.id);
+    setFieldErrors({});
+    setAmountInput('');
+    setTransactionDate(accountingBusinessDay(new Date()));
+    setTransactionReference('');
+    receiptAttempt.current=null;
+    setEntryMode('receipt');
+  },[receiptIntent,accountingTab,detail,selected]);
 
   useEffect(()=>{
     if(!connected||selected===null){setGiHistory([]);return;}
@@ -253,16 +412,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     return ()=>{active=false;};
   },[apiBase,token,selected,connected]);
 
-  const serviceStatus = (start:string|null,end:string|null,contractStatus:string) => {
-    if (contractStatus === 'CANCELLED') return 'Đã hủy hợp đồng';
-    if (!start || !end) return 'Chưa cập nhật';
-    const today = accountingBusinessDay(new Date());
-    if (today < start) return 'Chưa bắt đầu';
-    if (today > end) return 'Đã hết hạn';
-    const warning = new Date(today + 'T00:00:00Z');
-    warning.setUTCDate(warning.getUTCDate()+30);
-    return end <= warning.toISOString().slice(0,10)?'Sắp hết hạn':'Còn hiệu lực';
-  };
 
   const viewEvidence = async (id: number, name: string, inNewTab = false) => {
     // Open synchronously on click to avoid popup blockers, then load authenticated bytes.
@@ -298,26 +447,35 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     event.preventDefault();
     setPage(1);
     setAppliedSearch(search);
+    // Match every contract term overlapping the selected Vietnam business month.
+    // Date-only ISO bounds avoid timezone conversion and preserve leap-year days.
+    const [year,month]=contractServiceMonth.split('-').map(Number);
+    const firstDay=contractServiceMonth?`${contractServiceMonth}-01`:'';
+    const lastDay=contractServiceMonth?`${contractServiceMonth}-${String(new Date(Date.UTC(year,month,0)).getUTCDate()).padStart(2,'0')}`:'';
+    setAppliedServiceFrom(firstDay);
+    setAppliedServiceTo(lastDay);
   };
 
-  const canRecordRevenue = abilities.includes('channel_sales.revenue.record') || abilities.includes('*');
-  const canCompletePayout = abilities.includes('channel_sales.payout.complete') || abilities.includes('*');
-  const canCreatePayout = abilities.includes('channel_sales.payout.create') || abilities.includes('*');
-  const canAdjustCommission=abilities.includes('channel_sales.commission.adjust')||abilities.includes('*');
-  const canApprovePayout = abilities.includes('channel_sales.payout.approve') || abilities.includes('*');
-  const openReceipt = () => {
-    setFieldErrors({});setAmountInput('');
-    const next = detail?.schedules.find(x=>x.amount_received<x.amount_due);
-    setSelectedScheduleId(next?.id??null);
-    setSelectedPayoutId(null);receiptAttempt.current=null;setEntryMode('receipt');
+  const openReceiptForm=()=>{
+    setSelected(null);setDetail(null);setReceivableSearch('');setReceivablePage(1);
+    setReceivableChoice(null);setReceivablePickerOpen(false);setReceiptNoDue(false);
+    setReceiptProofSelected(false);setPendingReceivable(null);
+    receiptAttempt.current=null;
+    setTransactionDate(accountingBusinessDay(new Date()));setTransactionReference('');
+    setReceiptIntent(true);setFieldErrors({});setAmountInput('');setEntryMode('receipt');
   };
-  const openPayoutPayment = (payoutId?:number) => {
-    const next = detail?.payouts.find(x=>x.id===payoutId&&x.status==='APPROVED')
-      ?? detail?.payouts.find(x=>x.status==='APPROVED');
-    if(!next)return;
-    setFieldErrors({});
-    setSelectedPayoutId(next.id);setSelectedScheduleId(null);
-    setAmountInput(String(next.net_amount));receiptAttempt.current=null;setEntryMode('payout');
+  const selectReceivable=(item:ReceivableContract)=>{
+    setReceivableChoice(item);setSelected(item.id);setEntryMode('receipt');
+    setDetail(null);setSelectedScheduleId(null);setReceiptNoDue(false);setFieldErrors({});
+    setAmountInput('');setReceiptProofSelected(false);setTransactionDate(accountingBusinessDay(new Date()));
+    setTransactionReference('');receiptAttempt.current=null;
+  };
+  const requestSelectReceivable=(item:ReceivableContract)=>{
+    if(saving||item.id===receivableChoice?.id)return;
+    const dirty=Boolean(amountInput||transactionReference||receiptProofSelected||
+      transactionDate!==accountingBusinessDay(new Date()));
+    if(receivableChoice&&dirty){setPendingReceivable(item);return;}
+    selectReceivable(item);
   };
   const sendRecord = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -330,7 +488,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     const referenceValue = form.get('reference_code');
     const reference = typeof referenceValue === 'string' ? referenceValue.trim() : '';
     const today = accountingBusinessDay(new Date());
-    const signedOn = contractSignedDay(detail.data.signed_on);
+    const paymentTerm=detail.schedules.find(item=>item.id===selectedScheduleId);
+    const signedOn = contractSignedDay(entryMode==='receipt'
+      ? (paymentTerm?.renewal_signed_on??detail.data.signed_on) : detail.data.signed_on);
     const validation: FieldErrors = {};
     if(entryMode==='receipt'&&!signedOn){
       validation.transaction_date='Không xác định được ngày ký hợp đồng. Vui lòng tải lại chi tiết.';
@@ -391,8 +551,8 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           method:'POST',body:JSON.stringify({
             idempotency_key:attempt.key,revenue_schedule_id:scheduleId,
             received_at:timestamp,amount,reference_code:reference,
-            payment_method:'BANK_TRANSFER',evidence_id:attempt.evidenceId,
-          }),
+            payment_method:'BANK_TRANSFER',evidence_id:attempt.evidenceId
+          })
         });
       }else{
         await channelRequest(apiBase,token,`/payouts/${payoutId}/complete`,{
@@ -405,6 +565,10 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       receiptAttempt.current=null;
       setEntryMode(null);
       setDetailRevision(v=>v+1);
+      if(entryMode==='receipt'){
+        setReceiptRevision(v=>v+1);setReceiptIntent(false);
+        setReceiptPage(1);
+      }
       appNotice.success(entryMode==='receipt'?'Đã ghi nhận khoản thu.':'Đã ghi nhận khoản chi hoa hồng.');
       await load();
     }catch(cause){
@@ -439,9 +603,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       setSaving(false);
     }
   };
-  const pendingBackfillReceipts=detail
-    ? detail.receipts.filter(receipt=>!detail.ledger.some(entry=>entry.revenue_receipt_id===receipt.id))
-    : [];
   const eligibleEntries=(detail?.ledger??[]).filter(entry=>!entry.assigned_to_payout);
   const beneficiaryEntries=Array.from(new Map(eligibleEntries.map(entry=>[
     `${entry.beneficiary_role}:${entry.beneficiary_user_id}`,
@@ -453,7 +614,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       &&entry.beneficiary_role===beneficiary.role)
     &&eligibleEntries.filter(entry=>entry.beneficiary_user_id===beneficiary.id
       &&entry.beneficiary_role===beneficiary.role).reduce((sum,entry)=>sum+entry.amount,0)>0);
-  const currentBeneficiary=beneficiaries.find(x=>x.key===payoutBeneficiary)??beneficiaries[0];
+  // Do not silently choose a different beneficiary after the loading intent clears.
+  const currentBeneficiary=beneficiaries.find(x=>x.key===payoutBeneficiary)
+    ??(payoutPickerOpen&&!editingPayout?undefined:beneficiaries[0]);
   const eligibleByPeriod=new Map<string,number>();
   for(const entry of eligibleEntries){
     if(entry.beneficiary_user_id===currentBeneficiary?.id
@@ -463,70 +626,99 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   }
   const eligiblePeriods=[...eligibleByPeriod.entries()]
     .filter(([,amount])=>amount>0).map(([period])=>period).sort().reverse();
-  const chosenPeriod=eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'');
+  // A new draft must never silently jump to another month with eligible ledger entries.
+  const chosenPeriod=payoutPickerOpen&&!editingPayout?payoutCreatePeriod:
+    (editingPayout?.period??(eligiblePeriods.includes(payoutPeriod)?payoutPeriod:(eligiblePeriods[0]??'')));
   const eligibleForSelection=eligibleEntries.filter(entry=>entry.period===chosenPeriod
     &&entry.beneficiary_role===currentBeneficiary?.role
     &&entry.beneficiary_user_id===currentBeneficiary?.id);
   const suggestedBase=eligibleForSelection.filter(x=>x.entry_type==='ACCRUAL')
     .reduce((sum,entry)=>sum+entry.calculation_base,0);
   const suggestedRate=suggestedBase>0?Number((((eligibleByPeriod.get(chosenPeriod)??0)/suggestedBase)*100).toFixed(4)):0;
-  const orderedSchedules=(detail?.schedules??[]).slice().sort((a,b)=>
-    Number(a.amount_received>=a.amount_due)-Number(b.amount_received>=b.amount_due)||
-    b.due_on.localeCompare(a.due_on)||b.id-a.id);
-  const receiptYears=[...new Set((detail?.receipts??[]).map(x=>x.received_at.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
-  const filteredReceipts=(detail?.receipts??[]).filter(x=>receiptHistoryYear==='ALL'||x.received_at.startsWith(receiptHistoryYear+'-'))
-    .slice().sort((a,b)=>b.received_at.localeCompare(a.received_at)||b.id-a.id);
-  const receiptPageCount=Math.max(1,Math.ceil(filteredReceipts.length/10));
-  const effectiveReceiptPage=Math.min(receiptHistoryPage,receiptPageCount);
-  const visibleReceipts=filteredReceipts.slice((effectiveReceiptPage-1)*10,effectiveReceiptPage*10);
-  const payoutYears=[...new Set((detail?.payouts??[]).map(x=>x.period.slice(0,4)).filter(x=>/^\d{4}$/.test(x)))].sort().reverse();
-  const payoutFiltered=(detail?.payouts??[]).filter(x=>(payoutHistoryYear==='ALL'||x.period.startsWith(payoutHistoryYear+'-'))&&(payoutHistoryStatus==='ALL'||x.status===payoutHistoryStatus));
-  const payoutPageCount=Math.max(1,Math.ceil(payoutFiltered.length/10));
-  const effectivePayoutPage=Math.min(payoutHistoryPage,payoutPageCount);
-  const payoutVisible=payoutFiltered.slice((effectivePayoutPage-1)*10,effectivePayoutPage*10);
-  const openDraft = (payout?:Detail['payouts'][number]) => {
-    setEditingPayout(payout??null);setPayoutError('');
-    setPayoutRate(String(payout?.requested_rate_percent??suggestedRate));
-    setPayoutRequestedAmount(String(payout?.requested_amount??(eligibleByPeriod.get(chosenPeriod)??0)));
-    setPayoutAdjustmentReason(payout?.adjustment_reason??'');
-    setPayoutWithholding(String(payout?.withholding_amount??0));
-    setPayoutWithholdingReason(payout?.withholding_reason??'');
-    payoutKey.current=null;setPayoutDialogOpen(true);
+  const openCentralPayout=(intent:NonNullable<typeof centralPayoutIntent>)=>{
+    setPayoutPreview(null);
+    if(intent.mode!=='CREATE')setPayoutPickerOpen(false);
+    setCentralPayoutIntent(intent);
+    setSelected(intent.contractId);
   };
-  const openBackfill = async (receiptId:number) => {
-    setBackfillBusy(true);
-    try {
-      const result=await channelRequest<{data:BackfillPreview}>(apiBase,token,
-        `/revenue-receipts/${receiptId}/commission-backfill-preview`);
-      setBackfillPreview(result.data);
-      setBackfillReason('');
-      setBackfillManagerVerified(false);
-    }catch(cause){
-      appNotice.error('Không thể xem đối soát hoa hồng.',
-        cause instanceof Error?cause.message:'Vui lòng thử lại.');
-    }finally{setBackfillBusy(false);}
+  const choosePayoutSchool=(contractId:number)=>{
+    const school=payoutSchools.find(x=>x.id===contractId);
+    if(!school)return;
+    setPayoutSchool(school);setPayoutPickerSearch(school.name);
+    setPayoutSchoolSearchOpen(false);setPayoutSchoolActiveIndex(0);
+    setPayoutCandidateKey('');setPayoutCreatePeriod('');setPayoutDetailError('');
+    setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+    setEditingPayout(null);setSelected(null);setDetail(null);payoutKey.current=null;
   };
-  const confirmBackfill = async () => {
-    if(!backfillPreview||!backfillPreview.can_apply||!backfillReason.trim())return;
-    setBackfillBusy(true);
-    try{
-      await channelRequest(apiBase,token,
-        `/revenue-receipts/${backfillPreview.receipt_id}/commission-backfill`,{
-          method:'POST',body:JSON.stringify({
-            confirm:true,reason:backfillReason.trim(),
-            manager_verified:backfillManagerVerified
-          })
-        });
-      setBackfillPreview(null);setDetailRevision(v=>v+1);
-      appNotice.success('Đã tạo bút toán hoa hồng sau đối soát khoản thu.');
-      await load();
-    }catch(cause){
-      appNotice.error('Không thể đối soát khoản thu.',
-        cause instanceof Error?cause.message:'Vui lòng thử lại.');
-    }finally{setBackfillBusy(false);}
+  const choosePayoutBeneficiary=(key:string)=>{
+    setPayoutCandidateKey(key);setPayoutDetailError('');
+    const candidate=payoutSchoolCandidates.find(x=>candidateKey(x)===key);
+    if(!candidate||candidate.contract_id!==payoutSchool?.id)return;
+    setPayoutCreatePeriod(candidate.period);
+    setPayoutDialogOpen(false);setEditingPayout(null);payoutKey.current=null;
+    openCentralPayout({contractId:candidate.contract_id,
+      beneficiaryUserId:candidate.beneficiary_user_id,role:candidate.beneficiary_role,
+      period:candidate.period,mode:'CREATE'});
   };
+  // The detail API is the authority for draft amounts and contract-scoped ledger.
+  // It is loaded without opening the contract Drawer when working in the payout tab.
+  useEffect(()=>{
+    if(!centralPayoutIntent||!detail||detail.data.id!==centralPayoutIntent.contractId)return;
+    const intent=centralPayoutIntent;
+    if(intent.mode==='CREATE'){
+      const entries=detail.ledger.filter(x=>!x.assigned_to_payout
+        &&x.beneficiary_role===intent.role&&x.beneficiary_user_id===intent.beneficiaryUserId
+        &&x.period===intent.period);
+      const amount=entries.reduce((sum,x)=>sum+x.amount,0);
+      if(amount<=0){
+        setPayoutDetailError('Không còn hoa hồng đủ điều kiện để lập phiếu trong kỳ này.');
+      }else{
+        const base=entries.filter(x=>x.entry_type==='ACCRUAL').reduce((sum,x)=>sum+x.calculation_base,0);
+        setPayoutBeneficiary(intent.role+':'+intent.beneficiaryUserId);
+        setPayoutPeriod(intent.period);
+        setEditingPayout(null);
+        setPayoutRate(String(base>0?Number((amount/base*100).toFixed(4)):0));
+        setPayoutRequestedAmount(String(amount));
+        setPayoutAdjustmentReason('');setPayoutWithholding('0');
+        setPayoutWithholdingReason('');setPayoutError('');setPayoutDetailError('');
+        payoutKey.current=null;setPayoutDialogOpen(true);
+      }
+    }else{
+      const payout=detail.payouts.find(x=>x.id===intent.payoutId);
+      if(!payout){appNotice.error('Không tìm thấy phiếu trong hợp đồng đã chọn.');}
+      else if(intent.mode==='EDIT'){
+        setEditingPayout(payout);setPayoutError('');
+        setPayoutRate(String(payout.requested_rate_percent));
+        setPayoutRequestedAmount(String(payout.requested_amount));
+        setPayoutAdjustmentReason(payout.adjustment_reason??'');
+        setPayoutWithholding(String(payout.withholding_amount??0));
+        setPayoutWithholdingReason(payout.withholding_reason??'');
+        payoutKey.current=null;setPayoutDialogOpen(true);
+      }else if(payout.status==='APPROVED'){
+        setFieldErrors({});
+        setSelectedPayoutId(payout.id);setSelectedScheduleId(null);
+        setAmountInput(String(payout.net_amount));
+        receiptAttempt.current=null;setEntryMode('payout');
+      }else {appNotice.error('Phiếu chưa được phê duyệt để ghi nhận chuyển khoản.');}
+    }
+    setCentralPayoutIntent(null);
+  // Act only on a newly selected intent and its loaded contract; never auto-reopen on refresh.
+  },[centralPayoutIntent,detail]);
   const createPayout = async () => {
-    if(!detail||(!editingPayout&&(!chosenPeriod||!currentBeneficiary)))return;
+    if(!detail)return;
+    // The loading intent is cleared after auto-fill; use the selected candidate
+    // and unassigned ledger as the source of truth for the draft.
+    const candidate=chosenCandidate;
+    if(!editingPayout&&(!payoutPickerOpen||!payoutCreateReady||!candidate
+      ||!payoutSchool||candidate.contract_id!==payoutSchool.id
+      ||detail.data.id!==candidate.contract_id||candidate.period!==payoutCreatePeriod
+      ||chosenPeriod!==payoutCreatePeriod
+      ||currentBeneficiary?.id!==candidate.beneficiary_user_id
+      ||currentBeneficiary?.role!==candidate.beneficiary_role
+      ||eligibleForSelection.reduce((sum,entry)=>sum+entry.amount,0)<=0)){
+      setPayoutError('Khoản hoa hồng không còn hợp lệ. Vui lòng kiểm tra lại nhà trường và người hưởng.');return;
+    }
+    if(!editingPayout&&!currentBeneficiary)return;
     const rate=Number(payoutRate),amount=parseMoneyInput(payoutRequestedAmount),
       withholding=parseMoneyInput(payoutWithholding);
     if(!Number.isFinite(rate)||rate<0||rate>100||Math.round(rate*10000)!==rate*10000
@@ -552,14 +744,14 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         payoutKey.current??=crypto.randomUUID();
         await channelRequest(apiBase,token,'/payouts',{method:'POST',body:JSON.stringify({
           idempotency_key:payoutKey.current,organization_id:detail.data.owner_organization_id,
-          beneficiary_user_id:currentBeneficiary?.id,beneficiary_role:currentBeneficiary?.role,
-          period:chosenPeriod,contract_id:detail.data.id,withholding_amount:withholding,
+          beneficiary_user_id:candidate!.beneficiary_user_id,beneficiary_role:candidate!.beneficiary_role,
+          period:payoutCreatePeriod,contract_id:candidate!.contract_id,withholding_amount:withholding,
           withholding_reason:withholding>0?payoutWithholdingReason.trim():null,
           requested_rate_percent:rate,requested_amount:amount,
           adjustment_reason:payoutAdjustmentReason.trim()||null
         })});
       }
-      setPayoutDialogOpen(false);setEditingPayout(null);payoutKey.current=null;
+      setPayoutDialogOpen(false);setPayoutPickerOpen(false);setEditingPayout(null);payoutKey.current=null;
       setDetailRevision(v=>v+1);
       appNotice.success('Đã lưu phiếu Nháp; cần gửi BGĐ duyệt trước khi chuyển tiền.');
       await load();
@@ -568,12 +760,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
     }finally{setSaving(false);}
   };
   const submitPayout = async (id:number) => {
+    if(payoutSubmitPending.current)return;
+    payoutSubmitPending.current=true;
     setSaving(true);
     try{
       await channelRequest(apiBase,token,`/payouts/${id}/submit`,{method:'POST'});
+      setPendingPayoutSubmit(null);setPayoutPreview(null);
       setDetailRevision(v=>v+1);appNotice.success('Đã gửi BGĐ duyệt phiếu chi.');
     }catch(cause){appNotice.error('Không gửi duyệt được.',cause instanceof Error?cause.message:'Vui lòng thử lại.');}
-    finally{setSaving(false);}
+    finally{payoutSubmitPending.current=false;setSaving(false);}
   };
   const returnPayout = async () => {
     if(!returningPayoutId||!payoutReturnReason.trim())return;
@@ -599,701 +794,27 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const resetFilters = () => {
     setSearch('');
     setAppliedSearch('');
-    setOwnerUserId('ALL');
-    setWorkspaceStatus('ALL');
+    setContractServiceMonth('');
+    setAppliedServiceFrom('');setAppliedServiceTo('');
+    setNeedsAction('ALL');
     setPage(1);
   };
-  const financeKeyword=financeAppliedSearch.trim().toLocaleLowerCase('vi-VN');
-  const displayedPayouts=(financeOverview?.payouts??[])
-    .filter(p=>(financeStatus==='ALL'||p.status===financeStatus)
-      &&(financeRole==='ALL'||p.beneficiary_role===financeRole)
-      &&(financeOrganization==='ALL'||p.organization_id===Number(financeOrganization))
-      &&(!financeKeyword||[p.code,p.beneficiary_name].some(x=>x.toLocaleLowerCase('vi-VN').includes(financeKeyword))));
-  const visiblePayouts=displayedPayouts.slice((financePage-1)*financePageSize,financePage*financePageSize);
+  const visiblePayouts=payoutRows;
+  const payoutChoices=eligibleRows;
+  const candidateKey=(item:EligibleRow)=>[item.contract_id,item.beneficiary_user_id,item.beneficiary_role,item.period].join(':');
+  const payoutSchools=Array.from(new Map<number,{id:number;code:string;name:string}>(
+    payoutChoices.map(item=>[item.contract_id,
+      {id:item.contract_id,code:item.contract_code,name:item.school_name}] as const)).values());
+  const chosenCandidate=payoutSchoolCandidates.find(item=>candidateKey(item)===payoutCandidateKey);
+  const payoutCreateReady=Boolean(payoutSchool&&chosenCandidate&&payoutDialogOpen&&
+    !centralPayoutIntent&&!payoutSchoolLoading&&detail&&detail.data.id===payoutSchool.id&&
+    chosenPeriod===payoutCreatePeriod);
   const resetFinanceFilters=()=>{
     setFinanceSearch('');setFinanceAppliedSearch('');setFinanceOrganization('ALL');
-    setFinanceRole('ALL');setFinanceStatus('ALL');setFinancePage(1);
+    setFinanceRole('ALL');setFinanceStatus('ALL');setFinanceCreatedMonth('');setFinancePage(1);
   };
-  return <div className="space-y-5">
-    {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
-    <div role="tablist" aria-label="Nghiệp vụ Kế toán"
-      className="flex gap-x-6 gap-y-1 overflow-x-auto border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {([{key:'CONTRACTS',label:'Hợp đồng & khoản thu',icon:FileCheck2},
-         {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:HandCoins}] as const).map(item=>
-        <button type="button" role="tab" key={item.key}
-          aria-selected={accountingTab===item.key} onClick={()=>setAccountingTab(item.key)}
-          className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${accountingTab===item.key
-            ?'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
-            :'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
-          <item.icon className="size-4 shrink-0" aria-hidden="true"/>
-          <span>{item.label}</span>
-        </button>)}
-    </div>
-    {accountingTab==='CONTRACTS'&&<AdminListPanel className="min-w-0">
-      <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6">
-        <div className="relative min-w-[220px] flex-[1_1_320px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
-          <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-10 w-full rounded-lg bg-card pl-10"
-            placeholder="Tên trường, mã hợp đồng, người phụ trách..." value={search} onChange={e=>setSearch(e.target.value)}/>
-        </div>
-        <AppSelect ariaLabel="Lọc nhóm hợp đồng Kế toán" value={workspaceStatus}
-          className="w-full sm:w-52" options={[
-            {value:'ALL',label:'Tất cả hợp đồng'},
-            {value:'PENDING',label:'Chờ xác nhận tái ký'},
-            {value:'INTERRUPTED',label:'Gián đoạn dịch vụ'},
-            {value:'HISTORY',label:'Lịch sử tài chính'},
-          ]} onValueChange={next=>{setWorkspaceStatus(next);setPage(1);}}/>
-        <AppSelect ariaLabel="Lọc theo người phụ trách" value={ownerUserId}
-          className="w-full sm:w-60" options={[
-            {value:'ALL',label:'Tất cả người phụ trách'},
-            ...owners.map(owner=>({value:String(owner.id),label:owner.name})),
-          ]} onValueChange={next=>{setOwnerUserId(next);setPage(1);}}/>
-        <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
-        <AppButton type="button" tone="outline" size="icon-lg" className="h-10 w-10 min-w-10 rounded-lg p-0"
-          aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>
-          <RotateCcw className="size-4" aria-hidden="true"/>
-        </AppButton>
-      </form>
-      {busy && rows.length > 0 && <div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..." /></div>}
-      {busy && rows.length === 0 ? <output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">{Array.from({length: 6}, (_, index) => <AppSkeleton key={index} className="h-11 w-full" />)}</output> : <div className="min-w-0">
-        <table className="block w-full text-left text-sm xl:table xl:table-fixed xl:text-xs 2xl:text-sm">
-          <thead className={`${adminTableHeadClass} hidden xl:table-header-group`}>
-            <tr>
-              <th scope="col" className="w-[19%] px-3 py-3">Nhà trường</th>
-              <th scope="col" className="w-[12%] px-2 py-3">Sales phụ trách</th>
-              <th scope="col" className="w-[10%] px-2 py-3">Kỳ sử dụng</th>
-              <th scope="col" className="w-[16%] px-2 py-3">Dịch vụ</th>
-              <th scope="col" className="w-[12%] px-2 py-3">Cần xử lý</th>
-              <th scope="col" className="w-[12%] px-2 py-3 text-right">Tổng thực thu</th>
-              <th scope="col" className="w-[13%] px-2 py-3 text-right">Tổng hoa hồng</th>
-              <th scope="col" className="w-[6%] px-1 py-3 text-center">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="block divide-y divide-border/70 xl:table-row-group">
-            {rows.map(row=>{
-              const state=row.service_status;
-              const label:Record<string,string>={
-                CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
-                INTERRUPTED:'Gián đoạn',THRESHOLD_REACHED:'Đủ 12 tháng',
-                THRESHOLD_OVERDUE:'Quá 12 tháng',RELEASED:'Đã hết bảo vệ',
-                NEEDS_REVIEW:'Cần rà soát',INACTIVE:'Đã kết thúc',
-                HISTORICAL_GAP:'Cần rà soát',MISSING_TERM:'Cần rà soát'
-              };
-              return <tr key={row.id} className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 px-3 py-4 transition-colors even:bg-muted/20 hover:bg-muted/40 sm:grid-cols-3 xl:table-row xl:p-0">
-                <td className="col-span-2 min-w-0 align-middle sm:col-span-1 xl:px-3 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Nhà trường</p>
-                  <p className="line-clamp-2 break-words font-semibold text-foreground" title={row.school_name}>{row.school_name}</p>
-                </td>
-                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Sales phụ trách</p>
-                  <p className="line-clamp-2 break-words font-medium" title={row.owner_name}>{row.owner_name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{row.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}</p>
-                </td>
-                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Kỳ sử dụng</p>
-                  {row.service_until?channelDate(row.service_until):'—'}
-                  {row.next_service_start_on&&<p className="mt-1 text-xs text-muted-foreground">
-                    Kỳ tiếp theo: {channelDate(row.next_service_start_on)}</p>}
-                </td>
-                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Dịch vụ</p>
-                  <AppStatusBadge variant="kidsfit-service" status={state} label={label[state]??'Cần kiểm tra'} size="md"/>
-                </td>
-                <td className="min-w-0 align-middle xl:px-2 xl:py-3"><p className="mb-1 text-xs text-muted-foreground xl:hidden">Cần xử lý</p>
-                  {row.action==='CONFIRM_RENEWAL'
-                    ? <AppStatusBadge variant="kidsfit-action" status="CONFIRM_RENEWAL" label="Xác nhận tái ký"/>
-                    :row.action==='REVIEW_PERIOD'
-                      ? <AppStatusBadge variant="kidsfit-action" status="REVIEW_PERIOD" label="Kiểm tra kỳ dịch vụ"/>
-                      :<span className="text-muted-foreground">—</span>}
-                </td>
-                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right"
-                  aria-label={`Tổng thực thu của ${row.school_name}`}>
-                  <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng thực thu</p>
-                  <p className="break-words font-semibold [overflow-wrap:anywhere]" title={channelMoney(row.received)}>{channelMoney(row.received)}</p>
-                </td>
-                <td className="min-w-0 align-middle tabular-nums xl:px-2 xl:py-3 xl:text-right">
-                  <p className="mb-1 text-xs text-muted-foreground xl:hidden">Tổng hoa hồng</p>
-                  <p className="break-words font-semibold [overflow-wrap:anywhere]" title={channelMoney(row.commission)}>{channelMoney(row.commission)}</p>
-                </td>
-                <td className="flex items-center justify-end align-middle xl:table-cell xl:px-1 xl:py-3 xl:text-center"><span className="mr-2 text-xs text-muted-foreground xl:hidden">Thao tác</span>
-                  <AdminIconAction icon={Eye} onClick={()=>setSelected(row.id)}
-                    label={`Xem chi tiết hợp đồng trường ${row.school_name}`}/>
-                </td>
-              </tr>;
-            })}
-          </tbody>
-        </table>
-      </div>
-      }
-      {!busy && rows.length===0 && <p className="p-10 text-center text-sm text-muted-foreground">Không có hợp đồng phù hợp. Hãy thử bộ lọc khác.</p>}
-      <AppPagination page={page} pageSize={pageSize} total={total} itemLabel="hợp đồng"
-        disabled={busy} showSummary={false} pageSizeOptions={[20,50,100]}
-        onPageChange={setPage}
-        onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
-    </AdminListPanel>}
-    {accountingTab==='PAYOUTS'&&<AdminListPanel>
-      <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
-        onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
-        onReset={resetFinanceFilters} searchLabel="Tìm người hưởng hoặc mã phiếu chi"
-        placeholder="Tìm mã phiếu, người hưởng..."
-        filters={<div className="flex flex-wrap items-center gap-2">
-          <label className="sr-only" htmlFor="accounting-finance-period">Kỳ hoa hồng</label>
-          <Input id="accounting-finance-period" type="month" className="h-10 w-40 rounded-lg"
-            value={financePeriod} onChange={event=>{setFinancePeriod(event.target.value);setFinancePage(1);}}/>
-          <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-[160px]"
-            value={financeOrganization}
-            options={[{value:'ALL',label:'Tất cả tổ chức'},
-              ...(financeOverview?.organizations??[]).map(org=>({value:String(org.id),label:org.name}))]}
-            onValueChange={next=>{setFinanceOrganization(next);setFinancePage(1);}}/>
-          <AppSelect ariaLabel="Lọc người hưởng hoa hồng" className="w-[166px]"
-            value={financeRole}
-            options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
-            onValueChange={next=>{setFinanceRole(next);setFinancePage(1);}}/>
-          <AppSelect ariaLabel="Lọc trạng thái phiếu chi" className="w-[155px]"
-            value={financeStatus}
-            options={[{value:'ALL',label:'Tất cả'},
-              {value:'DRAFT',label:'Nháp'},
-              {value:'PENDING_APPROVAL',label:'Chờ BGĐ duyệt'},
-              {value:'CHANGES_REQUESTED',label:'Cần bổ sung'},
-              {value:'APPROVED',label:'Đã duyệt'},
-              {value:'PAID',label:'Đã chi'},
-              {value:'CANCELLED',label:'Đã hủy'},
-              {value:'REJECTED',label:'Đã từ chối'}]}
-            onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
-        </div>}/>
-      <div className="overflow-x-auto">
-        <table className={adminTableClass}>
-          <thead className={adminTableHeadClass}>
-            <tr>
-              <th scope="col" className="w-[27%] px-5 py-4">Mã phiếu</th>
-              <th scope="col" className="px-4 py-4">Người hưởng</th>
-              <th scope="col" className="px-4 py-4">Vai trò</th>
-              <th scope="col" className="px-4 py-4 text-right">Thực chi</th>
-              <th scope="col" className="px-4 py-4">Trạng thái</th>
-              <th scope="col" className="px-4 py-4">Kỳ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/70">
-            {visiblePayouts.map(p=><tr key={p.id} className="transition-colors even:bg-muted/20 hover:bg-accent">
-              <td className="px-5 py-4"><span title={p.code} className="block max-w-[265px] truncate font-semibold">{p.code}</span></td>
-              <td className="px-4 py-4">{p.beneficiary_name}</td>
-              <td className="px-4 py-4">{p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</td>
-              <td className="whitespace-nowrap px-4 py-4 text-right font-semibold tabular-nums">{channelMoney(p.net_amount)}</td>
-              <td className="px-4 py-4">
-                <AppStatusBadge size="sm" status={p.status} label={payoutStatusLabel(p.status)}
-                  tone={p.status==='PAID'||p.status==='APPROVED'?'success'
-                    :p.status==='REJECTED'||p.status==='CANCELLED'?'danger'
-                    :p.status==='CHANGES_REQUESTED'||p.status==='PENDING_APPROVAL'?'warning':'neutral'}/>
-              </td>
-              <td className="whitespace-nowrap px-4 py-4">{payoutPeriodLabel(p.period)}</td>
-            </tr>)}
-            {!visiblePayouts.length&&<tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-muted-foreground">
-              {financeLoading?'Đang tải danh sách phiếu chi...':!connected?'Cần đăng nhập để xem phiếu chi.':'Không có phiếu chi phù hợp với bộ lọc.'}
-            </td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <AppPagination page={financePage} pageSize={financePageSize} total={displayedPayouts.length}
-        itemLabel="phiếu chi" disabled={financeLoading} showSummary={false}
-        pageSizeOptions={[10,20,50,100]}
-        onPageChange={setFinancePage}
-        onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
-    </AdminListPanel>}
-    <AppDrawer wide compactAccountingHeader open={selected !== null} onOpenChange={open => { if (!open) {setSelected(null);setEntryMode(null);closePreview();} }}
-      title={rows.find(r=>r.id===selected)?.school_name??'Chi tiết hợp đồng'}
-      description="Kế toán / Chi tiết hợp đồng">
-      {!detail ? <output className="block space-y-3 p-3" aria-label="Đang tải chi tiết hợp đồng"><AppSkeleton className="h-6 w-2/3"/><AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-28 w-full"/></output> : <div className="space-y-5 text-sm">
-        <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-4 sm:p-5">
-          <p className="break-all text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chi tiết hợp đồng · {detail.data.contract_code}</p>
-          <h2 className="text-xl font-bold">Hồ sơ hợp đồng</h2>
-          <p className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
-            <span>{[detail.data.school_address, detail.data.school_district, detail.data.school_province].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}</span>
-          </p>
-          <p className="flex items-center gap-2 text-muted-foreground"><UserRound className="size-4" aria-hidden="true"/>
-            Phụ trách: {detail.data.owner_name} · {detail.data.personnel_type === 'COLLABORATOR' ? 'CTV' : 'Nhân viên'}
-          </p>
-          <span className="inline-flex rounded-full border px-2 py-1 text-xs font-medium">{detail.data.status === 'ACTIVE' ? 'Hợp đồng hợp lệ' : detail.data.status === 'PENDING_KIDSFIT' ? 'CHECKEE đã xác minh · Hồ sơ cũ cần rà soát bảo vệ' : detail.data.status === 'CANCELLED' ? 'Đã hủy · Lịch sử' : detail.data.status}</span>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Giá trị hợp đồng gốc" value={channelMoney(detail.data.total_value)}/>
-          <Metric label="Thực thu" value={channelMoney(detail.receipts.reduce((sum,x)=>sum+x.amount,0)-(detail.refunded_total??0))}/>
-          <Metric label="Hoa hồng ghi nhận" value={channelMoney(detail.ledger.reduce((sum,x)=>sum+x.amount,0))}/>
-          <Metric label="Hoa hồng đã chi" value={channelMoney(detail.payouts.filter(x=>x.status==='PAID').reduce((sum,x)=>sum+x.net_amount,0))}/>
-        </div>
-        {selected!==null&&<AccountingRenewalInline key={selected} apiBase={apiBase} token={token}
-          contractId={selected} abilities={abilities}
-          onChanged={async()=>{setDetailRevision(v=>v+1);await load();await onChanged();}}/>}
-        {rows.find(r=>r.id===selected)&&(()=>{
-          const overview=rows.find(r=>r.id===selected)!;
-          return <section className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-            <h3 className="text-base font-bold">Tình trạng dịch vụ & quyền bảo vệ</h3>
-            <AppStatusBadge variant="kidsfit-service" status={overview.service_status} label={{
-              CONTINUOUS:'Đang sử dụng',EXPIRING_SOON:'Sắp hết hạn',
-              INTERRUPTED:'Gián đoạn',THRESHOLD_REACHED:'Đủ 12 tháng',
-              THRESHOLD_OVERDUE:'Quá 12 tháng',RELEASED:'Đã hết bảo vệ',
-              NEEDS_REVIEW:'Cần rà soát',
-              HISTORICAL_GAP:'Cần rà soát',
-              MISSING_TERM:'Cần rà soát',INACTIVE:'Đã kết thúc'
-            }[overview.service_status]??'Cần kiểm tra'}/>
-            {overview.gap_start_on&&<p>Bắt đầu gián đoạn: {channelDate(overview.gap_start_on)}</p>}
-            {overview.threshold_on&&<p>
-              {overview.service_status==='INTERRUPTED'?'Mốc 12 tháng':'Đạt mốc'}: {channelDate(overview.threshold_on)}
-            </p>}
-            {overview.next_service_start_on&&<p>Kỳ sử dụng tiếp theo: {channelDate(overview.next_service_start_on)}</p>}
-            <p>Quyền bảo vệ Sales: {detail.data.protection_until
-              ? 'Đến '+channelDate(detail.data.protection_until)
-              : 'Không có quyền bảo vệ đang hiệu lực'}</p>
-            {giHistory.length>0&&<div className="space-y-2 border-t border-border pt-3">
-              <h4 className="font-semibold">Lịch sử xử lý gián đoạn (GI-01)</h4>
-              {giHistory.map((item,i)=><div key={i} className="rounded-lg border border-border p-3 text-xs">
-                <p className="font-semibold">{item.status==='RELEASED'?'Đã giải phóng quyền':item.status==='REVIEW_REQUIRED'?'Chờ rà soát':item.status.startsWith('EXCEPTION_')?'Ngoại lệ cần xử lý':item.status} · {channelDate(item.processed_at)}</p>
-                {item.reason&&<p className="mt-1 text-muted-foreground">Lý do: {item.reason}</p>}
-                <p className="mt-1 text-muted-foreground">Bắt đầu: {channelDate(item.gap_start_on)} · Mốc 12 tháng: {channelDate(item.threshold_on)}</p>
-              </div>)}
-            </div>}
-          </section>;
-        })()}
-        <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-base font-bold text-foreground">Thông tin hợp đồng gốc</h3><span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary">{detail.school_units.length} điểm triển khai</span></div>
-          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&_dd]:break-words [&_dd]:leading-6 [&_dt]:text-xs">
-            <div><dt className="text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 font-medium">{detail.data.contract_code}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày ký</dt><dd className="mt-1 font-medium">{channelDate(detail.data.signed_on)}</dd></div>
-            <div><dt className="text-muted-foreground">CHECKEE xác minh</dt><dd className="mt-1 font-medium">{detail.data.verified_at ? channelDate(detail.data.verified_at) : 'Chưa xác minh'}</dd></div>
-            <div><dt className="text-muted-foreground">Gói dịch vụ</dt><dd className="mt-1 font-medium">{getServicePlanLabel(detail.data.service_plan)}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày bắt đầu dịch vụ (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_service_start_on?channelDate(detail.data.source_service_start_on):'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Ngày kết thúc dịch vụ (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_service_end_on?channelDate(detail.data.source_service_end_on):'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Chu kỳ thanh toán (hợp đồng gốc)</dt><dd className="mt-1 font-medium">{detail.data.source_payment_cycle==='MONTHLY'?'Theo tháng':detail.data.source_payment_cycle==='YEARLY'?'Theo năm':'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Trạng thái dịch vụ hiện tại</dt><dd className="mt-1 font-medium">{detail.data.status==='CANCELLED'?'Đã hủy hợp đồng':detail.current_period?serviceStatus(detail.current_period.start_on,detail.current_period.end_on,detail.data.status):detail.next_confirmed_period?'Chưa bắt đầu sử dụng':detail.previous_period?'Đã kết thúc kỳ trước':'Chưa có thông tin kỳ dịch vụ'}</dd></div>
-            <div><dt className="text-muted-foreground">Hạn bảo vệ Sales đã cấp</dt><dd className="mt-1 font-medium">{detail.data.protection_until?channelDate(detail.data.protection_until):'Chưa ghi nhận cấp quyền còn hiệu lực'}</dd></div>
-            <div><dt className="text-muted-foreground">Số học sinh</dt><dd className="mt-1 font-medium">{detail.data.student_count ?? 'Chưa khai báo'}</dd></div>
-          </dl>
-          <details className="group rounded-xl border border-border/80 bg-muted/10">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold marker:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-              <span>Trường điểm / Phân hiệu ({detail.school_units.length})</span>
-              <span className="text-xs font-normal text-muted-foreground group-open:hidden">Xem danh sách</span>
-              <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Thu gọn</span>
-            </summary>
-            <div className="border-t border-border/70 px-4 py-3">
-              {detail.school_units.length>0?<ul className="grid gap-2 sm:grid-cols-2">{detail.school_units.map(unit=><li key={unit.id} className="min-w-0 rounded-lg bg-background px-3 py-2 text-sm font-medium break-words">{unit.name}</li>)}</ul>:<p className="text-sm text-muted-foreground">Chỉ có trường chính, không có trường điểm / phân hiệu.</p>}
-            </div>
-          </details>
-          </section>
-        <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-          <h3 className="text-base font-bold">Lịch thanh toán theo hợp đồng</h3>
-          {detail.schedules.length===0 && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
-          <div className="divide-y divide-border/70 rounded-lg border border-border/70">
-            {(showAllSchedules?orderedSchedules:orderedSchedules.slice(0,6)).map(x=>{
-              const paid = Math.max(0, Math.min(x.amount_due, x.amount_received));
-              const percentage = x.amount_due > 0 ? Math.min(100, paid / x.amount_due * 100) : 0;
-              const status = paymentScheduleLabel(x.status);
-              const tone = x.status === 'PAID'
-                ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
-                : x.status === 'OVERDUE'
-                  ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300'
-                  : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300';
-              return <div key={x.id} className="space-y-3 p-3 sm:p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Hạn thanh toán</p>
-                    <p className="font-semibold">{channelDate(x.due_on)}</p>
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-xs text-muted-foreground">Giá trị đợt</p>
-                    <p className="font-bold tabular-nums">{channelMoney(x.amount_due)}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${tone}`}>{status}</span>
-                  <p className="text-xs text-muted-foreground tabular-nums">Đã thanh toán {channelMoney(x.amount_received)}</p>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-label={`Tiến độ thanh toán ${Math.round(percentage)}%`}>
-                  <div className="h-full rounded-full bg-green-700" style={{ width: `${percentage}%` }}/>
-                </div>
-              </div>;
-            })}
-          </div>
-          {detail.schedules.length>6&&<Button type="button" variant="outline" size="sm" className="w-full" onClick={()=>setShowAllSchedules(value=>!value)}>{showAllSchedules?`Thu gọn lịch thanh toán`:`Xem toàn bộ ${detail.schedules.length} đợt thanh toán`}</Button>}
-        </section>
-        <section className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-base font-bold text-foreground">Nhà trường thanh toán</h3>
-            {canRecordRevenue && detail.data.status==='ACTIVE' && <Button size="sm" disabled={saving || !detail.schedules.some(x=>x.amount_received<x.amount_due)}
-              onClick={openReceipt}><Plus className="size-4"/> Thêm khoản thu</Button>}
-          </div>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <label className="space-y-1 text-xs font-medium">Năm nhận tiền
-              <select className="mt-1 block h-10 min-w-40 rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={receiptHistoryYear} onChange={e=>{setReceiptHistoryYear(e.target.value);setReceiptHistoryPage(1);}}><option value="ALL">Tất cả các năm</option>{receiptYears.map(year=><option key={year} value={year}>{year}</option>)}</select>
-            </label>
-            <p className="text-xs text-muted-foreground">{filteredReceipts.length}/{detail.receipts.length} khoản thu</p>
-          </div>
-          <div className="overflow-x-auto rounded-lg border border-border/80">
-            <table className="w-full min-w-[520px] text-left text-sm">
-              <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-3">Ngày nhận</th>
-                  <th className="px-3 py-3">Mã giao dịch</th>
-                  <th className="px-3 py-3 text-right">Số tiền</th>
-                  <th className="w-16 px-3 py-3 text-center">Ảnh</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                {filteredReceipts.length===0 ? <tr><td colSpan={4} className="px-3 py-7 text-center text-muted-foreground">Không có khoản thu phù hợp.</td></tr>
-                  : visibleReceipts.map(x=>{
-                    const proof = detail.evidence.find(e=>e.revenue_receipt_id===x.id);
-                    return <tr key={x.id} className="hover:bg-muted/20">
-                      <td className="whitespace-nowrap px-3 py-3">{channelDate(x.received_at)}</td>
-                      <td className="max-w-[160px] break-words px-3 py-3">{x.reference_code || '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right font-medium tabular-nums">{channelMoney(x.amount)}</td>
-                      <td className="px-3 py-2 text-center">
-                        {proof ? <Button type="button" variant="outline" size="icon" title="Xem ảnh nhà trường chuyển khoản"
-                          aria-label={`Xem chứng từ khoản thu ${x.reference_code}`}
-                          onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>
-                          : <span className="text-muted-foreground" aria-label="Không có ảnh chứng từ">—</span>}
-                      </td>
-                    </tr>;
-                  })}
-              </tbody>
-            </table>
-          </div>
-          {filteredReceipts.length>10&&<div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectiveReceiptPage}/{receiptPageCount}</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage<=1} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectiveReceiptPage>=receiptPageCount} onClick={()=>setReceiptHistoryPage(effectiveReceiptPage+1)}>Sau</Button></div></div>}
-        </section>
-        <section ref={payoutSectionRef} tabIndex={-1} aria-labelledby="contract-commission-heading"
-          className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <WalletCards className="size-5" aria-hidden="true"/>
-              </div>
-              <div className="min-w-0 space-y-1">
-                <h3 id="contract-commission-heading" className="text-base font-bold text-foreground">Hoa hồng & phiếu chi</h3>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Ghi nhận theo chính sách BGĐ và chi trả riêng cho Sales, Quản lý.
-                </p>
-              </div>
-            </div>
-            {canCompletePayout && detail.payouts.some(x=>x.status==='APPROVED') &&
-              <Button size="sm" disabled={saving} onClick={()=>openPayoutPayment()}>
-                <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
-              </Button>}
-          </div>
-          <div className="space-y-5 p-4 sm:p-5">
-            {pendingBackfillReceipts.length>0&&
-              <div className="overflow-hidden rounded-xl border border-amber-300/60 bg-amber-50/60 dark:border-amber-800/70 dark:bg-amber-950/20">
-                <div className="flex items-start gap-3 px-4 pt-4 pb-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                    <AlertCircle className="size-5" aria-hidden="true"/>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-semibold text-foreground">Cần đối soát khoản thu</h4>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {pendingBackfillReceipts.length} khoản thu đã lưu nhưng chưa có bút toán hoa hồng.
-                      Đối soát trước để có thể lập phiếu chi; dữ liệu cũ không tự động tính lại.
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full border border-amber-300/60 px-2 py-1 text-[11px] font-semibold text-amber-900 dark:text-amber-200">
-                    Cần xử lý
-                  </span>
-                </div>
-                <div className="divide-y divide-amber-200/70 border-t border-amber-200/70 bg-card/65 dark:divide-amber-900/50 dark:border-amber-900/50">
-                  {pendingBackfillReceipts.map(receipt=>
-                    <div key={receipt.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <ClipboardCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden="true"/>
-                        <div className="min-w-0">
-                          <p className="break-all text-sm font-semibold text-foreground">{receipt.reference_code||'Chưa có mã giao dịch'}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">Nhận {channelDate(receipt.received_at)} · {channelMoney(receipt.amount)}</p>
-                        </div>
-                      </div>
-                      {canAdjustCommission?
-                        <Button type="button" size="sm" className="w-full shrink-0 sm:w-auto"
-                          disabled={backfillBusy} onClick={()=>void openBackfill(receipt.id)}>
-                          {backfillBusy?'Đang kiểm tra...':'Kiểm tra & đối soát'}<ArrowRight className="size-4" aria-hidden="true"/>
-                        </Button>
-                        :<p className="text-xs text-muted-foreground">Cần Kế toán có quyền đối soát để xử lý.</p>}
-                    </div>)}
-                </div>
-              </div>}
-            {detail.ledger.length===0 && pendingBackfillReceipts.length===0 &&
-              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
-                <WalletCards className="size-7 text-muted-foreground/70" aria-hidden="true"/>
-                <p className="font-semibold">Chưa có hoa hồng được ghi nhận</p>
-                <p className="max-w-sm text-xs leading-5 text-muted-foreground">
-                  {detail.receipts.length===0
-                    ?'Ghi nhận khoản thu tại mục “Nhà trường thanh toán” để phát sinh hoa hồng theo chính sách.'
-                    :'Chưa có bút toán đủ điều kiện. Kiểm tra chính sách và quyền hưởng của hợp đồng.'}
-                </p>
-              </div>}
-            {detail.ledger.length>0&&
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(['SALES','MANAGER'] as const).map(role=>{
-                  const entries=detail.ledger.filter(entry=>entry.beneficiary_role===role);
-                  const assigned=entries.filter(entry=>entry.assigned_to_payout);
-                  const unassigned=entries.filter(entry=>!entry.assigned_to_payout);
-                  const rates=[...new Set(entries.filter(entry=>entry.entry_type==='ACCRUAL').map(entry=>entry.rate_percent))];
-                  const totalAmount=entries.reduce((sum,entry)=>sum+entry.amount,0);
-                  const availableAmount=unassigned.reduce((sum,entry)=>sum+entry.amount,0);
-                  const name=entries[0]?.beneficiary_name;
-                  return <div key={role} className="min-w-0 rounded-xl border border-border/80 bg-muted/15 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          {role==='MANAGER'?<UsersRound className="size-4" aria-hidden="true"/>:<UserRound className="size-4" aria-hidden="true"/>}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-muted-foreground">{role==='SALES'?'Hoa hồng Sales':'Hoa hồng Quản lý'}</p>
-                          <p className="truncate text-sm font-semibold" title={name||undefined}>{name||'Chưa xác định người hưởng'}</p>
-                        </div>
-                      </div>
-                      {entries.length>0&&<span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-                        {rates.length===1?`${rates[0]}%`:'Theo chính sách'}
-                      </span>}
-                    </div>
-                    <p className="mt-4 text-xs text-muted-foreground">Hoa hồng ghi nhận</p>
-                    <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{channelMoney(totalAmount)}</p>
-                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/70 pt-3 text-xs">
-                      <span className="text-muted-foreground">Chưa đưa vào phiếu</span>
-                      <span className="font-semibold tabular-nums text-foreground">{channelMoney(availableAmount)}</span>
-                    </div>
-                    {assigned.length>0&&<p className="mt-2 text-[11px] text-muted-foreground">
-                      {assigned.length} bút toán đã được phân bổ vào phiếu chi
-                    </p>}
-                  </div>;
-                })}
-              </div>}
-            {canCreatePayout && eligiblePeriods.length>0&&
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="space-y-1">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <CheckCircle2 className="size-4 text-primary" aria-hidden="true"/> Có hoa hồng có thể lập phiếu
-                    </p>
-                    <p className="text-xs text-muted-foreground">Chọn đúng người hưởng và kỳ trước khi tạo phiếu nháp.</p>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <label htmlFor="accounting-payout-beneficiary" className="text-xs font-medium">Người hưởng</label>
-                    <AppSelect id="accounting-payout-beneficiary" ariaLabel="Người hưởng hoa hồng"
-                      value={currentBeneficiary?.key??''}
-                      onValueChange={value=>{setPayoutBeneficiary(value);setPayoutPeriod('');payoutKey.current=null;}}
-                      options={beneficiaries.map(item=>({
-                        value:item.key,label:`${item.role==='MANAGER'?'Quản lý':'Sales'} · ${item.name}`
-                      }))} className="w-full"/>
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <label htmlFor="accounting-payout-period" className="text-xs font-medium">Kỳ hoa hồng</label>
-                    <AppSelect id="accounting-payout-period" ariaLabel="Kỳ hoa hồng để lập phiếu chi"
-                      value={chosenPeriod} onValueChange={setPayoutPeriod}
-                      options={eligiblePeriods.map(period=>({
-                        value:period,label:`${payoutPeriodLabel(period)} · ${channelMoney(eligibleByPeriod.get(period)??0)}`
-                      }))} className="w-full"/>
-                  </div>
-                  <Button type="button" className="h-10 w-full sm:col-span-2 lg:col-span-1 lg:w-auto" disabled={saving || !chosenPeriod}
-                    onClick={()=>openDraft()}>
-                    <Plus className="size-4" aria-hidden="true"/> Lập phiếu chi
-                  </Button>
-                </div>
-              </div>}
-            {canCreatePayout && eligiblePeriods.length===0 && detail.ledger.length>0 &&
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <CheckCircle2 className="size-4 shrink-0" aria-hidden="true"/>
-                {detail.ledger.every(entry=>entry.assigned_to_payout)
-                  ?'Hoa hồng đã được đưa vào phiếu chi. Kiểm tra trạng thái ở lịch sử bên dưới.'
-                  :'Chưa có hoa hồng dương chưa phân bổ. Kiểm tra bút toán điều chỉnh và kỳ hoa hồng.'}
-              </p>}
-            {detail.ledger.some(entry=>entry.entry_type!=='ACCRUAL') &&
-              <div className="rounded-lg border border-border/80 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                <strong className="text-foreground">Điều chỉnh hoa hồng:</strong>{' '}
-                {detail.ledger.filter(entry=>entry.entry_type!=='ACCRUAL')
-                  .map(entry=>`${entry.reason||'Điều chỉnh'} (${channelMoney(entry.amount)})`).join('; ')}
-              </div>}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h4 className="text-sm font-semibold text-foreground">Lịch sử phiếu chi</h4><p className="mt-1 text-xs text-muted-foreground">Lọc theo năm kỳ hoa hồng và trạng thái.</p></div>
-              <span className="text-xs tabular-nums text-muted-foreground">{payoutFiltered.length}/{detail.payouts.length} phiếu</span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 text-xs font-medium">Năm kỳ hoa hồng
-                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={payoutHistoryYear} onChange={e=>{setPayoutHistoryYear(e.target.value);setPayoutHistoryPage(1);}}>
-                  <option value="ALL">Tất cả các năm</option>{payoutYears.map(year=><option key={year} value={year}>{year}</option>)}
-                </select>
-              </label>
-              <label className="space-y-1 text-xs font-medium">Trạng thái phiếu
-                <select className="mt-1 block h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground" value={payoutHistoryStatus} onChange={e=>{setPayoutHistoryStatus(e.target.value);setPayoutHistoryPage(1);}}>
-                  <option value="ALL">Tất cả trạng thái</option>{["DRAFT","CHANGES_REQUESTED","PENDING_APPROVAL","APPROVED","PAID","CANCELLED","REJECTED"].map(status=><option key={status} value={status}>{payoutStatusLabel(status)}</option>)}
-                </select>
-              </label>
-            </div>
-          <div className="overflow-x-auto rounded-lg border border-border/80">
-            <table className="w-full min-w-[1000px] table-fixed text-left text-sm">
-              <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
-                <tr>
-                  <th scope="col" className="w-[22%] px-3 py-3">Mã phiếu</th>
-                  <th scope="col" className="w-[20%] px-3 py-3">Người hưởng</th>
-                  <th scope="col" className="w-[14%] px-3 py-3">Ngày chuyển</th>
-                  <th scope="col" className="w-[13%] px-3 py-3 text-right">Số tiền</th>
-                  <th scope="col" className="w-[14%] px-3 py-3">Trạng thái</th>
-                  <th scope="col" className="w-[17%] px-3 py-3 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                {payoutFiltered.length===0 ?
-                  <tr><td colSpan={6} className="px-3 py-8 text-center">
-                    <div className="flex flex-col items-center gap-1.5">
-                      <WalletCards className="size-6 text-muted-foreground/60" aria-hidden="true"/>
-                      <span className="font-medium text-foreground">Chưa có phiếu chi</span>
-                      <span className="text-xs text-muted-foreground">Phiếu sẽ xuất hiện sau khi lập từ hoa hồng đủ điều kiện.</span>
-                    </div>
-                  </td></tr>
-                  : payoutVisible.map(x=>{
-                    const proof = detail.evidence.find(e=>e.payout_id===x.id);
-                    const latestRequest = x.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1);
-                    const tone = x.status==='PAID'
-                      ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
-                      : x.status==='APPROVED'
-                        ? 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300'
-                        : 'border-border bg-muted/50 text-muted-foreground';
-                    return <tr key={x.id} className="hover:bg-muted/20">
-                      <td className="min-w-0 px-3 py-3">
-                        <p className="truncate font-medium" title={x.code}>{x.code}</p>
-                        {x.payment_reference&&<p className="mt-1 truncate text-xs text-muted-foreground" title={x.payment_reference}>{x.payment_reference}</p>}
-                      </td>
-                      <td className="px-3 py-3">{x.beneficiary_role==='MANAGER'?'Quản lý':'Sales'} · {detail.ledger.find(e=>e.beneficiary_user_id===x.beneficiary_user_id)?.beneficiary_name??'—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3">{x.paid_at?channelDate(x.paid_at):'Chưa chuyển'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{channelMoney(x.net_amount)}</td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex max-w-full whitespace-nowrap rounded-full border px-2 py-1 text-xs font-medium ${tone}`}>{payoutStatusLabel(x.status)}</span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-nowrap justify-center gap-1">
-                          {x.status==='CHANGES_REQUESTED'&&<Popover>
-                            <PopoverTrigger type="button" title="Xem yêu cầu bổ sung từ BGĐ"
-                              aria-label={`Xem yêu cầu bổ sung phiếu ${x.code}`}
-                              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-amber-800 transition-colors hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                              <MessageSquareText aria-hidden="true" className="size-4"/>
-                            </PopoverTrigger>
-                            <PopoverContent side="top" align="end" className="w-[min(90vw,350px)] space-y-2 p-4">
-                              <PopoverTitle className="text-sm font-semibold">BGĐ yêu cầu bổ sung</PopoverTitle>
-                              <p className="max-h-52 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{latestRequest?.reason?.trim()||'Chưa có nội dung yêu cầu.'}</p>
-                              {latestRequest?.created_at&&<p className="text-xs text-muted-foreground">Yêu cầu lúc {channelDate(latestRequest.created_at)}</p>}
-                            </PopoverContent>
-                          </Popover>}
-                          {proof&&<Button type="button" variant="outline" size="icon" title="Xem chứng từ khoản chi"
-                            aria-label={`Xem chứng từ khoản chi ${x.code}`}
-                            onClick={()=>void viewEvidence(proof.id,proof.file_name)}><ImageIcon className="size-4"/></Button>}
-                          {(x.status==='DRAFT'||x.status==='CHANGES_REQUESTED')&&canCreatePayout&&<>
-                            <AdminIconAction icon={Pencil} tone="neutral" disabled={saving}
-                              label={`Sửa phiếu nháp ${x.code}`} onClick={()=>openDraft(x)}/>
-                            <AdminIconAction icon={Send} tone="green" disabled={saving}
-                              label={`Gửi phiếu ${x.code} đến BGĐ phê duyệt`}
-                              onClick={()=>void submitPayout(x.id)}/>
-                          </>}
-                          {x.status==='PENDING_APPROVAL'&&canApprovePayout&&<>
-                            <Button type="button" variant="outline" size="sm" disabled={saving}
-                              onClick={()=>setReturningPayoutId(x.id)}>Yêu cầu bổ sung</Button>
-                            <Button type="button" size="sm" disabled={saving}
-                              onClick={()=>void approvePayout(x.id)}>Duyệt</Button>
-                          </>}
-                        </div>
-                      </td>
-                    </tr>;
-                  })}
-              </tbody>
-            </table>
-          </div>
-          {payoutFiltered.length>10&&<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>Trang {effectivePayoutPage}/{payoutPageCount} · {payoutFiltered.length} phiếu</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage<=1} onClick={()=>setPayoutHistoryPage(effectivePayoutPage-1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={effectivePayoutPage>=payoutPageCount} onClick={()=>setPayoutHistoryPage(effectivePayoutPage+1)}>Sau</Button></div></div>}
-          </div>
-        </section>
-      </div>}
-    </AppDrawer>
-    <AppDialog open={Boolean(backfillPreview)}
-      onOpenChange={open=>{if(!open&&!backfillBusy)setBackfillPreview(null);}}
-      busy={backfillBusy} title="Đối soát hoa hồng khoản thu cũ"
-      description="Chỉ tạo bút toán mới sau khi Kế toán xem trước và xác nhận. Khoản đã có hoa hồng không được tự tính lại.">
-      {backfillPreview&&<div className="space-y-4 text-sm">
-        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bước 1 · Kiểm tra khoản thu</p>
-          <p className="mt-2 text-xs text-muted-foreground">Khoản thực thu đủ điều kiện</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{channelMoney(backfillPreview.eligible_cash)}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-md bg-background px-2 py-1">Mã phiếu thu #{backfillPreview.receipt_id}</span>
-            <span className="rounded-md bg-background px-2 py-1">
-              {backfillPreview.board_policy_version_id
-                ?`Chính sách BGĐ #${backfillPreview.board_policy_version_id}`
-                :'Chính sách BGĐ mặc định'}
-            </span>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bước 2 · Kiểm tra người hưởng</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-border/80 bg-card p-4">
-              <p className="text-xs font-medium text-muted-foreground">Sales · {backfillPreview.sales_percent}%</p>
-              <p className="mt-2 text-lg font-bold tabular-nums">{channelMoney(backfillPreview.sales_amount)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Bút toán Sales</p>
-            </div>
-            <div className="rounded-xl border border-border/80 bg-card p-4">
-              <p className="text-xs font-medium text-muted-foreground">Quản lý · {backfillPreview.manager_percent}%</p>
-              <p className="mt-2 text-lg font-bold tabular-nums">{channelMoney(backfillPreview.manager_amount)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {backfillPreview.manager_name||'Chưa xác minh người hưởng'}
-              </p>
-            </div>
-          </div>
-        </div>
-        {backfillPreview.requires_manager_verification&&
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/20 p-4 text-sm leading-6">
-            <input type="checkbox" className="mt-1 size-4 shrink-0 accent-primary"
-              checked={backfillManagerVerified}
-              onChange={event=>setBackfillManagerVerified(event.target.checked)}/>
-            <span>
-              <strong className="block font-semibold">Xác nhận Quản lý lịch sử</strong>
-              Đã kiểm tra {backfillPreview.manager_name||'người quản lý'} thực sự phụ trách Sales
-              tại ngày thu. Nếu chưa xác nhận, chỉ tạo phần Sales và phần Quản lý được giữ để rà soát.
-            </span>
-          </label>}
-        {backfillPreview.manager_review_required&&
-          <output className="flex gap-2 rounded-lg border border-amber-300/60 bg-amber-50/60 p-3 text-xs leading-5 text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200">
-            <AlertCircle className="size-4 shrink-0" aria-hidden="true"/>
-            Chưa xác định được Quản lý hợp lệ. Chỉ tính hoa hồng Sales; phần Quản lý cần rà soát riêng.
-          </output>}
-        <div className="space-y-2">
-          <label htmlFor="backfill-reason" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Bước 3 · Lý do đối soát *
-          </label>
-          <Input id="backfill-reason" maxLength={1000} value={backfillReason}
-            onChange={event=>setBackfillReason(event.target.value)}
-            placeholder="VD: Đã đối chiếu khoản thu và chứng từ với Kế toán"/>
-          <p className="text-xs text-muted-foreground">Lý do được lưu trong lịch sử kiểm tra tài chính.</p>
-        </div>
-        {!backfillPreview.can_apply&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          Khoản thu đã có bút toán hoặc không còn số tiền hợp lệ; không thể tạo trùng.
-        </p>}
-        <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" className="w-full sm:w-auto"
-            disabled={backfillBusy} onClick={()=>setBackfillPreview(null)}>Hủy</Button>
-          <Button type="button" className="w-full sm:w-auto"
-            disabled={backfillBusy||!backfillPreview.can_apply||!backfillReason.trim()}
-            onClick={()=>void confirmBackfill()}>
-            {backfillBusy?'Đang đối soát...':'Xác nhận tạo bút toán'} <ArrowRight className="size-4" aria-hidden="true"/>
-          </Button>
-        </div>
-      </div>}
-    </AppDialog>
-    <AppDialog open={Boolean(returningPayoutId)}
-      onOpenChange={open=>{if(!open&&!saving){setReturningPayoutId(null);setPayoutReturnReason('');}}}
-      busy={saving} title="BGĐ yêu cầu bổ sung" description="Nêu lý do và trả phiếu về Kế toán chỉnh sửa.">
-      <div className="space-y-3">
-        <label htmlFor="payout-return-reason" className="text-sm font-medium">Lý do yêu cầu bổ sung *</label>
-        <textarea id="payout-return-reason" className="min-h-24 w-full rounded-lg border border-input bg-background p-3 text-sm"
-          value={payoutReturnReason} onChange={event=>setPayoutReturnReason(event.target.value)} maxLength={1000}/>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={()=>setReturningPayoutId(null)}>Hủy</Button>
-          <Button type="button" disabled={saving||!payoutReturnReason.trim()}
-            onClick={()=>void returnPayout()}>Trả về Kế toán</Button>
-        </div>
-      </div>
-    </AppDialog>
-    <AppDialog returnFocusRef={payoutSectionRef} open={Boolean(detail&&payoutDialogOpen)}
-      onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open){payoutKey.current=null;setEditingPayout(null);}}}}
-      busy={saving} title={editingPayout?'Chỉnh sửa phiếu chi Nháp':'Lập phiếu chi hoa hồng'}
-      description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh.">
-      {detail&&payoutDialogOpen&&<form className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
+  const payoutDraftForm=detail&&payoutDialogOpen?(
+    <form id="accounting-payout-draft-form" className="space-y-4 text-sm" onSubmit={event=>{event.preventDefault();void createPayout();}}>
         {editingPayout?.status==='CHANGES_REQUESTED'&&<section className="rounded-xl border border-amber-300/70 bg-amber-50/70 p-4 dark:border-amber-800 dark:bg-amber-950/30">
           <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
             <MessageSquareText aria-hidden="true" className="size-4"/> BGĐ yêu cầu bổ sung
@@ -1302,7 +823,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             {editingPayout.events.filter(event=>event.event_type==='CHANGES_REQUESTED').at(-1)?.reason?.trim()||'Chưa có nội dung yêu cầu.'}
           </p>
         </section>}
-        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
+        {editingPayout&&<div className="rounded-xl border border-border/80 bg-muted/20 p-4">
           <p className="text-xs font-medium text-muted-foreground">Người hưởng</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <UserRound className="size-4 text-primary" aria-hidden="true"/>
@@ -1314,7 +835,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">Hợp đồng {detail.data.contract_code} · Kỳ hoa hồng {payoutPeriodLabel(editingPayout?.period??chosenPeriod)}</p>
-        </div>
+        </div>}
         <div className="space-y-3 rounded-xl border border-border/80 p-4">
           <p className="text-xs text-muted-foreground">Hệ thống đề xuất:{' '}
             {editingPayout?.suggested_rate_percent??suggestedRate}% ·
@@ -1322,7 +843,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <label htmlFor="payout-rate" className="text-sm font-medium">% Hoa hồng</label>
+              <label htmlFor="payout-rate" className="text-sm font-medium">% Hoa hồng *</label>
               <Input id="payout-rate" type="number" min={0} max={100} step="0.0001"
                 value={payoutRate} onChange={event=>{
                   const rate=event.target.value;setPayoutRate(rate);payoutKey.current=null;
@@ -1334,7 +855,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
                 }}/>
             </div>
             <div className="space-y-1">
-              <label htmlFor="payout-amount" className="text-sm font-medium">Tiền hoa hồng (VNĐ)</label>
+              <label htmlFor="payout-amount" className="text-sm font-medium">Tiền hoa hồng (VNĐ) *</label>
               <AppCurrencyInput id="payout-amount" value={payoutRequestedAmount}
                 onValueChange={value=>{setPayoutRequestedAmount(value);payoutKey.current=null;}}/>
             </div>
@@ -1365,25 +886,11 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             </strong>
           </div>
         </div>
-        <p className="flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
-          <ClipboardCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true"/>
-          Thao tác này chỉ lập phiếu ở trạng thái Nháp, chưa ghi nhận chuyển khoản.
-          Giá trị chính thức sẽ được Backend kiểm tra.
-        </p>
         {payoutError&&<p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{payoutError}</p>}
-        <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" className="w-full sm:w-auto"
-            disabled={saving} onClick={()=>{setPayoutDialogOpen(false);payoutKey.current=null;}}>Hủy</Button>
-          <Button type="submit" className="w-full sm:w-auto" disabled={saving||!chosenPeriod}>
-            {saving?'Đang lưu...':'Lưu nháp'}
-          </Button>
-        </div>
-      </form>}
-    </AppDialog>
-    <AppDialog open={Boolean(detail && entryMode)} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}
-      busy={saving} title={entryMode==='receipt'?'Thêm khoản thu từ nhà trường':'Thêm khoản chi hoa hồng'}
-      description="Nhập đúng ngày, số tiền và ảnh chứng từ cho giao dịch.">
-      {detail && entryMode && <form noValidate className="space-y-4" onChange={event=>{
+      </form>
+  ):null;
+  const financialTransactionForm=detail&&entryMode?(
+    <form id="accounting-financial-transaction-form" noValidate className="space-y-4" onChange={event=>{
         const name = event.target.getAttribute('name') as keyof FieldErrors | null;
         if (!name) return;
         setFieldErrors(current => {
@@ -1396,9 +903,9 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         {entryMode==='receipt' ? <label className="block space-y-1"><span>Đợt thanh toán *</span>
           <select name="schedule_id" required value={selectedScheduleId??''}
             onChange={e=>{setSelectedScheduleId(Number(e.target.value)||null);receiptAttempt.current=null;setFieldErrors({});}}
-            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+            className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.schedules.filter(x=>x.amount_received<x.amount_due).map(x=><option key={x.id} value={x.id}>
-              {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
+              {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'} · {channelDate(x.due_on)} · Còn {channelMoney(x.amount_due-x.amount_received)}</option>)}
           </select>{selectedScheduleId!==null&&<p className="text-xs text-muted-foreground">
               Còn phải thu: {channelMoney(Math.max(0,
                 (detail.schedules.find(x=>x.id===selectedScheduleId)?.amount_due??0)-
@@ -1409,12 +916,15 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
               const id=Number(e.target.value);
               setSelectedPayoutId(id);receiptAttempt.current=null;setFieldErrors({});
               setAmountInput(String(detail.payouts.find(x=>x.id===id)?.net_amount??''));
-            }} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+            }} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
             {detail.payouts.filter(x=>x.status==='APPROVED').map(x=><option key={x.id} value={x.id}>{x.code} · {channelMoney(x.net_amount)}</option>)}
           </select>{fieldErrors.payout_id && <span role="alert" className="text-xs text-red-700">{fieldErrors.payout_id}</span>}</label>}
-        <div className="space-y-1"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
-          <Input id="accounting-transaction-date" type="date" name="transaction_date" required aria-invalid={Boolean(fieldErrors.transaction_date)} defaultValue={accountingBusinessDay(new Date())}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
-        <div className="space-y-1"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
+        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5"><label htmlFor="accounting-transaction-date">Ngày giao dịch *</label>
+          <Input id="accounting-transaction-date" type="date" name="transaction_date" required
+            aria-invalid={Boolean(fieldErrors.transaction_date)} value={transactionDate}
+            onChange={event=>setTransactionDate(event.target.value)}/>{fieldErrors.transaction_date && <p role="alert" className="text-xs text-red-700">{fieldErrors.transaction_date}</p>}</div>
+        <div className="space-y-1.5"><label htmlFor="accounting-amount">{entryMode==='receipt'?'Số tiền nhà trường thực trả (VNĐ) *':'Số tiền đã chuyển (VNĐ) *'}</label>
           <div className="relative">
             <AppCurrencyInput id="accounting-amount" name="amount"
               placeholder="0" required aria-invalid={Boolean(fieldErrors.amount)} value={amountInput}
@@ -1423,23 +933,683 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
             <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">đ</span>
           </div>
           {fieldErrors.amount && <p role="alert" className="text-xs text-red-700">{fieldErrors.amount}</p>}</div>
+        </div>
         {entryMode==='payout' && <p className="text-xs text-muted-foreground">Số tiền chi phải khớp phiếu chi đã duyệt; chưa hỗ trợ chia nhỏ một phiếu chi.</p>}
         <div className="space-y-1"><label htmlFor="accounting-bank-reference">Mã giao dịch ngân hàng *</label>
-          <Input id="accounting-bank-reference" name="reference_code" required maxLength={64} aria-invalid={Boolean(fieldErrors.reference_code)}/>{fieldErrors.reference_code && <p role="alert" className="text-xs text-red-700">{fieldErrors.reference_code}</p>}</div>
-        <div className="space-y-1"><label htmlFor="accounting-bank-proof">Ảnh chứng từ chuyển khoản *</label>
-          <Input id="accounting-bank-proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" required aria-invalid={Boolean(fieldErrors.proof)}/>
-          {fieldErrors.proof && <p role="alert" className="text-xs text-red-700">{fieldErrors.proof}</p>}
-          <p className="text-xs text-muted-foreground">JPG, PNG, WEBP · tối đa 5 MB · lưu riêng tư theo phân quyền</p></div>
-        <div className="flex flex-wrap justify-end gap-3 border-t border-border/70 pt-4">
-          <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</AppButton>
-          <AppButton type="submit" tone="green" busy={saving}>{saving?'Đang lưu...':entryMode==='receipt'?'Ghi nhận khoản thu':'Xác nhận đã chuyển tiền'}</AppButton>
+          <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}
+            aria-invalid={Boolean(fieldErrors.reference_code)} value={transactionReference}
+            onChange={event=>setTransactionReference(event.target.value)}/>{fieldErrors.reference_code && <p role="alert" className="text-xs text-red-700">{fieldErrors.reference_code}</p>}</div>
+        <div className="space-y-2">
+          <label htmlFor="accounting-bank-proof" className="block text-sm font-medium">Ảnh chứng từ chuyển khoản *</label>
+          <AccountingReceiptProofUpload key={entryMode==='payout'?`payout-${selectedPayoutId??'none'}`:'receipt'}
+            error={fieldErrors.proof}
+            onFileSelected={()=>setFieldErrors(current=>({...current,proof:undefined}))}/>
         </div>
-      </form>}
+      </form>
+  ):null;
+  const receiptReady=Boolean(receivableChoice&&detail?.data.id===selected&&!receiptNoDue&&
+    selectedScheduleId!==null&&detail?.schedules.some(schedule=>schedule.id===selectedScheduleId&&
+      schedule.amount_received<schedule.amount_due));
+  return <div className="min-w-0 space-y-5">
+    <AppPageHeader eyebrow="KẾ TOÁN / KIDSFIT CRM"
+      title={accountingTab==='CONTRACTS'?'Hợp đồng & hoa hồng'
+        :accountingTab==='RECEIPTS'?'Khoản thu nhà trường':'Phiếu chi hoa hồng'}
+      description={accountingTab==='CONTRACTS'
+        ?'Theo dõi kỳ sử dụng, xử lý tái ký và đối soát tài chính trong một danh sách hợp đồng.'
+        :accountingTab==='RECEIPTS'
+          ?'Ghi nhận tiền nhà trường thanh toán và quản lý chứng từ theo hợp đồng.'
+          :'Lập phiếu, trình BGĐ phê duyệt và theo dõi chi trả hoa hồng Sales/Quản lý.'}
+      actions={accountingTab==='RECEIPTS'&&canRecordRevenue
+        ?<AppButton type="button" tone="green" premium
+          leadingIcon={<Plus aria-hidden="true" className="size-4"/>} onClick={openReceiptForm}>
+          Thêm mới
+        </AppButton>
+        :accountingTab==='PAYOUTS'&&canCreatePayout
+          ?<AppButton type="button" tone="green" premium
+            leadingIcon={<Plus aria-hidden="true" className="size-4"/>}
+            onClick={()=>{setPayoutCreatePeriod('');setPayoutPickerSearch('');setEligiblePage(1);
+              setPayoutCandidateKey('');setPayoutSchool(null);setPayoutSchoolCandidates([]);
+              setPayoutDialogOpen(false);setCentralPayoutIntent(null);setEditingPayout(null);
+              setPayoutError('');setPayoutSchoolSearchOpen(false);setPayoutSchoolActiveIndex(0);
+              setPayoutPickerOpen(true);}}>
+            Thêm mới
+          </AppButton>:undefined}/>
+    {!connected && <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">Cần đăng nhập bằng tài khoản có quyền xem hoa hồng để tải dữ liệu thực tế.</p>}
+    <div role="tablist" aria-label="Nghiệp vụ Kế toán"
+      className="flex min-h-12 gap-x-6 overflow-x-auto overflow-y-hidden border-b border-border bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {([{key:'CONTRACTS',label:'Hợp đồng',icon:FileCheck2},
+         {key:'RECEIPTS',label:'Khoản thu nhà trường',icon:HandCoins},
+         {key:'PAYOUTS',label:'Phiếu chi hoa hồng',icon:WalletCards}] as const).map(item=>
+        <button type="button" role="tab" key={item.key}
+          aria-selected={accountingTab===item.key} onClick={()=>{setAccountingTab(item.key);setSelected(null);setPayoutDialogOpen(false);setPayoutPickerOpen(false);setReceiptIntent(false);setEntryMode(null);setCentralPayoutIntent(null);}}
+          className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${accountingTab===item.key
+            ?'border-[#1b5e20] text-[#1b5e20] dark:border-green-400 dark:text-green-400'
+            :'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}>
+          <item.icon className="size-4 shrink-0" aria-hidden="true"/>
+          <span>{item.label}</span>
+        </button>)}
+    </div>
+    {accountingTab==='CONTRACTS'&&<AdminListPanel className="min-w-0">
+      <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-2.5 border-b border-border/80 px-4 py-4 sm:px-5">
+        <div className="relative min-w-[210px] flex-[1_1_270px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+          <Input aria-label="Tìm hợp đồng và hoa hồng" className="h-10 w-full rounded-lg bg-card pl-10"
+            placeholder="Tên trường, mã hợp đồng, Sales..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        <AppMonthPicker label="Tháng sử dụng hợp đồng" className="w-full sm:w-[170px]"
+          value={contractServiceMonth} onChange={setContractServiceMonth}/>
+        <AppSelect ariaLabel="Bộ lọc cần xử lý" value={needsAction} className="w-full sm:w-[154px]"
+          options={[{value:'ALL',label:'Tất cả xử lý'},{value:'YES',label:'Cần xử lý'}]}
+          onValueChange={value=>{setNeedsAction(value);setPage(1);}}/>
+        <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
+        <AppButton type="button" tone="outline" size="icon-lg" className="h-10 w-10 min-w-10 rounded-lg p-0"
+          aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc" onClick={resetFilters}>
+          <RotateCcw className="size-4" aria-hidden="true"/>
+        </AppButton>
+      </form>
+      {busy&&rows.length>0&&<div className="px-4 py-2"><InlineLoading label="Đang cập nhật danh sách hợp đồng..."/></div>}
+      {busy&&rows.length===0?<output className="block space-y-3 p-5" aria-label="Đang tải danh sách hợp đồng">
+        {Array.from({length:6},(_,index)=><AppSkeleton key={index} className="h-11 w-full"/>)}
+      </output>:<AccountingContractTreeTable key={[appliedSearch,appliedServiceFrom,appliedServiceTo,needsAction,page].join(':')}
+        rows={rows} fromDate={appliedServiceFrom} toDate={appliedServiceTo} needsAction={needsAction!=='ALL'}
+        canConfirm={abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*')}
+        canRequestInfo={abilities.includes('channel_sales.renewal.review')||abilities.includes('*')}
+        onView={(contractId,renewalId)=>openContract(contractId,renewalId)}
+        onReview={(contractId,renewalId)=>openRenewal(contractId,renewalId,'confirm')}
+        onRequestInfo={(contractId,renewalId)=>openRenewal(contractId,renewalId,'request-info')}/>}
+      {!busy && rows.length===0 && <p className="p-10 text-center text-sm text-muted-foreground">Không có hợp đồng phù hợp. Hãy thử bộ lọc khác.</p>}
+      <AppPagination page={page} pageSize={pageSize} total={total} itemLabel="hợp đồng"
+        disabled={busy} showSummary={false} pageSizeOptions={[20,50,100]}
+        onPageChange={setPage}
+        onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
+    </AdminListPanel>}
+    {accountingTab==='RECEIPTS'&&<AdminListPanel className="min-w-0">
+      <AdminListToolbar search={receiptSearch} onSearchChange={setReceiptSearch}
+        onSearch={()=>{setReceiptAppliedSearch(receiptSearch.trim());setReceiptAppliedPeriod(receiptPeriod);setReceiptPage(1);}}
+        onReset={()=>{setReceiptSearch('');setReceiptAppliedSearch('');setReceiptPeriod('');setReceiptAppliedPeriod('');setReceiptPage(1);}}
+        searchLabel="Tìm khoản thu nhà trường"
+        placeholder="Tên trường, hợp đồng, mã giao dịch..."
+        filters={<AppMonthPicker label="Tháng nhận tiền" className="w-full sm:w-[170px]"
+          value={receiptPeriod} onChange={setReceiptPeriod}/>}/>
+      {receiptLoading?<output className="block p-5 text-sm text-muted-foreground">Đang tải các khoản thu...</output>:
+      <div className="w-full overflow-x-auto">
+        <table className={adminTableClass+' table-fixed'}>
+          <thead className={adminTableHeadClass}>
+            <tr>
+              <th scope="col" className="w-[29%] whitespace-nowrap px-4 py-3">Nhà trường</th>
+              <th scope="col" className="w-[14%] whitespace-nowrap px-3 py-3">Ngày thu</th>
+              <th scope="col" className="w-[18%] whitespace-nowrap px-3 py-3 text-right">Số tiền</th>
+              <th scope="col" className="w-[21%] whitespace-nowrap px-3 py-3">Mã giao dịch</th>
+              <th scope="col" className="w-[10%] whitespace-nowrap px-2 py-3 text-center">Chứng từ</th>
+              <th scope="col" className="w-[8%] whitespace-nowrap px-2 py-3 text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/70">
+            {receiptRows.map(receipt=><tr key={receipt.id} className="transition-colors even:bg-muted/20 hover:bg-accent/60">
+              <td className="min-w-0 px-4 py-4 align-middle">
+                <p className="break-words font-semibold text-foreground" title={receipt.school_name}>{receipt.school_name}</p>
+                <p className="mt-1 break-all text-xs text-muted-foreground">{receipt.contract_code}</p>
+              </td>
+              <td className="whitespace-nowrap px-3 py-4 align-middle tabular-nums">
+                {channelDate(receipt.received_at)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-4 text-right align-middle font-semibold tabular-nums">
+                {channelMoney(receipt.amount)}
+              </td>
+              <td className="min-w-0 break-all px-3 py-4 align-middle" title={receipt.reference_code||undefined}>
+                {receipt.reference_code}
+              </td>
+              <td className="px-2 py-4 text-center align-middle">
+                {receipt.proof_id&&receipt.proof_file_name
+                  ?<AdminIconAction icon={ImageIcon} label={'Xem chứng từ khoản thu '+(receipt.reference_code||receipt.id)}
+                    onClick={()=>void viewEvidence(receipt.proof_id!,receipt.proof_file_name!)}/>
+                  :<span className="text-muted-foreground" aria-label="Không có chứng từ">—</span>}
+              </td>
+              <td className="px-2 py-4 text-center align-middle">
+                <div className="flex items-center justify-center gap-2">
+                  <AdminIconAction icon={Eye} label={'Xem khoản thu '+(receipt.reference_code||receipt.id)}
+                    onClick={()=>setReceiptPreview(receipt)}/>
+                </div>
+              </td>
+            </tr>)}
+            {receiptRows.length===0&&<tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
+              Không có khoản thu phù hợp. Chọn Thêm mới để ghi nhận giao dịch đã đối chiếu.
+            </td></tr>}
+          </tbody>
+        </table>
+      </div>}
+      <AppPagination page={receiptPage} pageSize={receiptPageSize} total={receiptTotal}
+        itemLabel="khoản thu" disabled={receiptLoading} showSummary={false} pageSizeOptions={[10,20,50,100]}
+        onPageChange={setReceiptPage} onPageSizeChange={size=>{setReceiptPageSize(size);setReceiptPage(1);}}/>
+    </AdminListPanel>}
+    {accountingTab==='PAYOUTS'&&<AdminListPanel className="min-w-0">
+      <AdminListToolbar search={financeSearch} onSearchChange={setFinanceSearch}
+        onSearch={()=>{setFinanceAppliedSearch(financeSearch.trim());setFinancePage(1);}}
+        onReset={resetFinanceFilters} searchLabel="Tìm phiếu chi"
+        placeholder="Mã phiếu, nhà trường, người hưởng..."
+        filters={<div className="flex flex-wrap items-center gap-2"><AppSelect ariaLabel="Lọc trạng thái phiếu chi" className="w-full sm:w-[170px]"
+          value={financeStatus}
+          options={[{value:'ALL',label:'Tất cả trạng thái'},
+            {value:'DRAFT',label:'Nháp'},
+            {value:'PENDING_APPROVAL',label:'Chờ BGĐ duyệt'},
+            {value:'CHANGES_REQUESTED',label:'Cần bổ sung'},
+            {value:'APPROVED',label:'Đã duyệt'},
+            {value:'PAID',label:'Đã chi'},
+            {value:'CANCELLED',label:'Đã hủy'},
+            {value:'REJECTED',label:'Đã từ chối'}]}
+          onValueChange={next=>{setFinanceStatus(next);setFinancePage(1);}}/>
+          <AppMonthPicker label="Tháng lập phiếu" className="w-full sm:w-[170px]" value={financeCreatedMonth}
+            onChange={next=>{setFinanceCreatedMonth(next);setFinancePage(1);}}/>
+          <Button type="button" variant="outline" size="sm"
+            aria-label="Bộ lọc nâng cao" title="Bộ lọc nâng cao"
+            aria-expanded={financeAdvancedOpen} aria-controls="accounting-payout-advanced"
+            onClick={()=>setFinanceAdvancedOpen(v=>!v)}
+            className={`size-10 shrink-0 rounded-lg p-0 ${financeAdvancedOpen?'border-primary bg-primary/10 text-primary':''}`}>
+            <SlidersHorizontal className="size-4" aria-hidden="true"/>
+          </Button>
+        </div>}/>
+      {financeAdvancedOpen&&<div id="accounting-payout-advanced" className="flex flex-wrap items-center gap-3 border-b border-border/80 bg-muted/20 px-5 py-3 sm:px-6">
+        <AppSelect ariaLabel="Lọc tổ chức phiếu chi" className="w-full sm:w-[220px]" value={financeOrganization}
+          options={[{value:'ALL',label:'Tất cả tổ chức'},...payoutOrganizations.map(org=>({value:String(org.id),label:org.name}))]}
+          onValueChange={next=>{setFinanceOrganization(next);setFinancePage(1);}}/>
+        <AppSelect ariaLabel="Lọc người hưởng hoa hồng" className="w-full sm:w-[190px]"
+          value={financeRole} options={[{value:'ALL',label:'Sales và Quản lý'},{value:'SALES',label:'Sales'},{value:'MANAGER',label:'Quản lý'}]}
+          onValueChange={next=>{setFinanceRole(next);setFinancePage(1);}}/>
+      </div>}
+      <div className="overflow-x-auto">
+        <table className={adminTableClass+' table-fixed'}>
+          <thead className={adminTableHeadClass}>
+            <tr>
+              <th scope="col" className="w-[18%] px-3 py-3">Người hưởng</th>
+              <th scope="col" className="w-[21%] px-3 py-3">Nhà trường</th>
+              <th scope="col" className="w-[11%] px-2 py-3">Ngày lập</th>
+              <th scope="col" className="w-[11%] px-2 py-3">Ngày chi</th>
+              <th scope="col" className="w-[11%] px-2 py-3 text-center">Số tiền chi</th>
+              <th scope="col" className="w-[14%] px-2 py-3">Trạng thái</th>
+              <th scope="col" className="w-[14%] px-2 py-3 text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/70">
+            {visiblePayouts.map(p=><tr key={p.id} className="transition-colors even:bg-muted/20 hover:bg-accent/60">
+              <td className="min-w-0 px-4 py-3">
+                <p className="break-words font-semibold">{p.beneficiary_name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{p.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</p>
+              </td>
+              <td className="min-w-0 px-3 py-3">
+                <p className="break-words text-sm font-semibold">{p.school_names?.length?p.school_names.join(', '):'Chưa xác định nhà trường'}</p>
+                <p className="mt-1 break-words text-xs text-muted-foreground">{p.contract_codes?.length?p.contract_codes.join(', '):'Cần đối soát liên kết phiếu'}</p>
+              </td>
+              <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{channelDate(p.created_at)}</td>
+              <td className="whitespace-nowrap px-2 py-3 text-xs tabular-nums">{p.status==='PAID'&&p.paid_at?channelDate(p.paid_at):'—'}</td>
+              <td className="whitespace-nowrap px-2 py-3 text-center font-semibold tabular-nums">{channelMoney(p.net_amount)}<span className="mt-1 block text-[11px] font-normal text-muted-foreground">{p.status==='PAID'?'Đã thực chi':'Dự kiến chi'}</span></td>
+              <td className="px-3 py-3">
+                <AppStatusBadge size="sm" className="whitespace-nowrap [&>span]:whitespace-nowrap" status={p.status} label={payoutStatusLabel(p.status)}
+                  tone={p.status==='PAID'||p.status==='APPROVED'?'success'
+                    :p.status==='REJECTED'||p.status==='CANCELLED'?'danger'
+                    :p.status==='CHANGES_REQUESTED'||p.status==='PENDING_APPROVAL'?'warning':'neutral'}/>
+              </td>
+              
+              <td className="px-3 py-3 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <AdminIconAction icon={Eye} label={'Xem phiếu chi '+p.code}
+                    onClick={()=>setPayoutPreview(p)}/>
+                  {p.can_edit&&
+                    <AdminIconAction icon={Pencil} tone="blue" label={'Sửa phiếu chi '+p.code}
+                      disabled={saving}
+                      onClick={()=>{setPayoutPickerOpen(true);openCentralPayout({contractId:p.contract_ids![0],
+                        beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
+                        period:p.period,mode:'EDIT',payoutId:p.id});}}/>}
+                  {p.can_submit&&
+                    <AdminIconAction icon={Send} label={'Gửi BGĐ phê duyệt phiếu chi '+p.code}
+                      disabled={saving} onClick={()=>setPendingPayoutSubmit(p)}/>}
+                  {p.can_complete&&p.contract_ids?.length===1&&
+                    <AdminIconAction icon={WalletCards} label={'Ghi nhận chuyển khoản phiếu chi '+p.code}
+                      disabled={saving} onClick={()=>openCentralPayout({
+                        contractId:p.contract_ids![0],
+                        beneficiaryUserId:p.beneficiary_user_id,role:p.beneficiary_role,
+                        period:p.period,mode:'COMPLETE',payoutId:p.id
+                      })}/>}
+                </div>
+              </td>
+            </tr>)}
+            {!visiblePayouts.length&&<tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-muted-foreground">
+              {financeLoading?'Đang tải danh sách phiếu chi...':!connected?'Cần đăng nhập để xem phiếu chi.':'Không có phiếu chi phù hợp với bộ lọc.'}
+            </td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <AppPagination page={financePage} pageSize={financePageSize} total={payoutTotal}
+        itemLabel="phiếu chi" disabled={financeLoading} showSummary={false}
+        pageSizeOptions={[10,20,50,100]}
+        onPageChange={setFinancePage}
+        onPageSizeChange={size=>{setFinancePageSize(size);setFinancePage(1);}}/>
+    </AdminListPanel>}
+    <AppDialog open={receiptIntent} onOpenChange={open=>{if(!open&&!saving){
+        setReceiptIntent(false);setEntryMode(null);setSelected(null);
+        setReceivableChoice(null);setReceivablePickerOpen(false);setPendingReceivable(null);
+      }}}
+      busy={saving} title="Ghi nhận khoản thu nhà trường"
+      bodyClassName="py-4 sm:py-5"
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} className="h-11 min-w-28"
+          onClick={()=>{setReceiptIntent(false);setEntryMode(null);setSelected(null);
+            setReceivableChoice(null);setReceivablePickerOpen(false);setPendingReceivable(null);}}>Hủy</AppButton>
+        <AppButton type="submit" form="accounting-financial-transaction-form" tone="green"
+          disabled={saving||!receiptReady} busy={saving}
+          className="h-11 min-w-40">Ghi nhận khoản thu</AppButton>
+      </>}>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="receivable-contract-search" className="block text-sm font-semibold">Nhà trường / Hợp đồng *</label>
+          <AccountingReceivablePicker selected={receivableChoice} options={receivableRows}
+            query={receivableSearch} onQueryChange={value=>{setReceivableSearch(value);setReceivablePage(1);}}
+            open={receivablePickerOpen} onOpenChange={setReceivablePickerOpen}
+            loading={receivableLoading} total={receivableTotal} page={receivablePage}
+            onPageChange={setReceivablePage} onSelect={requestSelectReceivable} disabled={saving}/>
+          {receivableChoice&&<p className="text-xs text-muted-foreground">{receivableChoice.code}</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-muted/20 p-3">
+          <div className="min-w-0 space-y-2">
+            <p className="text-xs text-muted-foreground">Sales / CTV phụ trách</p>
+            <p className="break-words text-sm font-semibold">{receivableChoice?.owner_name||'Chưa chọn nhà trường'}</p>
+            {receivableChoice&&<p className="text-xs text-muted-foreground">
+              {receivableChoice.personnel_type==='COLLABORATOR'?'CTV':'Nhân viên'}
+            </p>}
+          </div>
+          <div className="min-w-0 space-y-2">
+            <p className="text-xs text-muted-foreground">Quản lý phụ trách</p>
+            <p className="break-words text-sm font-semibold">{receivableChoice?.manager_name||'Chưa xác định'}</p>
+          </div>
+        </div>
+        {receivableChoice&&!receiptReady&&<output className="block text-xs text-muted-foreground">
+          {receiptNoDue?'Hợp đồng không còn đợt thanh toán có thể thu. Vui lòng chọn hợp đồng khác.'
+            :'Đang tải các đợt thanh toán của hợp đồng...'}
+        </output>}
+        <form key={selected??'unselected'} id="accounting-financial-transaction-form" noValidate
+          className="space-y-4" onSubmit={event=>void sendRecord(event)}
+          onChange={event=>{
+            const name=event.target.getAttribute('name') as keyof FieldErrors | null;
+            if(!name)return;
+            setFieldErrors(current=>{if(!current[name])return current;
+              const next={...current};delete next[name];return next;});
+          }}>
+          <div className="space-y-2">
+            <label htmlFor="receipt-schedule" className="block text-sm font-medium">Đợt thanh toán *</label>
+            <Select name="schedule_id" disabled={!receiptReady}
+              value={receiptReady&&selectedScheduleId!==null?String(selectedScheduleId):''}
+              onValueChange={value=>{setSelectedScheduleId(value?Number(value):null);
+                receiptAttempt.current=null;setFieldErrors({});}}>
+              <SelectTrigger id="receipt-schedule" aria-invalid={Boolean(fieldErrors.schedule_id)}
+                className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left shadow-xs focus-visible:border-primary focus-visible:ring-primary/20">
+                <SelectValue placeholder="Chọn đợt thanh toán">
+                  {receiptReady&&detail?.schedules.find(x=>x.id===selectedScheduleId)
+                    ?(()=>{const schedule=detail.schedules.find(x=>x.id===selectedScheduleId)!;
+                        return (schedule.renewal_no?'Tái ký lần '+schedule.renewal_no:'Hợp đồng lần đầu')+
+                          ' · '+channelDate(schedule.due_on)+' · Còn '+
+                          channelMoney(schedule.amount_due-schedule.amount_received);
+                      })()
+                    :'Chọn nhà trường / hợp đồng trước'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent align="start" alignItemWithTrigger={false}
+                side="bottom" sideOffset={6} listClassName="space-y-1"
+                className="z-[90] w-(--anchor-width) max-h-[min(224px,40dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl">
+                {detail?.schedules.filter(x=>x.amount_received<x.amount_due).map(x=>
+                  <SelectItem key={x.id} value={String(x.id)}
+                    className="min-h-10 rounded-lg px-3 py-1.5 pr-9 data-selected:bg-primary/10 data-selected:text-primary data-highlighted:bg-primary/10">
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-1 text-left">
+                      <span className="min-w-0 truncate text-sm font-semibold">
+                        {x.renewal_no?'Tái ký lần '+x.renewal_no:'Hợp đồng lần đầu'}
+                        <span className="ml-1 font-normal text-muted-foreground">· {channelDate(x.due_on)}</span>
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-primary">
+                        Còn {channelMoney(x.amount_due-x.amount_received)}
+                      </span>
+                    </span>
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+            {receiptReady&&<p className="text-xs text-muted-foreground">Còn phải thu: {channelMoney(Math.max(0,
+              (detail?.schedules.find(x=>x.id===selectedScheduleId)?.amount_due??0)-
+              (detail?.schedules.find(x=>x.id===selectedScheduleId)?.amount_received??0)))}</p>}
+            {fieldErrors.schedule_id&&<p role="alert" className="text-xs text-destructive">{fieldErrors.schedule_id}</p>}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="accounting-transaction-date" className="block text-sm font-medium">Ngày giao dịch *</label>
+              <Input id="accounting-transaction-date" type="date" name="transaction_date" required
+                disabled={!receiptReady} aria-invalid={Boolean(fieldErrors.transaction_date)}
+                value={transactionDate} onChange={e=>setTransactionDate(e.target.value)}/>
+              {fieldErrors.transaction_date&&<p role="alert" className="text-xs text-destructive">{fieldErrors.transaction_date}</p>}
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="accounting-amount" className="block text-sm font-medium">Số tiền nhà trường thực trả (VNĐ) *</label>
+              <div className="relative">
+                <AppCurrencyInput id="accounting-amount" name="amount" placeholder="0" required
+                  disabled={!receiptReady} aria-invalid={Boolean(fieldErrors.amount)}
+                  value={amountInput} onValueChange={setAmountInput}
+                  className="pr-12 tabular-nums text-right"/>
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">đ</span>
+              </div>
+              {fieldErrors.amount&&<p role="alert" className="text-xs text-destructive">{fieldErrors.amount}</p>}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="accounting-bank-reference" className="block text-sm font-medium">Mã giao dịch ngân hàng *</label>
+            <Input id="accounting-bank-reference" name="reference_code" required maxLength={64}
+              disabled={!receiptReady} aria-invalid={Boolean(fieldErrors.reference_code)}
+              value={transactionReference} onChange={e=>setTransactionReference(e.target.value)}/>
+            {fieldErrors.reference_code&&<p role="alert" className="text-xs text-destructive">{fieldErrors.reference_code}</p>}
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="accounting-bank-proof" className="block text-sm font-medium">Ảnh chứng từ chuyển khoản *</label>
+            <AccountingReceiptProofUpload disabled={!receiptReady}
+              error={fieldErrors.proof} onFileSelected={setReceiptProofSelected}/>
+          </div>
+        </form>
+      </div>
+    </AppDialog>
+    <ConfirmDialog open={pendingReceivable!==null} onOpenChange={open=>{if(!open)setPendingReceivable(null);}}
+      title="Đổi nhà trường / hợp đồng?" confirmLabel="Đổi hợp đồng"
+      description="Thông tin khoản thu đang nhập sẽ bị xóa khi đổi hợp đồng."
+      onConfirm={()=>{if(pendingReceivable)selectReceivable(pendingReceivable);setPendingReceivable(null);}}/>
+    <AppDrawer open={receiptPreview!==null} onOpenChange={open=>{if(!open)setReceiptPreview(null);}}
+      title="Chi tiết khoản thu"
+      footer={receiptPreview?<div className="flex w-full flex-wrap items-center justify-end gap-2">
+        {receiptPreview.proof_id&&receiptPreview.proof_file_name&&<Button type="button" variant="outline"
+          onClick={()=>void viewEvidence(receiptPreview.proof_id!,receiptPreview.proof_file_name!)}>
+          <ImageIcon className="size-4" aria-hidden="true"/> Xem chứng từ
+        </Button>}
+        <Button type="button" onClick={()=>{setSelectedPeriodId(null);setSelected(receiptPreview.contract_id);
+          setAccountingTab('CONTRACTS');setReceiptPreview(null);}}>
+          <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
+        </Button>
+      </div>:undefined}>
+      {receiptPreview&&<div className="space-y-4 text-sm">
+        <dl className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2">
+          <div><dt className="text-xs text-muted-foreground">Nhà trường</dt><dd className="mt-1 font-semibold">{receiptPreview.school_name}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Mã hợp đồng</dt><dd className="mt-1 break-all">{receiptPreview.contract_code}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Ngày nhận</dt><dd className="mt-1">{channelDate(receiptPreview.received_at)}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Mã giao dịch</dt><dd className="mt-1 break-all">{receiptPreview.reference_code}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Tổng tiền đã nhận</dt><dd className="mt-1 font-bold tabular-nums text-primary">{channelMoney(receiptPreview.amount)}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Trạng thái</dt><dd className="mt-1">Đã ghi nhận</dd></div>
+        </dl>
+      </div>}
+    </AppDrawer>
+    <AppDialog open={payoutPickerOpen} onOpenChange={open=>{if(!open&&!saving){
+        setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+        setEditingPayout(null);setPayoutSchool(null);setPayoutCandidateKey('');payoutKey.current=null;
+      }}}
+      busy={saving} title="Lập phiếu chi hoa hồng"
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{
+          setPayoutPickerOpen(false);setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+          setEditingPayout(null);setPayoutSchool(null);setPayoutCandidateKey('');payoutKey.current=null;
+        }}>Hủy</AppButton>
+        <AppButton type="submit" form="accounting-payout-draft-form" tone="green" busy={saving}
+          disabled={!payoutCreateReady||saving}>Lưu nháp</AppButton>
+      </>}>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="accounting-payout-search" className="block text-sm font-semibold">Nhà trường *</label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-[22px] size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"/>
+            <Input id="accounting-payout-search" className="h-11 rounded-xl pl-10 pr-10"
+              role="combobox" aria-autocomplete="list" aria-expanded={payoutSchoolSearchOpen}
+              aria-controls="accounting-payout-school-options"
+              aria-activedescendant={payoutSchoolSearchOpen&&payoutSchools[payoutSchoolActiveIndex]
+                ?'accounting-payout-school-option-'+payoutSchools[payoutSchoolActiveIndex].id:undefined}
+              autoComplete="off" value={payoutPickerSearch} placeholder="Tìm và chọn nhà trường..."
+              onFocus={()=>{setPayoutSchoolSearchOpen(true);setPayoutSchoolActiveIndex(0);}}
+              onBlur={()=>setPayoutSchoolSearchOpen(false)}
+              onChange={event=>{
+                setPayoutPickerSearch(event.target.value);setEligiblePage(1);setPayoutCreatePeriod('');
+                setPayoutSchoolActiveIndex(0);setPayoutSchoolSearchOpen(true);
+                setPayoutSchool(null);setPayoutCandidateKey('');setPayoutSchoolCandidates([]);
+                setPayoutDialogOpen(false);setCentralPayoutIntent(null);
+                setSelected(null);setDetail(null);setPayoutDetailError('');payoutKey.current=null;
+              }}
+              onKeyDown={event=>{
+                if(event.key==='Escape'){setPayoutSchoolSearchOpen(false);return;}
+                if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+                  event.preventDefault();setPayoutSchoolSearchOpen(true);
+                  setPayoutSchoolActiveIndex(index=>payoutSchools.length===0?0:
+                    (index+(event.key==='ArrowDown'?1:-1)+payoutSchools.length)%payoutSchools.length);
+                }
+                if(event.key==='Enter'&&payoutSchoolSearchOpen&&payoutSchools[payoutSchoolActiveIndex]){
+                  event.preventDefault();choosePayoutSchool(payoutSchools[payoutSchoolActiveIndex].id);
+                }
+              }}/>
+            {payoutSchool&&<button type="button" aria-label="Bỏ chọn nhà trường"
+              title="Bỏ chọn nhà trường"
+              onMouseDown={event=>event.preventDefault()}
+              onClick={()=>{
+                setPayoutPickerSearch('');setPayoutSchool(null);setPayoutCandidateKey('');setPayoutCreatePeriod('');
+                setPayoutSchoolCandidates([]);setPayoutDialogOpen(false);
+                setCentralPayoutIntent(null);setSelected(null);setDetail(null);
+                setEligiblePage(1);setPayoutSchoolActiveIndex(0);setPayoutSchoolSearchOpen(true);
+                setPayoutDetailError('');payoutKey.current=null;
+              }} className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                <X className="size-4" aria-hidden="true"/>
+              </button>}
+            {payoutSchoolSearchOpen&&<div id="accounting-payout-school-options" role="listbox"
+              aria-label="Danh sách nhà trường đủ điều kiện"
+              className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(290px,45dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">
+              {eligibleLoading&&<output className="block px-3 py-3 text-xs text-muted-foreground">Đang tìm nhà trường...</output>}
+              {!eligibleLoading&&payoutSchools.length===0&&<p className="px-3 py-4 text-sm text-muted-foreground">Không tìm thấy nhà trường đủ điều kiện trong kỳ này.</p>}
+              {!eligibleLoading&&payoutSchools.map((school,index)=><button
+                key={school.id} id={'accounting-payout-school-option-'+school.id} role="option"
+                aria-selected={payoutSchool?.id===school.id}
+                type="button" onMouseDown={event=>event.preventDefault()}
+                onClick={()=>choosePayoutSchool(school.id)}
+                className={'flex w-full flex-col gap-1 rounded-lg px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent '+(index===payoutSchoolActiveIndex?'bg-accent/70':'')}>
+                <span className="font-semibold">{school.name}</span>
+                <span className="text-xs text-muted-foreground">{school.code}</span>
+              </button>)}
+              {eligibleTotal>20&&<div className="flex items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs text-muted-foreground">
+                <span>{eligibleTotal} khoản đủ điều kiện · Trang {eligiblePage}/{Math.ceil(eligibleTotal/20)}</span>
+                <div className="flex gap-1">
+                  <Button size="sm" type="button" variant="outline" disabled={eligiblePage<=1||eligibleLoading}
+                    onMouseDown={event=>event.preventDefault()}
+                    onClick={()=>{setEligiblePage(v=>v-1);setPayoutSchoolActiveIndex(0);}}>Trước</Button>
+                  <Button size="sm" type="button" variant="outline" disabled={eligiblePage*20>=eligibleTotal||eligibleLoading}
+                    onMouseDown={event=>event.preventDefault()}
+                    onClick={()=>{setEligiblePage(v=>v+1);setPayoutSchoolActiveIndex(0);}}>Sau</Button>
+                </div>
+              </div>}
+            </div>}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="accounting-payout-beneficiary" className="block text-sm font-semibold">Người hưởng hoa hồng *</label>
+          <Select value={chosenCandidate?candidateKey(chosenCandidate):''}
+            disabled={!payoutSchool||payoutSchoolLoading||payoutSchoolCandidates.length===0}
+            onValueChange={value=>{if(value)choosePayoutBeneficiary(value);}}>
+            <SelectTrigger id="accounting-payout-beneficiary"
+              className="h-11 w-full min-w-0 rounded-xl border-input bg-background px-3 text-left">
+              <SelectValue placeholder="Chọn Sales hoặc Quản lý">
+                {chosenCandidate?chosenCandidate.beneficiary_name+' · '+(chosenCandidate.beneficiary_role==='MANAGER'?'Quản lý':'Sales')+' · '+payoutPeriodLabel(chosenCandidate.period):'Chọn Sales hoặc Quản lý và kỳ hoa hồng'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start" alignItemWithTrigger={false} side="bottom" sideOffset={5}
+              className="z-[90] max-h-[min(240px,40dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-1.5">
+              {payoutSchoolCandidates.map(item=><SelectItem key={candidateKey(item)} value={candidateKey(item)}
+                className="min-h-12 rounded-lg px-3 py-2 pr-9 data-selected:bg-primary/10 data-highlighted:bg-primary/10">
+                <span className="flex min-w-0 flex-col gap-1 text-left">
+                  <span className="text-sm font-semibold">{item.beneficiary_name} · {item.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</span>
+                  <span className="text-xs text-muted-foreground">{payoutPeriodLabel(item.period)} · Còn đủ điều kiện: {channelMoney(item.amount)}</span>
+                </span>
+              </SelectItem>)}
+            </SelectContent>
+          </Select>
+          {payoutSchoolLoading&&<output className="block text-xs text-muted-foreground">Đang tải người hưởng...</output>}
+          {payoutSchool&&!payoutSchoolLoading&&payoutSchoolCandidates.length===0&&
+            <p className="text-xs text-muted-foreground">Không còn người hưởng đủ điều kiện cho hợp đồng này.</p>}
+        </div>
+        {chosenCandidate&&centralPayoutIntent&&<output aria-live="polite" className="block rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+          Đang tải tỷ lệ và tiền hoa hồng từ hợp đồng đã chọn...
+        </output>}
+        {payoutDetailError&&chosenCandidate&&<div role="alert" className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <p>{payoutDetailError}</p>
+          <Button type="button" variant="outline" size="sm" onClick={()=>{setPayoutDetailError('');setDetailRevision(value=>value+1);}}>Tải lại dữ liệu</Button>
+        </div>}
+        {!chosenCandidate&&!payoutSchoolLoading&&<div className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          <ClipboardCheck className="size-5 text-muted-foreground/70" aria-hidden="true"/>
+          <p>Chọn nhà trường và người hưởng để hiển thị thông tin hoa hồng.</p>
+        </div>}
+        {payoutCreateReady&&!payoutDetailError&&<div className="space-y-3" aria-live="polite">
+          <p className="flex items-center gap-2 text-xs font-medium text-primary">
+            <ClipboardCheck className="size-4" aria-hidden="true"/> Đã tự điền thông tin hoa hồng theo hợp đồng và người hưởng.
+          </p>
+          {payoutDraftForm}
+        </div>}
+      </div>
+    </AppDialog>
+    <AppDrawer open={payoutPreview!==null}
+      onOpenChange={open=>{if(!open&&!saving)setPayoutPreview(null);}}
+      busy={saving}
+      title="Chi tiết phiếu chi"
+      description={payoutPreview?'Mã phiếu '+payoutPreview.code:'Thông tin phiếu chi'}
+      footer={payoutPreview?<div className="flex w-full flex-wrap items-center justify-end gap-2">
+        {payoutPreview.proof_id&&payoutPreview.proof_file_name&&<Button type="button" size="sm" variant="outline"
+          onClick={()=>void viewEvidence(payoutPreview.proof_id!,payoutPreview.proof_file_name!)}>
+          <ImageIcon className="size-4" aria-hidden="true"/> Xem chứng từ chi
+        </Button>}
+        {payoutPreview.contract_ids?.length===1&&<Button type="button" size="sm" variant="outline"
+          onClick={()=>{setSelected(payoutPreview.contract_ids![0]);setAccountingTab('CONTRACTS');setPayoutPreview(null);}}>
+          <FileCheck2 className="size-4" aria-hidden="true"/> Xem hợp đồng
+        </Button>}
+        {payoutPreview.can_edit&&<Button type="button" size="sm" variant="outline" disabled={saving}
+          onClick={()=>{setPayoutPickerOpen(true);openCentralPayout({contractId:payoutPreview.contract_ids![0],beneficiaryUserId:payoutPreview.beneficiary_user_id,
+            role:payoutPreview.beneficiary_role,period:payoutPreview.period,mode:'EDIT',payoutId:payoutPreview.id});setPayoutPreview(null);}}>
+          <Pencil className="size-4" aria-hidden="true"/> Sửa phiếu
+        </Button>}
+        {payoutPreview.can_submit&&<Button type="button" size="sm" disabled={saving}
+          onClick={()=>{setPendingPayoutSubmit(payoutPreview);setPayoutPreview(null);}}>
+          <Send className="size-4" aria-hidden="true"/> Gửi BGĐ duyệt
+        </Button>}
+        {payoutPreview.can_approve&&<>
+          <Button type="button" size="sm" variant="outline" disabled={saving}
+            onClick={()=>{setReturningPayoutId(payoutPreview.id);setPayoutPreview(null);}}>Yêu cầu bổ sung</Button>
+          <Button type="button" size="sm" disabled={saving}
+            onClick={()=>{const id=payoutPreview.id;setPayoutPreview(null);void approvePayout(id);}}>Duyệt phiếu</Button>
+        </>}
+        {payoutPreview.can_complete&&
+          <Button type="button" size="sm" disabled={saving}
+            onClick={()=>{openCentralPayout({contractId:payoutPreview.contract_ids![0],
+              beneficiaryUserId:payoutPreview.beneficiary_user_id,role:payoutPreview.beneficiary_role,
+              period:payoutPreview.period,mode:'COMPLETE',payoutId:payoutPreview.id});setPayoutPreview(null);}}>
+            <WalletCards className="size-4" aria-hidden="true"/> Ghi nhận chuyển khoản
+          </Button>}
+      </div>:undefined}>
+      {payoutPreview&&<div className="space-y-4 text-sm">
+        <div className="grid gap-3 rounded-xl border border-border/80 bg-muted/20 p-4 sm:grid-cols-2">
+          <div><p className="text-xs text-muted-foreground">Người hưởng</p>
+            <p className="mt-1 font-semibold">{payoutPreview.beneficiary_name} · {payoutPreview.beneficiary_role==='MANAGER'?'Quản lý':'Sales'}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Kỳ hoa hồng</p>
+            <p className="mt-1 font-medium">{payoutPeriodLabel(payoutPreview.period)}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Trường / Hợp đồng</p>
+            <p className="mt-1 break-words font-medium">{payoutPreview.school_names?.join(', ')||'Chưa xác định'}</p>
+            <p className="mt-1 break-words text-xs text-muted-foreground">{payoutPreview.contract_codes?.join(', ')||'Không có mã hợp đồng'}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Trạng thái phiếu</p>
+            <p className="mt-1 font-semibold">{payoutStatusLabel(payoutPreview.status)}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Đề nghị chi</p>
+            <p className="mt-1 font-semibold tabular-nums">{channelMoney(payoutPreview.requested_amount)}</p>
+            <p className="text-xs text-muted-foreground">Theo hệ thống: {channelMoney(payoutPreview.suggested_amount)}</p>
+          </div>
+          <div><p className="text-xs text-muted-foreground">{payoutPreview.status==='PAID'?'Thực chi':'Số tiền sau khấu trừ'}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-primary">{channelMoney(payoutPreview.net_amount)}</p>
+            <p className="text-xs text-muted-foreground">Khấu trừ: {channelMoney(payoutPreview.withholding_amount)}</p>
+          </div>
+          {payoutPreview.paid_at&&<div><p className="text-xs text-muted-foreground">Ngày chuyển khoản</p>
+            <p className="mt-1 font-medium">{channelDate(payoutPreview.paid_at)}</p></div>}
+          {payoutPreview.payment_reference&&<div><p className="text-xs text-muted-foreground">Mã giao dịch</p>
+            <p className="mt-1 break-all font-medium">{payoutPreview.payment_reference}</p></div>}
+          {payoutPreview.adjustment_reason&&<div className="sm:col-span-2">
+            <p className="text-xs text-muted-foreground">Lý do điều chỉnh</p>
+            <p className="mt-1 whitespace-pre-wrap break-words">{payoutPreview.adjustment_reason}</p></div>}
+          {payoutPreview.withholding_reason&&<div className="sm:col-span-2">
+            <p className="text-xs text-muted-foreground">Lý do khấu trừ</p>
+            <p className="mt-1 whitespace-pre-wrap break-words">{payoutPreview.withholding_reason}</p></div>}
+        </div>
+        <section className="space-y-2" aria-label="Lịch sử xử lý phiếu chi">
+          <h3 className="font-semibold">Lịch sử xử lý</h3>
+          {payoutPreview.events.length===0?<p className="text-xs text-muted-foreground">Chưa có lịch sử xử lý.</p>:
+            payoutPreview.events.map((event,index)=><div key={index} className="border-l-2 border-border pl-3 text-xs">
+              <p className="font-semibold">{payoutEventLabel(event.event_type)}</p>
+              <p className="mt-1 text-muted-foreground">{channelDate(event.created_at)}</p>
+              {event.reason&&<p className="mt-1 whitespace-pre-wrap break-words">{event.reason}</p>}
+            </div>)}
+        </section>
+        {payoutPreview.contract_ids?.length!==1&&<p className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          Phiếu lịch sử liên quan nhiều hợp đồng hoặc chưa xác định nguồn. Không thể tự chọn một trường để sửa hay chuyển khoản.
+        </p>}
+      </div>}
+    </AppDrawer>
+    <AppDrawer compactHeader open={selected!==null&&accountingTab==='CONTRACTS'}
+      onOpenChange={open=>{if(!open){setSelected(null);setFocusedRenewal(null);setEntryMode(null);closePreview();}}}
+      title="Chi tiết hợp đồng" description="Kế toán / Hồ sơ hợp đồng">
+      {!detail||selected===null||detail.data.id!==selected
+        ?<output className="block space-y-3 p-2" aria-label="Đang tải chi tiết hợp đồng">
+          <AppSkeleton className="h-20 w-full"/><AppSkeleton className="h-36 w-full"/><AppSkeleton className="h-28 w-full"/>
+        </output>
+        :<AccountingContractDetailContent detail={detail}
+          sourceRow={rows.find(row=>row.id===selected)}
+          contractId={selected} selectedPeriodId={selectedPeriodId}
+          focusedRenewal={focusedRenewal} giHistory={giHistory}
+          apiBase={apiBase} token={token} abilities={abilities}
+          onChanged={async()=>{setDetailRevision(v=>v+1);await load();await onChanged();}}/>}
+    </AppDrawer>
+    <ConfirmDialog open={pendingPayoutSubmit!==null}
+      onOpenChange={open=>{if(!open&&!saving)setPendingPayoutSubmit(null);}}
+      busy={saving} confirmLabel="Xác nhận gửi"
+      title="Xác nhận gửi BGĐ phê duyệt"
+      description={pendingPayoutSubmit
+        ?`Gửi phiếu chi của ${pendingPayoutSubmit.beneficiary_name}, số tiền ${channelMoney(pendingPayoutSubmit.net_amount)}, đến BGĐ phê duyệt?`
+        :undefined}
+      onConfirm={()=>{if(pendingPayoutSubmit&&!saving)void submitPayout(pendingPayoutSubmit.id);}}/>
+    <AppDialog open={Boolean(returningPayoutId)}
+      onOpenChange={open=>{if(!open&&!saving){setReturningPayoutId(null);setPayoutReturnReason('');}}}
+      busy={saving} title="BGĐ yêu cầu bổ sung" description="Nêu lý do và trả phiếu về Kế toán chỉnh sửa.">
+      <div className="space-y-3">
+        <label htmlFor="payout-return-reason" className="text-sm font-medium">Lý do yêu cầu bổ sung *</label>
+        <textarea id="payout-return-reason" className="min-h-24 w-full rounded-lg border border-input bg-background p-3 text-sm"
+          value={payoutReturnReason} onChange={event=>setPayoutReturnReason(event.target.value)} maxLength={1000}/>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={()=>setReturningPayoutId(null)}>Hủy</Button>
+          <Button type="button" disabled={saving||!payoutReturnReason.trim()}
+            onClick={()=>void returnPayout()}>Trả về Kế toán</Button>
+        </div>
+      </div>
+    </AppDialog>
+    <AppDialog
+      open={Boolean(detail&&payoutDialogOpen&&!payoutPickerOpen)}
+      onOpenChange={open=>{if(!saving){setPayoutDialogOpen(open);if(!open){payoutKey.current=null;setEditingPayout(null);}}}}
+      busy={saving} title={editingPayout?'Chỉnh sửa phiếu chi Nháp':'Lập phiếu chi hoa hồng'}
+      description="Kế toán được sửa % và tiền hoa hồng. BGĐ sẽ xem cả đề xuất gốc và số liệu điều chỉnh."
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>{
+          setPayoutDialogOpen(false);setPayoutPickerOpen(false);payoutKey.current=null;
+        }}>Hủy</AppButton>
+        <AppButton type="submit" form="accounting-payout-draft-form" tone="green"
+          busy={saving} disabled={!editingPayout&&!chosenPeriod}>Lưu nháp</AppButton>
+      </>}>
+      {payoutDraftForm}
+    </AppDialog>
+    <AppDialog open={Boolean(detail && entryMode==='payout')} onOpenChange={open=>{if(!open && !saving){setEntryMode(null);receiptAttempt.current=null;}}}
+      busy={saving} title="Ghi nhận chuyển khoản phiếu chi"
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} onClick={()=>setEntryMode(null)}>Hủy</AppButton>
+        <AppButton type="submit" form="accounting-financial-transaction-form"
+          tone="green" busy={saving}>Xác nhận đã chuyển tiền</AppButton>
+      </>}>
+      {financialTransactionForm}
     </AppDialog>
     <EvidencePreviewDialog preview={preview} onClose={closePreview}/>
   </div>;
 }
 
-function Metric({ label, value }: {label:string;value:string}) {
-  return <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm"><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-2 text-xl font-bold tabular-nums tracking-tight">{value}</p></div>;
-}

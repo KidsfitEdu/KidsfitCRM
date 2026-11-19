@@ -20,17 +20,19 @@ test('Kidsfit list filters use the existing Base UI Select primitive and accessi
   assert.match(shared,/dark:focus:/);
 });
 
-test('Accounting filters and pagination share branded dropdown without changing filter semantics',()=>{
+test('Accounting date filters reuse CRM Calendar while pagination keeps the branded select',()=>{
   const accounting=source('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
+  const datePicker=source('src/components/common/forms/app-date-picker.tsx');
   const pagination=source('src/components/common/app-pagination.tsx');
-  assert.ok((accounting.match(/<AppSelect\b/g)||[]).length>=4); // Two existing filters plus payout role and status.
-  assert.match(accounting,/onValueChange=\{next=>\{setWorkspaceStatus\(next\);setPage\(1\);\}\}/);
-  assert.match(accounting,/onValueChange=\{next=>\{setOwnerUserId\(next\);setPage\(1\);\}\}/);
+  assert.ok((accounting.match(/<AppSelect\b/g)||[]).length>=4);
+  assert.ok(accounting.includes('ariaLabel="Bộ lọc cần xử lý"'));
+  assert.ok(accounting.includes("params.set('service_from',appliedServiceFrom)"));
+  assert.ok(accounting.includes("params.set('service_to',appliedServiceTo)"));
+  assert.match(datePicker, /<Calendar mode="single"/);
+  assert.doesNotMatch(accounting,/setOwnerUserId|setWorkspaceStatus|setContractKind/);
   assert.match(pagination,/pageSizeOptions\.map\(size => \(\{value:String\(size\),label:String\(size\)\}\)\)/);
   assert.match(pagination,/onValueChange=\{next => onPageSizeChange\(Number\(next\)\)\}/);
   assert.doesNotMatch(pagination,/AppNativeSelect/);
-  assert.match(accounting,/Gián đoạn dịch vụ/);
-  assert.match(accounting,/Lịch sử tài chính/);
 });
 
 test('CRM keeps native time/payment selectors while renewal school supports inline search',()=>{

@@ -23,21 +23,145 @@ public static class AccountingWorkspaceEndpoints
     {
         group.MapGet("/accounting/workspace", List)
             .RequireAuthorization(Permissions.ChannelSalesCommissionView);
+        group.MapGet("/accounting/receivable-contracts", ReceivableContracts)
+            .RequireAuthorization(Permissions.ChannelSalesRecordRevenue);
+        group.MapGet("/accounting/receipts", Receipts)
+            .RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/accounting/contracts/{contractId:long}/renewals", Renewals)
             .RequireAuthorization(Permissions.ContractRenewalReview);
         group.MapGet("/accounting/contracts/{contractId:long}/service-history", ServiceHistory)
             .RequireAuthorization(Permissions.ChannelSalesCommissionView);
     }
 
+    public static async Task<IResult> ReceivableContracts(HttpContext http, KidsfitDbContext db,
+        string? search, int? page, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesRecordRevenue)) return Results.Forbid();
+        var term = (search ?? "").Trim();
+        if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
+        var pn = Math.Max(1, page ?? 1);
+        var scope = access.Contracts(db).AsNoTracking().Where(c => c.VerifiedAt.HasValue
+            && c.Status == "ACTIVE"
+            && db.RevenueSchedules.Any(schedule => schedule.ContractId == c.Id
+                && schedule.AmountReceived < schedule.AmountDue));
+        if (term.Length > 0)
+            scope = scope.Where(c => c.ContractCode.Contains(term)
+                || db.ChannelCustomers.Any(school => school.Id == c.CustomerId
+                    && school.DisplayName.Contains(term)));
+        var total = await scope.CountAsync(ct);
+        var data = await (from contract in scope
+            join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+            join owner in db.Users.AsNoTracking() on contract.OwnerUserId equals owner.Id
+            orderby school.DisplayName, contract.Id
+            select new { id = contract.Id, code = contract.ContractCode,
+                school_name = school.DisplayName,
+                owner_name = owner.Name,
+                personnel_type = contract.OwnerPersonnelType,
+                // Direct manager in the contract owner's organization. Never infer from other
+                // managers in the company; an unassigned or inactive relationship stays null.
+                manager_name = (from membership in db.OrganizationMemberships.AsNoTracking()
+                    join manager in db.Users.AsNoTracking()
+                        on membership.ManagerUserId equals (long?)manager.Id
+                    where membership.OrganizationId == contract.OwnerOrganizationId
+                        && membership.UserId == contract.OwnerUserId
+                        && membership.Status == "ACTIVE" && manager.Status == "ACTIVE"
+                        && db.OrganizationMemberships.Any(managerMembership =>
+                            managerMembership.OrganizationId == contract.OwnerOrganizationId
+                            && managerMembership.UserId == manager.Id
+                            && managerMembership.Status == "ACTIVE"
+                            && (managerMembership.MembershipType == "SALES_MANAGER"
+                                || managerMembership.MembershipType == "PARTNER_ADMIN"))
+                    select manager.Name).FirstOrDefault(),
+                amount_remaining = db.RevenueSchedules.Where(x => x.ContractId == contract.Id)
+                    .Sum(x => (decimal?)(x.AmountDue - x.AmountReceived)) ?? 0m })
+            .Skip((pn - 1) * 50).Take(50).ToArrayAsync(ct);
+        return Results.Ok(new { data, total, page = pn, page_size = 50 });
+    }
+
+    /// <summary>
+    /// One ledger-backed source of receipt history across verified contracts;
+    /// no financial mutation and no inferred renewal year from the bank date.
+    /// </summary>
+    public static async Task<IResult> Receipts(HttpContext http, KidsfitDbContext db,
+        string? search, int? year, int? page, int? page_size, int? month, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
+        var term = (search ?? "").Trim();
+        if (term.Length > 190) throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
+        if (year is < 2000 or > 2100) throw ApiValidationException.For("year", "Năm không hợp lệ.");
+        if (month.HasValue && (month < 1 || month > 12 || !year.HasValue))
+            throw ApiValidationException.For("month", "Chọn năm hợp lệ trước khi lọc tháng thu.");
+        var pn = Math.Max(1, page ?? 1);
+        var size = Math.Clamp(page_size ?? 20, 1, 100);
+        var scopedContracts = access.Contracts(db).AsNoTracking().Where(c => c.VerifiedAt.HasValue);
+        var query = from receipt in db.RevenueReceipts.AsNoTracking()
+                    join contract in scopedContracts on receipt.ContractId equals contract.Id
+                    join school in db.ChannelCustomers.AsNoTracking() on contract.CustomerId equals school.Id
+                    where receipt.Status == "COMPLETED"
+                    select new { receipt, contract, school };
+        if (term.Length > 0)
+            query = query.Where(x => x.receipt.ReferenceCode.Contains(term)
+                || x.contract.ContractCode.Contains(term) || x.school.DisplayName.Contains(term));
+        if (year.HasValue)
+        {
+            // Vietnam business-year boundary is 00:00 Asia/Ho_Chi_Minh (UTC+07).
+            var beginning = new DateTime(year.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddHours(-7);
+            var from = month.HasValue ? beginning.AddMonths(month.Value - 1) : beginning;
+            var to = month.HasValue ? from.AddMonths(1) : beginning.AddYears(1);
+            query = query.Where(x => x.receipt.ReceivedAt >= from
+                && x.receipt.ReceivedAt < to);
+        }
+        var total = await query.CountAsync(ct);
+        var data = await query.OrderByDescending(x => x.receipt.ReceivedAt)
+            .ThenByDescending(x => x.receipt.Id)
+            .Skip((pn - 1) * size).Take(size)
+            .Select(x => new {
+                id = x.receipt.Id,
+                contract_id = x.contract.Id,
+                contract_code = (from scheduled in db.RevenueSchedules
+                    join renewal in db.ContractRenewals on scheduled.ContractRenewalId equals renewal.Id
+                    where scheduled.Id == x.receipt.RevenueScheduleId
+                    select renewal.ContractCode).FirstOrDefault() ?? x.contract.ContractCode,
+                renewal_no = (from scheduled in db.RevenueSchedules
+                    join renewal in db.ContractRenewals on scheduled.ContractRenewalId equals renewal.Id
+                    where scheduled.Id == x.receipt.RevenueScheduleId
+                    select (int?)renewal.RenewalNo).FirstOrDefault(),
+                school_name = x.school.DisplayName,
+                amount = x.receipt.Amount,
+                received_at = x.receipt.ReceivedAt,
+                reference_code = x.receipt.ReferenceCode,
+                payment_method = x.receipt.PaymentMethod,
+                status = x.receipt.Status,
+                schedule_id = x.receipt.RevenueScheduleId,
+                proof_id = db.FinancialEvidences.Where(e => e.RevenueReceiptId == x.receipt.Id
+                        && e.Kind == "RECEIPT" && e.AttachedAt.HasValue)
+                    .OrderByDescending(e => e.Id).Select(e => (long?)e.Id).FirstOrDefault(),
+                proof_file_name = db.FinancialEvidences.Where(e => e.RevenueReceiptId == x.receipt.Id
+                        && e.Kind == "RECEIPT" && e.AttachedAt.HasValue)
+                    .OrderByDescending(e => e.Id).Select(e => e.FileName).FirstOrDefault()
+            }).ToArrayAsync(ct);
+        return Results.Ok(new { data, total, page = pn, page_size = size });
+    }
+
     public static async Task<IResult> List(HttpContext http, KidsfitDbContext db,
         string? search, string? status, long? owner_user_id, int? page,
-        int? page_size, CancellationToken ct)
+        int? page_size, string? contract_kind, int? service_year, bool? needs_action,
+        DateOnly? service_from, DateOnly? service_to, CancellationToken ct)
     {
         var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
         if (!access.Has(Permissions.ChannelSalesCommissionView)) return Results.Forbid();
         var filter = (status ?? "ALL").Trim().ToUpperInvariant();
         if (filter is not ("ALL" or "PENDING" or "INTERRUPTED" or "HISTORY"))
             throw ApiValidationException.For("status", "Nhóm hồ sơ không hợp lệ.");
+        var kind = (contract_kind ?? "ALL").Trim().ToUpperInvariant();
+        if (kind is not ("ALL" or "ORIGINAL" or "RENEWAL"))
+            throw ApiValidationException.For("contract_kind", "Loại hợp đồng không hợp lệ.");
+        if (service_year.HasValue && (service_year < 2000 || service_year > 2100))
+            throw ApiValidationException.For("service_year", "Năm sử dụng không hợp lệ.");
+        if (service_from.HasValue && service_to.HasValue && service_from.Value > service_to.Value)
+            throw ApiValidationException.For("service_to", "Từ ngày không được sau Đến ngày.");
         var term = search?.Trim() ?? "";
         if (term.Length > 190)
             throw ApiValidationException.For("search", "Tìm kiếm tối đa 190 ký tự.");
@@ -56,7 +180,9 @@ public static class AccountingWorkspaceEndpoints
             scope = scope.Where(c => c.ContractCode.Contains(term)
                 || db.ChannelCustomers.Any(s => s.Id == c.CustomerId
                     && s.DisplayName.Contains(term))
-                || db.Users.Any(u => u.Id == c.OwnerUserId && u.Name.Contains(term)));
+                || db.Users.Any(u => u.Id == c.OwnerUserId && u.Name.Contains(term))
+                || db.ContractRenewals.Any(r => r.ContractId == c.Id
+                    && r.ContractCode != null && r.ContractCode.Contains(term)));
 
         var all = await (from c in scope
             join school in db.ChannelCustomers.AsNoTracking() on c.CustomerId equals school.Id
@@ -85,8 +211,43 @@ public static class AccountingWorkspaceEndpoints
             .Where(r => ids.Contains(r.ContractId))
             .Select(r => new {
                 r.Id, r.ContractId, r.RenewalNo, r.Status, r.ServiceStartOn,
-                r.ServiceEndOn, r.SubmittedAt, r.TotalValue
+                r.ServiceEndOn, r.SubmittedAt, r.TotalValue, r.ContractCode, r.SignedOn, r.PaymentCycle
             }).ToArrayAsync(ct);
+
+        // One school group per verified original contract. Each legal renewal has
+        // separate schedules, cash and ledger, never the lifetime totals of its parent.
+        var receiptLines = await (from receipt in db.RevenueReceipts.AsNoTracking()
+            join schedule in db.RevenueSchedules.AsNoTracking()
+                on receipt.RevenueScheduleId equals schedule.Id into scheduled
+            from schedule in scheduled.DefaultIfEmpty()
+            where ids.Contains(receipt.ContractId) && receipt.Status == "COMPLETED"
+            select new { receipt.Id, receipt.ContractId, receipt.Amount,
+                RenewalId = schedule == null ? (long?)null : schedule.ContractRenewalId })
+            .ToArrayAsync(ct);
+        var receiptIds = receiptLines.Select(r => r.Id).ToArray();
+        var ledgerLines = await access.Commissions(db).AsNoTracking()
+            .Where(e => ids.Contains(e.ContractId))
+            .Select(e => new { e.ContractId, e.RevenueReceiptId, e.Amount })
+            .ToArrayAsync(ct);
+        var originalCash = receiptLines.Where(r => !r.RenewalId.HasValue)
+            .GroupBy(r => r.ContractId).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
+        var renewalCash = receiptLines.Where(r => r.RenewalId.HasValue)
+            .GroupBy(r => r.RenewalId!.Value).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
+        var renewalByReceipt = receiptLines.ToDictionary(r => r.Id, r => r.RenewalId);
+        var sourceCommission = new Dictionary<long, decimal>();
+        var renewalCommission = new Dictionary<long, decimal>();
+        foreach (var entry in ledgerLines)
+        {
+            // Unlinked historical corrections stay with the source period, not
+            // arbitrarily attributed to a renewal by transaction date.
+            var period = entry.RevenueReceiptId.HasValue
+                && renewalByReceipt.TryGetValue(entry.RevenueReceiptId.Value, out var rid)
+                    ? rid : null;
+            if (period.HasValue)
+                renewalCommission[period.Value] = renewalCommission.GetValueOrDefault(period.Value) + entry.Amount;
+            else
+                sourceCommission[entry.ContractId] = sourceCommission.GetValueOrDefault(entry.ContractId) + entry.Amount;
+        }
         var byContract = renewals.ToLookup(r => r.ContractId);
         var now = DateTime.UtcNow;
         var today = ChannelSalesValidation.BusinessDate(now);
@@ -161,11 +322,42 @@ public static class AccountingWorkspaceEndpoints
                 threshold_on = assessment.ThresholdOn,
                 action, pending_renewal_id = waiting?.Id,
                 pending_renewal_no = waiting?.RenewalNo,
+                source_service_start_on = c.SourceStartOn,
+                source_service_end_on = c.SourceEndOn,
+                periods = attached.OrderBy(r => r.RenewalNo).Select(r => new {
+                    id = r.Id, renewal_no = r.RenewalNo, status = r.Status,
+                    service_start_on = r.ServiceStartOn, service_end_on = r.ServiceEndOn,
+                    total_value = r.TotalValue,
+                    contract_code = r.ContractCode,
+                    signed_on = r.SignedOn,
+                    payment_cycle = r.PaymentCycle,
+                    received = renewalCash.GetValueOrDefault(r.Id),
+                    commission = renewalCommission.GetValueOrDefault(r.Id)
+                }).ToArray(),
                 needs_info_renewal_id = needsInfo?.Id,
-                total_value = c.TotalValue, received = c.Received, refunded = c.Refunded,
-                commission = c.Commission, has_financial_history = c.HasFinancialHistory
+                total_value = c.TotalValue,
+                received = originalCash.GetValueOrDefault(c.Id),
+                refunded = c.Refunded,
+                commission = sourceCommission.GetValueOrDefault(c.Id),
+                has_financial_history = c.HasFinancialHistory,
+                original_period_financials_only = true
             };
-        }).Where(c => filter switch {
+        }).Where(c => (kind != "RENEWAL" || c.periods.Length > 0)
+            && (kind != "ORIGINAL" || c.source_service_start_on.HasValue)
+            && (!needs_action.GetValueOrDefault() || c.action != null
+                || c.periods.Any(p => p.status == "PENDING_ACCOUNTING" || p.status == "NEEDS_INFO"))
+            && (!service_year.HasValue
+                || (c.source_service_start_on.HasValue && c.source_service_start_on.Value.Year <= service_year.Value
+                    && c.source_service_end_on.HasValue && c.source_service_end_on.Value.Year >= service_year.Value)
+                || c.periods.Any(p => p.service_start_on.Year <= service_year.Value
+                    && p.service_end_on.Year >= service_year.Value))
+            && ((!service_from.HasValue && !service_to.HasValue)
+                || (c.source_service_start_on.HasValue && c.source_service_end_on.HasValue
+                    && (!service_from.HasValue || c.source_service_end_on.Value >= service_from.Value)
+                    && (!service_to.HasValue || c.source_service_start_on.Value <= service_to.Value))
+                || c.periods.Any(p => (!service_from.HasValue || p.service_end_on >= service_from.Value)
+                    && (!service_to.HasValue || p.service_start_on <= service_to.Value))))
+            .Where(c => filter switch {
             "PENDING" => c.pending_renewal_id.HasValue,
             "INTERRUPTED" => c.service_status is "INTERRUPTED" or "THRESHOLD_REACHED"
                 or "THRESHOLD_OVERDUE" or "RELEASED" or "NEEDS_REVIEW",

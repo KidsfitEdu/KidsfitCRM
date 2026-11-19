@@ -11,6 +11,7 @@ public static class ChannelSalesOperationsEndpoints
     public static void MapChannelSalesOperations(this RouteGroupBuilder group)
     {
         AccountingWorkspaceEndpoints.Map(group);
+        AccountingPayoutEndpoints.Map(group);
         group.MapGet("/accounting/contracts", AccountingContractEndpoints.List).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapGet("/accounting/contracts/{id:long}", AccountingContractEndpoints.Detail).RequireAuthorization(Permissions.ChannelSalesCommissionView);
         group.MapPut("/accounting/contracts/{id:long}/service-term", AccountingContractEndpoints.SetServiceTerm).RequireAuthorization(Permissions.ChannelSalesRecordRevenue);
@@ -206,7 +207,7 @@ public static class ChannelSalesOperationsEndpoints
                     .Select(e => new { event_type = e.EventType, reason = e.Reason, created_at = e.CreatedAt })
                     .ToArray()
             })
-            .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
+            .AsSplitQuery().Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
 
         var organizations = await db.Organizations.AsNoTracking()
             .Where(x => x.Status == "ACTIVE" && (access.All || access.OrganizationIds.Contains(x.Id)))
@@ -258,9 +259,33 @@ public static class ChannelSalesOperationsEndpoints
                               reconciliation_status = db.ReconciliationCases.Where(x => x.ContractId == entry.ContractId).Select(x => x.Status).FirstOrDefault(),
                           };
         var payoutsQuery = access.Payouts(db).AsNoTracking();
+        // Match CreatePayout eligibility: scoped, unassigned commission entries;
+        // do not introduce an approval/reconciliation gate absent from that command.
+        var eligibleEntries = entries.Where(x => !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id));
+        var eligiblePayoutQuery = from entry in eligibleEntries
+                                  join contract in access.Contracts(db) on entry.ContractId equals contract.Id
+                                  join school in db.ChannelCustomers on contract.CustomerId equals school.Id
+                                  join user in db.Users on entry.BeneficiaryUserId equals user.Id
+                                  where contract.OwnerOrganizationId == entry.BeneficiaryOrganizationId
+                                  group entry by new { entry.ContractId, contract.ContractCode, school.DisplayName,
+                                      entry.BeneficiaryOrganizationId, entry.BeneficiaryUserId, user.Name,
+                                      entry.BeneficiaryRole, entry.Period } into grouped
+                                  select new {
+                                      contract_id = grouped.Key.ContractId,
+                                      contract_code = grouped.Key.ContractCode,
+                                      school_name = grouped.Key.DisplayName,
+                                      organization_id = grouped.Key.BeneficiaryOrganizationId,
+                                      beneficiary_user_id = grouped.Key.BeneficiaryUserId,
+                                      beneficiary_name = grouped.Key.Name,
+                                      beneficiary_role = grouped.Key.BeneficiaryRole,
+                                      period = grouped.Key.Period,
+                                      amount = grouped.Sum(x => x.Amount),
+                                      entry_count = grouped.Count()
+                                  };
+        var eligiblePayouts = eligiblePayoutQuery.Where(x => x.amount > 0);
         var payouts = from payout in payoutsQuery.Where(x => x.Period == selectedPeriod)
                       join user in db.Users on payout.BeneficiaryUserId equals (long?)user.Id
-                      orderby payout.CreatedAt descending
+                      orderby payout.CreatedAt descending, payout.Id descending
                       select new
                       {
                           payout.Id,
@@ -284,9 +309,63 @@ public static class ChannelSalesOperationsEndpoints
                           payout.ApprovedAt,
                           payout.PaidAt,
                           payout.PaymentReference,
+                          proof_id = db.FinancialEvidences.Where(e => e.PayoutId == payout.Id && e.Kind == "PAYOUT" && e.AttachedAt != null)
+                              .OrderByDescending(e => e.Id).Select(e => (long?)e.Id).FirstOrDefault(),
+                          proof_file_name = db.FinancialEvidences.Where(e => e.PayoutId == payout.Id && e.Kind == "PAYOUT" && e.AttachedAt != null)
+                              .OrderByDescending(e => e.Id).Select(e => e.FileName).FirstOrDefault(),
+                          // Payouts may span multiple contracts in older records.
+                          contract_ids = (from item in db.PayoutItems
+                                          join entry in scopedEntries on item.CommissionLedgerEntryId equals entry.Id
+                                          where item.PayoutId == payout.Id select entry.ContractId).Distinct().ToArray(),
+                          contract_codes = (from item in db.PayoutItems
+                                            join entry in scopedEntries on item.CommissionLedgerEntryId equals entry.Id
+                                            join contract in access.Contracts(db) on entry.ContractId equals contract.Id
+                                            where item.PayoutId == payout.Id select contract.ContractCode).Distinct().ToArray(),
+                          school_names = (from item in db.PayoutItems
+                                          join entry in scopedEntries on item.CommissionLedgerEntryId equals entry.Id
+                                          join contract in access.Contracts(db) on entry.ContractId equals contract.Id
+                                          join school in db.ChannelCustomers on contract.CustomerId equals school.Id
+                                          where item.PayoutId == payout.Id select school.DisplayName).Distinct().ToArray(),
                           events = db.PayoutEvents.Where(e => e.PayoutId == payout.Id).OrderBy(e => e.CreatedAt).Select(e => new { e.EventType, e.CreatedAt, e.Reason }).ToArray(),
                       };
+        // Payment dates, not source commission periods, define cash paid during the month.
+        // A November transfer of October commission belongs to November cash flow.
         var paidInMonth = payoutsQuery.Where(x => x.Status == "PAID" && x.PaidAt >= start && x.PaidAt < end);
+
+        // A receipt/payout belongs to the reporting month by its actual timestamp.
+        // Keep reporting snapshots separate from actionable backlog across all periods.
+        var createdPayouts = payoutsQuery.Where(x => x.CreatedAt >= start && x.CreatedAt < end);
+        var payoutStatusCounts = await createdPayouts
+            .GroupBy(x => x.Status)
+            .Select(g => new { status = g.Key, count = g.Count() })
+            .ToListAsync(ct);
+        var outstandingPayouts = payoutsQuery.Where(x => x.Status == "PENDING_APPROVAL"
+            || x.Status == "CHANGES_REQUESTED" || x.Status == "APPROVED");
+        var attentionCounts = await outstandingPayouts.GroupBy(x => x.Status)
+            .Select(g => new { status = g.Key, count = g.Count(), amount = g.Sum(x => x.NetAmount) })
+            .ToListAsync(ct);
+
+        // Six bounded SQL aggregates, with exact Vietnam-local month boundaries.
+        // Values are never inferred from the capped ledger/payout arrays returned below.
+        var trend = new List<object>();
+        for (var i = 5; i >= 0; i--)
+        {
+            var monthStart = start.AddMonths(-i);
+            var monthEnd = monthStart.AddMonths(1);
+            var monthPeriod = monthStart.AddHours(7).ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+            var monthCollected = await db.RevenueReceipts.AsNoTracking()
+                .Where(x => access.Contracts(db).Select(c => c.Id).Contains(x.ContractId)
+                    && x.Status == "COMPLETED" && x.ReceivedAt >= monthStart && x.ReceivedAt < monthEnd)
+                .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+            var monthRefunded = await db.RevenueRefunds.AsNoTracking()
+                .Where(x => access.Contracts(db).Select(c => c.Id).Contains(x.ContractId)
+                    && x.RefundedAt >= monthStart && x.RefundedAt < monthEnd)
+                .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+            var monthAccrued = await scopedEntries.Where(x => x.Period == monthPeriod)
+                .SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
+            trend.Add(new { period = monthPeriod, collected = monthCollected, refunded = monthRefunded,
+                net = monthCollected - monthRefunded, accrued = monthAccrued });
+        }
         var contracts = access.Contracts(db).Select(x => x.Id);
         var eligible = entries.Where(x => !db.PayoutItems.Any(i => i.CommissionLedgerEntryId == x.Id)
             && db.ReconciliationCases.Any(r => r.ContractId == x.ContractId && r.Status == "CONFIRMED"));
@@ -301,6 +380,8 @@ public static class ChannelSalesOperationsEndpoints
             {
                 accrued = await entries.SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
                 eligible = await eligible.SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
+                // Aligned with the CreatePayout candidate source (positive unassigned ledger groups).
+                eligible_for_payout = await eligiblePayouts.SumAsync(x => (decimal?)x.amount, ct) ?? 0,
                 approved = await payoutsQuery.Where(x => x.Period == selectedPeriod && x.Status == "APPROVED").SumAsync(x => (decimal?)x.NetAmount, ct) ?? 0,
                 paid = await paidInMonth.SumAsync(x => (decimal?)x.GrossAmount, ct) ?? 0,
                 withholding = await paidInMonth.SumAsync(x => (decimal?)x.WithholdingAmount, ct) ?? 0,
@@ -310,9 +391,16 @@ public static class ChannelSalesOperationsEndpoints
                 net_collected_revenue = (await db.RevenueReceipts.Where(x => contracts.Contains(x.ContractId) && x.Status == "COMPLETED" && x.ReceivedAt >= start && x.ReceivedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0)
                     - (await db.RevenueRefunds.Where(x => contracts.Contains(x.ContractId) && x.RefundedAt >= start && x.RefundedAt < end).SumAsync(x => (decimal?)x.Amount, ct) ?? 0),
             },
+            revenue_trend = trend,
+            payout_statuses = payoutStatusCounts,
+            attention = attentionCounts,
             ledger = await ledgerQuery.Take(200).ToArrayAsync(ct),
             ledger_total = await entries.CountAsync(ct),
-            payouts = await payouts.Take(100).ToArrayAsync(ct),
+            payout_total = await payoutsQuery.Where(x => x.Period == selectedPeriod).CountAsync(ct),
+            eligible_payout_total = await eligiblePayouts.CountAsync(ct),
+            eligible_payouts = await eligiblePayouts.OrderByDescending(x => x.amount).ThenBy(x => x.school_name)
+                .ThenBy(x => x.contract_id).Take(100).ToArrayAsync(ct),
+            payouts = await payouts.AsSplitQuery().Take(100).ToArrayAsync(ct),
             policies = await policies.OrderByDescending(x => x.CreatedAt).Take(100).Select(x => new {
                 x.Id, x.Scope, x.OrganizationId, x.ManagerUserId, x.SalesUserId,
                 x.SalesPercent, x.ManagerPercent, x.CreatedAt, x.Status }).ToArrayAsync(ct),

@@ -17,17 +17,19 @@ test('All contract detail roles use a single Vietnamese service plan formatter',
   for (const path of [
     'src/screens/SalesManager/Contracts/ContractsPage.tsx',
     'src/screens/Checkee/Verification/VerificationPage.tsx',
-    'src/screens/Accounting/Contracts/AccountingContractsPage.tsx',
+    'src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx',
   ]) {
     const source = read(path);
-    assert.match(source, /getServicePlanLabel\(detail\.data\.service_plan\)/, path);
+    if(path.includes('/Accounting/'))
+      assert.match(source,/getServicePlanLabel\(detail\.data\.service_plan\)/,path);
+    else assert.match(source,/getServicePlanLabel\(detail\.data\.service_plan\)/,path);
     assert.match(source, /from '@\/lib\/contract-payment-plan'/, path);
   }
 });
 
 test('Contract details list deployment units or explicitly say main school only', () => {
   const screens = [
-    'src/screens/Accounting/Contracts/AccountingContractsPage.tsx',
+    'src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx',
     'src/screens/SalesManager/Contracts/ContractsPage.tsx',
   ];
   for (const screen of screens) {

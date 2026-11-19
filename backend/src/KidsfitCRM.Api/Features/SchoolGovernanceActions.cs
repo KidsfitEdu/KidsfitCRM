@@ -8,49 +8,6 @@ namespace KidsfitCRM.Api.Features;
 
 public sealed partial class ChannelSalesActions
 {
-    public Task<long> OpenSchoolDispute(CreateSchoolDisputeRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
-    {
-        var access = await RequirePermission(actorId, Permissions.ChannelSalesView, ct);
-        if (!access.Has(Permissions.ChannelSalesRegister) && !access.Has(Permissions.ChannelSalesReconcile) && !access.Has(Permissions.SchoolDisputeResolve)) throw new KeyNotFoundException();
-        if (!await access.Customers(db).AnyAsync(x => x.Id == request.CustomerId, ct)
-            && !await db.DirectorySchools.AnyAsync(x => x.CustomerId == request.CustomerId, ct)) throw new KeyNotFoundException();
-        var orgId = await PrimaryOrganizationId(actorId, ct);
-        var key = SchoolKey(request.IdempotencyKey); var hash = ChannelSalesValidation.Fingerprint(request);
-        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        await LockCustomer(request.CustomerId, ct);
-        var replay = await db.SchoolDisputes.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
-        if (replay is not null) return ChannelSalesValidation.Replay(replay.Id, replay.OpenedByUserId, actorId, replay.RequestFingerprint, hash);
-        var now = DateTime.UtcNow;
-        var dispute = new SchoolDispute
-        {
-            CustomerId = request.CustomerId, OrganizationId = orgId, OpenedByUserId = actorId,
-            Reason = Validation.Required(request.Reason, "reason", "Cần mô tả tranh chấp hoặc phản ánh phân bổ.", 4000),
-            EvidenceReference = Validation.Required(request.EvidenceReference, "evidence_reference", "Cần căn cứ phản ánh.", 500),
-            IdempotencyKey = key, RequestFingerprint = hash, CreatedAt = now, UpdatedAt = now,
-        };
-        db.SchoolDisputes.Add(dispute); await db.SaveChangesAsync(ct);
-        Audit.Add(db, actorId, "OPEN_SCHOOL_DISPUTE", nameof(SchoolDispute), dispute.Id, null, new { dispute.CustomerId, dispute.OrganizationId, dispute.Status }, http);
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return dispute.Id;
-    }, ct);
-
-    public Task<long> ResolveSchoolDispute(long id, ResolveSchoolDisputeRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
-    {
-        var access = await RequirePermission(actorId, Permissions.SchoolDisputeResolve, ct);
-        var decision = Validation.Required(request.Decision, "decision", "Cần kết luận tranh chấp.", 32).ToUpperInvariant();
-        if (decision is not ("UPHOLD_CURRENT_RIGHTS" or "REJECT_CLAIM" or "RESOLVED")) throw ApiValidationException.For("decision", "Kết luận không hợp lệ.");
-        var reason = Validation.Required(request.Reason, "reason", "Cần căn cứ kết luận.", 4000);
-        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        var dispute = await db.SchoolDisputes.FromSqlInterpolated($"SELECT * FROM school_disputes WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
-        if (!access.CanManageOrganization(dispute.OrganizationId)) throw new KeyNotFoundException();
-        if (dispute.Status == "RESOLVED" && dispute.Decision == decision && dispute.DecisionReason == reason && dispute.ResolvedByUserId == actorId) return id;
-        if (dispute.Status != "OPEN") throw new ApiConflictException("Tranh chấp đã có kết luận.");
-        // A dispute conclusion never transfers another person's valid protection or commission.
-        dispute.Status = "RESOLVED"; dispute.Decision = decision; dispute.DecisionReason = reason; dispute.ResolvedByUserId = actorId;
-        dispute.ResolvedAt = DateTime.UtcNow; dispute.UpdatedAt = DateTime.UtcNow;
-        Audit.Add(db, actorId, "RESOLVE_SCHOOL_DISPUTE", nameof(SchoolDispute), id, new { status = "OPEN" }, new { dispute.Status, decision, reason }, http);
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return id;
-    }, ct);
-
     public Task<long> DeferSchool(DeferSchoolRequest request, long actorId, HttpContext http, CancellationToken ct) => SchoolWrite(async () =>
     {
         var access = await RequirePermission(actorId, Permissions.SchoolAllocationManage, ct);

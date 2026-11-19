@@ -61,7 +61,6 @@ public static class ServiceInterruptionEndpoints
                 next_service_start_on = snapshot.Assessment.NextServiceStartOn,
                 protection_until = snapshot.ProtectionUntil,
                 status = snapshot.Status, has_pending_renewal = snapshot.HasPendingRenewal,
-                has_open_dispute = snapshot.HasOpenDispute,
                 // Event details are separate and only available for authorized customers.
             });
         }
@@ -96,7 +95,7 @@ public static class ServiceInterruptionEndpoints
         return Results.Ok(new { data = new { snapshot.CustomerId,
             snapshot.ContractId, snapshot.Assessment.GapStartOn,
             snapshot.Assessment.ThresholdOn, snapshot.Assessment.NextServiceStartOn,
-            snapshot.Status, snapshot.HasPendingRenewal, snapshot.HasOpenDispute,
+            snapshot.Status, snapshot.HasPendingRenewal,
             snapshot.ProtectionUntil, history = events } });
     }
 }

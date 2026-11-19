@@ -21,8 +21,6 @@ public sealed record RespondSchoolInvitationRequest(bool Accept, string? Reason)
 public sealed record RequestSchoolExtensionRequest(string? IdempotencyKey, DateTime? RequestedUntil,
     DateTime? ReviewDueAt, DateTime? NextAppointmentAt, string? Progress, string? EvidenceReference);
 public sealed record ReviewSchoolExtensionRequest(bool Approve, DateTime? ApprovedUntil, DateTime? NextReviewAt, string? Reason);
-public sealed record CreateSchoolDisputeRequest(string? IdempotencyKey, long CustomerId, string? Reason, string? EvidenceReference);
-public sealed record ResolveSchoolDisputeRequest(string? Decision, string? Reason);
 public sealed record DeferSchoolRequest(string? IdempotencyKey, long SchoolId, long OrganizationId, string? Reason, DateTime? ReviewAt);
 public sealed record ReleaseSchoolApproachesRequest(string? IdempotencyKey, string? Reason);
 public sealed record CompleteSchoolHandoverRequest(string? IdempotencyKey, string? Reason, string? Summary, bool SuspendAccount);

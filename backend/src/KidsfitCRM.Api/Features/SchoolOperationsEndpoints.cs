@@ -52,10 +52,6 @@ public static class SchoolOperationsEndpoints
             .RequireAuthorization(Permissions.ChannelSalesRegister);
         group.MapPost("/school-extensions/{id:long}/review", async (long id, ReviewSchoolExtensionRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ReviewSchoolExtension(id, request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.ChannelSalesView);
-        group.MapPost("/school-disputes", async (CreateSchoolDisputeRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.OpenSchoolDispute(request, h.UserId(), h, ct)))
-            .RequireAuthorization(Permissions.ChannelSalesView);
-        group.MapPost("/school-disputes/{id:long}/resolve", async (long id, ResolveSchoolDisputeRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.ResolveSchoolDispute(id, request, h.UserId(), h, ct)))
-            .RequireAuthorization(Permissions.SchoolDisputeResolve);
         group.MapPost("/school-deferrals", async (DeferSchoolRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.DeferSchool(request, h.UserId(), h, ct)))
             .RequireAuthorization(Permissions.SchoolAllocationManage);
         group.MapPost("/school-deferrals/{id:long}/complete", async (long id, ReconcileContractRequest request, HttpContext h, ChannelSalesActions a, CancellationToken ct) => Saved(await a.CompleteSchoolDeferral(id, request.Reason, h.UserId(), h, ct)))
@@ -220,8 +216,6 @@ public static class SchoolOperationsEndpoints
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.AssigneeUserId == a.UserId || (a.Organization && a.Has(Permissions.SchoolAllocationManage)))));
     private static IQueryable<SchoolExtensionRequest> Extensions(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolExtensionRequests.Where(x => a.All
         || (a.OrganizationIds.Contains(x.OrganizationId) && (x.RequestedByUserId == a.UserId || (a.Has(Permissions.SchoolExtensionReview) && x.ManagerUserId == a.UserId))));
-    private static IQueryable<SchoolDispute> Disputes(KidsfitDbContext db, ChannelSalesAccess a) => db.SchoolDisputes.Where(x => a.All
-        || (a.OrganizationIds.Contains(x.OrganizationId) && (x.OpenedByUserId == a.UserId || (a.Organization && a.Has(Permissions.SchoolAllocationManage)))));
     private static IQueryable<CustomerSupportCase> SupportCases(KidsfitDbContext db, ChannelSalesAccess a) => db.CustomerSupportCases.Where(x => a.All
         || (a.Has(Permissions.SchoolSupportManage) && db.SalesContracts.Any(c => c.Id == x.ContractId && c.CareUserId == a.UserId && c.CareOrganizationId.HasValue && a.OrganizationIds.Contains(c.CareOrganizationId.Value)))
         || (a.Has(Permissions.SchoolCareAssign) && a.Organization && (a.OrganizationIds.Contains(x.OrganizationId) || db.SalesContracts.Any(c => c.Id == x.ContractId && a.OrganizationIds.Contains(c.OwnerOrganizationId)))));
@@ -250,9 +244,6 @@ public static class SchoolOperationsEndpoints
         var allowedProposalStatuses = new[] { "DRAFT", "NEEDS_REVISION", "PENDING_MANAGER", "PENDING_ADMIN", "APPROVED", "REJECTED" };
         if (!string.IsNullOrWhiteSpace(status) && !allowedProposalStatuses.Contains(status)) throw ApiValidationException.For("status", "Trạng thái đề xuất không hợp lệ.");
         var overdueOnly = string.Equals(http.Request.Query["overdue_only"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
-        var disputeStatus = http.Request.Query["dispute_status"].ToString().ToUpperInvariant();
-        if (disputeStatus is not ("" or "OPEN" or "RESOLVED"))
-            throw ApiValidationException.For("dispute_status", "Trạng thái tranh chấp không hợp lệ.");
         var proposalQuery = Proposals(db, a).AsNoTracking().Where(x => (status == null || x.Status == status)
             && (term == "" || x.Name.Contains(term) || x.SchoolCode.Contains(term) || x.Reason.Contains(term) || (x.Address != null && x.Address.Contains(term)) || x.Province.Contains(term) || x.Ward.Contains(term)
                 || db.Users.Any(u => (u.Id == x.ManagerUserId || u.Id == x.SubmittedByUserId) && u.Name.Contains(term))));
@@ -268,8 +259,6 @@ public static class SchoolOperationsEndpoints
             || db.Users.Any(u => (u.Id == x.RequestedByUserId || u.Id == x.ManagerUserId) && u.Name.Contains(term)));
         if (overdueOnly)
             extensionQuery = extensionQuery.Where(x => x.Status == "PENDING" && x.ReviewDueAt <= now);
-        var disputeQuery = Disputes(db, a).AsNoTracking().Where(x => term == "" || matchingCustomers.Contains(x.CustomerId) || x.Reason.Contains(term));
-        if (disputeStatus != "") disputeQuery = disputeQuery.Where(x => x.Status == disputeStatus);
         var deferralQuery = db.SchoolDeferrals.AsNoTracking().Where(x => a.All || (a.Has(Permissions.SchoolAllocationManage) && a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))
             .Where(x => term == "" || matchingSchools.Contains(x.DirectorySchoolId) || x.Reason.Contains(term));
         var handoverQuery = db.SchoolHandovers.AsNoTracking().Where(x => a.All || (a.Has(Permissions.SchoolHandoverManage) && a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))
@@ -287,7 +276,7 @@ public static class SchoolOperationsEndpoints
             pagination = new { page = selectedPage, page_size = pageSize, totals = new {
                 proposals = await proposalQuery.CountAsync(ct),
                 invitations = Math.Max(await invitationQuery.CountAsync(ct), await deferralQuery.CountAsync(ct)),
-                extensions = await extensionQuery.CountAsync(ct), disputes = await disputeQuery.CountAsync(ct),
+                extensions = await extensionQuery.CountAsync(ct),
                 care = Math.Max(await supportQuery.CountAsync(ct), await contractQuery.CountAsync(ct)),
                 handovers = await handoverQuery.CountAsync(ct),
                 finance = Math.Max(await contractQuery.CountAsync(ct), Math.Max(await receiptQuery.CountAsync(ct), await refundQuery.CountAsync(ct))),
@@ -329,13 +318,6 @@ public static class SchoolOperationsEndpoints
                 is_expired = x.Status == "PENDING" && x.OriginalProtectedUntil <= now,
                 can_review = x.Status == "PENDING" && x.RequestedByUserId != a.UserId && (a.All || (a.Organization && a.OrganizationIds.Contains(x.OrganizationId)))
                     && ((a.Has(Permissions.SchoolExtensionReview) && (x.ManagerUserId == a.UserId || a.All)) || (a.Has(Permissions.SchoolEscalationResolve) && x.ReviewDueAt <= now)),
-            }).ToArrayAsync(ct),
-            disputes = await disputeQuery.OrderByDescending(x => x.Status == "OPEN").ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new
-            {
-                x.Id, x.CustomerId, x.OrganizationId, x.Reason, x.EvidenceReference, x.Status, x.Decision, x.DecisionReason, x.ResolvedAt,
-                school_name = db.ChannelCustomers.Where(c => c.Id == x.CustomerId).Select(c => c.DisplayName).First(),
-                opened_by = db.Users.Where(u => u.Id == x.OpenedByUserId).Select(u => u.Name).First(),
-                can_resolve = x.Status == "OPEN" && a.Has(Permissions.SchoolDisputeResolve) && (a.All || (a.Organization && a.OrganizationIds.Contains(x.OrganizationId))),
             }).ToArrayAsync(ct),
             deferrals = await deferralQuery.OrderByDescending(x => x.Status == "OPEN").ThenBy(x => x.ReviewAt).ThenByDescending(x => x.Id).Skip(skip).Take(pageSize).Select(x => new { x.Id, x.DirectorySchoolId, x.OrganizationId, x.Reason, x.ReviewAt, x.Status,
                     school_name = db.SchoolUnits.Where(u => u.DirectorySchoolId == x.DirectorySchoolId && u.UnitType == "MAIN").Select(u => u.Name).First(),
@@ -416,7 +398,6 @@ public static class SchoolOperationsEndpoints
             "proposal" when await Proposals(db, a).AnyAsync(x => x.Id == id, ct) => nameof(SchoolProposal),
             "invitation" when await Invitations(db, a).AnyAsync(x => x.Id == id, ct) => nameof(SchoolInvitation),
             "extension" when await Extensions(db, a).AnyAsync(x => x.Id == id, ct) => nameof(SchoolExtensionRequest),
-            "dispute" when await Disputes(db, a).AnyAsync(x => x.Id == id, ct) => nameof(SchoolDispute),
             "support" when await SupportCases(db, a).AnyAsync(x => x.Id == id, ct) => nameof(CustomerSupportCase),
             _ => throw new KeyNotFoundException(),
         };
@@ -444,7 +425,7 @@ public static class SchoolOperationsEndpoints
     public static async Task<IResult> Report(HttpContext http, KidsfitDbContext db, string? period, CancellationToken ct)
     {
         var a = await ChannelSalesAccess.Load(db, http.UserId(), ct);
-        if (!a.Has(Permissions.SchoolAllocationManage) && !a.Has(Permissions.SchoolEscalationResolve) && !a.Has(Permissions.SchoolDisputeResolve)) throw new KeyNotFoundException();
+        if (!a.Has(Permissions.SchoolAllocationManage) && !a.Has(Permissions.SchoolEscalationResolve)) throw new KeyNotFoundException();
         var selected = ChannelSalesValidation.Period(period ?? ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow));
         var start = DateTime.SpecifyKind(DateTime.ParseExact(selected + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).AddHours(-7), DateTimeKind.Utc);
         var end = start.AddMonths(1); var now = DateTime.UtcNow;

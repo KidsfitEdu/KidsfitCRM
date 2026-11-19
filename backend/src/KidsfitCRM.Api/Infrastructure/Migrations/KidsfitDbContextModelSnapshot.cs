@@ -2367,96 +2367,7 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("school_deferrals");
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolDispute", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("CustomerId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("customer_id");
-
-                    b.Property<string>("Decision")
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("decision");
-
-                    b.Property<string>("DecisionReason")
-                        .HasColumnType("text")
-                        .HasColumnName("decision_reason");
-
-                    b.Property<string>("EvidenceReference")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("evidence_reference");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("varchar(120)")
-                        .HasColumnName("idempotency_key")
-                        .UseCollation("utf8mb4_bin");
-
-                    b.Property<long>("OpenedByUserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("opened_by_user_id");
-
-                    b.Property<long>("OrganizationId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("organization_id");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("reason");
-
-                    b.Property<string>("RequestFingerprint")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("request_fingerprint")
-                        .UseCollation("utf8mb4_bin");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("resolved_at");
-
-                    b.Property<long?>("ResolvedByUserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("resolved_by_user_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CustomerId");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
-
-                    b.HasIndex("OpenedByUserId");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("ResolvedByUserId");
-
-                    b.ToTable("school_disputes");
-                });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolExtensionRequest", b =>
                 {
@@ -4086,31 +3997,7 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolDispute", b =>
-                {
-                    b.HasOne("KidsfitCRM.Api.Domain.ChannelCustomer", null)
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
 
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("OpenedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
-                        .WithMany()
-                        .HasForeignKey("ResolvedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolExtensionRequest", b =>
                 {

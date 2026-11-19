@@ -20,7 +20,7 @@ type SchoolProtection = {
   new_protection_from:string|null; new_protection_until:string|null;
   can_request:boolean; interruption_status:string; gap_start_on:string|null;
   threshold_on:string|null; next_service_start_on:string|null;
-  has_pending_renewal:boolean; has_open_dispute:boolean; status:string;
+  has_pending_renewal:boolean; status:string;
 };
 type Result = { data:SchoolProtection[]; total:number; page:number; page_size:number };
 type Event = {id:number; gap_start_on:string; threshold_on:string; status:string; reason:string; processed_at:string};
@@ -32,7 +32,6 @@ const labels:Record<string,string> = {
   APPROVED:'Đã cấp chu kỳ mới', REJECTED:'Hồ sơ bị từ chối',
   NOT_DUE:'Chưa đến kỳ', NOT_CREATED:'Đang theo dõi kỳ bảo vệ', WAITING_PROTECTION_EXPIRY:'Đang chờ đến hạn bảo vệ',
   EXCEPTION_ACCOUNTING:'Ngoại lệ Kế toán', EXCEPTION_OVERDUE:'Ngoại lệ quá hạn',
-  EXCEPTION_DISPUTE:'Đang tranh chấp', EXCEPTION_OWNERSHIP:'Rà soát quyền',
   EXCEPTION_CONFIG_REQUIRED:'Chưa cấu hình hạn ngoại lệ',
   HISTORICALTHRESHOLDREQUIRESREVIEW:'Rà soát lịch sử',
   MISSINGSERVICETERM:'Thiếu kỳ dịch vụ', CONTINUOUS:'Đang sử dụng',
@@ -192,7 +191,6 @@ export function SalesProtectionOverview({apiBase,token}:{apiBase:string;token:st
             <DetailField label="Mốc đủ 12 tháng" value={day(selected.threshold_on)}/>
             <DetailField label="Kỳ sử dụng tiếp theo" value={day(selected.next_service_start_on)}/>
             <DetailField label="Hồ sơ tái ký tại Kế toán" value={selected.has_pending_renewal?'Đang chờ xác nhận':'Không có hồ sơ chờ'}/>
-            <DetailField label="Tranh chấp quyền" value={selected.has_open_dispute?'Có tranh chấp cần xử lý':'Không có tranh chấp'}/>
           </dl>
         </section>
 

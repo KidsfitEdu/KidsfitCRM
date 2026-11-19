@@ -7,7 +7,6 @@ export type ProtectionOverviewState = {
   protection_status:string;
   renewal_status:string;
   has_pending_renewal:boolean;
-  has_open_dispute:boolean;
   can_request:boolean;
 };
 export type ProtectionAction = {status:string; label:string} | null;
@@ -25,8 +24,6 @@ export function protectionAction(row:ProtectionOverviewState):ProtectionAction {
   const state=row.interruption_status;
   // Never present a released right as an outstanding Sales ownership action.
   if (row.protection_status==='RELEASED' || state==='RELEASED') return null;
-  if (row.has_open_dispute || state==='EXCEPTION_DISPUTE')
-    return {status:'REVIEW_DISPUTE',label:'Chờ giải quyết tranh chấp'};
   if (state==='EXCEPTION_OVERDUE')
     return {status:'ACCOUNTING_OVERDUE',label:'Ngoại lệ Kế toán quá hạn'};
   if (state==='EXCEPTION_CONFIG_REQUIRED')

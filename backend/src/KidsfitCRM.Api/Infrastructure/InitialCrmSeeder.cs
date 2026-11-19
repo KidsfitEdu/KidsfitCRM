@@ -69,7 +69,6 @@ public static class InitialCrmSeeder
             (Permissions.SchoolProposalReview, "Xét đề xuất của nhân sự"),
             (Permissions.SchoolAllocationManage, "Phân bổ và rà soát trường"),
             (Permissions.SchoolExtensionReview, "Xét gia hạn tiếp cận"),
-            (Permissions.SchoolDisputeResolve, "Kết luận tranh chấp trường"),
             (Permissions.SchoolEscalationResolve, "Xử lý công việc trường quá hạn"),
             (Permissions.SchoolHandoverManage, "Bàn giao nhân sự ngưng hoạt động"),
             (Permissions.SchoolCareAssign, "Phân công và bàn giao CSKH"),
@@ -114,7 +113,7 @@ public static class InitialCrmSeeder
                 Permissions.SchoolAllocationManage, Permissions.SchoolExtensionReview, Permissions.SchoolHandoverManage, Permissions.ProtectionRenewalApprove];
         foreach (var salesRole in new[] { "SALES" })
             rolePermissions[salesRole] = [.. rolePermissions[salesRole], Permissions.SchoolProposalSubmit];
-        rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.ChannelSalesPolicyManage, Permissions.SchoolDisputeResolve, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
+        rolePermissions["DIRECTOR"] = [.. rolePermissions["DIRECTOR"], Permissions.ChannelSalesPolicyManage, Permissions.SchoolEscalationResolve, Permissions.SchoolWorkflowPolicyManage];
         rolePermissions["ACCOUNTANT"] = [.. rolePermissions["ACCOUNTANT"], Permissions.ChannelSalesContractCancel, Permissions.ChannelSalesRevenueRefund, Permissions.ContractRenewalReview, Permissions.ContractRenewalConfirm];
         rolePermissions["SALES"] = [.. rolePermissions["SALES"], Permissions.ContractRenewalSubmit];
         rolePermissions["CUSTOMER_SERVICE"] = [.. rolePermissions["CUSTOMER_SERVICE"], Permissions.SchoolSupportManage];

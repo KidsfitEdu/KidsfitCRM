@@ -11,7 +11,7 @@ public static class ServiceInterruptionService
     public sealed record Snapshot(
         long CustomerId, long ContractId, long OwnerUserId, long OwnerOrganizationId,
         ServiceInterruptionPolicy.Assessment Assessment,
-        bool HasPendingRenewal, bool HasOpenDispute, long? ProtectionId,
+        bool HasPendingRenewal, long? ProtectionId,
         DateTime? ProtectionUntil, string Status);
 
     public static async Task<Snapshot?> AssessAsync(KidsfitDbContext db, long customerId,
@@ -38,8 +38,6 @@ public static class ServiceInterruptionService
             : ServiceInterruptionPolicy.Evaluate(today, periods[0].StartOn, periods[0].EndOn, periods.Skip(1));
         var pending = await db.ContractRenewals.AnyAsync(r => contractIds.Contains(r.ContractId)
             && (r.Status == "PENDING_ACCOUNTING" || r.Status == "NEEDS_INFO" || r.Status == "DRAFT"), ct);
-        var dispute = await db.SchoolDisputes.AnyAsync(d => d.CustomerId == customerId
-            && d.Status != "RESOLVED" && d.Status != "REJECTED" && d.Status != "CLOSED", ct);
         var activeProtections = await db.CustomerProtections.AsNoTracking()
             .Where(p => p.CustomerId == customerId
                 && p.Status == "ACTIVE" && p.EffectiveFrom <= utcNow && p.EffectiveUntil > utcNow)
@@ -60,7 +58,6 @@ public static class ServiceInterruptionService
                     status = utcNow >= deadlineUtc ? "EXCEPTION_OVERDUE" : "EXCEPTION_ACCOUNTING";
                 }
             }
-            else if (dispute) status = "EXCEPTION_DISPUTE";
             else if (activeProtections.Length != 1 || protection!.SourceType != "CONTRACT")
                 status = "EXCEPTION_OWNERSHIP";
             else if (!contractIds.Contains(protection.ContractId ?? -1)) status = "EXCEPTION_OWNERSHIP";
@@ -76,7 +73,7 @@ public static class ServiceInterruptionService
             status = "RELEASED";
         }
         return new(customerId, contracts[0].Id, contracts[0].OwnerUserId,
-            contracts[0].OwnerOrganizationId, assessment, pending, dispute,
+            contracts[0].OwnerOrganizationId, assessment, pending,
             protection?.Id, protection?.EffectiveUntil, status);
     }
 
@@ -140,7 +137,6 @@ public static class ServiceInterruptionService
                     owner_user_id = snapshot.OwnerUserId,
                     owner_organization_id = snapshot.OwnerOrganizationId,
                     pending_accounting = snapshot.HasPendingRenewal,
-                    open_dispute = snapshot.HasOpenDispute,
                     next_service_start_on = snapshot.Assessment.NextServiceStartOn
                 });
                 await db.Database.ExecuteSqlInterpolatedAsync($@"

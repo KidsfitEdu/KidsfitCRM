@@ -13,7 +13,6 @@ public sealed partial class KidsfitDbContext
     public DbSet<SchoolProposalRevision> SchoolProposalRevisions => Set<SchoolProposalRevision>();
     public DbSet<SchoolInvitation> SchoolInvitations => Set<SchoolInvitation>();
     public DbSet<SchoolExtensionRequest> SchoolExtensionRequests => Set<SchoolExtensionRequest>();
-    public DbSet<SchoolDispute> SchoolDisputes => Set<SchoolDispute>();
     public DbSet<SchoolDeferral> SchoolDeferrals => Set<SchoolDeferral>();
     public DbSet<SchoolHandover> SchoolHandovers => Set<SchoolHandover>();
     public DbSet<SchoolUnitRevision> SchoolUnitRevisions => Set<SchoolUnitRevision>();
@@ -24,7 +23,7 @@ public sealed partial class KidsfitDbContext
 
     private static void ConfigureSchoolOperations(ModelBuilder b)
     {
-        var types = new[] { typeof(SchoolProposal), typeof(SchoolInvitation), typeof(SchoolExtensionRequest), typeof(SchoolDispute),
+        var types = new[] { typeof(SchoolProposal), typeof(SchoolInvitation), typeof(SchoolExtensionRequest),
             typeof(SchoolDeferral), typeof(SchoolHandover), typeof(ContractCareHandover), typeof(CustomerSupportCase),
             typeof(ContractCancellation), typeof(RevenueRefund) };
         foreach (var type in types)
@@ -131,10 +130,6 @@ public sealed partial class KidsfitDbContext
         Restrict<SchoolExtensionRequest, User>(b, x => x.ManagerUserId);
         Restrict<SchoolExtensionRequest, User>(b, x => x.ReviewedByUserId);
         Restrict<SchoolExtensionRequest, SchoolWorkflowPolicyVersion>(b, x => x.PolicyVersionId);
-        Restrict<SchoolDispute, ChannelCustomer>(b, x => x.CustomerId);
-        Restrict<SchoolDispute, Organization>(b, x => x.OrganizationId);
-        Restrict<SchoolDispute, User>(b, x => x.OpenedByUserId);
-        Restrict<SchoolDispute, User>(b, x => x.ResolvedByUserId);
         Restrict<SchoolDeferral, DirectorySchool>(b, x => x.DirectorySchoolId);
         Restrict<SchoolDeferral, Organization>(b, x => x.OrganizationId);
         Restrict<SchoolDeferral, User>(b, x => x.ManagerUserId);

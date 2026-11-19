@@ -20,7 +20,6 @@ internal static class CrmReviewSeeder
         public List<ProposalFixture> Proposals { get; set; } = [];
         public ExtensionFixture Extension { get; set; } = new();
         public InvitationFixture Invitation { get; set; } = new();
-        public DisputeFixture Dispute { get; set; } = new();
         public DeferralFixture Deferral { get; set; } = new();
         public SupportFixture Support { get; set; } = new();
         public DepartureFixture Departure { get; set; } = new();
@@ -91,12 +90,6 @@ internal static class CrmReviewSeeder
         public string SchoolCode { get; set; } = "";
         public int ResponseDays { get; set; }
         public string Reason { get; set; } = "";
-    }
-    private sealed class DisputeFixture
-    {
-        public string SchoolCode { get; set; } = "";
-        public string Reason { get; set; } = "";
-        public string Evidence { get; set; } = "";
     }
     private sealed class DeferralFixture
     {
@@ -207,7 +200,7 @@ internal static class CrmReviewSeeder
     }
 
     public static async Task SeedAsync(KidsfitDbContext db, IPasswordHasher<User> hasher,
-        string sharedPassword, DateTime now, string contentRootPath, bool includeReviewDispute = true)
+        string sharedPassword, DateTime now, string contentRootPath)
     {
         var path = Path.Combine(contentRootPath, "SeedData", "crm-review-data.json");
         if (!File.Exists(path)) throw new FileNotFoundException("CRM review fixture missing.", path);
@@ -601,15 +594,6 @@ internal static class CrmReviewSeeder
                 Status = "PENDING", IdempotencyKey = "review-extension-" + fixture.Extension.SchoolCode,
                 CreatedAt = now, UpdatedAt = now });
         }
-        // GI-01 uses this same school to illustrate a normal 12-month interruption.
-        // Preserve the dispute fixture for standalone review runs only.
-        if (includeReviewDispute && !await db.SchoolDisputes.AnyAsync(x => x.IdempotencyKey == "review-dispute-" + fixture.Dispute.SchoolCode))
-            db.SchoolDisputes.Add(new SchoolDispute {
-                CustomerId = schoolKeys[fixture.Dispute.SchoolCode].CustomerId,
-                OrganizationId = kidsfit.Id, OpenedByUserId = manager.Id,
-                Reason = fixture.Dispute.Reason, EvidenceReference = fixture.Dispute.Evidence,
-                Status = "OPEN", IdempotencyKey = "review-dispute-" + fixture.Dispute.SchoolCode,
-                CreatedAt = now, UpdatedAt = now });
         if (!await db.SchoolDeferrals.AnyAsync(x => x.IdempotencyKey == "review-deferral-" + fixture.Deferral.SchoolCode))
             db.SchoolDeferrals.Add(new SchoolDeferral {
                 DirectorySchoolId = schoolKeys[fixture.Deferral.SchoolCode].DirectoryId,

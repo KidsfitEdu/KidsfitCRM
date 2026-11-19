@@ -47,7 +47,7 @@ test('Accounting filtering scopes authorized school groups before pagination',()
   assert.ok(page.includes("params.set('service_from',appliedServiceFrom)"));
   assert.ok(page.includes("params.set('service_to',appliedServiceTo)"));
   assert.ok(page.includes("params.set('needs_action','true')"));
-  assert.ok(page.includes("params.set('month',receiptAppliedMonth)"));
+  assert.ok(page.includes("params.set('month',String(Number(receiptAppliedPeriod.slice(5,7))))"));
   assert.ok(page.includes('financeAdvancedOpen'));
 });
 

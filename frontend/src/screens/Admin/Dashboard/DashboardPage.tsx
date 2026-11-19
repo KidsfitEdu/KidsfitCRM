@@ -31,7 +31,16 @@ const activityLabels:Record<string,string>={
 };
 type RecentActivity = NonNullable<SchoolOperationsReport['recent_activity']>[number];
 const fmt=(n:number|null|undefined)=>n==null?'—':n.toLocaleString('vi-VN');
-const fmtTime=(value:string)=>new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(value));
+const activityTimeFormatter=new Intl.DateTimeFormat('vi-VN',{
+  day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh',
+});
+const validActivityTime=(value:unknown):value is string =>
+  typeof value==='string' && value.trim().length>0 && Number.isFinite(new Date(value).getTime());
+const fmtTime=(value:unknown)=>{
+  if(!validActivityTime(value))return '—';
+  try{return activityTimeFormatter.format(new Date(value));}
+  catch{return '—';}
+};
 
 export function DashboardPage({apiBase,token,onSalesNavigate}:AdminPageProps) {
   const [period,setPeriod]=useState(currentBusinessPeriod);
@@ -164,7 +173,7 @@ export function DashboardPage({apiBase,token,onSalesNavigate}:AdminPageProps) {
               <p className="font-medium"><Activity className="mr-1 inline size-4 text-primary" aria-hidden="true"/>{activityLabels[x.entityType]??'Nghiệp vụ CRM'} · {x.action}</p>
               <p className="mt-1 text-xs text-muted-foreground">{x.actor_name} · Hồ sơ #{x.entityId}</p>
             </div>
-            <time className="text-xs text-muted-foreground" dateTime={x.createdAt}>{fmtTime(x.createdAt)}</time>
+            <time className="text-xs text-muted-foreground" dateTime={validActivityTime(x.createdAt)?x.createdAt:undefined}>{fmtTime(x.createdAt)}</time>
           </button>)}
         </div>:<p className="mt-4 text-sm text-muted-foreground">
           {loading?'Đang tải nhật ký…':'Chưa có sự kiện gần đây hoặc tài khoản chưa được cấp quyền xem nhật ký.'}

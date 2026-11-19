@@ -76,19 +76,18 @@ test('School-group rows are neutral and the contract term stays on one line',()=
   assert.ok(tree.includes('aria-expanded={!collapsed}'));
 });
 
-test('Contract table reserves space for all three authorized review actions',()=>{
+test('Contract table reserves space for a single view action and readable task badges',()=>{
   assert.match(tree, /<colgroup>/);
   const widths=[...tree.slice(tree.indexOf('<colgroup>'),tree.indexOf('</colgroup>'))
     .matchAll(/width:'(\d+)%'/g)].map(match=>Number(match[1]));
-  assert.deepEqual(widths,[20,12,16,12,13,14,13]);
+  assert.deepEqual(widths,[24,12,17,13,13,13,8]);
   assert.equal(widths.reduce((sum,width)=>sum+width,0),100);
-  assert.ok(widths[5]>7,'Cần xử lý must have adequate width');
+  assert.ok(widths[5]>=13,'Cần xử lý needs one-line badge space');
+  assert.equal(widths[6],8,'Only the eye action remains in the last column');
   assert.ok(tree.includes('whitespace-nowrap">Giá trị hợp đồng'));
   assert.ok(tree.includes('icon={Eye}'));
-  assert.ok(tree.includes('icon={CheckCircle2}'));
-  assert.ok(tree.includes('icon={FilePenLine} tone="blue"'));
-  assert.ok(tree.includes("p.status==='PENDING_ACCOUNTING'&&canRequestInfo"));
-  assert.ok(page.includes("openRenewal(contractId,renewalId,'request-info')"));
+  assert.doesNotMatch(tree,/icon=\{CheckCircle2\}|icon=\{FilePenLine\}|onReview|onRequestInfo/);
+  assert.ok(page.includes('onView={(contractId,renewalId)=>openContract(contractId,renewalId)}'));
   assert.ok(page.includes("channel_sales.renewal.review"));
 });
 

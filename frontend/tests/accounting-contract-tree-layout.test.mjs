@@ -14,7 +14,7 @@ test('contract group headers show school and contract count, no duplicate action
 test('desktop contracts retain seven balanced fixed columns',()=>{
   const columns=table.slice(table.indexOf('<colgroup>'),table.indexOf('</colgroup>'));
   const widths=[...columns.matchAll(/width:'(\d+)%'/g)].map(m=>Number(m[1]));
-  assert.deepEqual(widths,[20,12,16,12,13,14,13]);
+  assert.deepEqual(widths,[24,12,17,13,13,13,8]);
   assert.equal(widths.reduce((sum,v)=>sum+v,0),100);
   assert.equal((table.match(/<th scope="col"/g)??[]).length,7);
 });
@@ -25,10 +25,23 @@ test('action badges are shared and never wrap in both desktop and compact layout
   assert.match(table,/\[&>span\]:whitespace-nowrap/);
   for(const code of ['CONFIRM_RENEWAL','NEEDS_INFO','REVIEW_PERIOD'])assert.match(badge,new RegExp('\\b'+code+':'));
 });
-test('action callbacks and responsive card layout are preserved',()=>{
-  for(const text of ['onView(row.id,p.renewalId)', 'onReview(row.id,p.renewalId!)',
-    'onRequestInfo(row.id,p.renewalId!)', "p.status==='PENDING_ACCOUNTING'",
-    "(!needsAction||p.action!==null)"] ) assert.ok(table.includes(text),text);
+test('table exposes only the eye view action for both desktop and compact rows',()=>{
+  assert.equal((table.match(/<ContractActions row=\{row\} p=\{p\} onView=\{onView\}\/>/g)??[]).length,2);
+  assert.match(table,/icon=\{Eye\}/);
+  assert.match(table,/onClick=\{\(\)=>onView\(row.id,p.renewalId\)\}/);
+  assert.doesNotMatch(table,/onReview|onRequestInfo|CheckCircle2|FilePenLine|canConfirm|canRequestInfo/);
   assert.match(table,/@min-\[1100px\]:block/);
   assert.match(table,/@min-\[1100px\]:hidden/);
+  assert.match(table,/\(!needsAction\|\|p.action!==null\)/);
+});
+test('accounting decision buttons remain inside the detail drawer',()=>{
+  const detail=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx'),'utf8');
+  const inline=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingRenewalInline.tsx'),'utf8');
+  const page=readFileSync(resolve(import.meta.dirname,'../src/screens/Accounting/Contracts/AccountingContractsPage.tsx'),'utf8');
+  assert.match(detail,/<AccountingRenewalInline /);
+  assert.match(inline,/onClick=\{\(\)=>openDecision\('confirm'\)\}/);
+  assert.match(inline,/onClick=\{\(\)=>openDecision\('request-info'\)\}/);
+  assert.match(inline,/onClick=\{\(\)=>openDecision\('reject'\)\}/);
+  assert.match(page,/onView=\{\(contractId,renewalId\)=>openContract\(contractId,renewalId\)\}/);
+  assert.doesNotMatch(page,/openRenewal\(contractId,renewalId/);
 });

@@ -22,12 +22,13 @@ type AppDialogProps = {
   /** Focus a stable area of the underlying drawer without scrolling after closing a nested dialog. */
   returnFocusRef?: RefObject<HTMLElement | null>;
   footerAlign?: 'start' | 'center' | 'end';
+  footerClassName?: string;
 };
 
 /** KIDSFIT CRM dialog shell: one consistent brand header, scrollable content and fixed footer. */
 export function AppDialog({
   open, onOpenChange, title, description, eyebrow = 'KIDSFIT CRM',
-  children, footer, busy = false, contentClassName, bodyClassName, headerClassName, footerAlign = 'end', returnFocusRef,
+  children, footer, busy = false, contentClassName, bodyClassName, headerClassName, footerAlign = 'end', footerClassName, returnFocusRef,
 }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={next => { if (!busy) onOpenChange(next); }}>
@@ -64,7 +65,7 @@ export function AppDialog({
           {children}
         </div>
         {footer && (
-          <div className={cn("flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-muted/30 px-5 py-4 sm:px-6", footerAlign === "center" ? "justify-center" : footerAlign === "start" ? "justify-start" : "justify-end")}>
+          <div className={cn("flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-muted/30 px-5 py-4 sm:px-6", footerAlign === "center" ? "justify-center" : footerAlign === "start" ? "justify-start" : "justify-end", footerClassName)}>
             {footer}
           </div>
         )}

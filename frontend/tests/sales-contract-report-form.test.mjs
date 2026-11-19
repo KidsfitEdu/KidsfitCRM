@@ -17,7 +17,7 @@ test('plan labels are concise and underlying billing semantics remain unchanged'
 test('contract report keeps original layout and manager-first submission copy',()=>{
   assert.match(screen,/return <SalesFormDialog title="Báo cáo hợp đồng"/);
   assert.match(screen,/Gửi Quản lý duyệt/);
-  assert.match(screen,/Quản lý bán hàng duyệt trước khi chuyển CHECKEE xác minh/);
+  assert.doesNotMatch(screen,/subtitle="Gửi hồ sơ hợp đồng đã ký/);
   assert.match(screen,/getServicePlanLabel\(option\)/);
   assert.doesNotMatch(screen,/Gói năm học \(9 tháng, tặng 3 tháng hè\)/);
   assert.doesNotMatch(screen,/Gói hàng tháng \(9 tháng\)/);
@@ -45,5 +45,39 @@ test('only scoped report inputs, package choice and upload change',()=>{
   assert.match(form,/UploadCloud/);
   assert.match(form,/file \? file\.name/);
   assert.match(form,/accept="\.pdf,image\/jpeg,image\/png,image\/webp"/);
-  assert.match(form,/label="Gửi Quản lý duyệt"/);
+  assert.match(form,/Gửi Quản lý duyệt/);
+});
+
+test('contract report uses the shared date picker and preserves validation focus and dates',()=>{
+  const form=screen.slice(screen.indexOf('function ContractDialog'),screen.indexOf('function ReceiptDialog'));
+  assert.equal((form.match(/<AppDatePicker /g)||[]).length,3);
+  assert.doesNotMatch(form,/type="date"/);
+  for (const field of ['signed_on','service_start_on','service_end_on']) assert.match(form,new RegExp('fieldName="'+field+'"'));
+  assert.match(form,/data-field="\$\{first\}"/);
+  assert.match(form,/onSubmit=\{submit\} noValidate/);
+  assert.match(form,/date.setUTCFullYear\(date.getUTCFullYear\(\)\+1\)/);
+});
+test('contract report uses an opaque anchored dialog footer and external form submit',()=>{
+  const form=screen.slice(screen.indexOf('function ContractDialog'),screen.indexOf('function ReceiptDialog'));
+  assert.match(form,/footer=\{<>/);
+  assert.match(form,/form="sales-contract-report-form"/);
+  assert.match(form,/id="sales-contract-report-form"/);
+  assert.doesNotMatch(form,/<DialogFooter /);
+  assert.match(screen,/footerClassName=\{footer \? 'relative z-20 bg-card/);
+});
+
+test('shared date picker uses compact Vietnamese calendar and year jump without changing ISO payload',()=>{
+  const picker=readFileSync(resolve(import.meta.dirname,'../src/components/common/forms/app-date-picker.tsx'),'utf8');
+  assert.match(picker,/captionLayout="label" hideNavigation/);
+  assert.match(picker,/aria-label="Tháng trước"/);
+  assert.match(picker,/aria-label="Tháng sau"/);
+  assert.match(picker,/aria-label="Chọn nhanh tháng và năm"/);
+  assert.match(picker,/aria-label="Chọn năm"/);
+  assert.match(picker,/Array.from\(\{length:12\}/);
+  assert.match(picker,/locale=\{vi\} weekStartsOn=\{1\}/);
+  assert.match(picker,/onChange\(format\(date,'yyyy-MM-dd'\)\)/);
+  assert.match(picker,/setOpen\(false\)/);
+  assert.match(picker,/data-field=\{fieldName\}/);
+  assert.match(picker,/aria-invalid=\{invalid\}/);
+  assert.doesNotMatch(picker,/captionLayout="dropdown"/);
 });

@@ -2,6 +2,19 @@
 
 Use on each changed screen. Mark each item PASS/FAIL/NOT_TESTED with screenshot/video and environment when available. A code review alone does not establish screenshot fidelity.
 
+## Mandatory evidence and test classification
+
+Record screen + role + branch/SHA + browser size and theme. Mark **PASS**, **FAIL**, **NOT RUN** or **BLOCKED** for actual browser review; screenshots supplied in chat are references, not rendered verification.
+
+- [ ] Shared-component change has a complete consumer map; regression coverage reaches impacted screens/roles.
+- [ ] TSX syntax, lint, tsc, unit/pages tests and build were actually run or explicitly marked NOT RUN.
+- [ ] Existing red CI is classified against the base branch (regression / pre-existing / obsolete approved assertion / blocked).
+- [ ] Modal stays viewport-centered, page underneath does not jump or scroll, controls remain keyboard accessible.
+- [ ] Image viewer preserves full financial evidence without unwanted cropping, retains proper PDF fallback, and differentiates source-image whitespace from CSS padding.
+- [ ] Search retains keyboard focus while typing, including first character, after async results and after selecting/clearing.
+- [ ] Dashboard charts match source query, business period, current snapshot vs historical data, units, currency and RBAC; no invented chart points.
+- [ ] Consolidated navigation supports old deep links, back/forward and state/permission parity.
+
 ## A. Reference fidelity and design consistency
 
 - [ ] Screen purpose, role, title/eyebrow and action order match approved requirement.
@@ -20,7 +33,7 @@ Use on each changed screen. Mark each item PASS/FAIL/NOT_TESTED with screenshot/
 - [ ] Outdated \`PENDING_ADMIN\` / \`PENDING_MANAGER\` due timestamps are visibly overdue when authoritative time has passed; no change to underlying status just for visual urgency.
 - [ ] Date and money formatting have clear locale/timezone and do not invent real receipt or contract data.
 - [ ] Seven-role target vocabulary accurate, legacy runtime role compatibility preserved.
-- [ ] No UI for unapproved final KIDSFIT protection-grant actor, 30% payout activation or private referrer splits.
+- [ ] No UI for the still-open KIDSFIT protection-grant actor (D-12), superseded D-10 30% payout activation, or excluded private referrer splits; D-17/D-18 govern new commission/payout work.
 
 ## C. Accessibility
 

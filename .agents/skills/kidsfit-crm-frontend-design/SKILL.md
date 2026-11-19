@@ -65,9 +65,18 @@ The BGĐ reference is a **visual language benchmark, not a common dataset**. Sal
 - Interactive states: distinguish filter reset from data refresh, visually and accessibly identify overdue *pending* work based on authoritative timestamps, require confirmation for destructive/high-impact actions, and display server errors precisely.
 - Accessibility: semantic page headings and table headers, associated labels, keyboard focus, no color-only statuses, useful \`aria-label\` for icon-only actions, sufficient contrast and sensible touch targets.
 - Target business model: seven roles with one \`SALES\` UI for employees and CTV; existing \`BOARD\`, \`CHANNEL_SALES\`, \`PARTNER_ADMIN\`, \`PARTNER_COLLABORATOR\` are **legacy implementation codes**, not permission to delete existing account data. Follow \`docs/requirements/ROLES_AND_PERMISSIONS.md\`.
-- Treat the 30% Sales commission as **provisional** and the KIDSFIT post-CHECKEE 5-year grant actor as **OPEN**. Do not invent UI affordances that implicitly approve them.
+- For commission, follow current `docs/requirements/DECISION_LOG.md`: D-17 supersedes D-10's historical 30% Sales-only rate; D-17 default is 25% Sales + 5% Manager with scoped BGĐ overrides, and D-18 defines payout approval. The KIDSFIT post-CHECKEE 5-year grant actor remains **OPEN** (D-12). Do not invent UI affordances that implicitly approve them.
 - Avoid importing personal referrer/split commissions; feature was explicitly excluded.
 - Changes to screenshots/layout must not silently modify business data, APIs, auth flows, migrations, demo/prod semantics or architecture.
+
+## Shared-component regression and image preview contract
+
+- Before changing shared Dialog/Drawer/DatePicker/Search/Upload, find all call sites and list affected roles; preserve semantic behavior and update related tests, not just the originating screenshot.
+- For `EvidencePreviewDialog` and image-only viewers, keep the image's intrinsic aspect ratio (`object-contain`), center the overlay relative to the viewport (avoid overriding `fixed` with `relative`), and do not accidentally scroll the page underneath. Distinguish whitespace *inside the uploaded file* from CSS padding. No unapproved cropping of evidence or paid/financial proof.
+- Image-only preview may use floating Close (top right) and Download (bottom right) actions on the image instead of a standard form footer when approved. Keep accessible names/focus, Escape, overlay close, PDF fallback and authenticated evidence URLs. Do not force a global modal pattern on other workflows.
+- Searchable selects must preserve input focus across async filtering/typing; keep dropdown in a suitable portal with viewport-limited height, keyboard handling and no horizontal/modal overflow. Date/month filters must preserve business semantics and calendar boundaries.
+- Dashboard layout is not enough: tie every KPI and chart to the authorized backend source and an explicit definition of reporting month, business timezone, snapshot vs historic metric, cash paid vs accrued, and how incomplete data is shown. Never derive six-month history from a current KPI.
+- **Screenshot comparison is a separate QA gate:** render the current commit in a real browser, check spacing, overlay placement, scrolling and responsive dark/light. If unavailable, report **NOT RUN** rather than “matches screenshot”.
 
 ## Verification commands
 

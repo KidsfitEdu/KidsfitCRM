@@ -89,6 +89,15 @@ Refer to the actual implementation before modifying signatures or behavior. Path
 
 **Reusable design boundary:** Dashboard pages can share `AppStatCard`, chart primitives, branded panel styles and status vocabulary without sharing the same data queries or KPI set. A UI-only task must not silently invent back-end endpoints, monthly trend tables, financial authority or metric definitions.
 
+## Evidence preview, overlay and searchable-input contract
+
+- **Shared consumer inventory:** inspect imports/call sites for every changed shared component. Record affected pages and cross-role regression tests before changing props, positioning or styles.
+- **Image-only evidence preview:** no unintended frame padding/header/footer; intrinsic aspect ratio and `object-contain`; image-centered viewport-fixed dialog rather than page-flow `relative`; overlay actions have stable top-right Close and bottom-right Download positions when approved. Uploaded black/white pixel margins are source-image content, not necessarily CSS spacing. Never automatically crop a financial image.
+- **PDF and non-image evidence:** maintain readable fallback, authorized object/blob URL handling and close/revocation lifecycle; test landscape, portrait, extremely wide/tall, large images and PDF.
+- **Dialog accessibility:** use the existing dialog focus trap and return focus, keyboard Escape, correct accessible title/labels, backdrop/scroll lock, focus rings, touch hit area and responsive max width/height. Test no page scroll jump.
+- **Search/dropdown:** use stable input identity during filtering and selection, preserve focus after first and subsequent keystrokes, keyboard arrows/Enter/Escape, constrained list height, portal stacking, outside click and dialog scroll containment.
+- **Filter semantics:** period picker = month/year value, not cash date; receipt date and payment date are separate business concepts. Clear/filter/reset/refetch have different meanings and should remain distinct.
+
 ## Error, empty, disabled and preview semantics
 
 - Distinguish: empty dataset, no matching filter results, forbidden scope, server error, and preview-only data. Do not replace an API error with a fake empty or successful result.

@@ -56,3 +56,14 @@ test('Posted receipts remain readable and cannot be silently edited as drafts',(
   assert.match(page,/setReceiptRevision\(v=>v\+1\)/);
   assert.match(page,/canRecordRevenue/);
 });
+
+test('Receipt register reuses compact shared month picker and applies business receipt date',()=>{
+  assert.match(page,/filters={<AppMonthPicker label="Tháng nhận tiền"/);
+  assert.match(page,/value=\{receiptPeriod\} onChange=\{setReceiptPeriod\}/);
+  assert.match(page,/setReceiptAppliedPeriod\(receiptPeriod\)/);
+  assert.match(page,/params\.set\('year',receiptAppliedPeriod\.slice\(0,4\)\)/);
+  assert.match(page,/params\.set\('month',String\(Number\(receiptAppliedPeriod\.slice\(5,7\)\)\)\)/);
+  assert.match(page,/setReceiptPeriod\(''\);setReceiptAppliedPeriod\(''\)/);
+  assert.doesNotMatch(page,/receiptYearOptions|receiptMonthOptions|receiptAppliedYear|receiptAppliedMonth/);
+  assert.match(workspace,/x\.receipt\.ReceivedAt >= from/);
+});

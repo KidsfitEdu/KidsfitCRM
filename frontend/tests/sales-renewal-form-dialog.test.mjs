@@ -27,7 +27,8 @@ test('input and select styles are consistent and value is displayed as VND',()=>
   assert.match(form,/<AppCurrencyInput/);
   assert.match(form,/onValueChange=\{setAmount\}/);
   assert.match(form,/sm:grid-cols-2/);
-  assert.match(form,/type="date"/);
+  assert.equal((form.match(/<AppDatePicker /g)??[]).length,3);
+  assert.doesNotMatch(form,/type="date"/);
   assert.match(form,/maxLength=\{1000\}/);
   assert.match(form,/gapDetected&&/);
 });
@@ -60,4 +61,23 @@ test('file input keeps the exact evidence upload contract',()=>{
   assert.match(panel,/evidence_id:proof\.data\.id/);
   assert.match(panel,/end!==calendarYearEnd\(start\)/);
   assert.match(panel,/gapDetected&&!gapReason\.trim\(\)/);
+});
+
+test('create and resubmit renewal share compact accessible date pickers and no header subtitle',()=>{
+  assert.doesNotMatch(form,/description="Gửi hợp đồng đã ký đến Kế toán xác nhận/);
+  assert.match(form,/title=\{drawer==='resubmit'\?'Bổ sung hồ sơ tái ký':'Tạo hồ sơ tái ký'\}/);
+  for(const [field,value] of [['kc02-signed','signedOn'],['kc02-start','start'],['kc02-end','end']]){
+    assert.match(form,new RegExp('fieldName="'+field+'"'));
+    assert.match(form,new RegExp('value=\\{'+value+'\\}'));
+  }
+  assert.match(panel,/if\(!selected\|\|!file\|\|!start\|\|!end\|\|!signedOn\|\|!amount\)/);
+  assert.match(panel,/end!==calendarYearEnd\(start\)/);
+  assert.match(panel,/gapDetected&&!gapReason.trim\(\)/);
+});
+test('shared compact picker preserves date ISO output and month-year control',()=>{
+  const picker=source('common/forms/app-date-picker.tsx');
+  assert.match(picker,/captionLayout="label" hideNavigation/);
+  assert.match(picker,/Chọn nhanh tháng và năm/);
+  assert.match(picker,/onChange\(format\(date,'yyyy-MM-dd'\)\)/);
+  assert.match(picker,/data-field=\{fieldName\}/);
 });

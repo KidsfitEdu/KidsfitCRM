@@ -5,6 +5,7 @@ import { Eye, Plus, RotateCcw, Search, UploadCloud } from 'lucide-react';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { SalesRenewalDetail } from './SalesRenewalDetail';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { AppDatePicker } from '@/components/common/forms/app-date-picker';
 import { AppSearchCombobox } from '@/components/common/app-search-combobox';
 import { AppCurrencyInput } from '@/components/common/inputs/app-currency-input';
 import { AppPagination } from '@/components/common/app-pagination';
@@ -242,7 +243,6 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
     <AppDialog open={drawer==='create'||drawer==='resubmit'} busy={saving}
       onOpenChange={open=>{if(!open){setDrawer(null);setActiveId(null);resetForm();}}}
       title={drawer==='resubmit'?'Bổ sung hồ sơ tái ký':'Tạo hồ sơ tái ký'}
-      description="Gửi hợp đồng đã ký đến Kế toán xác nhận."
       contentClassName="sm:max-w-[720px]" bodyClassName="py-4 sm:py-5"
       footer={<>
         <AppButton tone="neutral" type="button" className="h-11 min-w-24" disabled={saving}
@@ -269,19 +269,19 @@ export function ContractRenewalSalesPanel({apiBase,token,abilities}:{apiBase:str
         </div>}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label htmlFor="kc02-signed" className="block text-[13px] font-medium">Ngày ký hợp đồng *</label>
-            <Input id="kc02-signed" className="h-11 w-full rounded-xl px-3 text-sm" type="date" required
-              value={signedOn} onChange={e=>setSignedOn(e.target.value)}/>
+            <span className="block text-[13px] font-medium">Ngày ký hợp đồng *</span>
+            <AppDatePicker label="Ngày ký hợp đồng" fieldName="kc02-signed" className="h-11 w-full rounded-xl"
+              value={signedOn} onChange={setSignedOn}/>
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="kc02-start" className="block text-[13px] font-medium">Ngày bắt đầu dịch vụ *</label>
-            <Input id="kc02-start" className="h-11 w-full rounded-xl px-3 text-sm" type="date" required
-              value={start} onChange={e=>setStart(e.target.value)}/>
+            <span className="block text-[13px] font-medium">Ngày bắt đầu dịch vụ *</span>
+            <AppDatePicker label="Ngày bắt đầu dịch vụ" fieldName="kc02-start" className="h-11 w-full rounded-xl"
+              value={start} onChange={setStart}/>
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="kc02-end" className="block text-[13px] font-medium">Ngày kết thúc dịch vụ *</label>
-            <Input id="kc02-end" className="h-11 w-full rounded-xl px-3 text-sm" type="date" required
-              value={end} onChange={e=>setEnd(e.target.value)}/>
+            <span className="block text-[13px] font-medium">Ngày kết thúc dịch vụ *</span>
+            <AppDatePicker label="Ngày kết thúc dịch vụ" fieldName="kc02-end" className="h-11 w-full rounded-xl"
+              value={end} onChange={setEnd}/>
           </div>
           <div className="space-y-1.5">
             <label htmlFor="kc02-cycle" className="block text-[13px] font-medium">Chu kỳ thanh toán *</label>

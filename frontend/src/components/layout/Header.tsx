@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { createApiClient } from '@/services/api.client';
+import { UserProfileMenu, type CurrentUserProfile } from '@/components/layout/UserProfileMenu';
 import type { View } from '@/config/navigation';
 
 type Notice = {
@@ -34,11 +35,10 @@ type ExpiryNotice = {
   target: 'role-sales-staff-customers' | 'role-collaborator-approaches' | 'role-customer-care-customers' | 'manager-contracts';
 };
 type ExpiryNotificationsResponse = { unread_count: number; data: ExpiryNotice[] };
-const initials = (name: string) => name.split(' ').slice(-2).map(p => p[0]).join('').toUpperCase();
 
 export function Header({
   todayLabel, userName, search, setSearch, dark, setDark,
-  apiBase = '', token = '', onNavigate, sidebarOpen, onToggleSidebar,
+  apiBase = '', token = '', onNavigate, sidebarOpen, onToggleSidebar, profile, onLogout, isAdmin,
 }: {
   todayLabel: string;
   sidebarOpen: boolean;
@@ -51,6 +51,9 @@ export function Header({
   apiBase?: string;
   token?: string;
   onNavigate?: (view: View) => void;
+  profile: CurrentUserProfile | null;
+  onLogout: () => Promise<void>;
+  isAdmin: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
@@ -170,9 +173,7 @@ export function Header({
           </button>)}
         </PopoverContent>
       </Popover>
-      <div className="ml-1 grid size-10 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-sm font-bold text-[#633b38]">
-        {initials(userName)}
-      </div>
+      <UserProfileMenu user={profile} dark={dark} setDark={setDark} onLogout={onLogout} isAdmin={isAdmin}/>
     </div>
   </header>;
 }

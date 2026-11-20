@@ -10,6 +10,7 @@ import { ApiRequestError, isBackendUnavailable } from '@/services/api.client';
 import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
 import { PasswordRecovery } from '@/screens/Auth/PasswordRecovery/PasswordRecoveryPage';
 import { AuthShell } from '@/screens/Auth/AuthShell';
+import { appNotice } from '@/components/common/app-toast-provider';
 
 export function LoginPage({
   loading,
@@ -20,7 +21,6 @@ export function LoginPage({
 }) {
   const [email, setEmail] = useState('');
   const [recovering, setRecovering] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState(false);
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<LoginErrors>({});
   const [serverError, setServerError] = useState('');
@@ -37,7 +37,6 @@ export function LoginPage({
 
   const updateField = (field: LoginField, value: string) => {
     setServerError('');
-    setResetSuccess(false);
     const nextEmail = field === 'email' ? value : email;
     const nextPassword = field === 'password' ? value : password;
     if (field === 'email') setEmail(value);
@@ -75,7 +74,13 @@ export function LoginPage({
   };
 
   if (recovering) return <PasswordRecovery initialEmail={email} onClose={() => setRecovering(false)}
-    onSuccess={() => { setRecovering(false); setPassword(''); setErrors({}); setServerError(''); setResetSuccess(true); }} />;
+    onSuccess={() => {
+      setRecovering(false);
+      setPassword('');
+      setErrors({});
+      setServerError('');
+      appNotice.success('Đặt lại mật khẩu thành công', 'Vui lòng đăng nhập bằng mật khẩu mới.');
+    }} />;
 
   if (loading || retrying)
     return <main className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label="Đang kết nối và xác thực tài khoản..."/></main>;
@@ -154,7 +159,6 @@ export function LoginPage({
                 Quên mật khẩu?
               </button>
             </div>
-            {resetSuccess && <output className="block rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.</output>}
             {serverError && <p role="alert" className="text-sm text-destructive">{serverError}</p>}
             <Button
               type="submit"

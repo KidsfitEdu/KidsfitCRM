@@ -60,7 +60,9 @@ test('Accounting separates contracts and role-specific payout overview',()=>{
   assert.match(accounting,/\/accounting\/payouts\?/);
 });
 
-test('Legacy receipt requires explicit verified backfill and never silently reassigns manager share',()=>{
+test('Legacy backfill remains safeguarded on the server but has no Accounting UI entry point',()=>{
+  // No legacy receipt backfill/reconciliation UI: explicitly retired by product decision.
+  // Keep assertions covering the dormant server-side verification safeguards.
   const handler=read('../backend/src/KidsfitCRM.Api/Features/ReceiptCommissionBackfillActions.cs');
   const dto=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesContracts.cs');
   assert.match(handler,/PreviewReceiptCommissionBackfill/);
@@ -70,15 +72,13 @@ test('Legacy receipt requires explicit verified backfill and never silently reas
   assert.match(handler,/COMMISSION_MANAGER_REVIEW_REQUIRED/);
   assert.match(handler,/BACKFILL_RECEIPT_COMMISSION/);
   assert.match(dto,/ManagerVerified = false/);
-  assert.match(accounting,/Đối soát hoa hồng khoản thu cũ/);
-  assert.match(accounting,/manager_verified:backfillManagerVerified/);
-  assert.match(accounting,/void openBackfill\(receiptId\)/);
-  assert.match(accounting,/canAdjustCommission&&<Button/);
+  assert.doesNotMatch(accounting,/Đối soát hoa hồng khoản thu cũ|backfillManagerVerified|openBackfill|commission-backfill/);
 });
 
-test('Receipt reconciliation and payout creation stay in their dedicated tabs',()=>{
+test('Receipts and payout creation remain in dedicated tabs without reconciliation actions',()=>{
   assert.match(accounting,/label:'Khoản thu nhà trường'/);
-  assert.match(accounting,/Kiểm tra & đối soát/);
+  assert.match(accounting,/label:'Phiếu chi hoa hồng'/);
+  assert.doesNotMatch(accounting,/Kiểm tra & đối soát|Lý do đối soát/);
   assert.match(accounting,/\/accounting\/payouts\?/);
   assert.match(accounting,/beneficiaries=beneficiaryEntries\.filter/);
   assert.match(accounting,/payoutSchools\.length===0/);
@@ -86,15 +86,14 @@ test('Receipt reconciliation and payout creation stay in their dedicated tabs',(
   assert.doesNotMatch(detail,/Hoa hồng & phiếu chi|Nhà trường thanh toán/);
 });
 
-test('Backfill and payout dialogs show explicit reviewed amounts and never claim money was sent',()=>{
-  assert.match(accounting,/Bước 1 · Kiểm tra khoản thu/);
-  assert.match(accounting,/Bước 2 · Kiểm tra người hưởng/);
-  assert.match(accounting,/Bước 3 · Lý do đối soát/);
-  assert.match(accounting,/backfillManagerVerified/);
+test('Payout actions distinguish draft, submission and adjustment without retired backfill wizard',()=>{
+  assert.doesNotMatch(accounting,/Bước 1 · Kiểm tra khoản thu|Bước 2 · Kiểm tra người hưởng|Bước 3 · Lý do đối soát|backfillManagerVerified/);
   assert.doesNotMatch(accounting,/Thao tác này chỉ lập phiếu ở trạng thái Nháp/);
   assert.match(accounting,/Lưu nháp/);
   assert.match(accounting,/Gửi BGĐ duyệt/);
   assert.match(accounting,/Lý do điều chỉnh/);
+  assert.match(accounting,/payoutPreview\.events\.map/);
+  assert.match(accounting,/submitPayout\(pendingPayoutSubmit\.id\)/);
 });
 
 test('One shared payout transitions through BGĐ approval with required adjustment rationale',()=>{

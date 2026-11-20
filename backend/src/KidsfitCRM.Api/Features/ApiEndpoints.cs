@@ -15,6 +15,7 @@ public static class ApiEndpoints
         api.MapPost("/auth/password/reset", PasswordResetFeatures.Reset).RequireRateLimiting("password-reset");
         var secured = api.MapGroup("").RequireAuthorization();
         secured.MapGet("/me", AuthFeatures.Me);
+        secured.MapPost("/me/change-password", AuthFeatures.ChangeOwnPassword).RequireRateLimiting("password-change");
         secured.MapPost("/logout", AuthFeatures.Logout);
         secured.MapChannelSalesApi();
         secured.MapSchoolProposalAlerts();

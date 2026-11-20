@@ -124,6 +124,15 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
             AutoReplenishment = true,
         }));
+    // Throttle password change attempts by client IP. The limiter runs before JWT authentication.
+    options.AddPolicy("password-change", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0,
+            AutoReplenishment = true,
+        }));
     options.AddFixedWindowLimiter("login", limiter =>
     {
         limiter.PermitLimit = 6;

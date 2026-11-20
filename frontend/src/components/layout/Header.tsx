@@ -173,7 +173,7 @@ export function Header({
           </button>)}
         </PopoverContent>
       </Popover>
-      <UserProfileMenu user={profile} dark={dark} setDark={setDark} onLogout={onLogout} isAdmin={isAdmin}/>
+      <UserProfileMenu user={profile} dark={dark} setDark={setDark} onLogout={onLogout} isAdmin={isAdmin} apiBase={apiBase} token={token}/>
     </div>
   </header>;
 }

@@ -16,6 +16,7 @@ public static class CustomerCareEndpoints
         channel.MapGet("/care/schools/{id:long}", SchoolDetail).RequireAuthorization(Permissions.SchoolSupportManage);
         channel.MapGet("/care/tickets", Tickets).RequireAuthorization(Permissions.SchoolSupportManage);
         channel.MapGet("/care/summary", Summary).RequireAuthorization(Permissions.SchoolSupportManage);
+        channel.MapGet("/care/dashboard/report", DashboardReport).RequireAuthorization(Permissions.SchoolSupportManage);
         channel.MapPost("/care/schools/{id:long}/calls", LogCall).RequireAuthorization(Permissions.SchoolSupportManage);
         channel.MapGet("/care/assignments", Assignments).RequireAuthorization(Permissions.SchoolCareAssign);
     }
@@ -194,6 +195,53 @@ public static class CustomerCareEndpoints
             due_calls = await db.CustomerActivities.CountAsync(x => customerIds.Contains(x.CustomerId)
                 && x.ActivityType == "SUPPORT" && x.NextFollowUpAt != null && x.NextFollowUpAt <= now, ct)
         } });
+    }
+
+    /// <summary>
+    /// Real historical ticket creation and resolution counts for the signed-in CSKH,
+    /// based on Vietnam-local calendar months and the same contract scope as /care/summary.
+    /// Current status totals are independent of the selected history month.
+    /// </summary>
+    public static async Task<IResult> DashboardReport(HttpContext http, KidsfitDbContext db,
+        string? period, CancellationToken ct)
+    {
+        var access = await CareAccess(http, db, ct);
+        var currentMonth = DateTime.UtcNow.AddHours(7).ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+        var requested = period ?? currentMonth;
+        if (!System.Text.RegularExpressions.Regex.IsMatch(requested, @"^20\d{2}-(0[1-9]|1[0-2])$"))
+            throw ApiValidationException.For("period", "Kỳ báo cáo phải có dạng YYYY-MM.");
+
+        var selected = DateTime.ParseExact(requested + "-01", "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture);
+        var tickets = db.CustomerSupportCases.AsNoTracking()
+            .Where(t => Assigned(db, access).Any(c => c.Id == t.ContractId));
+        var breakdown = new
+        {
+            open = await tickets.CountAsync(x => x.Status == "OPEN", ct),
+            in_progress = await tickets.CountAsync(x => x.Status == "IN_PROGRESS", ct),
+            resolved = await tickets.CountAsync(x => x.Status == "RESOLVED", ct)
+        };
+        var trend = new List<object>(6);
+        for (var offset = 5; offset >= 0; offset--)
+        {
+            var month = selected.AddMonths(-offset);
+            var from = DateTime.SpecifyKind(month.AddHours(-7), DateTimeKind.Utc);
+            var until = DateTime.SpecifyKind(month.AddMonths(1).AddHours(-7), DateTimeKind.Utc);
+            trend.Add(new
+            {
+                period = month.ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture),
+                created = await tickets.CountAsync(t => t.CreatedAt >= from && t.CreatedAt < until, ct),
+                resolved = await tickets.CountAsync(t => t.Status == "RESOLVED"
+                    && t.ResolvedAt.HasValue && t.ResolvedAt.Value >= from && t.ResolvedAt.Value < until, ct)
+            });
+        }
+
+        return Results.Ok(new
+        {
+            period = requested,
+            status_breakdown = breakdown,
+            ticket_trend = trend
+        });
     }
 
     public static async Task<IResult> LogCall(long id, CustomerCareCallRequest request, HttpContext http,

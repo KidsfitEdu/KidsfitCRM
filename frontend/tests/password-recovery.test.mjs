@@ -5,6 +5,7 @@ import test from 'node:test';
 
 const login = readFileSync(resolve(import.meta.dirname, '../src/screens/Auth/Login/LoginPage.tsx'), 'utf8');
 const recovery = readFileSync(resolve(import.meta.dirname, '../src/screens/Auth/PasswordRecovery/PasswordRecoveryPage.tsx'), 'utf8');
+const authShell = readFileSync(resolve(import.meta.dirname, '../src/screens/Auth/AuthShell.tsx'), 'utf8');
 
 test('login exposes the password recovery flow without changing login submit', () => {
   assert.match(login, /<PasswordRecovery initialEmail=\{email\}/);
@@ -31,4 +32,13 @@ test('OTP is input-constrained and reset password is never shown in email', () =
   assert.match(recovery, /minLength=\{12\}/);
   assert.match(recovery, /autoComplete="new-password"/);
   assert.match(recovery, /disabled=\{busy \|\| remaining > 0\}/);
+});
+
+test('login and recovery share the same branded visual shell', () => {
+  assert.match(login, /<AuthShell title="Chào mừng trở lại"/);
+  assert.match(recovery, /<AuthShell title=\{titles\[step\]\}/);
+  assert.match(authShell, /<AppBrand \/>/);
+  assert.match(authShell, /bg-\[#101a2b\]/);
+  assert.match(authShell, /max-w-md/);
+  assert.doesNotMatch(recovery, /bg-\[#f3f8f3\]/);
 });

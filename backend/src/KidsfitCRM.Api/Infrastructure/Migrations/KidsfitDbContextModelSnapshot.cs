@@ -3341,6 +3341,72 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("school_workflow_policies");
                 });
 
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.PasswordResetChallenge", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int")
+                        .HasColumnName("attempts");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("OtpDigest")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("otp_digest");
+
+                    b.Property<string>("PublicId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("public_id");
+
+                    b.Property<string>("TicketDigest")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("ticket_digest");
+
+                    b.Property<DateTime?>("TicketExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ticket_expires_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("verified_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("password_reset_challenges");
+                });
+
             modelBuilder.Entity("KidsfitCRM.Api.Domain.User", b =>
                 {
                     b.Property<long>("Id")
@@ -3383,6 +3449,12 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
                         .HasColumnName("password");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("security_stamp");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(40)
@@ -4225,6 +4297,15 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.PasswordResetChallenge", b =>
+                {
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

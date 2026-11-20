@@ -19,10 +19,10 @@ return <>
               title={!sidebarOpen ? item.label : undefined}
               aria-label={item.label}
               aria-current={currentView === item.id ? 'page' : undefined}
-              className={`flex w-full items-center rounded-xl py-3 text-left text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a5d6a7] ${sidebarOpen ? 'gap-3 px-3' : 'justify-center px-2'} ${currentView === item.id ? 'crm-brand-menu-active font-semibold text-white' : 'text-[#c7ddcc] hover:bg-white/10 hover:text-white'}`}
+              className={`flex w-full items-center rounded-xl py-3 text-left text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a5d6a7] ${sidebarOpen ? 'gap-3 px-3' : 'justify-center px-2'} ${currentView === item.id ? 'crm-brand-menu-active font-semibold text-white' : 'text-[#c7ddcc] hover:bg-white/10 hover:text-white dark:text-[#a9b9ae] dark:hover:bg-white/10 dark:hover:text-white'}`}
             >
               <item.icon aria-hidden="true"
-                className={`size-[18px] shrink-0 ${currentView === item.id ? 'text-[#a5d6a7]' : ''}`}
+                className={`size-[18px] shrink-0 ${currentView === item.id ? 'text-[#a5d6a7] dark:text-[#78c79a]' : ''}`}
               />
               {sidebarOpen && <span>{item.label}</span>}
             </button>
@@ -59,7 +59,7 @@ return <>
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`flex min-w-[88px] flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-[#e8f5e9]/15 text-[#a5d6a7]' : 'text-slate-400'}`}
+            className={`flex min-w-[88px] flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition-colors ${currentView === item.id ? 'bg-[#e8f5e9]/15 text-[#a5d6a7] dark:bg-[#264935] dark:text-[#b9e5c4]' : 'text-slate-400 dark:text-[#a9b9ae]'}`}
           >
             <item.icon className="size-[18px]" />
             <span>{item.shortLabel}</span>

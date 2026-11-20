@@ -43,7 +43,7 @@ export function AdminListToolbar({
       <div className="relative min-w-[220px] flex-[1_1_320px]">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input aria-label={searchLabel} value={search} onChange={event => onSearchChange(event.target.value)}
-          placeholder={placeholder} className="h-10 w-full rounded-lg bg-card pl-10" />
+          placeholder={placeholder} className="h-10 w-full rounded-lg bg-card pl-10 dark:border-input dark:bg-muted/70" />
       </div>
       {filters}
       <AppButton type="submit" tone="orange" premium className="h-10 rounded-lg px-4">Tìm kiếm</AppButton>
@@ -59,11 +59,11 @@ export function AdminListToolbar({
 
 type IconActionTone = 'green' | 'blue' | 'amber' | 'red' | 'neutral';
 const actionTones: Record<IconActionTone, string> = {
-  green: 'border-[#1b5e20] text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:text-[#a5d6a7]',
-  blue: 'border-[#0369a1] text-[#0369a1] hover:bg-[#0369a1] hover:text-white dark:border-sky-400 dark:text-sky-300',
-  amber: 'border-amber-500 text-amber-700 hover:bg-amber-600 hover:text-white dark:border-amber-400 dark:text-amber-300',
-  red: 'border-rose-500 text-rose-600 hover:bg-rose-600 hover:text-white dark:border-rose-400 dark:text-rose-300',
-  neutral: 'border-slate-300 text-slate-600 hover:bg-slate-600 hover:text-white dark:border-slate-500 dark:text-slate-300',
+  green: 'border-[#1b5e20] text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-primary/60 dark:text-primary dark:hover:bg-primary/15 dark:hover:text-primary',
+  blue: 'border-[#0369a1] text-[#0369a1] hover:bg-[#0369a1] hover:text-white dark:border-sky-400/60 dark:text-sky-300 dark:hover:bg-sky-400/15 dark:hover:text-sky-200',
+  amber: 'border-amber-500 text-amber-700 hover:bg-amber-600 hover:text-white dark:border-amber-400/60 dark:text-amber-300 dark:hover:bg-amber-400/15 dark:hover:text-amber-200',
+  red: 'border-rose-500 text-rose-600 hover:bg-rose-600 hover:text-white dark:border-rose-400/60 dark:text-rose-300 dark:hover:bg-rose-400/15 dark:hover:text-rose-200',
+  neutral: 'border-slate-300 text-slate-600 hover:bg-slate-600 hover:text-white dark:border-border dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground',
 };
 
 /** Icon-only actions retain visible keyboard focus and Vietnamese accessible labels. */
@@ -83,7 +83,7 @@ export function AdminIconAction({
   return (
     <button type="button" title={label} aria-label={label} disabled={disabled}
       onClick={onClick}
-      className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card shadow-sm transition-colors',
+      className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card shadow-sm transition-colors dark:bg-muted/50 dark:shadow-none',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50',
         actionTones[tone])}>
       <Icon aria-hidden="true" className="size-4" />
@@ -105,5 +105,5 @@ export function AdminStatusBadge({ label, status }: { label: string; status: str
 }
 
 export const adminTableClass = 'w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm';
-export const adminTableHeadClass = 'bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white';
+export const adminTableHeadClass = 'bg-[#1b5e20] text-xs font-bold uppercase tracking-[.06em] text-white dark:bg-[#234d35]';
 export const adminTableCellClass = 'px-5 py-4 align-middle';

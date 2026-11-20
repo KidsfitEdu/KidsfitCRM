@@ -15,6 +15,7 @@ public sealed class User : EntityBase
     public string? Phone { get; set; }
     public DateTime? EmailVerifiedAt { get; set; }
     public string Password { get; set; } = "";
+    public string SecurityStamp { get; set; } = "";
     public string Status { get; set; } = "ACTIVE";
     public DateTime? LastLoginAt { get; set; }
 }
@@ -38,3 +39,16 @@ public sealed class AuditLog
     public DateTime CreatedAt { get; set; }
 }
 
+
+public sealed class PasswordResetChallenge : EntityBase
+{
+    public long UserId { get; set; }
+    public string PublicId { get; set; } = "";
+    public string OtpDigest { get; set; } = "";
+    public int Attempts { get; set; }
+    public DateTime ExpiresAt { get; set; }
+    public DateTime? VerifiedAt { get; set; }
+    public DateTime? TicketExpiresAt { get; set; }
+    public string? TicketDigest { get; set; }
+    public DateTime? ConsumedAt { get; set; }
+}

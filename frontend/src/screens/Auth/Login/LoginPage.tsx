@@ -1,16 +1,15 @@
 'use client';
 
 import { useRef, useState, type SyntheticEvent } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AppBrand } from '@/components/common/app-brand';
 import { FormError } from '@/components/common/form-error';
 import { Eye, EyeOff } from 'lucide-react';
 import { validateLogin, type LoginErrors, type LoginField } from '@/lib/login-validation';
 import { ApiRequestError, isBackendUnavailable } from '@/services/api.client';
 import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
 import { PasswordRecovery } from '@/screens/Auth/PasswordRecovery/PasswordRecoveryPage';
+import { AuthShell } from '@/screens/Auth/AuthShell';
 
 export function LoginPage({
   loading,
@@ -90,20 +89,7 @@ export function LoginPage({
     </div>;
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#101a2b] p-5">
-      <div className="absolute -left-32 -top-32 size-96 rounded-full bg-primary/30 blur-3xl" />
-      <div className="absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-[#35b79b]/20 blur-3xl" />
-      <Card className="relative w-full max-w-md border-white/10 bg-white/[.96] p-3 shadow-2xl dark:bg-[#1b2940]">
-        <CardHeader>
-          <div className="mb-5 flex items-center gap-3">
-            <AppBrand />
-          </div>
-          <CardTitle className="text-2xl">Chào mừng trở lại</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Đăng nhập để quản lý và theo dõi hoạt động KIDSFIT CRM.
-          </p>
-        </CardHeader>
-        <CardContent>
+    <AuthShell title="Chào mừng trở lại" description="Đăng nhập để quản lý và theo dõi hoạt động KIDSFIT CRM.">
           <form onSubmit={submit} noValidate className="space-y-4">
             <div className="grid gap-1.5 text-sm font-medium">
               <label htmlFor="crm-login-email">Email</label>
@@ -174,8 +160,6 @@ export function LoginPage({
               {loading ? 'Đang kết nối…' : 'Đăng nhập'}
             </Button>
           </form>
-        </CardContent>
-      </Card>
-    </main>
+    </AuthShell>
   );
 }

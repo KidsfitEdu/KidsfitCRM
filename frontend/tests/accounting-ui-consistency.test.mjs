@@ -12,7 +12,8 @@ test('Accounting dashboard uses real finance totals and shared KPI cards',()=>{
   assert.match(s, /finance\.data\?\.summary/);
   assert.match(s, /'—'/);
   assert.match(s, /finance\.refetch\(\)/);
-  assert.match(s, /onSalesNavigate\?\.\('role-accounting-revenue'\)/);
+  assert.match(s, /if\(!onSalesNavigate\)return/);
+  assert.match(s, /onSalesNavigate\('role-accounting-revenue'\)/);
   assert.doesNotMatch(s, /mockRevenue|fakeRevenue|Math\.random/);
 });
 

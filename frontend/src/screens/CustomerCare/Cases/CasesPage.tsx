@@ -4,8 +4,10 @@ import {useEffect,useRef,useState} from 'react';
 import {useQuery,useQueryClient} from '@tanstack/react-query';
 import {Plus,Eye,Search,ChevronDown,Check} from 'lucide-react';
 import {AppPageHeader} from '@/components/common/app-page-header';
-import {AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass,adminTableCellClass} from '@/components/common/admin-list-ui';
+import {AdminListPanel,AdminListToolbar,AdminIconAction,adminTableClass,adminTableHeadClass,adminTableCellClass} from '@/components/common/admin-list-ui';
 import {AppPagination} from '@/components/common/app-pagination';
+import {AppSelect} from '@/components/common/app-select';
+import {AppStatusBadge} from '@/components/common/app-status-badge';
 import {AppDialog} from '@/components/common/dialogs/app-dialog';
 import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {AppButton} from '@/components/common/buttons/app-button';
@@ -112,11 +114,14 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}
         onReset={()=>{setDraft('');setSearch('');setStatus('ALL');setPage(1);}}
         placeholder="Tên trường, nội dung lỗi..." searchLabel="Tìm ticket"
-        filters={<select aria-label="Lọc trạng thái ticket" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}
-          className="h-11 rounded-xl border bg-background px-3">
-          <option value="ALL">Tất cả trạng thái</option><option value="OPEN">Mới nhận</option>
-          <option value="IN_PROGRESS">Đang xử lý</option><option value="RESOLVED">Hoàn tất</option>
-        </select>}/>
+        filters={<AppSelect ariaLabel="Lọc trạng thái ticket" value={status}
+          onValueChange={next=>{setStatus(next);setPage(1);}}
+          className="w-full sm:w-[190px]" options={[
+            {value:'ALL',label:'Tất cả trạng thái'},
+            {value:'OPEN',label:'Mới nhận'},
+            {value:'IN_PROGRESS',label:'Đang xử lý'},
+            {value:'RESOLVED',label:'Hoàn tất'},
+          ]}/>}/>
       <div className="overflow-x-auto"><table className={adminTableClass}>
         <thead className={adminTableHeadClass}><tr>
           <th className={adminTableCellClass}>Trường</th><th className={adminTableCellClass}>Vấn đề</th>
@@ -127,7 +132,9 @@ export function CasesPage({apiBase,token,abilities,onChanged}:RolePageProps){
           <td className={adminTableCellClass}>{t.school_name}</td><td className={adminTableCellClass}>{t.subject}</td>
           <td className={adminTableCellClass}>{t.ticket_type==='SYSTEM_ERROR'
             ? t.checkee_responded_at?'Đã hoàn tất kỹ thuật':'Chờ phản hồi':'Ticket lịch sử'}</td>
-          <td className={adminTableCellClass}><AdminStatusBadge status={t.status} label={t.status==='OPEN'?'Mới nhận':t.status==='IN_PROGRESS'?'Đang xử lý':'Hoàn tất'}/></td>
+          <td className={adminTableCellClass}><AppStatusBadge status={t.status} tone={t.status==='RESOLVED'?'success':t.status==='IN_PROGRESS'?'warning':'info'}
+            label={t.status==='OPEN'?'Mới nhận':t.status==='IN_PROGRESS'?'Đang xử lý':'Hoàn tất'} size="sm"
+            className="whitespace-nowrap [&>span]:whitespace-nowrap"/></td>
           <td className={adminTableCellClass}><AdminIconAction icon={Eye} label={'Xem ticket '+t.id}
             onClick={()=>{setSelected(t);setProgress('');setNextStatus('IN_PROGRESS');setError('');}}/></td>
         </tr>)}</tbody>

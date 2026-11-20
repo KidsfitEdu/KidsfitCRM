@@ -57,10 +57,11 @@ export function AdminListToolbar({
   );
 }
 
-type IconActionTone = 'green' | 'blue' | 'red' | 'neutral';
+type IconActionTone = 'green' | 'blue' | 'amber' | 'red' | 'neutral';
 const actionTones: Record<IconActionTone, string> = {
   green: 'border-[#1b5e20] text-[#1b5e20] hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:text-[#a5d6a7]',
   blue: 'border-[#0369a1] text-[#0369a1] hover:bg-[#0369a1] hover:text-white dark:border-sky-400 dark:text-sky-300',
+  amber: 'border-amber-500 text-amber-700 hover:bg-amber-600 hover:text-white dark:border-amber-400 dark:text-amber-300',
   red: 'border-rose-500 text-rose-600 hover:bg-rose-600 hover:text-white dark:border-rose-400 dark:text-rose-300',
   neutral: 'border-slate-300 text-slate-600 hover:bg-slate-600 hover:text-white dark:border-slate-500 dark:text-slate-300',
 };

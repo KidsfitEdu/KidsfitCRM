@@ -26,7 +26,7 @@ test('CHECKEE verification and support show semantic badge tones, distinct workf
 });
 test('CHECKEE dashboard has exactly five cards and real six-month and status charts',()=>{
   const cardDefinitions=dashboard.slice(dashboard.indexOf('const cards=['),dashboard.indexOf('const ticketRows=['));
-  assert.equal((cardDefinitions.match(/\\{label:'/g)??[]).length,5);
+  assert.equal((cardDefinitions.match(/\{label:'/g)??[]).length,5);
   assert.match(dashboard,/AppMonthPicker/);
   assert.match(dashboard,/allowAll=\{false\}/);
   assert.match(dashboard,/\/checkee\/dashboard\/report\?period=/);

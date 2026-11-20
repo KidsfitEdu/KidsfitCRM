@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Encodings.Web;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Infrastructure;
 using Microsoft.AspNetCore.Identity;
@@ -29,41 +28,7 @@ public sealed class GmailPasswordResetMailSender(IConfiguration configuration) :
         if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(secret))
             throw new InvalidOperationException("SMTP credentials are not configured.");
         var from = configuration["Smtp:From"] ?? user;
-        var logo = configuration["Smtp:LogoUrl"];
-        var logoHtml = Uri.TryCreate(logo, UriKind.Absolute, out var url) && url.Scheme == Uri.UriSchemeHttps
-            ? $"""<img src="{HtmlEncoder.Default.Encode(logo!)}" width="62" height="62" alt="KIDSFIT" style="display:block;margin:0 auto 10px;object-fit:contain">"""
-            : "";
-        var html = $"""
-            <!doctype html><html lang="vi"><head><meta charset="UTF-8"></head>
-            <body style="margin:0;background:#f3f7f3;font-family:Arial,Helvetica,sans-serif;color:#243b2b">
-              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f3f7f3;padding:32px 12px">
-              <tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:540px;background:white;border:1px solid #e0e9df;border-radius:18px">
-                <tr><td align="center" style="background:#1b5e20;color:white;padding:25px;border-radius:18px 18px 0 0">
-                  {logoHtml}<strong style="font-size:22px">KIDSFIT CRM</strong><div style="font-size:12px;color:#deefdf;margin-top:6px">Tư duy mở tương lai</div>
-                </td></tr>
-                <tr><td style="padding:32px 28px"><h1 style="font-size:22px;margin:0 0 18px;text-align:center">Xác thực đặt lại mật khẩu</h1>
-                  <p style="font-size:15px;line-height:1.7">Chúng tôi nhận được yêu cầu đặt lại mật khẩu tài khoản KIDSFIT CRM của bạn.</p>
-                  <div style="background:#eef7ee;border-radius:12px;padding:24px;text-align:center;margin:22px 0">
-                    <div style="font-size:12px;color:#526c56;letter-spacing:1px">MÃ XÁC THỰC OTP</div>
-                    <div style="font-size:34px;font-weight:700;letter-spacing:9px;color:#1b5e20;margin:12px 0">{code}</div>
-                    <div style="font-size:13px;color:#526c56">Mã có hiệu lực trong 5 phút</div>
-                  </div><p style="font-size:14px;line-height:1.7">Không chia sẻ mã này với bất kỳ ai. Nếu bạn không thực hiện yêu cầu, hãy bỏ qua email.</p>
-                  <hr style="border:0;border-top:1px solid #e1e9e1;margin:26px 0">
-                  <p style="font-size:12px;text-align:center;color:#718275">Email bảo mật được gửi tự động từ KIDSFIT CRM.</p>
-                </td></tr></table></td></tr></table>
-            </body></html>
-            """;
-        using var message = new MailMessage
-        {
-            From = new MailAddress(from, "KIDSFIT CRM"),
-            Subject = "KIDSFIT CRM - Ma xac thuc dat lai mat khau",
-            Body = html,
-            IsBodyHtml = true,
-        };
-        message.To.Add(destination);
-        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
-            "Ma xac thuc KIDSFIT CRM: " + code + ". Ma het han sau 5 phut. Khong chia se ma nay.",
-            Encoding.UTF8, "text/plain"));
+        using var message = PasswordResetEmailTemplate.Create(from, destination, code, configuration["Smtp:LogoUrl"]);
         using var client = new SmtpClient(configuration["Smtp:Host"] ?? "smtp.gmail.com",
             int.TryParse(configuration["Smtp:Port"], out var port) ? port : 587)
         {

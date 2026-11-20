@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, ChevronRight, Camera, ContactRound, LockKeyhole, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { Building2, ChevronRight, Camera, ContactRound, LockKeyhole, LogOut, Moon, Pencil, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Input } from '@/components/ui/input';
 import { appNotice } from '@/components/common/app-toast-provider';
@@ -41,7 +42,7 @@ function DetailField({ label, value }: { label: string; value?: string | null })
 }
 
 export function UserProfileMenu({
-  user, dark, setDark, onLogout, isAdmin, apiBase, token, avatarUrl, onAvatarChanged,
+  user, dark, setDark, onLogout, isAdmin, apiBase, token, avatarUrl, onAvatarChanged, onProfileUpdated,
 }: {
   user: CurrentUserProfile | null;
   dark: boolean;
@@ -52,10 +53,68 @@ export function UserProfileMenu({
   token: string;
   avatarUrl: string | null;
   onAvatarChanged: () => void;
+  onProfileUpdated: (profile: CurrentUserProfile) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
+  const [closeAfterDiscard, setCloseAfterDiscard] = useState(false);
+  const profileDirty = editingProfile && (
+    editName.trim() !== (user?.name ?? '') || editPhone.trim() !== (user?.phone ?? '')
+  );
+  const startProfileEdit = () => {
+    setEditName(user?.name ?? '');
+    setEditPhone(user?.phone ?? '');
+    setProfileError('');
+    setEditingProfile(true);
+  };
+  const discardProfileEdit = () => {
+    setEditingProfile(false);
+    setProfileError('');
+    setDiscardPrompt(false);
+    if (closeAfterDiscard) setProfileOpen(false);
+    setCloseAfterDiscard(false);
+  };
+  const requestProfileCancel = (closeDrawer: boolean) => {
+    if (profileSaving) return;
+    if (profileDirty) {
+      setCloseAfterDiscard(closeDrawer);
+      setDiscardPrompt(true);
+      return;
+    }
+    setEditingProfile(false);
+    setProfileError('');
+    if (closeDrawer) setProfileOpen(false);
+  };
+  const saveProfile = async () => {
+    const name = editName.trim();
+    const phone = editPhone.trim();
+    setProfileError('');
+    if (!name || name.length > 190) {
+      setProfileError('Họ và tên phải có từ 1 đến 190 ký tự.'); return;
+    }
+    if (phone.length > 40 || (phone && !/^\\+?[0-9][0-9\\s.()-]*$/.test(phone))) {
+      setProfileError('Số điện thoại không đúng định dạng hoặc vượt quá 40 ký tự.'); return;
+    }
+    if (!profileDirty) { setEditingProfile(false); return; }
+    setProfileSaving(true);
+    try {
+      const response = await createApiClient(apiBase)<{user:CurrentUserProfile}>('/me', token, {
+        method: 'PATCH', body: JSON.stringify({name,phone:phone || null}),
+      });
+      onProfileUpdated(response.user);
+      setEditingProfile(false);
+      appNotice.success('Cập nhật hồ sơ thành công.');
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Không thể cập nhật hồ sơ.');
+    } finally { setProfileSaving(false); }
+  };
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -190,8 +249,12 @@ export function UserProfileMenu({
         {passwordError&&<p role="alert" className="text-sm text-destructive">{passwordError}</p>}
       </form>
     </AppDrawer>
-    <AppDrawer open={profileOpen} onOpenChange={setProfileOpen} title="Hồ sơ cá nhân"
-      bodyClassName="space-y-4 bg-muted/10">
+    <AppDrawer open={profileOpen} onOpenChange={open => {if(!open)requestProfileCancel(true);}} title="Hồ sơ cá nhân"
+      busy={profileSaving} bodyClassName="space-y-4 bg-muted/10"
+      footer={editingProfile ? <div className="flex w-full flex-wrap justify-end gap-2">
+        <AppButton type="button" tone="neutral" disabled={profileSaving} onClick={() => requestProfileCancel(false)}>Hủy</AppButton>
+        <AppButton type="submit" form="profile-self-edit-form" busy={profileSaving} disabled={!profileDirty}>Lưu thay đổi</AppButton>
+      </div> : undefined}>
       <section className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4">
         <div aria-hidden="true" className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           {avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : <UserRound className="size-7"/>}
@@ -227,10 +290,35 @@ export function UserProfileMenu({
         {avatarError&&<p role="alert" className="text-sm text-destructive">{avatarError}</p>}
       </section>
       <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
-        <h3 className="flex items-center gap-2 text-sm font-bold">
-          <ContactRound aria-hidden="true" className="size-4 text-primary"/>Thông tin cá nhân
-        </h3>
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-bold">
+            <ContactRound aria-hidden="true" className="size-4 text-primary"/>Thông tin cá nhân
+          </h3>
+          {!editingProfile && <AppButton type="button" tone="outline" className="h-9"
+            leadingIcon={<Pencil aria-hidden="true" className="size-4"/>} onClick={startProfileEdit}>Chỉnh sửa</AppButton>}
+        </div>
+        {editingProfile ? <form id="profile-self-edit-form" noValidate
+          onSubmit={event => {event.preventDefault();void saveProfile();}} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex min-w-0 flex-col gap-2">
+              <label htmlFor="profile-edit-name" className="text-sm font-medium">Họ và tên *</label>
+              <Input id="profile-edit-name" type="text" autoComplete="name" required
+                maxLength={190} value={editName} disabled={profileSaving} aria-invalid={!!profileError}
+                onChange={event => setEditName(event.target.value)} className="h-10"/>
+            </div>
+            <div className="flex min-w-0 flex-col gap-2">
+              <label htmlFor="profile-edit-phone" className="text-sm font-medium">Số điện thoại</label>
+              <Input id="profile-edit-phone" type="tel" inputMode="tel" autoComplete="tel"
+                maxLength={40} value={editPhone} disabled={profileSaving}
+                onChange={event => setEditPhone(event.target.value)} className="h-10"/>
+            </div>
+          </div>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2"><DetailField label="Email" value={user?.email}/></div>
+            <DetailField label="Mã nhân sự" value={user?.code}/>
+          </dl>
+          {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
+        </form> : <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
           <DetailField label="Họ và tên" value={user?.name}/>
           <DetailField label="Số điện thoại" value={user?.phone}/>
           <div className="sm:col-span-2"><DetailField label="Email" value={user?.email}/></div>
@@ -251,9 +339,12 @@ export function UserProfileMenu({
           <ShieldCheck aria-hidden="true" className="size-4 text-primary"/>Thông tin tài khoản
         </h3>
         <p className="text-sm text-muted-foreground">
-          Hồ sơ chỉ xem. Việc thay đổi thông tin cá nhân và mật khẩu không thuộc phạm vi tính năng này.
+          Bạn có thể chỉnh sửa họ tên, số điện thoại; thay đổi mật khẩu qua mục Đổi mật khẩu. Email, tổ chức và quyền truy cập do quản trị viên quản lý.
         </p>
       </section>
     </AppDrawer>
+    <ConfirmDialog open={discardPrompt} onOpenChange={setDiscardPrompt}
+      title="Bỏ thay đổi chưa lưu?" description="Thông tin đang nhập sẽ không được lưu."
+      confirmLabel="Bỏ thay đổi" destructive onConfirm={discardProfileEdit}/>
   </>;
 }

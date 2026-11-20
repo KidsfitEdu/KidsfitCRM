@@ -49,6 +49,26 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState('CRM');
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarVersion, setAvatarVersion] = useState(0);
+  useEffect(() => {
+    if (!apiBase || !token || !profile) return;
+    let active = true;
+    let objectUrl: string | null = null;
+    void fetch(apiBase + '/me/avatar', {
+      headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+    }).then(async response => {
+      if (!active) return;
+      if (response.status === 204) { setAvatarUrl(null); return; }
+      if (!response.ok) throw new Error('Không thể tải ảnh đại diện.');
+      const contentType = response.headers.get('content-type') || '';
+      if (!['image/jpeg','image/png','image/webp'].includes(contentType)) return;
+      objectUrl = URL.createObjectURL(await response.blob());
+      if (active) setAvatarUrl(objectUrl);
+      else URL.revokeObjectURL(objectUrl);
+    }).catch(() => { if (active) setAvatarUrl(null); });
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [token, profile?.id, avatarVersion]);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [membershipType, setMembershipType] = useState<string | null>(null);
   const [abilities, setAbilities] = useState<string[]>([]);
@@ -120,6 +140,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
       if (cause instanceof ApiRequestError && cause.status === 401) {
         window.sessionStorage.removeItem('kidsfit_token');
         setProfile(null);
+        setAvatarUrl(null);
         setToken('');
         setSessionStatus('idle');
         setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
@@ -152,6 +173,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
     if (token) await request('/logout', token, { method: 'POST' }).catch(() => undefined);
     sessionStorage.removeItem('kidsfit_token');
     setProfile(null);
+    setAvatarUrl(null);
     setAbilities([]);
     setToken('');
     setSessionStatus('idle');
@@ -241,9 +263,9 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
 
   return <AppProviders key={token}>
     <AppShell>
-      <Sidebar sidebarOpen={sidebarOpen} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
+      <Sidebar sidebarOpen={sidebarOpen} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout} avatarUrl={avatarUrl}/>
       <div className={`pb-20 lg:pb-0 transition-[padding] duration-200 motion-reduce:transition-none ${sidebarOpen ? "lg:pl-[248px]" : "lg:pl-[72px]"}`}>
-        <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate} profile={profile} onLogout={logout} isAdmin={isAdmin}/>
+        <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate} profile={profile} onLogout={logout} isAdmin={isAdmin} avatarUrl={avatarUrl} onAvatarChanged={() => setAvatarVersion(v => v + 1)}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div key={currentView} className="crm-page-enter">

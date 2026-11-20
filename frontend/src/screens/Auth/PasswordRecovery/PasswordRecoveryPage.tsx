@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type SyntheticEvent } from 'react';
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { AppBrand } from '@/components/common/app-brand';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +34,7 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
     return () => clearInterval(timer);
   }, [resendAfter]);
 
-  const send = async (event?: FormEvent) => {
+  const send = async (event?: SyntheticEvent) => {
     event?.preventDefault();
     if (busy) return;
     if (!emailValid(email)) { setError('Vui lòng nhập địa chỉ email hợp lệ.'); return; }
@@ -49,7 +49,7 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
     finally { setBusy(false); }
   };
 
-  const verify = async (event: FormEvent) => {
+  const verify = async (event: SyntheticEvent) => {
     event.preventDefault();
     if (busy) return;
     if (!/^\d{6}$/.test(otp)) { setError('Vui lòng nhập đủ 6 chữ số OTP.'); return; }
@@ -63,7 +63,7 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
     finally { setBusy(false); }
   };
 
-  const reset = async (event: FormEvent) => {
+  const reset = async (event: SyntheticEvent) => {
     event.preventDefault();
     if (busy) return;
     if (password.length < 12) { setError('Mật khẩu mới phải có ít nhất 12 ký tự.'); return; }
@@ -118,7 +118,7 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
           </form>}
           {step === 'otp' && <form onSubmit={verify} className="space-y-4" noValidate>
             <p className="break-all text-center text-sm text-muted-foreground">{email.trim().toLowerCase()}</p>
-            {notice && <p role="status" className="rounded-lg bg-[#edf7ed] p-3 text-sm text-[#24542d]">{notice}</p>}
+            {notice && <output className="block rounded-lg bg-[#edf7ed] p-3 text-sm text-[#24542d]">{notice}</output>}
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="recovery-otp">Mã OTP</label>
               <Input id="recovery-otp" inputMode="numeric" autoComplete="one-time-code"

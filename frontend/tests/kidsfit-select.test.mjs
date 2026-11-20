@@ -45,7 +45,7 @@ test('CRM keeps native time/payment selectors while renewal school supports inli
   assert.match(renewal,/<AppSearchCombobox id="kc02-contract"/);
   assert.match(renewal,/<AppNativeSelect id="kc02-cycle"/);
   for(const path of ['src/screens/Admin/Proposals/ProposalsPage.tsx',
-    'src/screens/Board/BoardDisputesPage.tsx',
+    'src/screens/Board/BoardOverduePage.tsx',
     'src/screens/Checkee/Verification/VerificationPage.tsx',
     'src/screens/SalesManager/Contracts/ContractsPage.tsx',
     'src/components/crm/school-directory.tsx',

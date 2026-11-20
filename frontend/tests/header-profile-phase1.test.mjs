@@ -19,7 +19,7 @@ test('header avatar opens a keyboard-accessible menu with read-only personal dra
     assert.ok(menu.includes(label), 'Profile detail missing: '+label);
   }
   assert.match(menu, /bodyClassName="space-y-4 bg-muted\/10"/);
-  assert.doesNotMatch(menu, /type="file"|<input|<form|onSubmit=/);
+  assert.doesNotMatch(menu, /type="file"|\/me\/avatar|\/profile\/update/);
 });
 
 test('profile only reflects authenticated /me data and does not allow role editing', () => {

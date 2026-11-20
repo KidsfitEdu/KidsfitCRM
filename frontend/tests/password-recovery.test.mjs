@@ -26,7 +26,7 @@ test('password recovery uses the authenticated API boundary and three distinct a
 });
 
 test('OTP is input-constrained and reset password is never shown in email', () => {
-  assert.match(recovery, /autoComplete="one-time-code"/);
+  assert.match(recovery, /autoComplete=\{index === 0 \? 'one-time-code' : 'off'\}/);
   assert.match(recovery, /inputMode="numeric"/);
   assert.match(recovery, /replace\(\/\\D\/g, ''\)/);
   assert.match(recovery, /minLength=\{12\}/);
@@ -41,4 +41,20 @@ test('login and recovery share the same branded visual shell', () => {
   assert.match(authShell, /bg-\[#101a2b\]/);
   assert.match(authShell, /max-w-md/);
   assert.doesNotMatch(recovery, /bg-\[#f3f8f3\]/);
+});
+
+test('OTP page remains compact, six-digit and supports paste and keyboard', () => {
+  assert.match(recovery, /grid grid-cols-6 gap-2/);
+  assert.match(recovery, /Array.from\(\{ length: 6 \}/);
+  assert.match(recovery, /onPaste=\{/);
+  assert.match(recovery, /onKeyDown=\{/);
+  assert.match(recovery, /Gửi lại sau /);
+  assert.doesNotMatch(recovery, /<output className="block rounded-lg bg-\[#edf7ed\]/);
+});
+
+test('successful reset returns directly to login with visible confirmation', () => {
+  assert.match(login, /onSuccess=\{\(\) => \{ setRecovering\(false\)/);
+  assert.match(login, /Đặt lại mật khẩu thành công\. Vui lòng đăng nhập bằng mật khẩu mới\./);
+  assert.match(recovery, /onSuccess\(\);/);
+  assert.doesNotMatch(recovery, /setStep\('done'\)/);
 });

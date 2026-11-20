@@ -13,6 +13,7 @@ public sealed class User : EntityBase
     public string Name { get; set; } = "";
     public string Email { get; set; } = "";
     public string? Phone { get; set; }
+    public string? AvatarStorageKey { get; set; }
     public DateTime? EmailVerifiedAt { get; set; }
     public string Password { get; set; } = "";
     public string SecurityStamp { get; set; } = "";

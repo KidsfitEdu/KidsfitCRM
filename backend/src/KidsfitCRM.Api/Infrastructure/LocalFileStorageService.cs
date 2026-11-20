@@ -26,6 +26,7 @@ public sealed class LocalFileStorageService : IFileStorageService
         ["RENEWAL"] = "renewals",
         ["RECEIPT"] = "receipts",
         ["PAYOUT"] = "payouts",
+        ["AVATAR"] = "avatars",
     };
     private readonly string root;
 

@@ -3414,6 +3414,12 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
+                    b.Property<string>("AvatarStorageKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .UseCollation("utf8mb4_bin")
+                        .HasColumnName("avatar_storage_key");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(24)

@@ -60,6 +60,7 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<PasswordResetChallenge>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<User>().Property(x => x.Name).HasMaxLength(190);
         modelBuilder.Entity<User>().Property(x => x.Phone).HasMaxLength(40);
+        modelBuilder.Entity<User>().Property(x => x.AvatarStorageKey).HasMaxLength(64).UseCollation("utf8mb4_bin");
         modelBuilder.Entity<User>().Property(x => x.Status).HasMaxLength(24);
         modelBuilder.Entity<Role>().Property(x => x.Name).HasMaxLength(120);
         modelBuilder.Entity<Permission>().Property(x => x.Name).HasMaxLength(160);

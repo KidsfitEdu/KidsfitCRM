@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, ChevronRight, ContactRound, LockKeyhole, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { Building2, ChevronRight, Camera, ContactRound, LockKeyhole, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppButton } from '@/components/common/buttons/app-button';
@@ -41,7 +41,7 @@ function DetailField({ label, value }: { label: string; value?: string | null })
 }
 
 export function UserProfileMenu({
-  user, dark, setDark, onLogout, isAdmin, apiBase, token,
+  user, dark, setDark, onLogout, isAdmin, apiBase, token, avatarUrl, onAvatarChanged,
 }: {
   user: CurrentUserProfile | null;
   dark: boolean;
@@ -50,6 +50,8 @@ export function UserProfileMenu({
   isAdmin: boolean;
   apiBase: string;
   token: string;
+  avatarUrl: string | null;
+  onAvatarChanged: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -83,6 +85,46 @@ export function UserProfileMenu({
       setPasswordError(error instanceof Error ? error.message : 'Không thể đổi mật khẩu.');
     } finally { setSavingPassword(false); }
   };
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const uploadAvatar = async (file: File) => {
+    setAvatarError('');
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      setAvatarError('Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.'); return;
+    }
+    if (file.size === 0 || file.size > 2 * 1024 * 1024) {
+      setAvatarError('Ảnh phải nhỏ hơn hoặc bằng 2 MB.'); return;
+    }
+    const data = new FormData();
+    data.append('file', file);
+    setAvatarBusy(true);
+    try {
+      const response = await fetch(apiBase + '/me/avatar', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: data,
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as {message?:string};
+        throw new Error(body.message || 'Không thể cập nhật ảnh đại diện.');
+      }
+      onAvatarChanged();
+      appNotice.success('Ảnh đại diện đã được cập nhật.');
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Không thể tải ảnh.');
+    } finally { setAvatarBusy(false); }
+  };
+  const removeAvatar = async () => {
+    setAvatarBusy(true); setAvatarError('');
+    try {
+      const response = await fetch(apiBase + '/me/avatar', {
+        method: 'DELETE', headers: { Authorization: 'Bearer ' + token },
+      });
+      if (!response.ok) throw new Error('Không thể xóa ảnh đại diện.');
+      onAvatarChanged();
+      appNotice.success('Đã xóa ảnh đại diện.');
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Không thể xóa ảnh.');
+    } finally { setAvatarBusy(false); }
+  };
   const name = user?.name || 'Tài khoản CRM';
   const initials = name.trim().split(/\s+/).slice(-2).map(part => part[0]).join('').toUpperCase();
   const role = isAdmin ? 'Quản trị viên'
@@ -93,11 +135,11 @@ export function UserProfileMenu({
       <PopoverTrigger render={<button type="button"
         aria-label="Mở menu tài khoản" title="Tài khoản cá nhân" aria-haspopup="dialog"
         className="ml-1 grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-sm font-bold text-[#633b38] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />}>
-        {initials}
+        {avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : initials}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[min(92vw,288px)] space-y-1 rounded-2xl p-2">
         <div className="flex min-w-0 items-center gap-3 border-b border-border px-2 py-2.5">
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">{initials}</span>
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">{avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : initials}</span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold" title={name}>{name}</p>
             <p className="truncate text-xs text-muted-foreground" title={user?.email}>{user?.email || 'Chưa có email'}</p>
@@ -152,13 +194,37 @@ export function UserProfileMenu({
       bodyClassName="space-y-4 bg-muted/10">
       <section className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4">
         <div aria-hidden="true" className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <UserRound className="size-7"/>
+          {avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : <UserRound className="size-7"/>}
         </div>
         <div className="min-w-0 space-y-1.5">
           <h2 className="break-words text-lg font-bold leading-tight">{name}</h2>
           <p className="break-all text-xs text-muted-foreground">{user?.email || 'Chưa cập nhật'}</p>
           <span className="inline-flex rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium">{role}</span>
         </div>
+      </section>
+      <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+        <h3 className="flex items-center gap-2 text-sm font-bold">
+          <Camera aria-hidden="true" className="size-4 text-primary"/>Ảnh đại diện
+        </h3>
+        <p className="text-xs text-muted-foreground">Ảnh JPEG, PNG hoặc WebP; tối đa 2 MB. Ảnh chỉ xem được khi đăng nhập.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="profile-avatar-upload" aria-disabled={avatarBusy}
+            className="inline-flex min-h-10 cursor-pointer items-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-accent">
+            {avatarBusy ? 'Đang xử lý...' : 'Tải ảnh lên'}
+          </label>
+          <input id="profile-avatar-upload" className="sr-only" type="file"
+            accept="image/jpeg,image/png,image/webp" disabled={avatarBusy}
+            onChange={event => {
+              const file = event.currentTarget.files?.[0];
+              if (file) void uploadAvatar(file);
+              event.currentTarget.value = '';
+            }}/>
+          {avatarUrl&&<button type="button" disabled={avatarBusy} onClick={() => void removeAvatar()}
+            className="min-h-10 rounded-lg px-3 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50">
+            Xóa ảnh
+          </button>}
+        </div>
+        {avatarError&&<p role="alert" className="text-sm text-destructive">{avatarError}</p>}
       </section>
       <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
         <h3 className="flex items-center gap-2 text-sm font-bold">

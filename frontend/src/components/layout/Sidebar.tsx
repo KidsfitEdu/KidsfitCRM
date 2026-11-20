@@ -3,9 +3,9 @@ import { LogOut } from 'lucide-react';
 import { AppBrand } from '@/components/common/app-brand';
 import { nav, type View } from '@/config/navigation';
 
-type Props={sidebarOpen:boolean;visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void};
+type Props={sidebarOpen:boolean;visibleNav:typeof nav;currentView:View;onNavigate:(view:View)=>void;userName:string;membershipType:string|null;organizationName:string|null;isAdminWorkspace:boolean;apiBase:string;onLogout:()=>void;avatarUrl?:string|null};
 const initials=(name:string)=>name.split(' ').slice(-2).map(p=>p[0]).join('').toUpperCase();
-export function Sidebar({sidebarOpen,visibleNav,currentView,onNavigate,userName,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout}:Props){
+export function Sidebar({sidebarOpen,visibleNav,currentView,onNavigate,userName,membershipType,organizationName,isAdminWorkspace,apiBase,onLogout,avatarUrl}:Props){
 return <>
       <aside className={`crm-brand-sidebar fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/10 text-white transition-[width] duration-200 motion-reduce:transition-none lg:flex ${sidebarOpen ? "w-[248px]" : "w-[72px]"}`}>
         <div className={`flex shrink-0 items-center ${sidebarOpen ? "h-20 px-4" : "justify-center px-1 pt-3 pb-2"}`}>
@@ -30,7 +30,7 @@ return <>
         </nav>
         <div className={`mb-5 flex shrink-0 items-center gap-3 rounded-xl p-2 ${sidebarOpen ? "mx-4" : "mx-2 flex-col"}`}>
           <div title={!sidebarOpen ? userName : undefined} aria-label={userName} className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">
-            {initials(userName)}
+            {avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : initials(userName)}
           </div>
           {sidebarOpen && <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{userName}</p>

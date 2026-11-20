@@ -37,7 +37,7 @@ test('avatar UI uses bearer-protected image fetch and never exposes raw storage 
   assert.match(menu,/method: 'POST'/);
   assert.match(menu,/method: 'DELETE'/);
   assert.match(menu,/onAvatarChanged\(\)/);
-  assert.match(menu,/avatarUrl \? <img src=\{avatarUrl\}/);
-  assert.match(sidebar,/avatarUrl \? <img src=\{avatarUrl\}/);
+  assert.match(menu,/avatarUrl \? <span aria-hidden="true" className="block size-full/);
+  assert.match(sidebar,/avatarUrl \? <span aria-hidden="true" className="block size-full/);
   assert.match(header,/avatarUrl=\{avatarUrl\} onAvatarChanged=\{onAvatarChanged\}/);
 });

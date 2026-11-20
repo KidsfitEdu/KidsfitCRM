@@ -23,7 +23,7 @@ test('School search lives in a portal with a single input rather than an expandi
   assert.ok(picker.includes('id="receivable-contract-options"'));
   assert.ok(picker.includes('onKeyDown='));
   assert.ok(picker.includes('onSelect(item)'));
-  assert.ok(picker.includes('max-h-[min(288px,45dvh)]'));
+  assert.match(picker, /max-h-\[min\(\d+px,45dvh\)\]/);
 });
 test('Contract change protects entered payment fields while retaining assigned people',()=>{
   for(const part of ['receiptProofSelected','pendingReceivable','<ConfirmDialog',

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, ContactRound, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { Building2, ChevronRight, ContactRound, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 
@@ -59,24 +59,27 @@ export function UserProfileMenu({
         className="ml-1 grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-sm font-bold text-[#633b38] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />}>
         {initials}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(90vw,320px)] space-y-1 rounded-2xl p-2">
-        <div className="min-w-0 border-b border-border px-3 py-3">
-          <p className="break-words text-sm font-bold">{name}</p>
-          <p className="break-all text-xs text-muted-foreground">{user?.email || 'Chưa có email'}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{role}</p>
+      <PopoverContent align="end" className="w-[min(92vw,288px)] space-y-1 rounded-2xl p-2">
+        <div className="flex min-w-0 items-center gap-3 border-b border-border px-2 py-2.5">
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">{initials}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold" title={name}>{name}</p>
+            <p className="truncate text-xs text-muted-foreground" title={user?.email}>{user?.email || 'Chưa có email'}</p>
+            <p className="truncate text-xs text-muted-foreground">{role}</p>
+          </div>
         </div>
         <button type="button" onClick={() => {setMenuOpen(false);setProfileOpen(true);}}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary">
-          <UserRound aria-hidden="true" className="size-4 text-primary"/>Hồ sơ cá nhân
+          className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary">
+          <UserRound aria-hidden="true" className="size-4 text-primary"/>Hồ sơ cá nhân<ChevronRight aria-hidden="true" className="ml-auto size-4 text-muted-foreground"/>
         </button>
         <button type="button" aria-pressed={dark} onClick={() => {setDark(value => !value);setMenuOpen(false);}}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary">
           {dark ? <Sun aria-hidden="true" className="size-4 text-primary"/> : <Moon aria-hidden="true" className="size-4 text-primary"/>}
-          {dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
+          Giao diện tối<span aria-hidden="true" className={`ml-auto flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${dark ? 'bg-primary' : 'bg-muted-foreground/40'}`}><span className={`size-4 rounded-full bg-white shadow-sm transition-transform ${dark ? 'translate-x-4' : ''}`}/></span>
         </button>
         <div className="border-t border-border pt-1">
           <button type="button" onClick={() => {setMenuOpen(false);void onLogout();}}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-destructive hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-destructive">
+            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-destructive hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-destructive">
             <LogOut aria-hidden="true" className="size-4"/>Đăng xuất
           </button>
         </div>

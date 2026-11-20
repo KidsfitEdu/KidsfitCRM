@@ -68,7 +68,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
       else URL.revokeObjectURL(objectUrl);
     }).catch(() => { if (active) setAvatarUrl(null); });
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [token, profile?.id, avatarVersion]);
+  }, [token, profile, avatarVersion]);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [membershipType, setMembershipType] = useState<string | null>(null);
   const [abilities, setAbilities] = useState<string[]>([]);

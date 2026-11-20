@@ -81,15 +81,24 @@ public static class PasswordResetFeatures
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Email == email && x.Status == "ACTIVE", ct);
         if (user is null || !await AuthFeatures.HasActiveMembership(db, user.Id))
             return Results.Ok(new { message = GenericMessage });
-        var now = DateTime.UtcNow;
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        // Lock the user row to serialize resend requests from concurrent browser tabs.
+        // Serialize sends for this user before reading time and quota (including concurrent browser tabs).
         await db.Users.FromSqlInterpolated($"SELECT * FROM users WHERE id = {user.Id} FOR UPDATE").SingleAsync(ct);
+        var now = DateTime.UtcNow;
+        var logger = loggerFactory.CreateLogger("PasswordReset");
         var recent = await db.PasswordResetChallenges.Where(x => x.UserId == user.Id && x.CreatedAt > now.AddMinutes(-15))
             .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(ct);
-        if (recent is not null && (recent.CreatedAt > now - ResendDelay ||
-            await db.PasswordResetChallenges.CountAsync(x => x.UserId == user.Id && x.CreatedAt > now.AddMinutes(-15), ct) >= 5))
+        if (recent is not null && recent.CreatedAt > now - ResendDelay)
+        {
+            logger.LogInformation("Password reset request suppressed: cooldown.");
             return Results.Ok(new { message = GenericMessage });
+        }
+        if (recent is not null &&
+            await db.PasswordResetChallenges.CountAsync(x => x.UserId == user.Id && x.CreatedAt > now.AddMinutes(-15), ct) >= 5)
+        {
+            logger.LogInformation("Password reset request suppressed: fifteen-minute quota.");
+            return Results.Ok(new { message = GenericMessage });
+        }
         var otp = NewOtp();
         var challenge = new PasswordResetChallenge
         {
@@ -105,10 +114,12 @@ public static class PasswordResetFeatures
         {
             await mail.SendOtpAsync(email, otp, ct);
             await transaction.CommitAsync(ct);
+            logger.LogInformation("Password reset email accepted by SMTP transport.");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            loggerFactory.CreateLogger("PasswordReset").LogWarning("Password-reset email delivery failed for an eligible account.");
+            // Do not log addresses, OTPs, tokens, SMTP credentials or provider exception messages.
+            logger.LogWarning("Password reset email submission failed; challenge transaction rolled back.");
             await transaction.RollbackAsync(ct);
         }
         return Results.Ok(new { message = GenericMessage });

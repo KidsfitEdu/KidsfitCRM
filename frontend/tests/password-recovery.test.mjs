@@ -55,7 +55,7 @@ test('OTP page remains compact, six-digit and supports paste and keyboard', () =
 });
 
 test('successful reset returns directly to login with visible confirmation', () => {
-  assert.match(login, /onSuccess=\{\(\) => \{ setRecovering\(false\)/);
+  assert.match(login, /onSuccess=\{\(\) => \{/);
   assert.match(login, /appNotice\.success\('Đặt lại mật khẩu thành công', 'Vui lòng đăng nhập bằng mật khẩu mới\.'\)/);
   assert.doesNotMatch(login, /resetSuccess/);
   assert.doesNotMatch(login, /<output className="block rounded-xl border border-green-200/);

@@ -32,8 +32,6 @@ public sealed class JwtTokenService(IConfiguration configuration)
 }
 
 public sealed record LoginRequest(string? Email, string? Password);
-public sealed record UpdateOwnProfileRequest(string? Name, string? Phone);
-public sealed record ChangeOwnPasswordRequest(string? CurrentPassword, string? NewPassword, string? ConfirmPassword);
 
 public static class AuthFeatures
 {
@@ -60,64 +58,6 @@ public static class AuthFeatures
     {
         var user = await db.Users.FindAsync(http.UserId()) ?? throw new KeyNotFoundException();
         return Results.Ok(new { user = await UserPayloadWithOrganization(db, user, await PermissionCodes(db, user.Id)) });
-    }
-
-
-    // Self-service: actor identity comes exclusively from the validated JWT, never from a request ID.
-    public static async Task<IResult> UpdateOwnProfile(
-        UpdateOwnProfileRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
-    {
-        var name = Validation.Required(request.Name, "name", "Vui lòng nhập họ và tên.", 190);
-        var phone = request.Phone?.Trim();
-        if (phone?.Length > 40)
-            throw ApiValidationException.For("phone", "Số điện thoại tối đa 40 ký tự.");
-        if (string.IsNullOrEmpty(phone)) phone = null;
-
-        var user = await db.Users.FindAsync([http.UserId()], ct) ?? throw new KeyNotFoundException();
-        user.Name = name;
-        user.Phone = phone;
-        user.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-        return Results.Ok(new { user = await UserPayloadWithOrganization(db, user, await PermissionCodes(db, user.Id)) });
-    }
-
-    // Changing a password invalidates all previously issued JWTs through SecurityStamp.
-    public static async Task<IResult> ChangeOwnPassword(
-        ChangeOwnPasswordRequest request, HttpContext http, KidsfitDbContext db,
-        IPasswordHasher<User> hasher, ILoggerFactory loggerFactory, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(request.CurrentPassword))
-            throw ApiValidationException.For("current_password", "Vui lòng nhập mật khẩu hiện tại.");
-        if (request.NewPassword is not { Length: >= 12 and <= 200 } next)
-            throw ApiValidationException.For("new_password", "Mật khẩu mới phải có từ 12 đến 200 ký tự.");
-        if (next != request.ConfirmPassword)
-            throw ApiValidationException.For("confirm_password", "Xác nhận mật khẩu không khớp.");
-
-        var user = await db.Users.FindAsync([http.UserId()], ct) ?? throw new KeyNotFoundException();
-        if (hasher.VerifyHashedPassword(user, user.Password, request.CurrentPassword)
-            == PasswordVerificationResult.Failed)
-        {
-            loggerFactory.CreateLogger("AccountSecurity").LogWarning("Authenticated password change denied: old credential mismatch.");
-            throw ApiValidationException.For("current_password", "Mật khẩu hiện tại không chính xác.");
-        }
-        if (hasher.VerifyHashedPassword(user, user.Password, next) != PasswordVerificationResult.Failed)
-            throw ApiValidationException.For("new_password", "Mật khẩu mới phải khác mật khẩu hiện tại.");
-
-        user.Password = hasher.HashPassword(user, next);
-        user.SecurityStamp = Guid.NewGuid().ToString("N");
-        user.UpdatedAt = DateTime.UtcNow;
-        // Any pending forgot-password token must not reset the newly changed credential.
-        var pending = await db.PasswordResetChallenges
-            .Where(challenge => challenge.UserId == user.Id && challenge.ConsumedAt == null)
-            .ToListAsync(ct);
-        foreach (var challenge in pending)
-        {
-            challenge.ConsumedAt = DateTime.UtcNow;
-            challenge.UpdatedAt = DateTime.UtcNow;
-        }
-        await db.SaveChangesAsync(ct);
-        loggerFactory.CreateLogger("AccountSecurity").LogInformation("Authenticated password changed and sessions invalidated.");
-        return Results.Ok(new { message = "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." });
     }
 
     public static IResult Logout() => Results.Ok(new { message = "Đã đăng xuất." });

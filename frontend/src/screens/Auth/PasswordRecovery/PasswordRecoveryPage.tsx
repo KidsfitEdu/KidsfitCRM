@@ -108,7 +108,7 @@ export function PasswordRecovery({ onClose, onSuccess, initialEmail = '' }: { on
             <p className="break-all text-sm font-medium text-primary">{email.trim().toLowerCase()}</p>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="recovery-otp-0">Mã xác thực</label>
-              <div className="grid grid-cols-6 gap-2" role="group" aria-label="Mã xác thực OTP gồm 6 chữ số">
+              <div className="grid grid-cols-6 gap-2">
                 {Array.from({ length: 6 }, (_, index) => (
                   <Input key={index} id={`recovery-otp-${index}`}
                     ref={element => { otpInputs.current[index] = element; }}

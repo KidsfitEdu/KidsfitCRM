@@ -25,19 +25,19 @@ test('Board change requests are readable in a central payout detail and still ap
   assert.match(accounting,/mode:'EDIT'/);
   assert.match(accounting,/submitPayout\(pendingPayoutSubmit\.id\)/);
 });
-test('shared image viewer is headerless/footerless and uses measured fit-to-screen presentation',()=>{
-  assert.match(viewer,/min\(1, stageSize\.width\/imageSize\.width, stageSize\.height\/imageSize\.height\)/);
-  assert.match(viewer,/ResizeObserver/);
-  assert.match(viewer,/naturalWidth/);
-  assert.match(viewer,/naturalHeight/);
-  assert.match(viewer,/min-h-0 flex-1 overflow-auto/);
-  assert.match(viewer,/pointer-events-none absolute bottom-4 left-1\/2/);
-  assert.match(viewer,/absolute right-4 top-4/);
-  assert.match(viewer,/Vừa khung hình/);
-  assert.match(viewer,/Tải chứng từ/);
-  assert.match(viewer,/application\/pdf/);
-  assert.match(viewer,/setPointerCapture/);
-  assert.match(viewer,/releasePointerCapture/);
-  assert.doesNotMatch(viewer,/border-t border-white/);
-  assert.doesNotMatch(viewer,/className="flex shrink-0 flex-wrap items-center justify-between/);
+test('shared evidence viewer shows contained images with close/download and PDF fallback, without zoom tools',()=>{
+  assert.match(viewer, /<Dialog open=\{preview!==null\}/);
+  assert.match(viewer, /<DialogTitle className="sr-only">/);
+  assert.match(viewer, /<DialogDescription className="sr-only">/);
+  assert.match(viewer, /max-w-\[min\(92vw,560px\)\] max-h-\[80dvh\]/);
+  assert.match(viewer, /max-h-\[80dvh\] w-auto max-w-full select-none object-contain/);
+  assert.match(viewer, /draggable=\{false\}/);
+  assert.match(viewer, /aria-label="Đóng xem chứng từ"/);
+  assert.match(viewer, /onClick=\{onClose\}/);
+  assert.match(viewer, /aria-label="Tải chứng từ"/);
+  assert.match(viewer, /href=\{preview.url\} download=\{preview.name\}/);
+  assert.match(viewer, /application\/pdf/);
+  assert.match(viewer, /<iframe src=\{preview.url\}/);
+  assert.match(viewer, /Định dạng này chưa hỗ trợ xem trực tiếp/);
+  assert.doesNotMatch(viewer, /Phóng to ảnh|Thu nhỏ ảnh|Vừa khung hình|ResizeObserver|setPointerCapture|onWheelZoom/);
 });

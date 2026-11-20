@@ -9,6 +9,8 @@ import {AdminListPanel,AdminListToolbar,AdminIconAction,adminTableClass,adminTab
 import {AppPagination} from '@/components/common/app-pagination';
 import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {AppButton} from '@/components/common/buttons/app-button';
+import {AppSelect} from '@/components/common/app-select';
+import {AppStatusBadge} from '@/components/common/app-status-badge';
 import {channelRequest,channelDate} from '@/lib/channel-operations';
 import type {RolePageProps} from '@/types/role-pages';
 
@@ -61,14 +63,16 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
         onSearch={()=>{setSearch(searchDraft.trim());setPage(1);}}
         onReset={()=>{setSearchDraft('');setSearch('');setFilter('ALL');setPage(1);}}
         searchLabel="Tìm trường được phân công" placeholder="Tên trường, mã hợp đồng, số điện thoại..."
-        filters={<select aria-label="Lọc trường theo hỗ trợ" value={filter} onChange={e=>{setFilter(e.target.value);setPage(1);}}
-          className="h-11 rounded-xl border bg-background px-3 text-sm">
-          <option value="ALL">Tất cả trường</option>
-          <option value="HAS_TICKET">Có ticket đang mở</option>
-          <option value="SUPPORTED">Đã hướng dẫn</option>
-          <option value="NOT_SUPPORTED">Chưa hướng dẫn</option>
-        </select>}/>
-      <div className="overflow-x-auto"><table className={adminTableClass+' min-w-[900px]'}>
+        filters={<AppSelect ariaLabel="Lọc trường theo hỗ trợ" value={filter}
+          onValueChange={next=>{setFilter(next);setPage(1);}}
+          className="w-full sm:w-[210px]" options={[
+            {value:'ALL',label:'Tất cả trường'},
+            {value:'HAS_TICKET',label:'Có ticket đang mở'},
+            {value:'SUPPORTED',label:'Đã hướng dẫn'},
+            {value:'NOT_SUPPORTED',label:'Chưa hướng dẫn'},
+          ]}/>}/>
+      <div className="overflow-x-auto"><table className={adminTableClass+' min-w-[930px] table-fixed'}>
+        <colgroup><col style={{width:'30%'}}/><col style={{width:'20%'}}/><col style={{width:'17%'}}/><col style={{width:'16%'}}/><col style={{width:'17%'}}/></colgroup>
         <thead className={adminTableHeadClass}><tr>
           <th scope="col" className={adminTableCellClass}>Nhà trường</th>
           <th scope="col" className={adminTableCellClass}>Liên hệ</th>
@@ -86,18 +90,18 @@ export function CustomersPage({apiBase,token,abilities,onChanged,onSalesNavigate
           <td className={adminTableCellClass}>{x.last_support_at?channelDate(x.last_support_at):'Chưa hướng dẫn'}</td>
           <td className={adminTableCellClass}>
             {x.open_tickets>0
-              ? <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-200">{x.open_tickets} đang mở</span>
+              ? <AppStatusBadge status="OPEN" tone="warning" label={x.open_tickets+' đang mở'} size="sm" className="whitespace-nowrap [&>span]:whitespace-nowrap"/>
               : <span className="text-muted-foreground">—</span>}
           </td>
           <td className={adminTableCellClass}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2 whitespace-nowrap">
               <AdminIconAction icon={Eye} label={'Xem thông tin '+x.school_name}
                 disabled={!apiBase} onClick={()=>{setSelected(x);setError('');}}/>
-              <AdminIconAction icon={SquarePen} label={'Ghi nhật ký hướng dẫn '+x.school_name}
+              <AdminIconAction icon={SquarePen} tone="blue" label={'Ghi nhật ký hướng dẫn '+x.school_name}
                 disabled={!apiBase} onClick={()=>{setLogSelected(x);setNote('');setError('');}}/>
-              <AdminIconAction icon={History} label={'Xem lịch sử hướng dẫn '+x.school_name}
+              <AdminIconAction icon={History} tone="neutral" label={'Xem lịch sử hướng dẫn '+x.school_name}
                 disabled={!apiBase} onClick={()=>{setHistorySelected(x);setError('');}}/>
-              <AdminIconAction icon={Ticket} label={'Mở ticket lỗi hệ thống '+x.school_name}
+              <AdminIconAction icon={Ticket} tone="amber" label={'Mở ticket lỗi hệ thống '+x.school_name}
                 disabled={!apiBase||!onSalesNavigate} onClick={()=>onSalesNavigate?.('role-customer-care-cases')}/>
             </div>
           </td>

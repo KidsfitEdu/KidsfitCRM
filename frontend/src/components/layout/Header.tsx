@@ -114,7 +114,7 @@ export function Header({
     }
   };
 
-  return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:pl-4 sm:pr-7">
+  return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl dark:bg-card/95 sm:pl-4 sm:pr-7">
     <div className="flex min-w-0 items-center gap-3">
       <Button type="button" variant="outline" size="icon" onClick={onToggleSidebar}
         aria-label={sidebarOpen ? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'}
@@ -132,7 +132,7 @@ export function Header({
       <div className="relative hidden xl:block">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input value={search} onChange={event => setSearch(event.target.value)}
-          className="h-10 w-64 rounded-xl bg-card pl-9" placeholder="Tìm kiếm nhanh…" />
+          className="h-10 w-64 rounded-xl bg-card pl-9 dark:border-input dark:bg-muted/70" placeholder="Tìm kiếm nhanh…" />
       </div>
       <Button onClick={() => setDark(value => !value)} variant="outline" size="icon"
         aria-label="Đổi giao diện" className="rounded-xl">{dark ? <Sun /> : <Moon />}</Button>
@@ -158,7 +158,7 @@ export function Header({
             <span className="block font-semibold">{notice.school_name}</span>
             <span className="mt-1 block text-xs text-muted-foreground">{notice.contract_code}</span>
             <span className="mt-1 block text-muted-foreground">{notice.message}</span>
-            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
+            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700 dark:text-primary">Chưa đọc</span>}
           </button>)}
           {notifications.data?.data.map(notice => <button type="button" key={notice.id}
             onClick={() => void openNotice(notice)}
@@ -166,7 +166,7 @@ export function Header({
             <span className="block font-semibold">{notice.school_name}</span>
             <span className="mt-1 block text-muted-foreground">{notice.message}</span>
             <span className="mt-1 block text-xs text-muted-foreground">Hạn duyệt: {new Date(notice.due_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
-            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
+            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700 dark:text-primary">Chưa đọc</span>}
           </button>)}
         </PopoverContent>
       </Popover>

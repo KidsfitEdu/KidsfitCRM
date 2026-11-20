@@ -22,6 +22,28 @@ public sealed class PasswordResetMySqlTests(ChannelMySqlFixture fixture) : IClas
         }
     }
 
+    private sealed class SimulatedMailer(bool fail = false) : IPasswordResetMailSender
+    {
+        private int _count;
+        public int Count => Volatile.Read(ref _count);
+        public string? Code { get; private set; }
+        public Task SendOtpAsync(string recipient, string otp, CancellationToken ct)
+        {
+            Interlocked.Increment(ref _count);
+            if (fail) throw new InvalidOperationException("Synthetic SMTP failure (test only).");
+            Code = otp;
+            return Task.CompletedTask;
+        }
+    }
+
+    private static async Task ClearAdminChallenges(KidsfitDbContext db)
+    {
+        var id = await db.Users.Where(x => x.Email == "admin@kidsfit.vn").Select(x => x.Id).SingleAsync();
+        var challenges = await db.PasswordResetChallenges.Where(x => x.UserId == id).ToListAsync();
+        db.PasswordResetChallenges.RemoveRange(challenges);
+        await db.SaveChangesAsync();
+    }
+
     private static IConfiguration Settings() => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -91,4 +113,115 @@ public sealed class PasswordResetMySqlTests(ChannelMySqlFixture fixture) : IClas
         Assert.Null(mailer.LastCode);
         Assert.Equal(200, ((Microsoft.AspNetCore.Http.IStatusCodeHttpResult)result).StatusCode);
     }
+    [MySqlFact]
+    public async Task ResendBeforeCooldownDoesNotSendAndOriginalOtpStillWorks()
+    {
+        const string email = "admin@kidsfit.vn";
+        var mailer = new SimulatedMailer();
+        await using (var db = fixture.Open())
+        {
+            await ClearAdminChallenges(db);
+            await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), mailer,
+                NullLoggerFactory.Instance, CancellationToken.None);
+            await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), mailer,
+                NullLoggerFactory.Instance, CancellationToken.None);
+            Assert.Equal(1, mailer.Count);
+            var result = await PasswordResetFeatures.Verify(
+                new VerifyPasswordOtpRequest(email, mailer.Code), db, Settings(), CancellationToken.None);
+            Assert.Equal(200, ((Microsoft.AspNetCore.Http.IStatusCodeHttpResult)result).StatusCode);
+        }
+    }
+
+    [MySqlFact]
+    public async Task ResendAfterCooldownCreatesNewOtpAndConsumesPreviousChallenge()
+    {
+        const string email = "admin@kidsfit.vn";
+        var mailer = new SimulatedMailer();
+        await using var db = fixture.Open();
+        await ClearAdminChallenges(db);
+        await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), mailer,
+            NullLoggerFactory.Instance, CancellationToken.None);
+        var first = await db.PasswordResetChallenges.OrderByDescending(x => x.Id).FirstAsync();
+        first.CreatedAt = DateTime.UtcNow.AddSeconds(-65);
+        await db.SaveChangesAsync();
+
+        await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), mailer,
+            NullLoggerFactory.Instance, CancellationToken.None);
+        Assert.Equal(2, mailer.Count);
+        await db.Entry(first).ReloadAsync();
+        Assert.NotNull(first.ConsumedAt);
+        Assert.Equal(1, await db.PasswordResetChallenges.CountAsync(x => x.UserId == first.UserId && x.ConsumedAt == null));
+    }
+
+    [MySqlFact]
+    public async Task FiveChallengesWithinFifteenMinutesPreventAnotherSend()
+    {
+        const string email = "admin@kidsfit.vn";
+        await using var db = fixture.Open();
+        await ClearAdminChallenges(db);
+        var userId = await db.Users.Where(x => x.Email == email).Select(x => x.Id).SingleAsync();
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < 5; i++)
+        {
+            db.PasswordResetChallenges.Add(new PasswordResetChallenge
+            {
+                UserId = userId, PublicId = Guid.NewGuid().ToString("N"),
+                OtpDigest = new string('A', 64), CreatedAt = now.AddMinutes(-i - 2),
+                UpdatedAt = now.AddMinutes(-i - 2), ExpiresAt = now.AddMinutes(-i + 3),
+                ConsumedAt = now.AddMinutes(-i - 1)
+            });
+        }
+        await db.SaveChangesAsync();
+        var mailer = new SimulatedMailer();
+        var result = await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), mailer,
+            NullLoggerFactory.Instance, CancellationToken.None);
+        Assert.Equal(200, ((Microsoft.AspNetCore.Http.IStatusCodeHttpResult)result).StatusCode);
+        Assert.Equal(0, mailer.Count);
+        Assert.Equal(5, await db.PasswordResetChallenges.CountAsync(x => x.UserId == userId));
+    }
+
+    [MySqlFact]
+    public async Task FailedSmtpResendKeepsOldOtpValidAndRollsBackNewChallenge()
+    {
+        const string email = "admin@kidsfit.vn";
+        var initialMailer = new SimulatedMailer();
+        await using var db = fixture.Open();
+        await ClearAdminChallenges(db);
+        await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), initialMailer,
+            NullLoggerFactory.Instance, CancellationToken.None);
+        var original = await db.PasswordResetChallenges.OrderByDescending(x => x.Id).FirstAsync();
+        original.CreatedAt = DateTime.UtcNow.AddSeconds(-65);
+        await db.SaveChangesAsync();
+
+        var failing = new SimulatedMailer(fail: true);
+        var result = await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), failing,
+            NullLoggerFactory.Instance, CancellationToken.None);
+        Assert.Equal(200, ((Microsoft.AspNetCore.Http.IStatusCodeHttpResult)result).StatusCode);
+        Assert.Equal(1, failing.Count);
+        await db.Entry(original).ReloadAsync();
+        Assert.Null(original.ConsumedAt);
+        Assert.Equal(1, await db.PasswordResetChallenges.CountAsync(x => x.UserId == original.UserId));
+        var verified = await PasswordResetFeatures.Verify(
+            new VerifyPasswordOtpRequest(email, initialMailer.Code), db, Settings(), CancellationToken.None);
+        Assert.Equal(200, ((Microsoft.AspNetCore.Http.IStatusCodeHttpResult)verified).StatusCode);
+    }
+
+    [MySqlFact]
+    public async Task ConcurrentResendRequestsAreSerializedPerUser()
+    {
+        const string email = "admin@kidsfit.vn";
+        await using (var db = fixture.Open()) await ClearAdminChallenges(db);
+        var mailer = new SimulatedMailer();
+        async Task Send() {
+            await using var db = fixture.Open();
+            await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, Settings(), mailer,
+                NullLoggerFactory.Instance, CancellationToken.None);
+        }
+        await Task.WhenAll(Send(), Send(), Send());
+        Assert.Equal(1, mailer.Count);
+        await using var check = fixture.Open();
+        var id = await check.Users.Where(x => x.Email == email).Select(x => x.Id).SingleAsync();
+        Assert.Equal(1, await check.PasswordResetChallenges.CountAsync(x => x.UserId == id));
+    }
+
 }

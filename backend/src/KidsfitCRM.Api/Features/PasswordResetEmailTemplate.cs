@@ -22,12 +22,12 @@ public static class PasswordResetEmailTemplate
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%;background:#f4f7f4">
                 <tr><td align="center" style="padding:28px 12px">
                   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%;max-width:520px;background:#ffffff;border:1px solid #e2e9e2;border-radius:14px">
-                    <tr><td style="padding:24px 26px 18px;border-bottom:1px solid #e8eee8">
+                    <tr><td style="padding:24px 26px 18px;background:#1c3b23;border-radius:14px 14px 0 0">
                       <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
-                        <td style="vertical-align:middle;padding-right:12px">{{brandImage}}</td>
+                        <td style="vertical-align:middle;padding-right:12px"><div style="display:inline-block;padding:7px;background:#ffffff;border-radius:10px;line-height:0">{{brandImage}}</div></td>
                         <td style="vertical-align:middle">
-                          <div style="font-size:17px;font-weight:700;color:#1b5e20">KIDSFIT CRM</div>
-                          <div style="font-size:12px;color:#687a6b;padding-top:4px">Tư duy mở tương lai</div>
+                          <div style="font-size:17px;font-weight:700;color:#ffffff">KIDSFIT CRM</div>
+                          <div style="font-size:12px;color:#d9e9db;padding-top:4px">Tư duy mở tương lai</div>
                         </td>
                       </tr></table>
                     </td></tr>

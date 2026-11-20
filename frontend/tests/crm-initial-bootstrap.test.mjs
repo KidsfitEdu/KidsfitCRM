@@ -73,10 +73,15 @@ test('BGĐ workflow policy V1 is created once as inactive DRAFT without overwrit
   assert.match(src,/Version = 1, Status = "DRAFT"/);
 });
 
-test('Admin personnel form still excludes privileged roles from regular account creation', () => {
+test('Admin may provision DIRECTOR and CHECKEE but never bootstrap ADMIN from personnel form', () => {
   const src=source('src/screens/Admin/Personnel/PersonnelPage.tsx');
-  assert.match(src,/const editableRoles = \['SALES','SALES_MANAGER','ACCOUNTANT','CUSTOMER_SERVICE','CHECKEE'\]/);
-  assert.doesNotMatch(src,/editableRoles = \[[^\]]*'DIRECTOR'/);
+  const actions=source('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
+  assert.match(src,/const officialRoles = \['ADMIN','DIRECTOR','ACCOUNTANT','SALES_MANAGER','CUSTOMER_SERVICE','CHECKEE','SALES'\]/);
+  assert.match(src,/org.code==='KIDSFIT'\)return \['DIRECTOR'/);
+  assert.match(src,/org.code==='CHECKEE'\)return \['CHECKEE'\]/);
+  assert.match(actions,/if \(roleCode == "ADMIN"\)/);
+  assert.match(actions,/r.Code == "ADMIN"/);
+  assert.match(actions,/targetOrganization.Code == "CHECKEE"/);
 });
 
 test('membership bootstrap awaits both EF Core queries before saving', () => {

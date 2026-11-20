@@ -16,9 +16,9 @@ test('login exposes the password recovery flow without changing login submit', (
 });
 
 test('password recovery uses the authenticated API boundary and three distinct actions', () => {
-  assert.match(recovery, /'\/auth\/password\/forgot'/);
-  assert.match(recovery, /'\/auth\/password\/verify-otp'/);
-  assert.match(recovery, /'\/auth\/password\/reset'/);
+  assert.match(recovery, /["']\/auth\/password\/forgot["']/);
+  assert.match(recovery, /["']\/auth\/password\/verify-otp["']/);
+  assert.match(recovery, /["']\/auth\/password\/reset["']/);
   assert.match(recovery, /reset_token/);
   assert.match(recovery, /new_password/);
   assert.match(recovery, /confirm_password/);
@@ -28,9 +28,9 @@ test('password recovery uses the authenticated API boundary and three distinct a
 });
 
 test('OTP is input-constrained and reset password is never shown in email', () => {
-  assert.match(recovery, /autoComplete=\{index === 0 \? 'one-time-code' : 'off'\}/);
+  assert.match(recovery, /autoComplete=\{index === 0 \? ["']one-time-code["'] : ["']off["']\}/);
   assert.match(recovery, /inputMode="numeric"/);
-  assert.match(recovery, /replace\(\/\\D\/g, ''\)/);
+  assert.match(recovery, /replace\(\/\\D\/g, ["']["']\)/);
   assert.match(recovery, /minLength=\{12\}/);
   assert.match(recovery, /autoComplete="new-password"/);
   assert.match(recovery, /disabled=\{busy \|\| remaining > 0\}/);
@@ -38,7 +38,7 @@ test('OTP is input-constrained and reset password is never shown in email', () =
 
 test('login and recovery share the same branded visual shell', () => {
   assert.match(login, /<AuthShell title="Chào mừng trở lại"/);
-  assert.match(recovery, /<AuthShell title=\{titles\[step\]\}/);
+  assert.match(recovery, /<AuthShell\b[\s\S]{0,160}title=\{titles\[step\]\}/);
   assert.match(authShell, /<AppBrand \/>/);
   assert.match(authShell, /bg-\[#101a2b\]/);
   assert.match(authShell, /max-w-md/);
@@ -75,17 +75,17 @@ test('recovery header has accessible back icon while login has no back action', 
   assert.match(recovery, /headerAction=\{/);
   assert.match(recovery, /aria-label="Quay lại đăng nhập"/);
   assert.match(recovery, /<ArrowLeft aria-hidden="true"/);
-  assert.match(recovery, /onClick=\{onClose\} disabled=\{busy\}/);
+  assert.match(recovery, /onClick=\{onClose\}[\s\S]{0,80}disabled=\{busy\}/);
   assert.doesNotMatch(recovery, /mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-2/);
   assert.doesNotMatch(login, /headerAction=/);
 });
 
 test('resend retains entered OTP and only clears state on initial request', () => {
-  assert.match(recovery, /const isResend = step === 'otp';/);
+  assert.match(recovery, /const isResend = step === ["']otp["'];/);
   assert.match(recovery, /if \(!isResend\) \{/);
-  assert.match(recovery, /setOtp\(''\); setTicket\(''\);/);
-  assert.match(recovery, /if \(isResend\) appNotice\.warning/);
-  assert.match(recovery, /appNotice\.info\('Đã tiếp nhận yêu cầu gửi lại mã'/);
+  assert.match(recovery, /setOtp\(["']["']\);\s*setTicket\(["']["']\);/);
+  assert.match(recovery, /if \(isResend\)\s*appNotice\.warning/);
+  assert.match(recovery, /appNotice\.info\(\s*["']Đã tiếp nhận yêu cầu gửi lại mã["']/);
   assert.match(recovery, /remaining > 0 \|\| resendAfter > Date\.now\(\)/);
   const resendBranch = recovery.slice(recovery.indexOf('const send = async'), recovery.indexOf('const verify = async'));
   const catchBlock = resendBranch.slice(resendBranch.indexOf('} catch (cause)'));

@@ -1,15 +1,16 @@
 'use client';
 
 import { useRef, useState, type SyntheticEvent } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AppBrand } from '@/components/common/app-brand';
 import { FormError } from '@/components/common/form-error';
 import { Eye, EyeOff } from 'lucide-react';
 import { validateLogin, type LoginErrors, type LoginField } from '@/lib/login-validation';
 import { ApiRequestError, isBackendUnavailable } from '@/services/api.client';
 import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
+import { PasswordRecovery } from '@/screens/Auth/PasswordRecovery/PasswordRecoveryPage';
+import { AuthShell } from '@/screens/Auth/AuthShell';
+import { appNotice } from '@/components/common/app-toast-provider';
 
 export function LoginPage({
   loading,
@@ -19,6 +20,7 @@ export function LoginPage({
   onLogin: (email: string, password: string) => Promise<void>;
 }) {
   const [email, setEmail] = useState('');
+  const [recovering, setRecovering] = useState(false);
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<LoginErrors>({});
   const [serverError, setServerError] = useState('');
@@ -71,6 +73,15 @@ export function LoginPage({
     } finally { setRetrying(false); }
   };
 
+  if (recovering) return <PasswordRecovery initialEmail={email} onClose={() => setRecovering(false)}
+    onSuccess={() => {
+      setRecovering(false);
+      setPassword('');
+      setErrors({});
+      setServerError('');
+      appNotice.success('Đặt lại mật khẩu thành công', 'Vui lòng đăng nhập bằng mật khẩu mới.');
+    }} />;
+
   if (loading || retrying)
     return <main className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label="Đang kết nối và xác thực tài khoản..."/></main>;
 
@@ -86,20 +97,7 @@ export function LoginPage({
     </div>;
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#101a2b] p-5">
-      <div className="absolute -left-32 -top-32 size-96 rounded-full bg-primary/30 blur-3xl" />
-      <div className="absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-[#35b79b]/20 blur-3xl" />
-      <Card className="relative w-full max-w-md border-white/10 bg-white/[.96] p-3 shadow-2xl dark:bg-[#1b2940]">
-        <CardHeader>
-          <div className="mb-5 flex items-center gap-3">
-            <AppBrand />
-          </div>
-          <CardTitle className="text-2xl">Chào mừng trở lại</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Đăng nhập để quản lý và theo dõi hoạt động KIDSFIT CRM.
-          </p>
-        </CardHeader>
-        <CardContent>
+    <AuthShell title="Chào mừng trở lại" description="Đăng nhập để quản lý và theo dõi hoạt động KIDSFIT CRM.">
           <form onSubmit={submit} noValidate className="space-y-4">
             <div className="grid gap-1.5 text-sm font-medium">
               <label htmlFor="crm-login-email">Email</label>
@@ -155,6 +153,12 @@ export function LoginPage({
               </div>
               <FormError id="crm-login-password-error">{errors.password}</FormError>
             </div>
+            <div className="flex justify-end">
+              <button type="button" onClick={() => { setServerError(''); setRecovering(true); }}
+                className="rounded-md px-1 py-1 text-sm font-medium text-[#1b5e20] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1b5e20] dark:text-[#96d8a1]">
+                Quên mật khẩu?
+              </button>
+            </div>
             {serverError && <p role="alert" className="text-sm text-destructive">{serverError}</p>}
             <Button
               type="submit"
@@ -164,8 +168,6 @@ export function LoginPage({
               {loading ? 'Đang kết nối…' : 'Đăng nhập'}
             </Button>
           </form>
-        </CardContent>
-      </Card>
-    </main>
+    </AuthShell>
   );
 }

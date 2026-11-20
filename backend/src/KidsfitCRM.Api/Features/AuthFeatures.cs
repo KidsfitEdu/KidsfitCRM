@@ -20,6 +20,7 @@ public sealed class JwtTokenService(IConfiguration configuration)
             new(ClaimTypes.Name, user.Name),
             new(ClaimTypes.Email, user.Email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new("security_stamp", user.SecurityStamp),
         };
         claims.AddRange(permissions.Select(permission => new Claim("permission", permission)));
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));

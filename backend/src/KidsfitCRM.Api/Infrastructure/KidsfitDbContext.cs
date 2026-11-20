@@ -7,6 +7,7 @@ namespace KidsfitCRM.Api.Infrastructure;
 public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<PasswordResetChallenge> PasswordResetChallenges => Set<PasswordResetChallenge>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
@@ -50,6 +51,13 @@ public sealed partial class KidsfitDbContext(DbContextOptions<KidsfitDbContext> 
         modelBuilder.Entity<User>().HasIndex(x => x.Email).IsUnique();
         modelBuilder.Entity<User>().Property(x => x.Email).HasMaxLength(190);
         modelBuilder.Entity<User>().Property(x => x.Password).HasMaxLength(255);
+        modelBuilder.Entity<User>().Property(x => x.SecurityStamp).HasMaxLength(64);
+        modelBuilder.Entity<PasswordResetChallenge>().Property(x => x.PublicId).HasMaxLength(32);
+        modelBuilder.Entity<PasswordResetChallenge>().Property(x => x.OtpDigest).HasMaxLength(64);
+        modelBuilder.Entity<PasswordResetChallenge>().Property(x => x.TicketDigest).HasMaxLength(64);
+        modelBuilder.Entity<PasswordResetChallenge>().HasIndex(x => new { x.UserId, x.CreatedAt });
+        modelBuilder.Entity<PasswordResetChallenge>().HasIndex(x => x.PublicId).IsUnique();
+        modelBuilder.Entity<PasswordResetChallenge>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<User>().Property(x => x.Name).HasMaxLength(190);
         modelBuilder.Entity<User>().Property(x => x.Phone).HasMaxLength(40);
         modelBuilder.Entity<User>().Property(x => x.Status).HasMaxLength(24);

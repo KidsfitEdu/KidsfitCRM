@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using System.Text.Json;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
@@ -57,6 +58,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 builder.Services.AddDbContext<KidsfitDbContext>(options => options.UseMySQL(connectionString));
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<IPasswordResetMailSender, GmailPasswordResetMailSender>();
 builder.Services.AddScoped<ChannelSalesActions>();
 builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHostedService<EvidenceCleanupWorker>();
@@ -90,7 +92,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
             var userIdValue = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (!long.TryParse(userIdValue, out var userId)) { context.Fail("Invalid identity."); return; }
             var db = context.HttpContext.RequestServices.GetRequiredService<KidsfitDbContext>();
-            if (!await db.Users.AnyAsync(x => x.Id == userId && x.Status == "ACTIVE")) { context.Fail("Inactive account."); return; }
+            var identityUser = await db.Users.AsNoTracking().Where(x => x.Id == userId && x.Status == "ACTIVE")
+                .Select(x => new { x.SecurityStamp }).FirstOrDefaultAsync();
+            if (identityUser is null) { context.Fail("Inactive account."); return; }
+            var tokenStamp = context.Principal?.FindFirst("security_stamp")?.Value ?? "";
+            if (!string.Equals(tokenStamp, identityUser.SecurityStamp, StringComparison.Ordinal)) { context.Fail("Session revoked."); return; }
             if (!await AuthFeatures.HasActiveMembership(db, userId)) { context.Fail("No active organization membership."); return; }
             if (context.Principal?.Identity is System.Security.Claims.ClaimsIdentity identity)
             {
@@ -108,12 +114,23 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
     .WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:3000"])
     .AllowAnyHeader().AllowAnyMethod()));
-builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("login", limiter =>
+builder.Services.AddRateLimiter(options =>
 {
-    limiter.PermitLimit = 6;
-    limiter.Window = TimeSpan.FromMinutes(1);
-    limiter.QueueLimit = 0;
-}));
+    // Partition the public recovery endpoints by caller IP, not a shared global bucket.
+    options.AddPolicy("password-reset", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+            AutoReplenishment = true,
+        }));
+    options.AddFixedWindowLimiter("login", limiter =>
+    {
+        limiter.PermitLimit = 6;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+});
 
 var app = builder.Build();
 

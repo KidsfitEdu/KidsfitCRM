@@ -28,6 +28,10 @@ public sealed class PasswordResetEmailTemplateTests
         Assert.Contains("012 345", html);
         Assert.Contains("https://example.org/branding/kidsfit-logo.png", html);
         Assert.Contains("background:#eef7ee", html);
+        Assert.Contains("background:#1c3b23", html);
+        Assert.Contains("background:#ffffff;border-radius:10px", html);
+        Assert.Contains("font-size:17px;font-weight:700;color:#ffffff", html);
+        Assert.Contains("color:#d9e9db", html);
         Assert.Contains("Tư duy mở tương lai", html);
         Assert.DoesNotContain("012345", message.Subject);
     }

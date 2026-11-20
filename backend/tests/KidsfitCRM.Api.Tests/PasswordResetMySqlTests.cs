@@ -59,6 +59,7 @@ public sealed class PasswordResetMySqlTests(ChannelMySqlFixture fixture) : IClas
 
         await using (var db = fixture.Open())
         {
+            await ClearAdminChallenges(db);
             await PasswordResetFeatures.Forgot(new ForgotPasswordRequest(email), db, config, mailer,
                 NullLoggerFactory.Instance, CancellationToken.None);
         }

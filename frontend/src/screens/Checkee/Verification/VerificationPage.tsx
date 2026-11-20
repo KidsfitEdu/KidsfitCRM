@@ -2,7 +2,7 @@
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { useCallback, useEffect, useState } from 'react';
-import { BadgeCheck, Eye, FileText, MessageSquareWarning, ExternalLink } from 'lucide-react';
+import { BadgeCheck, CalendarDays, ClipboardList, Eye, ExternalLink, FileText, History, MessageSquareWarning, School } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import {
   AdminListPanel, AdminListToolbar, AdminIconAction,
@@ -202,71 +202,111 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
         showSummary={false} pageSizeOptions={[20,50,100]} onPageChange={setPage}
         onPageSizeChange={size => {setPageSize(size);setPage(1);}}/>
     </AdminListPanel>
-    <AppDrawer wide compactAccountingHeader open={selected !== null}
+    <AppDrawer open={selected !== null}
       onOpenChange={open => {if(!open){setSelected(null);setActionError('');}}}
-      title="KIDSFIT CRM - CHI TIẾT HỢP ĐỒNG" description="Hồ sơ CHECKEE và lịch sử xác minh"
-      footer={<div className="flex flex-wrap justify-end gap-2">
+      title="Chi tiết hợp đồng" description="Hồ sơ CHECKEE và lịch sử xác minh"
+      bodyClassName="space-y-4 bg-muted/10"
+      footer={<div className="flex w-full flex-wrap items-center justify-end gap-2">
         <AppButton tone="neutral" onClick={() => setSelected(null)}>Đóng</AppButton>
         {connected && detail?.data.can_feedback && <AppButton tone="outline"
           onClick={() => openFeedback(detail.data.id)}>Yêu cầu bổ sung</AppButton>}
         {connected && detail?.data.can_verify && <AppButton
           onClick={() => openConfirm(detail.data.id)}>Xác minh hợp lệ</AppButton>}
       </div>}>
-      {!detail ? <p className="text-sm text-muted-foreground">{detailError || 'Đang tải hồ sơ...'}</p>
-        : <div className="space-y-5 text-sm">
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground">{detail.data.contract_code}</p>
-            <h3 className="mt-1 text-xl font-bold">{detail.data.school_name}</h3>
-            <p className="mt-2 text-muted-foreground">
-              {[detail.data.school_address,detail.data.school_province].filter(Boolean).join(', ')}
-            </p>
-            <p className="mt-2">Sales phụ trách: <strong>{detail.data.sales_name}</strong></p>
-            <AppStatusBadge label={verificationStatusLabels[detail.data.reconciliation_status] ?? detail.data.reconciliation_status}
-              status={detail.data.reconciliation_status}
-              tone={detail.data.reconciliation_status==='CONFIRMED'?'success':detail.data.reconciliation_status==='DISPUTED'?'danger':'warning'}/>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              ['Ngày ký',channelDate(detail.data.signed_on)],
-              ['Giá trị hợp đồng',channelMoney(detail.data.total_value)],
-              ['Gói dịch vụ',getServicePlanLabel(detail.data.service_plan)],
-              ['Ngày bắt đầu dịch vụ',detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
-              ['Ngày kết thúc dịch vụ',detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
-              ['Chu kỳ thanh toán',detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],
-              ['Số học sinh',String(detail.data.student_count ?? 'Chưa khai báo')],
-            ].map(([label,value]) => <div key={label} className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="mt-1 font-semibold">{value}</p>
-            </div>)}
-          </div>
-          <section className="space-y-2 border-t pt-4">
-            <h4 className="font-semibold">File hợp đồng đã ký</h4>
-            {detail.evidence.map(file => <button key={file.id} type="button"
-              title="Mở hợp đồng trong tab mới" onClick={() => void viewFile(file)}
-              className="flex w-full items-center justify-between rounded-lg border p-3 text-left hover:bg-muted">
-              <span className="flex items-center gap-2"><FileText className="size-4" aria-hidden="true"/>{file.file_name}</span>
-              <ExternalLink className="size-4" aria-hidden="true"/>
-            </button>)}
-            {!detail.evidence.length && <p className="text-muted-foreground">
-              Chưa có file hợp đồng đính kèm. {detail.data.evidence_reference ?? ''}
-            </p>}
+      {!detail ? <p role={detailError?'alert':'status'} className="text-sm text-muted-foreground">{detailError || 'Đang tải hồ sơ...'}</p>
+        : <div className="space-y-4 text-sm">
+          <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <div aria-hidden="true" className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <School className="size-7"/>
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <h3 className="break-words text-lg font-bold leading-tight">{detail.data.school_name}</h3>
+                <p className="break-all text-xs font-medium text-muted-foreground">{detail.data.contract_code}</p>
+                <AppStatusBadge label={verificationStatusLabels[detail.data.reconciliation_status] ?? detail.data.reconciliation_status}
+                  status={detail.data.reconciliation_status}
+                  tone={detail.data.reconciliation_status==='CONFIRMED'?'success':detail.data.reconciliation_status==='DISPUTED'?'danger':'warning'}/>
+              </div>
+            </div>
+            <dl className="space-y-3 border-t border-border pt-3">
+              <div className="min-w-0 space-y-1">
+                <dt className="text-xs font-medium text-muted-foreground">Địa chỉ trường</dt>
+                <dd className="break-words font-medium">{[detail.data.school_address,detail.data.school_province].filter(Boolean).join(', ')||'Chưa cập nhật'}</dd>
+              </div>
+              <div className="min-w-0 space-y-1">
+                <dt className="text-xs font-medium text-muted-foreground">Sales phụ trách</dt>
+                <dd className="break-words font-medium">{detail.data.sales_name}</dd>
+              </div>
+            </dl>
           </section>
-          <section className="space-y-2 border-t pt-4">
-            <h4 className="font-semibold">Lịch thanh toán</h4>
-            {detail.installments.map((part,index) => <div key={index} className="flex justify-between gap-3 border-b py-2">
-              <span>{channelDate(part.due_on)}</span><span>{channelMoney(part.amount)}</span>
-            </div>)}
-            {!detail.installments.length && <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
+
+          <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
+            <h4 className="flex items-center gap-2 text-sm font-bold">
+              <ClipboardList aria-hidden="true" className="size-4 text-primary"/>Thông tin hợp đồng
+            </h4>
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+              {[
+                ['Ngày ký',channelDate(detail.data.signed_on)],
+                ['Giá trị hợp đồng',channelMoney(detail.data.total_value)],
+                ['Gói dịch vụ',getServicePlanLabel(detail.data.service_plan)],
+                ['Ngày bắt đầu dịch vụ',detail.data.service_start_on?channelDate(detail.data.service_start_on):'Chưa khai báo'],
+                ['Ngày kết thúc dịch vụ',detail.data.service_end_on?channelDate(detail.data.service_end_on):'Chưa khai báo'],
+                ['Chu kỳ thanh toán',detail.data.payment_cycle==='YEARLY'?'Theo năm':detail.data.payment_cycle==='MONTHLY'?'Theo tháng':'Chưa khai báo'],
+                ['Số học sinh',String(detail.data.student_count ?? 'Chưa khai báo')],
+              ].map(([label,value]) => <div key={label} className="min-w-0 space-y-1">
+                <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+                <dd className="break-words text-sm font-semibold tabular-nums text-foreground">{value}</dd>
+              </div>)}
+            </dl>
           </section>
-          <section className="space-y-2 border-t pt-4">
-            <h4 className="font-semibold">Lịch sử xác minh</h4>
-            {detail.history.map((entry,index) => <div key={index} className="border-l-2 border-green-700 py-2 pl-3">
-              <p className="font-medium">{eventLabels[entry.event_type] ?? entry.event_type} · {entry.actor_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {channelDate(entry.created_at)}{entry.reason ? ' · ' + entry.reason : ''}
-              </p>
-            </div>)}
-            {!detail.history.length && <p className="text-muted-foreground">Chưa có lịch sử xử lý.</p>}
+
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+            <h4 className="flex items-center gap-2 text-sm font-bold">
+              <FileText aria-hidden="true" className="size-4 text-primary"/>File hợp đồng đã ký
+            </h4>
+            <div className="space-y-2">
+              {detail.evidence.map(file => <button key={file.id} type="button"
+                title="Mở hợp đồng trong tab mới" onClick={() => void viewFile(file)}
+                className="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border p-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                <span className="flex min-w-0 items-center gap-2">
+                  <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true"/>
+                  <span className="min-w-0 break-all">{file.file_name}</span>
+                </span>
+                <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true"/>
+              </button>)}
+              {!detail.evidence.length && <p className="text-muted-foreground">
+                Chưa có file hợp đồng đính kèm. {detail.data.evidence_reference ?? ''}
+              </p>}
+            </div>
+          </section>
+
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+            <h4 className="flex items-center gap-2 text-sm font-bold">
+              <CalendarDays aria-hidden="true" className="size-4 text-primary"/>Lịch thanh toán
+            </h4>
+            {detail.installments.length
+              ? <div className="divide-y divide-border">
+                  {detail.installments.map((part,index) => <div key={index} className="flex min-w-0 items-start justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                    <span className="text-muted-foreground">{channelDate(part.due_on)}</span>
+                    <span className="shrink-0 text-right font-semibold tabular-nums">{channelMoney(part.amount)}</span>
+                  </div>)}
+                </div>
+              : <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
+          </section>
+
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+            <h4 className="flex items-center gap-2 text-sm font-bold">
+              <History aria-hidden="true" className="size-4 text-primary"/>Lịch sử xác minh
+            </h4>
+            {detail.history.length
+              ? <ol className="space-y-3">
+                  {detail.history.map((entry,index) => <li key={index} className="border-l-2 border-primary/30 pl-3">
+                    <p className="font-semibold">{eventLabels[entry.event_type] ?? entry.event_type}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{entry.actor_name} · {channelDate(entry.created_at)}</p>
+                    {entry.reason && <p className="mt-1 whitespace-pre-wrap break-words">{entry.reason}</p>}
+                  </li>)}
+                </ol>
+              : <p className="text-muted-foreground">Chưa có lịch sử xử lý.</p>}
           </section>
         </div>}
     </AppDrawer>

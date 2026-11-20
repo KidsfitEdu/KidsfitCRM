@@ -194,6 +194,32 @@ test('Board payout details show accounting figures and use one ordered fixed dra
   assert.match(board, /perform\(returnId,'return'\)/);
 });
 
+test('Board payout detail uses the personnel drawer visual language without changing approvals', () => {
+  const board = read('screens/Board/BoardPayoutsPage.tsx');
+  const drawer = board.split('<AppDrawer')[1]?.split('</AppDrawer>')[0] ?? '';
+  assert.match(drawer, /title="Chi tiết phiếu chi"/);
+  assert.match(drawer, /bodyClassName="space-y-4 bg-muted\/10"/);
+  assert.doesNotMatch(drawer, /<AppDrawer wide/);
+  assert.match(drawer, /selected\.code/);
+  assert.match(drawer, /AdminStatusBadge status=\{selected\.status\}/);
+  assert.match(drawer, /Kỳ hoa hồng \{selected\.period\}/);
+  assert.match(drawer, /grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2/);
+  for (const icon of ['Building2','HandCoins','History','WalletCards']) {
+    assert.match(board, new RegExp('<' + icon + '\\b'));
+  }
+  assert.match(drawer, /Số tiền đề nghị phê duyệt/);
+  assert.match(drawer, /channelMoney\(selected\.net_amount\)/);
+  assert.match(drawer, /text-right font-bold tabular-nums/);
+  assert.match(drawer, /payoutEventLabels\[event\.event_type\]/);
+  assert.match(board, /CREATED:'Đã tạo phiếu'/);
+  assert.match(board, /SUBMITTED:'Đã gửi BGĐ duyệt'/);
+  assert.match(drawer, /difference\(selected\)&&/);
+  assert.match(drawer, /selected\.adjustment_reason/);
+  assert.match(drawer, /footer=\{<div className="flex w-full flex-wrap/);
+  assert.match(drawer, /canDecide\(selected\)/);
+  assert.match(drawer, /disabled=\{busy\|\|\(difference\(selected\)/);
+});
+
 test('Board payout contract totals derive from distinct scoped contracts rather than repeated ledger entries', () => {
   const endpoint = readFileSync(resolve(import.meta.dirname,
     '../../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs'), 'utf8');

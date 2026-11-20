@@ -116,7 +116,7 @@ export function PasswordRecovery({ onClose, onSuccess, initialEmail = '' }: { on
         </button>
       }>
           {step === 'email' && <form onSubmit={send} className="space-y-4" noValidate>
-            <div className="flex flex-col gap-[13px]">
+            <div className="flex flex-col gap-[10px]">
               <label className="text-sm font-medium" htmlFor="recovery-email">Địa chỉ email</label>
               <Input id="recovery-email" type="email" autoComplete="email" maxLength={190}
                 required value={email} onChange={e => setEmail(e.target.value)}
@@ -129,7 +129,7 @@ export function PasswordRecovery({ onClose, onSuccess, initialEmail = '' }: { on
           </form>}
           {step === 'otp' && <form onSubmit={verify} className="space-y-4" noValidate>
             <p className="break-all text-sm font-medium text-primary">{email.trim().toLowerCase()}</p>
-            <div className="flex flex-col gap-[13px]">
+            <div className="flex flex-col gap-[10px]">
               <label className="text-sm font-medium" htmlFor="recovery-otp-0">Mã xác thực</label>
               <div className="grid grid-cols-6 gap-2">
                 {Array.from({ length: 6 }, (_, index) => (

@@ -1131,6 +1131,26 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
             Assert.Null(membership.ManagerUserId);
         }
 
+        // New identities must also receive the normal role permission bundles after login.
+        var directorAccess = await ChannelSalesAccess.Load(db, directorId, Ct);
+        var checkeeAccess = await ChannelSalesAccess.Load(db, checkeeId, Ct);
+        Assert.True(directorAccess.Has(Permissions.ChannelSalesAllScope));
+        Assert.True(checkeeAccess.Has(Permissions.ChannelSalesReconcile));
+        Assert.True(checkeeAccess.Has(Permissions.SchoolTechnicalSupportHandle));
+        Assert.True(checkeeAccess.InOrganization(checkee.Id));
+        Assert.False(checkeeAccess.Has(Permissions.ChannelSalesIdentityManage));
+
+        // Duplicate email must fail atomically without adding a second user or membership.
+        var directorEmail = await db.Users.Where(x => x.Id == directorId).Select(x => x.Email).SingleAsync(Ct);
+        await using (var duplicateDb = fixture.Open())
+        {
+            await Assert.ThrowsAsync<ApiConflictException>(() =>
+                new ChannelSalesActions(duplicateDb).CreateSalesAccount(
+                    new(kidsfit.Id, "Trùng email", directorEmail, secret, "DIRECTOR"),
+                    admin, new PasswordHasher<User>(), Http(), Ct));
+        }
+        Assert.Equal(1, await db.Users.CountAsync(x => x.Email == directorEmail, Ct));
+
         await Assert.ThrowsAsync<ApiConflictException>(() => action.CreateSalesAccount(
             new(checkee.Id, "Sai tổ chức", Key() + "@example.test", secret, "DIRECTOR"),
             admin, new PasswordHasher<User>(), Http(), Ct));

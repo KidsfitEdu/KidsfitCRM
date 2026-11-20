@@ -41,3 +41,13 @@ test('menu reuses theme switching and logout clears cached profile', () => {
   assert.match(app, /window.sessionStorage.removeItem\('kidsfit_token'\);\s*setProfile\(null\);/);
   assert.match(app, /<Sidebar .* onLogout=\{logout\}/);
 });
+
+test('avatar menu is compact, horizontal and keeps a discoverable theme toggle', () => {
+  assert.match(menu, /w-\[min\(92vw,288px\)\]/);
+  assert.match(menu, /flex min-w-0 items-center gap-3 border-b/);
+  assert.match(menu, /truncate text-sm font-bold/);
+  assert.match(menu, /min-h-11 w-full/);
+  assert.match(menu, /Giao diện tối/);
+  assert.match(menu, /aria-pressed=\{dark\}/);
+  assert.match(menu, /setDark\(value => !value\)/);
+});

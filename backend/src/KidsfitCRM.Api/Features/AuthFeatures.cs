@@ -33,6 +33,7 @@ public sealed class JwtTokenService(IConfiguration configuration)
 
 public sealed record LoginRequest(string? Email, string? Password);
 public sealed record ChangeOwnPasswordRequest(string? CurrentPassword, string? NewPassword, string? ConfirmPassword);
+public sealed record UpdateOwnProfileRequest(string? Name, string? Phone);
 
 public static class AuthFeatures
 {
@@ -61,6 +62,38 @@ public static class AuthFeatures
         return Results.Ok(new { user = await UserPayloadWithOrganization(db, user, await PermissionCodes(db, user.Id)) });
     }
 
+
+    /// <summary>Self-service update: only name and phone, scoped by the authenticated principal.</summary>
+    public static async Task<IResult> UpdateOwnProfile(
+        UpdateOwnProfileRequest request, HttpContext http, KidsfitDbContext db, CancellationToken ct)
+    {
+        var name = Validation.Required(request.Name, "name", "Vui lòng nhập họ và tên.", 190);
+        var phone = request.Phone?.Trim();
+        if (phone?.Length > 40)
+            throw ApiValidationException.For("phone", "Số điện thoại tối đa 40 ký tự.");
+        if (string.IsNullOrWhiteSpace(phone)) phone = null;
+        else if (!System.Text.RegularExpressions.Regex.IsMatch(phone, @"^\+?[0-9][0-9\s.()-]*$"))
+            throw ApiValidationException.For("phone", "Số điện thoại không đúng định dạng.");
+
+        var actorId = http.UserId();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var user = await db.Users.FromSqlInterpolated(
+            $"SELECT * FROM users WHERE id = {actorId} FOR UPDATE").SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException();
+
+        if (user.Name != name || user.Phone != phone)
+        {
+            var old = new { user.Name, user.Phone };
+            user.Name = name;
+            user.Phone = phone;
+            user.UpdatedAt = DateTime.UtcNow;
+            Audit.Add(db, actorId, "UPDATE_OWN_PROFILE", nameof(User), user.Id, old,
+                new { user.Name, user.Phone }, http);
+            await db.SaveChangesAsync(ct);
+        }
+        await transaction.CommitAsync(ct);
+        return Results.Ok(new { user = await UserPayloadWithOrganization(db, user, await PermissionCodes(db, user.Id)) });
+    }
 
     // Changing a password invalidates all previously issued JWTs through SecurityStamp.
     public static async Task<IResult> ChangeOwnPassword(

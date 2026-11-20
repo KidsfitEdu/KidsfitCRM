@@ -377,11 +377,11 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           <div className="min-w-0 space-y-1.5 text-sm font-medium">
             <label htmlFor="admin-edit-role">Vai trò *</label>
             {edit&&isProfileOnlyRole(edit.membership_type)
-              ?<div className="flex h-11 items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 text-sm text-foreground"
-                  aria-label={'Vai trò hiện tại: '+roleText(editForm.role_code)}>
-                <ShieldCheck aria-hidden="true" className="size-4 text-primary"/>
-                <span className="font-semibold">{roleText(editForm.role_code)}</span>
-                <span className="ml-auto text-xs text-muted-foreground">Chỉ đọc</span>
+              ?<div className="relative">
+                <ShieldCheck aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 size-4 text-primary"/>
+                <Input id="admin-edit-role" readOnly value={roleText(editForm.role_code)}
+                  className="h-11 bg-muted/40 pl-10 pr-20 font-semibold"/>
+                <span className="pointer-events-none absolute right-3 top-3.5 text-xs text-muted-foreground">Chỉ đọc</span>
               </div>
               :<AppNativeSelect id="admin-edit-role" containerClassName="w-full" value={editForm.role_code}
                 onChange={e=>setEditForm(v=>({...v,role_code:e.target.value,manager_user_id:''}))}>

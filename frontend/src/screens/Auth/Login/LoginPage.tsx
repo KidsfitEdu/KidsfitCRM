@@ -10,6 +10,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { validateLogin, type LoginErrors, type LoginField } from '@/lib/login-validation';
 import { ApiRequestError, isBackendUnavailable } from '@/services/api.client';
 import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
+import { PasswordRecovery } from '@/screens/Auth/PasswordRecovery/PasswordRecoveryPage';
 
 export function LoginPage({
   loading,
@@ -19,6 +20,7 @@ export function LoginPage({
   onLogin: (email: string, password: string) => Promise<void>;
 }) {
   const [email, setEmail] = useState('');
+  const [recovering, setRecovering] = useState(false);
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<LoginErrors>({});
   const [serverError, setServerError] = useState('');
@@ -70,6 +72,8 @@ export function LoginPage({
       setServerError(cause instanceof Error ? cause.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally { setRetrying(false); }
   };
+
+  if (recovering) return <PasswordRecovery initialEmail={email} onClose={() => setRecovering(false)} />;
 
   if (loading || retrying)
     return <main className="mx-auto max-w-[1480px] px-4 py-8 sm:px-7"><PageLoading label="Đang kết nối và xác thực tài khoản..."/></main>;
@@ -154,6 +158,12 @@ export function LoginPage({
                 </button>
               </div>
               <FormError id="crm-login-password-error">{errors.password}</FormError>
+            </div>
+            <div className="flex justify-end">
+              <button type="button" onClick={() => { setServerError(''); setRecovering(true); }}
+                className="rounded-md px-1 py-1 text-sm font-medium text-[#1b5e20] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1b5e20] dark:text-[#96d8a1]">
+                Quên mật khẩu?
+              </button>
             </div>
             {serverError && <p role="alert" className="text-sm text-destructive">{serverError}</p>}
             <Button

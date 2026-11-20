@@ -74,7 +74,11 @@ public static class AuthFeatures
         if (next != request.ConfirmPassword)
             throw ApiValidationException.For("confirm_password", "Xác nhận mật khẩu không khớp.");
 
-        var user = await db.Users.FindAsync([http.UserId()], ct) ?? throw new KeyNotFoundException();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var userId = http.UserId();
+        var user = await db.Users.FromSqlInterpolated(
+            $"SELECT * FROM users WHERE id = {userId} FOR UPDATE")
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
         if (hasher.VerifyHashedPassword(user, user.Password, request.CurrentPassword)
             == PasswordVerificationResult.Failed)
         {
@@ -97,6 +101,7 @@ public static class AuthFeatures
             challenge.UpdatedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         loggerFactory.CreateLogger("AccountSecurity").LogInformation("Authenticated password changed and sessions invalidated.");
         return Results.Ok(new { message = "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." });
     }

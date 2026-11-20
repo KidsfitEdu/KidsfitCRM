@@ -51,3 +51,29 @@ test('CHECKEE report scopes both datasets to organization and separately checks 
   assert.match(report,/DateTime.SpecifyKind\(periodMonth.AddHours\(-7\), DateTimeKind.Utc\)/);
   assert.doesNotMatch(report,/\.Take\(/);
 });
+
+test('CHECKEE contract detail reuses the compact personnel-style drawer and preserves verification actions',()=>{
+  const drawer=verify.split('<AppDrawer')[1]?.split('</AppDrawer>')[0]??'';
+  assert.match(drawer,/title="Chi tiết hợp đồng"/);
+  assert.match(drawer,/bodyClassName="space-y-4 bg-muted\/10"/);
+  assert.doesNotMatch(drawer,/wide compactAccountingHeader/);
+  assert.match(drawer,/rounded-2xl border border-border bg-card p-4/);
+  assert.match(drawer,/grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2/);
+  for(const label of ['Địa chỉ trường','Sales phụ trách','Thông tin hợp đồng','Giá trị hợp đồng',
+    'Gói dịch vụ','Số học sinh','File hợp đồng đã ký','Lịch thanh toán','Lịch sử xác minh'])
+    assert.ok(drawer.includes(label),label);
+  for(const icon of ['School','ClipboardList','FileText','CalendarDays','History'])
+    assert.match(verify,new RegExp('<'+icon+'\\b'));
+  assert.match(drawer,/detail\.data\.reconciliation_status/);
+  assert.match(drawer,/channelMoney\(detail\.data\.total_value\)/);
+  assert.match(drawer,/viewFile\(file\)/);
+  assert.match(drawer,/detail\.installments\.map/);
+  assert.match(drawer,/detail\.history\.map/);
+  assert.match(drawer,/eventLabels\[entry\.event_type\]/);
+  assert.match(drawer,/detail\?\.data\.can_feedback/);
+  assert.match(drawer,/detail\?\.data\.can_verify/);
+  assert.match(drawer,/openFeedback\(detail\.data\.id\)/);
+  assert.match(drawer,/openConfirm\(detail\.data\.id\)/);
+  assert.match(verify,/onConfirm=\{\(\) => \{if\(confirmId !== null\)void command\(confirmId,'confirm'/);
+  assert.match(verify,/if\(feedbackId !== null\)void command\(feedbackId,'dispute'/);
+});

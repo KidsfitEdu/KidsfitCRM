@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, Camera, ChevronRight, ContactRound, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { Building2, ChevronRight, Camera, ContactRound, LockKeyhole, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
+import { AppButton } from '@/components/common/buttons/app-button';
+import { Input } from '@/components/ui/input';
 import { appNotice } from '@/components/common/app-toast-provider';
+import { createApiClient } from '@/services/api.client';
 
 export type CurrentUserProfile = {
   id: number;
@@ -52,6 +55,36 @@ export function UserProfileMenu({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+  const closePassword = () => {
+    setPasswordOpen(false); setCurrentPassword(''); setNewPassword('');
+    setConfirmPassword(''); setPasswordError('');
+  };
+  const changePassword = async () => {
+    setPasswordError('');
+    if (newPassword.length < 12 || newPassword.length > 200) {
+      setPasswordError('Mật khẩu mới phải từ 12 đến 200 ký tự.'); return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Xác nhận mật khẩu không khớp.'); return;
+    }
+    setSavingPassword(true);
+    try {
+      await createApiClient(apiBase)('/me/change-password', token, {
+        method: 'POST', body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+      });
+      closePassword();
+      appNotice.success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
+      await onLogout();
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : 'Không thể đổi mật khẩu.');
+    } finally { setSavingPassword(false); }
+  };
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const uploadAvatar = async (file: File) => {
@@ -117,6 +150,11 @@ export function UserProfileMenu({
           className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary">
           <UserRound aria-hidden="true" className="size-4 text-primary"/>Hồ sơ cá nhân<ChevronRight aria-hidden="true" className="ml-auto size-4 text-muted-foreground"/>
         </button>
+        <button type="button" onClick={() => {setMenuOpen(false);setPasswordOpen(true);}}
+          className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary">
+          <LockKeyhole aria-hidden="true" className="size-4 text-primary"/>Đổi mật khẩu
+          <ChevronRight aria-hidden="true" className="ml-auto size-4 text-muted-foreground"/>
+        </button>
         <button type="button" aria-pressed={dark} onClick={() => {setDark(value => !value);setMenuOpen(false);}}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary">
           {dark ? <Sun aria-hidden="true" className="size-4 text-primary"/> : <Moon aria-hidden="true" className="size-4 text-primary"/>}
@@ -131,6 +169,27 @@ export function UserProfileMenu({
       </PopoverContent>
     </Popover>
 
+    <AppDrawer open={passwordOpen} onOpenChange={open => {if(!open&&!savingPassword)closePassword();}} title="Đổi mật khẩu" busy={savingPassword}
+      bodyClassName="space-y-4 bg-muted/10"
+      footer={<div className="flex flex-wrap justify-end gap-2">
+        <AppButton type="button" tone="neutral" disabled={savingPassword} onClick={closePassword}>Hủy</AppButton>
+        <AppButton type="submit" form="account-change-password" busy={savingPassword}>Cập nhật mật khẩu</AppButton>
+      </div>}>
+      <form id="account-change-password" onSubmit={event => {event.preventDefault();void changePassword();}} className="space-y-4" noValidate>
+        <p className="text-sm text-muted-foreground">Nhập mật khẩu hiện tại để bảo vệ tài khoản. Sau khi đổi thành công, bạn cần đăng nhập lại.</p>
+        {[
+          {id:'current-password',label:'Mật khẩu hiện tại',value:currentPassword,change:setCurrentPassword,auto:'current-password'},
+          {id:'new-password',label:'Mật khẩu mới',value:newPassword,change:setNewPassword,auto:'new-password'},
+          {id:'confirm-password',label:'Xác nhận mật khẩu mới',value:confirmPassword,change:setConfirmPassword,auto:'new-password'},
+        ].map(field => <div key={field.id} className="flex flex-col gap-2">
+          <label htmlFor={field.id} className="text-sm font-medium">{field.label}</label>
+          <Input id={field.id} type="password" required minLength={field.id==='current-password'?1:12}
+            maxLength={200} autoComplete={field.auto} className="h-10"
+            disabled={savingPassword} value={field.value} onChange={event=>field.change(event.target.value)}/>
+        </div>)}
+        {passwordError&&<p role="alert" className="text-sm text-destructive">{passwordError}</p>}
+      </form>
+    </AppDrawer>
     <AppDrawer open={profileOpen} onOpenChange={setProfileOpen} title="Hồ sơ cá nhân"
       bodyClassName="space-y-4 bg-muted/10">
       <section className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4">

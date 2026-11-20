@@ -10,7 +10,7 @@ const app = read('src/components/crm/crm-app.tsx');
 const auth = read('../backend/src/KidsfitCRM.Api/Features/AuthFeatures.cs');
 
 test('header avatar opens a keyboard-accessible menu with read-only personal drawer', () => {
-  assert.match(header, /<UserProfileMenu user=\{profile\} dark=\{dark\} setDark=\{setDark\} onLogout=\{onLogout\} isAdmin=\{isAdmin\}/);
+  assert.match(header, /<UserProfileMenu user=\{profile\} dark=\{dark\} setDark=\{setDark\} onLogout=\{onLogout\} isAdmin=\{isAdmin\}[\s\S]{0,160}apiBase=\{apiBase\} token=\{token\} avatarUrl=\{avatarUrl\} onAvatarChanged=\{onAvatarChanged\}/);
   assert.match(menu, /aria-label="Mở menu tài khoản"/);
   assert.match(menu, /<PopoverTrigger render=/);
   assert.match(menu, /<AppDrawer open=\{profileOpen\} onOpenChange=\{setProfileOpen\} title="Hồ sơ cá nhân"/);
@@ -19,7 +19,9 @@ test('header avatar opens a keyboard-accessible menu with read-only personal dra
     assert.ok(menu.includes(label), 'Profile detail missing: '+label);
   }
   assert.match(menu, /bodyClassName="space-y-4 bg-muted\/10"/);
-  assert.doesNotMatch(menu, /<form|onSubmit=|\/profile\/update/);
+  assert.match(menu, /type="file"/);
+  assert.match(menu, /\/me\/avatar/);
+  assert.doesNotMatch(menu, /\/profile\/update/);
 });
 
 test('profile only reflects authenticated /me data and does not allow role editing', () => {

@@ -18,6 +18,7 @@ public static class ApiEndpoints
         secured.MapGet("/me/avatar", UserAvatarFeatures.Download);
         secured.MapPost("/me/avatar", UserAvatarFeatures.Upload).RequireRateLimiting("avatar-upload");
         secured.MapDelete("/me/avatar", UserAvatarFeatures.Remove);
+        secured.MapPost("/me/change-password", AuthFeatures.ChangeOwnPassword).RequireRateLimiting("password-change");
         secured.MapPost("/logout", AuthFeatures.Logout);
         secured.MapChannelSalesApi();
         secured.MapSchoolProposalAlerts();

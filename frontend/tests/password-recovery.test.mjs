@@ -79,3 +79,21 @@ test('recovery header has accessible back icon while login has no back action', 
   assert.doesNotMatch(recovery, /mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-2/);
   assert.doesNotMatch(login, /headerAction=/);
 });
+
+test('resend retains entered OTP and only clears state on initial request', () => {
+  assert.match(recovery, /const isResend = step === 'otp';/);
+  assert.match(recovery, /if \(!isResend\) \{/);
+  assert.match(recovery, /setOtp\(''\); setTicket\(''\);/);
+  assert.match(recovery, /if \(isResend\) appNotice\.warning/);
+  assert.match(recovery, /appNotice\.info\('Đã tiếp nhận yêu cầu gửi lại mã'/);
+  assert.match(recovery, /remaining > 0 \|\| resendAfter > Date\.now\(\)/);
+  const resendBranch = recovery.slice(recovery.indexOf('const send = async'), recovery.indexOf('const verify = async'));
+  const catchBlock = resendBranch.slice(resendBranch.indexOf('} catch (cause)'));
+  assert.doesNotMatch(catchBlock, /setResendAfter/);
+  assert.doesNotMatch(catchBlock, /setOtp/);
+});
+
+test('resend does not promise that a 200 response proves Gmail delivered an email', () => {
+  assert.match(recovery, /Nếu tài khoản đủ điều kiện, hãy kiểm tra hộp thư và thư rác\./);
+  assert.doesNotMatch(recovery, /Gửi lại mã thành công/);
+});

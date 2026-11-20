@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using System.Text.Json;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
@@ -115,17 +116,19 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
     .AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("password-reset", limiter =>
+    // Partition the public recovery endpoints by caller IP, not a shared global bucket.
+    options.AddPolicy("password-reset", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+            AutoReplenishment = true,
+        }));
+    options.AddFixedWindowLimiter("login", limiter =>
     {
-        limiter.PermitLimit = 5;
+        limiter.PermitLimit = 6;
         limiter.Window = TimeSpan.FromMinutes(1);
         limiter.QueueLimit = 0;
-    });
-    options.AddFixedWindowLimiter("login", limiter =>
-{
-    limiter.PermitLimit = 6;
-    limiter.Window = TimeSpan.FromMinutes(1);
-    limiter.QueueLimit = 0;
     });
 });
 

@@ -10,7 +10,7 @@ const app = read('src/components/crm/crm-app.tsx');
 const auth = read('../backend/src/KidsfitCRM.Api/Features/AuthFeatures.cs');
 
 test('header avatar opens a keyboard-accessible menu with read-only personal drawer', () => {
-  assert.match(header, /<UserProfileMenu user=\{profile\} dark=\{dark\} setDark=\{setDark\} onLogout=\{onLogout\} isAdmin=\{isAdmin\}/);
+  assert.match(header, /<UserProfileMenu user=\{profile\} dark=\{dark\} setDark=\{setDark\} onLogout=\{onLogout\} isAdmin=\{isAdmin\} apiBase=\{apiBase\} token=\{token\}/);
   assert.match(menu, /aria-label="Mở menu tài khoản"/);
   assert.match(menu, /<PopoverTrigger render=/);
   assert.match(menu, /<AppDrawer open=\{profileOpen\} onOpenChange=\{setProfileOpen\} title="Hồ sơ cá nhân"/);

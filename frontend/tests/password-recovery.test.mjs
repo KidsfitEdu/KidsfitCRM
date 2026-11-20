@@ -6,6 +6,8 @@ import test from 'node:test';
 const login = readFileSync(resolve(import.meta.dirname, '../src/screens/Auth/Login/LoginPage.tsx'), 'utf8');
 const recovery = readFileSync(resolve(import.meta.dirname, '../src/screens/Auth/PasswordRecovery/PasswordRecoveryPage.tsx'), 'utf8');
 const authShell = readFileSync(resolve(import.meta.dirname, '../src/screens/Auth/AuthShell.tsx'), 'utf8');
+const appLayout = readFileSync(resolve(import.meta.dirname, '../src/app/layout.tsx'), 'utf8');
+const toastProvider = readFileSync(resolve(import.meta.dirname, '../src/components/common/app-toast-provider.tsx'), 'utf8');
 
 test('login exposes the password recovery flow without changing login submit', () => {
   assert.match(login, /<PasswordRecovery initialEmail=\{email\}/);
@@ -54,7 +56,15 @@ test('OTP page remains compact, six-digit and supports paste and keyboard', () =
 
 test('successful reset returns directly to login with visible confirmation', () => {
   assert.match(login, /onSuccess=\{\(\) => \{ setRecovering\(false\)/);
-  assert.match(login, /Đặt lại mật khẩu thành công\. Vui lòng đăng nhập bằng mật khẩu mới\./);
+  assert.match(login, /appNotice\.success\('Đặt lại mật khẩu thành công', 'Vui lòng đăng nhập bằng mật khẩu mới\.'\)/);
+  assert.doesNotMatch(login, /resetSuccess/);
+  assert.doesNotMatch(login, /<output className="block rounded-xl border border-green-200/);
   assert.match(recovery, /onSuccess\(\);/);
   assert.doesNotMatch(recovery, /setStep\('done'\)/);
+});
+
+test('global toast provider covers unauthenticated Login route', () => {
+  assert.match(appLayout, /<AppToastProvider>\{children\}<\/AppToastProvider>/);
+  assert.match(toastProvider, /success\(title: string, description\?: string\)/);
+  assert.match(login, /import \{ appNotice \} from '@\/components\/common\/app-toast-provider'/);
 });

@@ -76,6 +76,7 @@ public sealed class LocalFileStorageTests : IDisposable
     [Theory]
     [InlineData("CONTRACT", "image/png", ".png")]
     [InlineData("PAYOUT", "image/webp", ".webp")]
+    [InlineData("AVATAR", "image/png", ".png")]
     public async Task Stores_verified_image_extensions(string kind, string mime, string extension)
     {
         byte[] bytes = mime == "image/png"
@@ -116,6 +117,8 @@ public sealed class LocalFileStorageTests : IDisposable
             storage.SaveAsync(new MemoryStream("%PDF-1.4\n"u8.ToArray()), "RECEIPT", CancellationToken.None));
         await Assert.ThrowsAsync<ApiValidationException>(() =>
             storage.SaveAsync(new MemoryStream(new byte[(int)storage.MaxFileBytes + 1]), "CONTRACT", CancellationToken.None));
+        await Assert.ThrowsAsync<ApiValidationException>(() =>
+            storage.SaveAsync(new MemoryStream("%PDF-1.4\n"u8.ToArray()), "AVATAR", CancellationToken.None));
         Assert.Empty(Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories));
     }
 

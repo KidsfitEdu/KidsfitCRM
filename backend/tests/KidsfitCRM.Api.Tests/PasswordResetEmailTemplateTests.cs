@@ -46,6 +46,26 @@ public sealed class PasswordResetEmailTemplateTests
         }
     }
 
+
+    [Fact]
+    public void CurrentTemplateDoesNotEmitLegacyPlainOnlyEmail()
+    {
+        using var message = PasswordResetEmailTemplate.Create(
+            "kidsfit.education@gmail.com", "recipient@example.com", "000123", null);
+        Assert.Equal("KIDSFIT CRM | Mã xác thực đặt lại mật khẩu", message.Subject);
+        Assert.DoesNotContain("Ma xac thuc dat lai mat khau", message.Subject);
+        Assert.Collection(message.AlternateViews.Cast<AlternateView>(),
+            plain => Assert.Equal("text/plain", plain.ContentType.MediaType),
+            html => Assert.Equal("text/html", html.ContentType.MediaType));
+
+        var htmlBody = Read(message.AlternateViews[1]);
+        Assert.Contains("<html lang=\"vi\">", htmlBody);
+        Assert.Contains("Mã xác thực đặt lại mật khẩu", htmlBody);
+        Assert.Contains("000 123", htmlBody);
+        Assert.Contains("KIDSFIT CRM", htmlBody);
+        Assert.DoesNotContain("Ma xac thuc KIDSFIT CRM:", htmlBody);
+    }
+
     private static string Read(AlternateView view)
     {
         view.ContentStream.Position = 0;

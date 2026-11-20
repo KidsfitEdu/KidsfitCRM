@@ -102,11 +102,11 @@ export function UserProfileMenu({
       <PopoverTrigger render={<button type="button"
         aria-label="Mở menu tài khoản" title="Tài khoản cá nhân" aria-haspopup="dialog"
         className="ml-1 grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-sm font-bold text-[#633b38] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />}>
-        {avatarUrl ? <img src={avatarUrl} alt="" className="size-full rounded-full object-cover"/> : initials}
+        {avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : initials}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[min(92vw,288px)] space-y-1 rounded-2xl p-2">
         <div className="flex min-w-0 items-center gap-3 border-b border-border px-2 py-2.5">
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">{avatarUrl ? <img src={avatarUrl} alt="" className="size-full rounded-full object-cover"/> : initials}</span>
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">{avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : initials}</span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold" title={name}>{name}</p>
             <p className="truncate text-xs text-muted-foreground" title={user?.email}>{user?.email || 'Chưa có email'}</p>
@@ -135,7 +135,7 @@ export function UserProfileMenu({
       bodyClassName="space-y-4 bg-muted/10">
       <section className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4">
         <div aria-hidden="true" className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          {avatarUrl ? <img src={avatarUrl} alt="" className="size-full rounded-full object-cover"/> : <UserRound className="size-7"/>}
+          {avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : <UserRound className="size-7"/>}
         </div>
         <div className="min-w-0 space-y-1.5">
           <h2 className="break-words text-lg font-bold leading-tight">{name}</h2>

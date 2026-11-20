@@ -38,7 +38,7 @@ type ExpiryNotificationsResponse = { unread_count: number; data: ExpiryNotice[] 
 
 export function Header({
   todayLabel, userName, search, setSearch, dark, setDark,
-  apiBase = '', token = '', onNavigate, sidebarOpen, onToggleSidebar, profile, onLogout, isAdmin,
+  apiBase = '', token = '', onNavigate, sidebarOpen, onToggleSidebar, profile, onLogout, isAdmin, avatarUrl, onAvatarChanged,
 }: {
   todayLabel: string;
   sidebarOpen: boolean;
@@ -54,6 +54,8 @@ export function Header({
   profile: CurrentUserProfile | null;
   onLogout: () => Promise<void>;
   isAdmin: boolean;
+  avatarUrl: string | null;
+  onAvatarChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
@@ -173,7 +175,8 @@ export function Header({
           </button>)}
         </PopoverContent>
       </Popover>
-      <UserProfileMenu user={profile} dark={dark} setDark={setDark} onLogout={onLogout} isAdmin={isAdmin}/>
+      <UserProfileMenu user={profile} dark={dark} setDark={setDark} onLogout={onLogout} isAdmin={isAdmin}
+        apiBase={apiBase} token={token} avatarUrl={avatarUrl} onAvatarChanged={onAvatarChanged}/>
     </div>
   </header>;
 }

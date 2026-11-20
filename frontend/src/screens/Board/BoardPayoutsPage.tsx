@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Eye } from 'lucide-react';
+import { Building2, Eye, HandCoins, History, WalletCards } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge, adminTableClass, adminTableHeadClass } from '@/components/common/admin-list-ui';
 import { AppSelect } from '@/components/common/app-select';
@@ -50,6 +50,17 @@ const statusOptions=[
 ];
 const difference=(p:Payout)=>p.suggested_rate_percent!==p.requested_rate_percent||
   p.suggested_amount!==p.requested_amount;
+
+const payoutEventLabels:Record<string,string>={
+  CREATED:'Đã tạo phiếu',
+  SUBMITTED:'Đã gửi BGĐ duyệt',
+  APPROVED:'Đã phê duyệt',
+  CHANGES_REQUESTED:'Yêu cầu bổ sung',
+  RETURNED:'Đã yêu cầu bổ sung',
+  PAID:'Đã thanh toán',
+  REJECTED:'Đã từ chối',
+  CANCELLED:'Đã hủy',
+};
 
 export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePageProps){
   const allowed=abilities.includes('*')||abilities.includes('channel_sales.payout.approve');
@@ -169,8 +180,8 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
         pageSizeOptions={[10,20,50,100]}
         onPageSizeChange={size=>{setPageSize(size);setPage(1);}} onPageChange={setPage}/>
     </AdminListPanel>
-    <AppDrawer wide open={selected!==null} onOpenChange={open=>{if(!open&&!busy)setSelectedId(null);}}
-      busy={busy} title={selected?'Chi tiết '+selected.code:'Chi tiết phiếu chi'}
+    <AppDrawer open={selected!==null} onOpenChange={open=>{if(!open&&!busy)setSelectedId(null);}}
+      busy={busy} title="Chi tiết phiếu chi" bodyClassName="space-y-4 bg-muted/10"
       footer={<div className="flex w-full flex-wrap items-center justify-end gap-2">
         <AppButton type="button" tone="neutral" disabled={busy} onClick={()=>setSelectedId(null)}>Đóng</AppButton>
         {selected&&canDecide(selected)&&<>
@@ -181,63 +192,96 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
             onClick={()=>setConfirmId(selected.id)}>Phê duyệt phiếu chi</AppButton>
         </>}
       </div>}>
-      {selected&&<div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <AdminStatusBadge status={selected.status} label={statusLabels[selected.status]??selected.status}/>
-          <span className="text-xs text-muted-foreground">Kỳ hoa hồng {selected.period}</span>
-        </div>
-        <section className="rounded-xl border p-4">
-          <h3 className="mb-3 font-semibold">Thông tin phiếu chi</h3>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+      {selected&&<div className="space-y-4">
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <div aria-hidden="true" className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <WalletCards className="size-7"/>
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <h2 className="text-base font-bold leading-tight">Phiếu chi hoa hồng</h2>
+              <p className="break-all text-xs text-muted-foreground">{selected.code}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <AdminStatusBadge status={selected.status} label={statusLabels[selected.status]??selected.status}/>
+                <span className="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium">
+                  Kỳ hoa hồng {selected.period}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-medium text-muted-foreground">Số tiền đề nghị phê duyệt</p>
+            <p className="mt-1 break-words text-2xl font-bold tabular-nums text-foreground">{channelMoney(selected.net_amount)}</p>
+          </div>
+        </section>
+
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
+          <h3 className="flex items-center gap-2 text-sm font-bold">
+            <Building2 aria-hidden="true" className="size-4 text-primary"/>Thông tin phiếu chi
+          </h3>
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
             {[
-              ['Trường học',selected.school_name??'—'],['Hợp đồng',selected.contract_count>1?`${selected.contract_count} hợp đồng`:selected.contract_code??'—'],
               ['Tổ chức',selected.organization_name],['Người hưởng',selected.beneficiary_name],
               ['Vai trò',selected.beneficiary_role==='MANAGER'?'Quản lý':'Sales'],
               ['Kế toán lập phiếu',selected.creator_name],
-            ].map(([name,value])=><div key={name}>
-              <dt className="text-xs text-muted-foreground">{name}</dt>
-              <dd className="mt-1 font-medium">{value}</dd>
+              ['Trường học',selected.school_name??'—'],
+              ['Hợp đồng',selected.contract_count>1?selected.contract_count+' hợp đồng':selected.contract_code??'—'],
+            ].map(([name,value])=><div key={name} className="min-w-0 space-y-1">
+              <dt className="text-xs font-medium text-muted-foreground">{name}</dt>
+              <dd className="break-words text-sm font-medium text-foreground">{value}</dd>
             </div>)}
           </dl>
         </section>
-        <section className="rounded-xl border p-4">
-          <h3 className="mb-3 font-semibold">Chi tiết khoản chi hoa hồng</h3>
+
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
+          <h3 className="flex items-center gap-2 text-sm font-bold">
+            <HandCoins aria-hidden="true" className="size-4 text-primary"/>Chi tiết khoản chi hoa hồng
+          </h3>
           <dl className="space-y-3 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <dt className="text-muted-foreground">
-                {selected.contract_count>1?`Tổng giá trị ${selected.contract_count} hợp đồng`:'Tổng giá trị hợp đồng'}
+            <div className="flex items-start justify-between gap-4">
+              <dt className="min-w-0 text-muted-foreground">
+                {selected.contract_count>1?'Tổng giá trị hợp đồng ('+selected.contract_count+')':'Tổng giá trị hợp đồng'}
               </dt>
-              <dd className="font-semibold tabular-nums">
+              <dd className="shrink-0 text-right font-semibold tabular-nums">
                 {selected.contract_total_value==null?'Chưa có dữ liệu':channelMoney(selected.contract_total_value)}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <dt className="text-muted-foreground">Tỷ lệ hoa hồng Kế toán đề nghị</dt>
-              <dd className="font-semibold tabular-nums">{selected.requested_rate_percent}%</dd>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="min-w-0 text-muted-foreground">Tỷ lệ hoa hồng Kế toán đề nghị</dt>
+              <dd className="shrink-0 text-right font-semibold tabular-nums">{selected.requested_rate_percent}%</dd>
             </div>
-            <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-              <dt className="font-medium">Tổng tiền hoa hồng</dt>
-              <dd className="text-lg font-bold tabular-nums">{channelMoney(selected.requested_amount)}</dd>
+            <div className="flex items-start justify-between gap-4 border-t border-border pt-3">
+              <dt className="min-w-0 font-medium">Tổng tiền hoa hồng</dt>
+              <dd className="shrink-0 text-right font-bold tabular-nums">{channelMoney(selected.requested_amount)}</dd>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="text-muted-foreground">Khấu trừ</dt>
+              <dd className="shrink-0 text-right font-medium tabular-nums">{channelMoney(selected.withholding_amount)}</dd>
+            </div>
+            {selected.withholding_reason&&<div className="text-xs text-muted-foreground">
+              Lý do khấu trừ: <span className="whitespace-pre-wrap">{selected.withholding_reason}</span>
+            </div>}
+            <div className="flex items-start justify-between gap-4 border-t border-border pt-3">
+              <dt className="min-w-0 font-semibold">Tổng số tiền được nhận</dt>
+              <dd className="shrink-0 text-right text-lg font-bold tabular-nums">{channelMoney(selected.net_amount)}</dd>
             </div>
           </dl>
-          {difference(selected)&&<div className="mt-3 rounded-lg border border-amber-300/60 bg-amber-50/50 p-3 dark:bg-amber-950/20">
-            <p className="text-xs font-medium">Lý do điều chỉnh *</p>
-            <p className="mt-1 text-sm whitespace-pre-wrap">{selected.adjustment_reason||'Chưa được cung cấp — không nên duyệt.'}</p>
+          {difference(selected)&&<div className="rounded-xl border border-amber-300/60 bg-amber-50/50 p-3 dark:bg-amber-950/20">
+            <p className="text-xs font-semibold">Lý do điều chỉnh *</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm">{selected.adjustment_reason||'Chưa được cung cấp — không nên duyệt.'}</p>
           </div>}
-          <dl className="mt-3 flex flex-col gap-2 text-sm">
-            <div className="flex justify-between gap-2"><dt>Khấu trừ</dt><dd className="font-medium tabular-nums">{channelMoney(selected.withholding_amount)}</dd></div>
-            {selected.withholding_reason&&<p className="text-xs text-muted-foreground">Lý do khấu trừ: {selected.withholding_reason}</p>}
-            <div className="flex justify-between gap-2 border-t pt-3"><dt className="font-semibold">Tổng số tiền được nhận</dt><dd className="text-lg font-bold tabular-nums">{channelMoney(selected.net_amount)}</dd></div>
-          </dl>
         </section>
-        <section className="rounded-xl border p-4">
-          <h3 className="mb-3 font-semibold">Lịch sử xử lý</h3>
-          {selected.events.length?
-            <div className="space-y-3">{selected.events.map((event,i)=><div key={i} className="border-l-2 border-primary/30 pl-3 text-sm">
-              <p className="font-medium">{event.event_type}</p>
-              <p className="text-xs text-muted-foreground">{channelDate(event.created_at)}</p>
-              {event.reason&&<p className="mt-1 whitespace-pre-wrap">{event.reason}</p>}
-            </div>)}</div>
+
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
+          <h3 className="flex items-center gap-2 text-sm font-bold">
+            <History aria-hidden="true" className="size-4 text-primary"/>Lịch sử xử lý
+          </h3>
+          {selected.events.length
+            ?<ol className="space-y-3">{selected.events.map((event,i)=><li key={i} className="border-l-2 border-primary/30 pl-3">
+              <p className="text-sm font-semibold">{payoutEventLabels[event.event_type]??event.event_type}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{channelDate(event.created_at)}</p>
+              {event.reason&&<p className="mt-1 whitespace-pre-wrap text-sm">{event.reason}</p>}
+            </li>)}</ol>
             :<p className="text-sm text-muted-foreground">Chưa có lịch sử.</p>}
         </section>
         {selected.status==='APPROVED'&&<p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">

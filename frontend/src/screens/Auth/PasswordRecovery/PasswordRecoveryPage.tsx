@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { ArrowLeft, Eye, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,10 @@ import { createApiClient } from '@/services/api.client';
 import { AuthShell } from '@/screens/Auth/AuthShell';
 
 const request = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? '');
-type Step = 'email' | 'otp' | 'password' | 'done';
+type Step = 'email' | 'otp' | 'password';
 const emailValid = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) && value.trim().length <= 190;
 
-export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () => void; initialEmail?: string }) {
+export function PasswordRecovery({ onClose, onSuccess, initialEmail = '' }: { onClose: () => void; onSuccess: () => void; initialEmail?: string }) {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState('');
@@ -21,7 +21,7 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const otpInputs = useRef<Array<HTMLInputElement | null>>([]);
   const [resendAfter, setResendAfter] = useState(0);
   const [remaining, setRemaining] = useState(0);
 
@@ -37,12 +37,12 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
     event?.preventDefault();
     if (busy) return;
     if (!emailValid(email)) { setError('Vui lòng nhập địa chỉ email hợp lệ.'); return; }
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError('');
     try {
-      const result = await request<{ message: string }>('/auth/password/forgot', undefined, {
+      await request('/auth/password/forgot', undefined, {
         method: 'POST', body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
-      setNotice(result.message); setOtp(''); setTicket('');
+      setOtp(''); setTicket('');
       setResendAfter(Date.now() + 60_000); setStep('otp');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể gửi yêu cầu. Vui lòng thử lại.'); }
     finally { setBusy(false); }
@@ -52,7 +52,7 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
     event.preventDefault();
     if (busy) return;
     if (!/^\d{6}$/.test(otp)) { setError('Vui lòng nhập đủ 6 chữ số OTP.'); return; }
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError('');
     try {
       const result = await request<{ reset_token: string }>('/auth/password/verify-otp', undefined, {
         method: 'POST', body: JSON.stringify({ email: email.trim().toLowerCase(), otp }),
@@ -75,20 +75,20 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
           new_password: password, confirm_password: confirmPassword,
         }),
       });
-      setTicket(''); setPassword(''); setConfirmPassword(''); setStep('done');
+      setTicket(''); setPassword(''); setConfirmPassword('');
+      onSuccess();
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Đặt lại mật khẩu thất bại.'); }
     finally { setBusy(false); }
   };
 
   const titles: Record<Step, string> = {
     email: 'Quên mật khẩu?', otp: 'Xác thực OTP',
-    password: 'Đặt mật khẩu mới', done: 'Đổi mật khẩu thành công',
+    password: 'Đặt mật khẩu mới',
   };
   const descriptions: Record<Step, string> = {
     email: 'Nhập địa chỉ email đã đăng ký tài khoản KIDSFIT CRM.',
-    otp: 'Kiểm tra hộp thư của bạn để lấy mã xác thực gồm 6 chữ số.',
+    otp: 'Nhập mã 6 chữ số từ email nếu tài khoản hợp lệ.',
     password: 'Thiết lập mật khẩu mới để bảo vệ tài khoản.',
-    done: 'Mật khẩu đã được thay đổi. Hãy đăng nhập lại.',
   };
   return (
     <AuthShell title={titles[step]} description={descriptions[step]}>
@@ -105,25 +105,58 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
             </Button>
           </form>}
           {step === 'otp' && <form onSubmit={verify} className="space-y-4" noValidate>
-            <p className="break-all text-center text-sm text-muted-foreground">{email.trim().toLowerCase()}</p>
-            {notice && <output className="block rounded-lg bg-[#edf7ed] p-3 text-sm text-[#24542d]">{notice}</output>}
+            <p className="break-all text-sm font-medium text-primary">{email.trim().toLowerCase()}</p>
             <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="recovery-otp">Mã OTP</label>
-              <Input id="recovery-otp" inputMode="numeric" autoComplete="one-time-code"
-                maxLength={6} pattern="[0-9]{6}" value={otp}
-                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Nhập 6 chữ số" disabled={busy}
-                className="h-12 rounded-xl text-center text-xl font-semibold tracking-[.4em]" />
+              <label className="text-sm font-medium" htmlFor="recovery-otp-0">Mã xác thực</label>
+              <div className="grid grid-cols-6 gap-2" role="group" aria-label="Mã xác thực OTP gồm 6 chữ số">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <Input key={index} id={`recovery-otp-${index}`}
+                    ref={element => { otpInputs.current[index] = element; }}
+                    aria-label={`Chữ số OTP thứ ${index + 1}`}
+                    inputMode="numeric" autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    maxLength={6} pattern="[0-9]*" value={otp[index] ?? ''}
+                    onChange={event => {
+                      const digits = event.target.value.replace(/\D/g, '').slice(0, 6);
+                      if (!digits) {
+                        setOtp(previous => previous.slice(0, index) + previous.slice(index + 1));
+                        return;
+                      }
+                      const next = otp.slice(0, index).padEnd(index, ' ') + digits + otp.slice(index + digits.length);
+                      setOtp(next.replace(/ /g, '').slice(0, 6));
+                      otpInputs.current[Math.min(index + digits.length, 5)]?.focus();
+                    }}
+                    onPaste={(event: ClipboardEvent<HTMLInputElement>) => {
+                      const digits = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                      if (!digits) return;
+                      event.preventDefault();
+                      setOtp(digits);
+                      otpInputs.current[Math.min(digits.length, 5)]?.focus();
+                    }}
+                    onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+                      if (event.key === 'Backspace' && !otp[index] && index > 0) {
+                        event.preventDefault();
+                        setOtp(previous => previous.slice(0, index - 1) + previous.slice(index));
+                        otpInputs.current[index - 1]?.focus();
+                      }
+                      if (event.key === 'ArrowLeft' && index > 0) otpInputs.current[index - 1]?.focus();
+                      if (event.key === 'ArrowRight' && index < 5) otpInputs.current[index + 1]?.focus();
+                    }}
+                    disabled={busy}
+                    className="h-12 min-w-0 rounded-xl px-0 text-center text-lg font-semibold tabular-nums" />
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>Mã có hiệu lực 5 phút</span>
+                <button type="button" disabled={busy || remaining > 0} onClick={() => void send()}
+                  className="font-medium text-primary underline-offset-4 hover:underline disabled:opacity-50">
+                  {remaining > 0 ? 'Gửi lại sau ' + remaining + 's' : 'Gửi lại mã'}
+                </button>
+              </div>
             </div>
-            <p className="text-center text-xs text-muted-foreground">OTP có hiệu lực 5 phút sau khi gửi.</p>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={busy || otp.length !== 6} className="h-11 w-full rounded-xl bg-[#1b5e20] text-white hover:bg-[#124c17]">
               <ShieldCheck className="mr-2 size-4" />{busy ? 'Đang xác thực...' : 'Xác thực OTP'}
             </Button>
-            <button type="button" disabled={busy || remaining > 0} onClick={() => void send()}
-              className="w-full rounded-lg py-2 text-sm font-medium text-[#1b5e20] underline-offset-4 hover:underline disabled:opacity-50 dark:text-[#9cd5a4]">
-              {remaining > 0 ? 'Gửi lại mã sau ' + remaining + 's' : 'Gửi lại mã xác thực'}
-            </button>
           </form>}
           {step === 'password' && <form onSubmit={reset} className="space-y-4" noValidate>
             <div className="space-y-2">
@@ -151,11 +184,10 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
               <KeyRound className="mr-2 size-4" />{busy ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}
             </Button>
           </form>}
-          {step === 'done' && <Button onClick={onClose} className="h-11 w-full rounded-xl bg-[#1b5e20] text-white hover:bg-[#124c17]">Đến trang đăng nhập</Button>}
-          {step !== 'done' && <button type="button" onClick={onClose}
+          <button type="button" onClick={onClose}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-4" /> Quay lại đăng nhập
-          </button>}
+          </button>
     </AuthShell>
   );
 }

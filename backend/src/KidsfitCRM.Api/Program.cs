@@ -124,6 +124,15 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
             AutoReplenishment = true,
         }));
+    // Isolate authenticated password attempts per account; do not share a global bucket.
+    options.AddPolicy("password-change", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0,
+            AutoReplenishment = true,
+        }));
     options.AddFixedWindowLimiter("login", limiter =>
     {
         limiter.PermitLimit = 6;

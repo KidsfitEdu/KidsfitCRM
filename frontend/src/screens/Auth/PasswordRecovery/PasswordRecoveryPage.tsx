@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useState, type SyntheticEvent } from 'react';
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
-import { AppBrand } from '@/components/common/app-brand';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Eye, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createApiClient } from '@/services/api.client';
+import { AuthShell } from '@/screens/Auth/AuthShell';
 
 const request = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? '');
 type Step = 'email' | 'otp' | 'password' | 'done';
@@ -92,18 +91,7 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
     done: 'Mật khẩu đã được thay đổi. Hãy đăng nhập lại.',
   };
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#f3f8f3] px-4 py-10 dark:bg-[#0c1810]">
-      <Card className="relative w-full max-w-md rounded-3xl border-[#dfebdf] bg-white p-2 shadow-xl shadow-[#1b5e20]/10 dark:border-[#31523a] dark:bg-[#15271b]">
-        <CardHeader className="items-center space-y-4 pb-3 text-center">
-          <AppBrand />
-          <div className="grid size-14 place-items-center rounded-2xl bg-[#eaf5e9] text-[#1b5e20]" aria-hidden="true">
-            {step === 'email' ? <Mail className="size-7" /> : step === 'otp' ? <ShieldCheck className="size-7" /> :
-              step === 'password' ? <LockKeyhole className="size-7" /> : <CheckCircle2 className="size-7" />}
-          </div>
-          <CardTitle className="text-2xl font-bold text-[#1c492a] dark:text-[#bde4c3]">{titles[step]}</CardTitle>
-          <p className="text-sm text-muted-foreground">{descriptions[step]}</p>
-        </CardHeader>
-        <CardContent>
+    <AuthShell title={titles[step]} description={descriptions[step]}>
           {step === 'email' && <form onSubmit={send} className="space-y-4" noValidate>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="recovery-email">Địa chỉ email</label>
@@ -168,8 +156,6 @@ export function PasswordRecovery({ onClose, initialEmail = '' }: { onClose: () =
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-4" /> Quay lại đăng nhập
           </button>}
-        </CardContent>
-      </Card>
-    </main>
+    </AuthShell>
   );
 }

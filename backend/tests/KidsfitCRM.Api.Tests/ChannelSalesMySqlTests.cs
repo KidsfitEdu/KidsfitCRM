@@ -88,6 +88,12 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
 {
     private static readonly CancellationToken Ct = CancellationToken.None;
     private static HttpContext Http() => new DefaultHttpContext();
+    private static HttpContext AdminContext(long id) => new DefaultHttpContext
+    {
+        User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+            [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, id.ToString())], "TEST"))
+    };
+
     private static string Key() => Guid.NewGuid().ToString("N");
     private static RegisterApproachRequest Approach(string? key = null) => new(
         IdempotencyKey: key ?? Key(), CustomerId: null, CustomerType: "ORGANIZATION", DisplayName: "Đơn vị thử nghiệm có dấu Đặng Ánh",
@@ -1090,4 +1096,107 @@ public sealed class ChannelSalesMySqlTests(ChannelMySqlFixture fixture) : IClass
         var registrationId = await task;
         Assert.Equal(registrationId, await actions.RegisterCustomerApproach(retryRequest, seller, Http(), Ct));
     }
+    [MySqlFact]
+    public async Task KIDSFIT_admin_can_create_director_and_CHECKEE_accounts_without_manual_sql()
+    {
+        var admin = await UserId("admin@kidsfit.vn");
+        var partner = await UserId("partner@kidsfit.vn");
+        await using var db = fixture.Open();
+        var kidsfit = await db.Organizations.SingleAsync(x => x.Code == "KIDSFIT");
+        var checkee = await db.Organizations.SingleAsync(x => x.Code == "CHECKEE");
+        Assert.Equal("VENDOR", checkee.OrganizationType);
+        var action = new ChannelSalesActions(db);
+        var secret = "AccountTest@2026-Temporary";
+        var directorId = await action.CreateSalesAccount(
+            new(kidsfit.Id, "BGĐ mới", Key() + "@example.test", secret, "DIRECTOR"),
+            admin, new PasswordHasher<User>(), Http(), Ct);
+        var checkeeId = await action.CreateSalesAccount(
+            new(checkee.Id, "CHECKEE mới", Key() + "@example.test", secret, "CHECKEE"),
+            admin, new PasswordHasher<User>(), Http(), Ct);
+
+        foreach (var (id, role, organizationId) in new[] {
+            (directorId,"DIRECTOR",kidsfit.Id), (checkeeId,"CHECKEE",checkee.Id)
+        })
+        {
+            var user = await db.Users.SingleAsync(u => u.Id == id);
+            Assert.NotEqual(secret, user.Password);
+            Assert.NotEqual(PasswordVerificationResult.Failed, new PasswordHasher<User>()
+                .VerifyHashedPassword(user, user.Password, secret));
+            var code = await (from ur in db.UserRoles join r in db.Roles on ur.RoleId equals r.Id
+                              where ur.UserId == id select r.Code).SingleAsync();
+            Assert.Equal(role, code);
+            var membership = await db.OrganizationMemberships.SingleAsync(m => m.UserId == id);
+            Assert.Equal(role, membership.MembershipType);
+            Assert.Equal(organizationId, membership.OrganizationId);
+            Assert.Null(membership.ManagerUserId);
+        }
+
+        // New identities must also receive the normal role permission bundles after login.
+        var directorAccess = await ChannelSalesAccess.Load(db, directorId, Ct);
+        var checkeeAccess = await ChannelSalesAccess.Load(db, checkeeId, Ct);
+        Assert.True(directorAccess.Has(Permissions.ChannelSalesAllScope));
+        Assert.True(checkeeAccess.Has(Permissions.ChannelSalesReconcile));
+        Assert.True(checkeeAccess.Has(Permissions.SchoolTechnicalSupportHandle));
+        Assert.True(checkeeAccess.InOrganization(checkee.Id));
+        Assert.False(checkeeAccess.Has(Permissions.ChannelSalesIdentityManage));
+
+        // Duplicate email must fail atomically without adding a second user or membership.
+        var directorEmail = await db.Users.Where(x => x.Id == directorId).Select(x => x.Email).SingleAsync(Ct);
+        await using (var duplicateDb = fixture.Open())
+        {
+            await Assert.ThrowsAsync<ApiConflictException>(() =>
+                new ChannelSalesActions(duplicateDb).CreateSalesAccount(
+                    new(kidsfit.Id, "Trùng email", directorEmail, secret, "DIRECTOR"),
+                    admin, new PasswordHasher<User>(), Http(), Ct));
+        }
+        Assert.Equal(1, await db.Users.CountAsync(x => x.Email == directorEmail, Ct));
+
+        await Assert.ThrowsAsync<ApiConflictException>(() => action.CreateSalesAccount(
+            new(checkee.Id, "Sai tổ chức", Key() + "@example.test", secret, "DIRECTOR"),
+            admin, new PasswordHasher<User>(), Http(), Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => action.CreateSalesAccount(
+            new(kidsfit.Id, "Sai vai trò", Key() + "@example.test", secret, "CHECKEE"),
+            admin, new PasswordHasher<User>(), Http(), Ct));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => action.CreateSalesAccount(
+            new(kidsfit.Id, "Vượt quyền", Key() + "@example.test", secret, "DIRECTOR"),
+            partner, new PasswordHasher<User>(), Http(), Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => action.CreateSalesAccount(
+            new(kidsfit.Id, "Không cấp ADMIN", Key() + "@example.test", secret, "ADMIN"),
+            admin, new PasswordHasher<User>(), Http(), Ct));
+    }
+
+    [MySqlFact]
+    public async Task Admin_can_edit_director_and_CHECKEE_profiles_without_changing_roles()
+    {
+        var admin = await UserId("admin@kidsfit.vn");
+        var director = await UserId("board@kidsfit.vn");
+        var checkee = await UserId("checkee@kidsfit.vn");
+        await using var db = fixture.Open();
+        var directorMembership = await db.OrganizationMemberships
+            .Where(m => m.UserId == director).Select(m => m.Id).SingleAsync();
+        var checkeeMembership = await db.OrganizationMemberships
+            .Where(m => m.UserId == checkee).Select(m => m.Id).SingleAsync();
+
+        await AdminPersonnelEndpoints.UpdateMember(directorMembership,
+            new UpdateAdminMemberRequest("BGĐ chỉnh sửa", "0900000001", "DIRECTOR", null),
+            AdminContext(admin), db, Ct);
+        await AdminPersonnelEndpoints.UpdateMember(checkeeMembership,
+            new UpdateAdminMemberRequest("CHECKEE chỉnh sửa", "0900000002", "CHECKEE", null),
+            AdminContext(admin), db, Ct);
+        Assert.Equal("BGĐ chỉnh sửa", (await db.Users.SingleAsync(u => u.Id == director)).Name);
+        Assert.Equal("0900000001", (await db.Users.SingleAsync(u => u.Id == director)).Phone);
+        Assert.Equal("CHECKEE chỉnh sửa", (await db.Users.SingleAsync(u => u.Id == checkee)).Name);
+
+        await Assert.ThrowsAsync<ApiConflictException>(() => AdminPersonnelEndpoints.UpdateMember(
+            directorMembership,new("Không đổi role",null,"SALES",null),AdminContext(admin),db,Ct));
+        await Assert.ThrowsAsync<ApiConflictException>(() => AdminPersonnelEndpoints.UpdateMember(
+            checkeeMembership,new("Không đổi role",null,"SALES",null),AdminContext(admin),db,Ct));
+        foreach (var (userId, expected) in new[] {(director,"DIRECTOR"),(checkee,"CHECKEE")})
+        {
+            var role = await (from ur in db.UserRoles join r in db.Roles on ur.RoleId equals r.Id
+                where ur.UserId == userId select r.Code).SingleAsync();
+            Assert.Equal(expected, role);
+        }
+    }
+
 }

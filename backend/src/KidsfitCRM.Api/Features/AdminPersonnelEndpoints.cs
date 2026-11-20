@@ -46,8 +46,8 @@ public static class AdminPersonnelEndpoints
         if (phone?.Length > 40) throw ApiValidationException.For("phone", "Số điện thoại tối đa 40 ký tự.");
         if (phone is { Length: 0 }) phone = null;
         var code = Validation.Required(request.RoleCode, "role_code", "Chọn vai trò.", 32).ToUpperInvariant();
-        if (code is not ("SALES" or "SALES_MANAGER" or "ACCOUNTANT" or "CUSTOMER_SERVICE" or "CHECKEE"))
-            throw ApiValidationException.For("role_code", "Không thể cấp vai trò Admin/BGĐ hoặc vai trò hệ thống tại đây.");
+        if (code is not ("SALES" or "SALES_MANAGER" or "ACCOUNTANT" or "CUSTOMER_SERVICE" or "CHECKEE" or "DIRECTOR"))
+            throw ApiValidationException.For("role_code", "Vai trò không được hỗ trợ.");
 
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         var membership = await db.OrganizationMemberships.FromSqlInterpolated($"SELECT * FROM organization_memberships WHERE id = {id} FOR UPDATE")
@@ -59,12 +59,29 @@ public static class AdminPersonnelEndpoints
             join role in db.Roles on link.RoleId equals role.Id
             where link.UserId == user.Id
             select new { link.RoleId, role.Code }).ToArrayAsync(ct);
-        if (currentRoles.Length != 1 || currentRoles[0].Code is "ADMIN" or "DIRECTOR" or "BOARD")
-            throw new ApiConflictException("Tài khoản có vai trò đặc quyền hoặc nhiều vai trò; cần quy trình phân quyền riêng.");
+        if (currentRoles.Length != 1 || currentRoles[0].Code is "ADMIN" or "BOARD")
+            throw new ApiConflictException("Không chỉnh sửa tài khoản Admin hoặc tài khoản nhiều vai trò ở đây.");
         var organization = await db.Organizations.SingleAsync(x => x.Id == membership.OrganizationId, ct);
-        if ((code == "CHECKEE") != (organization.OrganizationType == "CHECKEE"))
-            throw new ApiConflictException("Vai trò CHECKEE phải thuộc tổ chức CHECKEE; không cấp chéo phạm vi.");
         var oldRole = currentRoles[0].Code;
+        if (oldRole == "DIRECTOR")
+        {
+            // Profile-only edit for the KIDSFIT director; never convert a privileged
+            // account through the ordinary role-change form.
+            if (code != "DIRECTOR" || organization.Code != "KIDSFIT")
+                throw new ApiConflictException("Không thay đổi vai trò BGĐ qua form nhân sự.");
+            if (!await db.UserRoles.AnyAsync(x => x.UserId == actor
+                && db.Roles.Any(r => r.Id == x.RoleId && r.Code == "ADMIN"), ct))
+                throw new KeyNotFoundException();
+        }
+        else if (code == "DIRECTOR")
+            throw new ApiConflictException("Không nâng quyền tài khoản hiện có thành BGĐ.");
+        if ((code == "CHECKEE") != (organization.Code == "CHECKEE"))
+            throw new ApiConflictException("Vai trò CHECKEE phải thuộc tổ chức CHECKEE.");
+        if (code is "ACCOUNTANT" or "CUSTOMER_SERVICE" && organization.Code != "KIDSFIT")
+            throw new ApiConflictException("Vai trò nội bộ chỉ thuộc KIDSFIT.");
+        if (organization.Code != "KIDSFIT" && organization.Code != "CHECKEE"
+            && code is not ("SALES" or "SALES_MANAGER"))
+            throw new ApiConflictException("Đối tác chỉ được có Sales/CTV và Quản lý bán hàng.");
         if (oldRole == "SALES_MANAGER" && code != oldRole &&
             await db.OrganizationMemberships.AnyAsync(x => x.ManagerUserId == user.Id && x.Status == "ACTIVE", ct))
             throw new ApiConflictException("Cần đổi Quản lý trực tiếp của các thành viên trong đội trước khi đổi vai trò.");

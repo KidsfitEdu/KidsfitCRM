@@ -478,9 +478,11 @@ public static class ChannelSalesOperationsEndpoints
         {
             team,
             organizations = await organizations.OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.Name, x.OrganizationType, x.Status }).ToArrayAsync(ct),
-            roles = await db.Roles.Where(x => access.Has(Permissions.ChannelSalesIdentityManage)
-                ? new[] { "SALES", "SALES_MANAGER", "ACCOUNTANT", "CUSTOMER_SERVICE", "CHECKEE" }.Contains(x.Code)
-                : x.Code == "SALES").Select(x => new { x.Code, x.Name }).ToArrayAsync(ct),
+            roles = await db.Roles.Where(x => access.All && access.Has(Permissions.ChannelSalesIdentityManage)
+                ? new[] { "SALES", "SALES_MANAGER", "ACCOUNTANT", "CUSTOMER_SERVICE", "CHECKEE", "DIRECTOR" }.Contains(x.Code)
+                : access.Has(Permissions.ChannelSalesIdentityManage)
+                    ? new[] { "SALES", "SALES_MANAGER" }.Contains(x.Code)
+                    : x.Code == "SALES").Select(x => new { x.Code, x.Name }).ToArrayAsync(ct),
         });
     }
 }

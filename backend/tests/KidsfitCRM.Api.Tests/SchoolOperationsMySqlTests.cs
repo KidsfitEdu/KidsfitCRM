@@ -1332,7 +1332,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Contains("Admin cập nhật thông tin nhân sự.", (await db.AuditLogs
             .Where(x => x.Action == "UPDATE_ADMIN_PERSONNEL" && x.EntityId == scenario.Peer.UserId)
             .OrderByDescending(x => x.Id).Select(x => x.NewValues).FirstAsync(Ct)) ?? "");
-        await Assert.ThrowsAsync<ApiValidationException>(() =>
+        await Assert.ThrowsAsync<ApiConflictException>(() =>
             AdminPersonnelEndpoints.UpdateMember(scenario.Peer.MembershipId,
                 new("Nhân sự cập nhật", null, "DIRECTOR", "Không được cấp đặc quyền"),
                 Http(actor), db, Ct));

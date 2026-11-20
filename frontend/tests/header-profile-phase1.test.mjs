@@ -13,7 +13,7 @@ test('header avatar opens a keyboard-accessible menu with read-only personal dra
   assert.match(header, /<UserProfileMenu user=\{profile\} dark=\{dark\} setDark=\{setDark\} onLogout=\{onLogout\} isAdmin=\{isAdmin\}[\s\S]{0,160}apiBase=\{apiBase\} token=\{token\} avatarUrl=\{avatarUrl\} onAvatarChanged=\{onAvatarChanged\}/);
   assert.match(menu, /aria-label="Mở menu tài khoản"/);
   assert.match(menu, /<PopoverTrigger render=/);
-  assert.match(menu, /<AppDrawer open=\{profileOpen\} onOpenChange=\{setProfileOpen\} title="Hồ sơ cá nhân"/);
+  assert.match(menu, /<AppDrawer open=\{profileOpen\} onOpenChange=\{open => \{if\(!open\)requestProfileCancel\(true\);\}\} title="Hồ sơ cá nhân"/);
   assert.match(menu, /setMenuOpen\(false\);setProfileOpen\(true\)/);
   for (const label of ['Họ và tên','Số điện thoại','Email','Mã nhân sự','Tổ chức','Vai trò']) {
     assert.ok(menu.includes(label), 'Profile detail missing: '+label);
@@ -31,7 +31,9 @@ test('profile only reflects authenticated /me data and does not allow role editi
   assert.match(app, /request<\{ user: CurrentUserProfile & \{ abilities: string\[\] \} \}>\('\/me', accessToken\)/);
   assert.match(app, /setProfile\(\{id:me.user.id, code:me.user.code, name:me.user.name, email:me.user.email, phone:me.user.phone/);
   assert.match(menu, /membershipLabels: Record<string, string>/);
-  assert.doesNotMatch(menu, /\/users\/|\/profile\/update|PATCH|PUT/);
+  assert.match(menu, /createApiClient\\(apiBase\\)<\\{user:CurrentUserProfile\\}>\\('\\/me', token/);
+  assert.match(menu, /method: 'PATCH'/);
+  assert.doesNotMatch(menu, /\\/users\\/|\\/profile\\/update|method: 'PUT'/);
 });
 
 test('menu reuses theme switching and logout clears cached profile', () => {

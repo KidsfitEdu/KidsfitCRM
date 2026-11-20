@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { AppProviders } from '@/providers/AppProviders';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import type { CurrentUserProfile } from '@/components/layout/UserProfileMenu';
 import { LoginPage } from '@/screens/Auth/Login/LoginPage';
 import { PageLoading, AppRequestErrorState } from '@/components/common/app-loading';
 import { ChannelSalesView } from '@/components/crm/channel-sales-view';
@@ -47,6 +48,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   const [connectionMessage, setConnectionMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState('CRM');
+  const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [membershipType, setMembershipType] = useState<string | null>(null);
   const [abilities, setAbilities] = useState<string[]>([]);
@@ -72,7 +74,8 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
 
   const loadWorkspace = useCallback(async (accessToken: string) => {
     if (!apiBase || !accessToken) return;
-    const me = await request<{ user: { name: string; abilities: string[]; organization_name?: string | null; membership_type?: string | null } }>('/me', accessToken);
+    const me = await request<{ user: CurrentUserProfile & { abilities: string[] } }>('/me', accessToken);
+    setProfile({id:me.user.id, code:me.user.code, name:me.user.name, email:me.user.email, phone:me.user.phone, organization_name:me.user.organization_name, membership_type:me.user.membership_type});
     setUserName(me.user.name);
     setAbilities(me.user.abilities);
     setOrganizationName(me.user.organization_name ?? null);
@@ -116,6 +119,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
       if (!active) return;
       if (cause instanceof ApiRequestError && cause.status === 401) {
         window.sessionStorage.removeItem('kidsfit_token');
+        setProfile(null);
         setToken('');
         setSessionStatus('idle');
         setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
@@ -147,6 +151,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
   const logout = async () => {
     if (token) await request('/logout', token, { method: 'POST' }).catch(() => undefined);
     sessionStorage.removeItem('kidsfit_token');
+    setProfile(null);
     setAbilities([]);
     setToken('');
     setSessionStatus('idle');
@@ -238,7 +243,7 @@ function CrmWorkspace({ initialView }: { initialView?: View }) {
     <AppShell>
       <Sidebar sidebarOpen={sidebarOpen} visibleNav={visibleNav} currentView={currentView} onNavigate={navigate} userName={userName} membershipType={membershipType} organizationName={organizationName} isAdminWorkspace={isAdmin} apiBase={apiBase} onLogout={logout}/>
       <div className={`pb-20 lg:pb-0 transition-[padding] duration-200 motion-reduce:transition-none ${sidebarOpen ? "lg:pl-[248px]" : "lg:pl-[72px]"}`}>
-        <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate}/>
+        <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} todayLabel={todayLabel} userName={userName} search={search} setSearch={setSearch} dark={dark} setDark={setDark} apiBase={apiBase} token={token} onNavigate={navigate} profile={profile} onLogout={logout} isAdmin={isAdmin}/>
         <main className="crm-workspace-content mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div key={currentView} className="crm-page-enter">

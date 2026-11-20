@@ -99,7 +99,7 @@ export function UserProfileMenu({
     if (!name || name.length > 190) {
       setProfileError('Họ và tên phải có từ 1 đến 190 ký tự.'); return;
     }
-    if (phone.length > 40 || (phone && !/^\\+?[0-9][0-9\\s.()-]*$/.test(phone))) {
+    if (phone.length > 40 || (phone && !/^\+?[0-9][0-9\s.()-]*$/.test(phone))) {
       setProfileError('Số điện thoại không đúng định dạng hoặc vượt quá 40 ký tự.'); return;
     }
     if (!profileDirty) { setEditingProfile(false); return; }

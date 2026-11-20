@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Plus, Pencil, LockKeyhole, LockKeyholeOpen, Building2, UsersRound } from 'lucide-react';
+import { Eye, EyeOff, Plus, Pencil, LockKeyhole, LockKeyholeOpen, Building2, UsersRound, ShieldCheck } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { AppSelect } from '@/components/common/app-select';
@@ -34,7 +34,16 @@ const roleNames: Record<string,string> = {
   SALES_MANAGER:'Quản lý bán hàng',CUSTOMER_SERVICE:'Chăm sóc khách hàng',
   SALES:'Sales / CTV',CHECKEE:'Xác minh CHECKEE',
 };
-const editableRoles = ['SALES','SALES_MANAGER','ACCOUNTANT','CUSTOMER_SERVICE','CHECKEE'];
+// Only the seven approved canonical roles are displayed. ADMIN remains bootstrap-only.
+const officialRoles = ['ADMIN','DIRECTOR','ACCOUNTANT','SALES_MANAGER','CUSTOMER_SERVICE','CHECKEE','SALES'] as const;
+const rolesForOrganization = (org:Partner|undefined):string[] => {
+  if(!org)return [];
+  if(org.code==='CHECKEE')return ['CHECKEE'];
+  if(org.code==='KIDSFIT')return ['DIRECTOR','ACCOUNTANT','SALES_MANAGER','CUSTOMER_SERVICE','SALES'];
+  return org.organization_type==='PARTNER'?['SALES_MANAGER','SALES']:[];
+};
+const isProfileOnlyRole = (role:string)=>role==='DIRECTOR'||role==='CHECKEE';
+
 const statusName = (status:string) => status === 'ACTIVE' ? 'Hoạt động' : status === 'SUSPENDED' ? 'Tạm khóa' : status;
 const effectiveStatus = (person:Person,organizations:Partner[]) => {
   if(person.account_status==='SUSPENDED') return {status:'SUSPENDED',label:'Tài khoản bị khóa'};
@@ -52,7 +61,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   const [detail,setDetail] = useState<Person|null>(null);
   const [createOpen,setCreateOpen] = useState(false);
   const [createForm,setCreateForm] = useState(blankCreate);
-  const [showCreatePassword,setShowCreatePassword] = useState(true);
+  const [showCreatePassword,setShowCreatePassword] = useState(false);
   const [edit,setEdit] = useState<Person|null>(null);
   const [editForm,setEditForm] = useState({name:'',phone:'',role_code:'SALES',manager_user_id:''});
   const [partnerDetail,setPartnerDetail] = useState<Partner|null>(null);
@@ -97,6 +106,10 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     String(p.organization_id)===organizationId && p.status==='ACTIVE' &&
     p.account_status!=='SUSPENDED' && ['SALES_MANAGER','PARTNER_ADMIN'].includes(p.membership_type)) ?? [];
   const roleText=(role:string)=>roleNames[role]??management?.roles.find(r=>r.code===role)?.name??role;
+  const organizationFor=(organizationId:string)=>management?.organizations.find(o=>String(o.id)===organizationId);
+  const allowedRoles=(organizationId:string)=>rolesForOrganization(organizationFor(organizationId))
+    .filter(code=>officialRoles.includes(code as typeof officialRoles[number]) && management?.roles.some(r=>r.code===code));
+
 
   const run=async(task:()=>Promise<unknown>,success:string,close:()=>void,operationId?:string)=>{
     setBusy(true);
@@ -133,6 +146,8 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createForm.email.trim()))err.email='Email không hợp lệ.';
     if(createForm.password.length<12)err.password='Mật khẩu ít nhất 12 ký tự.';
     if(!createForm.organization_id)err.organization_id='Chọn tổ chức.';
+    if(!allowedRoles(createForm.organization_id).includes(createForm.role_code))
+      err.role_code='Vai trò không phù hợp với tổ chức.';
     if(createForm.role_code==='SALES' && !createForm.manager_user_id)err.manager_user_id='Chọn Quản lý bán hàng trực tiếp.';
     setErrors(err);if(Object.keys(err).length)return;
     void run(()=>createAdminTeamMember(apiBase,token,{
@@ -143,7 +158,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
   };
   const openEdit=(p:Person)=>{
     setEdit(p);
-    setEditForm({name:p.name,phone:p.phone??'',role_code:editableRoles.includes(p.membership_type)?p.membership_type:'SALES',
+    setEditForm({name:p.name,phone:p.phone??'',role_code:p.membership_type,
       manager_user_id:p.manager_user_id?String(p.manager_user_id):''});
     setErrors({});
   };
@@ -151,6 +166,10 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
     if(!edit)return;
     const err:Record<string,string>={};
     if(!editForm.name.trim())err.name='Cần họ tên.';
+    if(isProfileOnlyRole(edit.membership_type) && editForm.role_code!==edit.membership_type)
+      err.role_code='Không được thay đổi vai trò đặc quyền tại đây.';
+    if(!isProfileOnlyRole(edit.membership_type) && !allowedRoles(String(edit.organization_id)).includes(editForm.role_code))
+      err.role_code='Vai trò không phù hợp với tổ chức.';
     if(editForm.role_code==='SALES' && !editForm.manager_user_id)err.manager_user_id='Chọn Quản lý trực tiếp.';
     setErrors(err);if(Object.keys(err).length)return;
     void run(()=>updateAdminTeamMember(apiBase,token,edit.id,{
@@ -281,7 +300,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       </AdminListPanel>
 
       <AppDialog open={createOpen} onOpenChange={open=>{if(!busy)setCreateOpen(open);}}
-        busy={busy} title="Thêm nhân sự" description="Tạo tài khoản đúng tổ chức và vai trò. Không cấp quyền Admin/BGĐ."
+        busy={busy} title="Thêm nhân sự" description="Tạo tài khoản theo đúng tổ chức và một trong 7 vai trò hệ thống. Vai trò Admin chỉ cấp qua quản trị đặc quyền."
         footer={<FormActions inDialogFooter busy={busy} onCancel={()=>setCreateOpen(false)} onSave={submitCreate} saveLabel="Tạo tài khoản"/>}>
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5 text-sm font-medium">
@@ -300,7 +319,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
             <label htmlFor="admin-new-org">Tổ chức *</label>
             <AppNativeSelect id="admin-new-org" containerClassName="w-full" value={createForm.organization_id}
               onChange={e=>setCreateForm(v=>({...v,organization_id:e.target.value,manager_user_id:'',
-                role_code:management?.organizations.find(o=>String(o.id)===e.target.value)?.organization_type==='CHECKEE'?'CHECKEE':'SALES'}))}>
+                role_code:organizationFor(e.target.value)?.code==='CHECKEE'?'CHECKEE':'SALES'}))}>
               <option value="">Chọn tổ chức</option>
               {management?.organizations.filter(o=>o.status==='ACTIVE').map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
             </AppNativeSelect>
@@ -310,10 +329,9 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
             <label htmlFor="admin-new-role">Vai trò *</label>
             <AppNativeSelect id="admin-new-role" containerClassName="w-full" value={createForm.role_code}
               onChange={e=>setCreateForm(v=>({...v,role_code:e.target.value,manager_user_id:''}))}>
-              {management?.roles.filter(r=>editableRoles.includes(r.code) &&
-                (r.code==='CHECKEE')===(management.organizations.find(o=>String(o.id)===createForm.organization_id)?.organization_type==='CHECKEE'))
-                .map(r=><option key={r.code} value={r.code}>{roleText(r.code)}</option>)}
+              {allowedRoles(createForm.organization_id).map(code=><option key={code} value={code}>{roleText(code)}</option>)}
             </AppNativeSelect>
+            <FormError>{errors.role_code}</FormError>
           </div>
           {createForm.role_code==='SALES' && <div className="min-w-0 space-y-1.5 text-sm font-medium sm:col-span-2">
             <label htmlFor="admin-new-manager">Quản lý bán hàng trực tiếp *</label>
@@ -342,7 +360,9 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
         </div>
       </AppDialog>
       <AppDialog open={edit!==null} onOpenChange={open=>{if(!busy&&!open)setEdit(null);}}
-        busy={busy} title="Chỉnh sửa nhân sự" description="Thay đổi vai trò chỉ áp dụng sau khi backend kiểm tra quyền và dữ liệu bàn giao."
+        busy={busy} title="Chỉnh sửa nhân sự" description={edit&&isProfileOnlyRole(edit.membership_type)
+          ?'Cập nhật thông tin cá nhân; vai trò đặc quyền được giữ nguyên.'
+          :'Thay đổi vai trò phải được Backend kiểm tra quyền và dữ liệu bàn giao.'}
         footer={<FormActions inDialogFooter busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>}>
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5 text-sm font-medium">
@@ -356,12 +376,19 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
           </div>
           <div className="min-w-0 space-y-1.5 text-sm font-medium">
             <label htmlFor="admin-edit-role">Vai trò *</label>
-            <AppNativeSelect id="admin-edit-role" containerClassName="w-full" value={editForm.role_code}
-              onChange={e=>setEditForm(v=>({...v,role_code:e.target.value,manager_user_id:''}))}>
-              {management?.roles.filter(r=>editableRoles.includes(r.code) &&
-                (r.code==='CHECKEE')===(management.organizations.find(o=>o.id===edit?.organization_id)?.organization_type==='CHECKEE'))
-                .map(r=><option key={r.code} value={r.code}>{roleText(r.code)}</option>)}
-            </AppNativeSelect>
+            {edit&&isProfileOnlyRole(edit.membership_type)
+              ?<div className="flex h-11 items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 text-sm text-foreground"
+                  aria-label={'Vai trò hiện tại: '+roleText(editForm.role_code)}>
+                <ShieldCheck aria-hidden="true" className="size-4 text-primary"/>
+                <span className="font-semibold">{roleText(editForm.role_code)}</span>
+                <span className="ml-auto text-xs text-muted-foreground">Chỉ đọc</span>
+              </div>
+              :<AppNativeSelect id="admin-edit-role" containerClassName="w-full" value={editForm.role_code}
+                onChange={e=>setEditForm(v=>({...v,role_code:e.target.value,manager_user_id:''}))}>
+                {allowedRoles(String(edit?.organization_id??'')).filter(code=>code!=='DIRECTOR')
+                  .map(code=><option key={code} value={code}>{roleText(code)}</option>)}
+              </AppNativeSelect>}
+            <FormError>{errors.role_code}</FormError>
           </div>
           {editForm.role_code==='SALES'&&<div className="min-w-0 space-y-1.5 text-sm font-medium">
             <label htmlFor="admin-edit-manager">Quản lý trực tiếp *</label>

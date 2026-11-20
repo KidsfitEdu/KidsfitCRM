@@ -323,7 +323,7 @@ export function UserProfileMenu({
           <DetailField label="Số điện thoại" value={user?.phone}/>
           <div className="sm:col-span-2"><DetailField label="Email" value={user?.email}/></div>
           <DetailField label="Mã nhân sự" value={user?.code}/>
-        </dl>
+        </dl>}
       </section>
       <section className="space-y-4 rounded-2xl border border-border bg-card p-4">
         <h3 className="flex items-center gap-2 text-sm font-bold">

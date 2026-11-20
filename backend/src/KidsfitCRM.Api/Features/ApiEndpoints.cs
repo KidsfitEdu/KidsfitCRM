@@ -10,6 +10,9 @@ public static class ApiEndpoints
     {
         var api = app.MapGroup("/api");
         api.MapPost("/login", AuthFeatures.Login).RequireRateLimiting("login");
+        api.MapPost("/auth/password/forgot", PasswordResetFeatures.Forgot).RequireRateLimiting("password-reset");
+        api.MapPost("/auth/password/verify-otp", PasswordResetFeatures.Verify).RequireRateLimiting("password-reset");
+        api.MapPost("/auth/password/reset", PasswordResetFeatures.Reset).RequireRateLimiting("password-reset");
         var secured = api.MapGroup("").RequireAuthorization();
         secured.MapGet("/me", AuthFeatures.Me);
         secured.MapPost("/logout", AuthFeatures.Logout);

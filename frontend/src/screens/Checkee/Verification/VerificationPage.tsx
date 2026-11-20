@@ -5,11 +5,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { BadgeCheck, Eye, FileText, MessageSquareWarning, ExternalLink } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import {
-  AdminListPanel, AdminListToolbar, AdminIconAction, AdminStatusBadge,
+  AdminListPanel, AdminListToolbar, AdminIconAction,
   adminTableClass, adminTableHeadClass, adminTableCellClass,
 } from '@/components/common/admin-list-ui';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppSelect } from '@/components/common/app-select';
+import { AppStatusBadge } from '@/components/common/app-status-badge';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
@@ -175,15 +176,17 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
               <td className={adminTableCellClass}>{row.sales_name}</td>
               <td className={adminTableCellClass}>{row.contract_code}</td>
               <td className={adminTableCellClass}>{channelDate(row.received_at)}</td>
-              <td className={adminTableCellClass}><AdminStatusBadge status={row.status}
-                label={verificationStatusLabels[row.status] ?? row.status}/></td>
+              <td className={adminTableCellClass}><AppStatusBadge status={row.status}
+                tone={row.status==='CONFIRMED'?'success':row.status==='DISPUTED'?'danger':'warning'}
+                label={verificationStatusLabels[row.status] ?? row.status}
+                size="sm" className="max-w-none whitespace-nowrap [&>span]:whitespace-nowrap"/></td>
               <td className={adminTableCellClass}>
                 <div className="flex items-center justify-center gap-2">
                   <AdminIconAction icon={Eye} label={'Xem hợp đồng ' + row.contract_code}
                     onClick={() => {setActionError('');setSelected(row.id);}}/>
-                  {connected && row.can_verify && <AdminIconAction icon={BadgeCheck}
+                  {connected && row.can_verify && <AdminIconAction icon={BadgeCheck} tone="green"
                     label={'Xác minh hợp lệ ' + row.contract_code} onClick={() => openConfirm(row.id)}/>}
-                  {connected && row.can_feedback && <AdminIconAction icon={MessageSquareWarning} tone="red"
+                  {connected && row.can_feedback && <AdminIconAction icon={MessageSquareWarning} tone="amber"
                     label={'Yêu cầu bổ sung ' + row.contract_code} onClick={() => openFeedback(row.id)}/>}
                 </div>
               </td>
@@ -218,8 +221,9 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
               {[detail.data.school_address,detail.data.school_province].filter(Boolean).join(', ')}
             </p>
             <p className="mt-2">Sales phụ trách: <strong>{detail.data.sales_name}</strong></p>
-            <AdminStatusBadge label={verificationStatusLabels[detail.data.reconciliation_status] ?? detail.data.reconciliation_status}
-              status={detail.data.reconciliation_status}/>
+            <AppStatusBadge label={verificationStatusLabels[detail.data.reconciliation_status] ?? detail.data.reconciliation_status}
+              status={detail.data.reconciliation_status}
+              tone={detail.data.reconciliation_status==='CONFIRMED'?'success':detail.data.reconciliation_status==='DISPUTED'?'danger':'warning'}/>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {[

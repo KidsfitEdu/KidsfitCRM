@@ -15,6 +15,7 @@ public static class ApiEndpoints
         api.MapPost("/auth/password/reset", PasswordResetFeatures.Reset).RequireRateLimiting("password-reset");
         var secured = api.MapGroup("").RequireAuthorization();
         secured.MapGet("/me", AuthFeatures.Me);
+        secured.MapPatch("/me", AuthFeatures.UpdateOwnProfile);
         secured.MapGet("/me/avatar", UserAvatarFeatures.Download);
         secured.MapPost("/me/avatar", UserAvatarFeatures.Upload).RequireRateLimiting("avatar-upload");
         secured.MapDelete("/me/avatar", UserAvatarFeatures.Remove);

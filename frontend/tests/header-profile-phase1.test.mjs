@@ -31,9 +31,9 @@ test('profile only reflects authenticated /me data and does not allow role editi
   assert.match(app, /request<\{ user: CurrentUserProfile & \{ abilities: string\[\] \} \}>\('\/me', accessToken\)/);
   assert.match(app, /setProfile\(\{id:me.user.id, code:me.user.code, name:me.user.name, email:me.user.email, phone:me.user.phone/);
   assert.match(menu, /membershipLabels: Record<string, string>/);
-  assert.match(menu, /createApiClient\\(apiBase\\)<\\{user:CurrentUserProfile\\}>\\('\\/me', token/);
+  assert.ok(menu.includes("createApiClient(apiBase)<{user:CurrentUserProfile}>('/me', token"));
   assert.match(menu, /method: 'PATCH'/);
-  assert.doesNotMatch(menu, /\\/users\\/|\\/profile\\/update|method: 'PUT'/);
+  assert.doesNotMatch(menu, /\/users\/|\/profile\/update|method: 'PUT'/);
 });
 
 test('menu reuses theme switching and logout clears cached profile', () => {

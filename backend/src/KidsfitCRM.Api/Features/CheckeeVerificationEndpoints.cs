@@ -13,6 +13,8 @@ internal static class CheckeeVerificationEndpoints
     internal static void Map(RouteGroupBuilder group)
     {
         group.MapGet("/checkee/verifications", List).RequireAuthorization(Permissions.ChannelSalesReconcile);
+        // Authenticated users may hold either CHECKEE verification or technical support privilege.
+        group.MapGet("/checkee/dashboard/report", DashboardReport).RequireAuthorization();
         group.MapGet("/checkee/verifications/{id:long}", Detail).RequireAuthorization(Permissions.ChannelSalesReconcile);
     }
 
@@ -27,6 +29,84 @@ internal static class CheckeeVerificationEndpoints
                     (c.ManagerReviewedAt != null
                      && c.Status != "PENDING_REVIEW"
                      && c.Status != "NEEDS_REVISION"))));
+    }
+
+    /// <summary>
+    /// Scoped CHECKEE operational dashboard. Each section requires its own permission.
+    /// Six historical local months use actual forwarding/confirmation events, not the current status.
+    /// </summary>
+    internal static async Task<IResult> DashboardReport(HttpContext http, KidsfitDbContext db,
+        string? period, CancellationToken ct)
+    {
+        var access = await ChannelSalesAccess.Load(db, http.UserId(), ct);
+        var canVerify = access.Has(Permissions.ChannelSalesReconcile);
+        var canSupport = access.Has(Permissions.SchoolTechnicalSupportHandle);
+        if (!canVerify && !canSupport) return Results.Forbid();
+
+        var selectedPeriod = period ?? DateTime.UtcNow.AddHours(7)
+            .ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+        if (!System.Text.RegularExpressions.Regex.IsMatch(selectedPeriod, @"^20\d{2}-(0[1-9]|1[0-2])$"))
+            throw ApiValidationException.For("period", "Kỳ báo cáo phải có dạng YYYY-MM.");
+        var month = DateTime.ParseExact(selectedPeriod + "-01", "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        object? verification = null;
+        object? support = null;
+        var months = Enumerable.Range(0, 6).Select(i => month.AddMonths(i - 5)).ToArray();
+        var trend = new List<object>(6);
+
+        if (canVerify)
+        {
+            var scoped = Scope(db, access);
+            verification = new
+            {
+                pending = await scoped.CountAsync(r => r.Status == "PENDING", ct),
+                feedback = await scoped.CountAsync(r => r.Status == "DISPUTED", ct),
+                confirmed = await scoped.CountAsync(r => r.Status == "CONFIRMED", ct)
+            };
+            foreach (var periodMonth in months)
+            {
+                // Reports are Vietnam-local calendar months, expressed as UTC boundaries.
+                var from = DateTime.SpecifyKind(periodMonth.AddHours(-7), DateTimeKind.Utc);
+                var until = DateTime.SpecifyKind(periodMonth.AddMonths(1).AddHours(-7), DateTimeKind.Utc);
+                var received = await db.ReconciliationEvents.AsNoTracking()
+                    .Where(e => e.EventType == "MANAGER_FORWARDED" && e.CreatedAt >= from && e.CreatedAt < until
+                        && scoped.Any(r => r.Id == e.ReconciliationCaseId))
+                    .Select(e => e.ReconciliationCaseId).Distinct().CountAsync(ct);
+                var confirmed = await db.ReconciliationEvents.AsNoTracking()
+                    .Where(e => e.EventType == "CONFIRMED" && e.CreatedAt >= from && e.CreatedAt < until
+                        && scoped.Any(r => r.Id == e.ReconciliationCaseId))
+                    .Select(e => e.ReconciliationCaseId).Distinct().CountAsync(ct);
+                trend.Add(new
+                {
+                    period = periodMonth.ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture),
+                    received, confirmed
+                });
+            }
+        }
+
+        if (canSupport)
+        {
+            var tickets = db.CustomerSupportCases.AsNoTracking()
+                .Where(t => t.TicketType == "SYSTEM_ERROR"
+                    && t.CheckeeOrganizationId.HasValue
+                    && access.OrganizationIds.Contains(t.CheckeeOrganizationId.Value)
+                    && t.ForwardedAt.HasValue);
+            support = new
+            {
+                unresponded = await tickets.CountAsync(t => t.Status != "RESOLVED" && !t.CheckeeRespondedAt.HasValue, ct),
+                awaiting_care = await tickets.CountAsync(t => t.Status != "RESOLVED" && t.CheckeeRespondedAt.HasValue, ct),
+                closed = await tickets.CountAsync(t => t.Status == "RESOLVED", ct)
+            };
+        }
+
+        return Results.Ok(new
+        {
+            period = selectedPeriod,
+            verification,
+            technical_support = support,
+            verification_trend = canVerify ? trend : null
+        });
     }
 
     internal static async Task<IResult> List(HttpContext http, KidsfitDbContext db,

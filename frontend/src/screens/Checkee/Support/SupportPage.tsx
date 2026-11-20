@@ -4,8 +4,10 @@ import {useState} from 'react';
 import {useQuery,useQueryClient} from '@tanstack/react-query';
 import {Eye} from 'lucide-react';
 import {AppPageHeader} from '@/components/common/app-page-header';
-import {AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminTableClass,adminTableHeadClass,adminTableCellClass} from '@/components/common/admin-list-ui';
+import {AdminListPanel,AdminListToolbar,AdminIconAction,adminTableClass,adminTableHeadClass,adminTableCellClass} from '@/components/common/admin-list-ui';
 import {AppPagination} from '@/components/common/app-pagination';
+import {AppSelect} from '@/components/common/app-select';
+import {AppStatusBadge} from '@/components/common/app-status-badge';
 import {AppDrawer} from '@/components/common/drawers/app-drawer';
 import {AppButton} from '@/components/common/buttons/app-button';
 import {channelRequest,channelDate} from '@/lib/channel-operations';
@@ -51,12 +53,12 @@ export function SupportPage({apiBase,token,abilities,onChanged}:RolePageProps){
         onSearch={()=>{setSearch(draft.trim());setPage(1);}}
         onReset={()=>{setDraft('');setSearch('');setStatus('ALL');setPage(1);}}
         placeholder="Tên trường, nội dung lỗi..." searchLabel="Tìm lỗi phần mềm"
-        filters={<select aria-label="Trạng thái ticket kỹ thuật" className="h-11 rounded-xl border bg-background px-3"
-          value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}>
-          <option value="ALL">Tất cả trạng thái</option><option value="OPEN">Mới nhận</option>
-          <option value="IN_PROGRESS">Đang xử lý</option><option value="RESOLVED">CSKH đã đóng</option>
-        </select>}/>
-      <div className="overflow-x-auto"><table className={adminTableClass}>
+        filters={<AppSelect ariaLabel="Trạng thái ticket kỹ thuật" value={status}
+          onValueChange={next=>{setStatus(next);setPage(1);}} className="w-full sm:w-[210px]"
+          options={[{value:'ALL',label:'Tất cả trạng thái'},{value:'OPEN',label:'Mới nhận'},
+            {value:'IN_PROGRESS',label:'Đang xử lý'},{value:'RESOLVED',label:'CSKH đã đóng'}]}/>}/>
+      <div className="overflow-x-auto"><table className={adminTableClass+' min-w-[900px] table-fixed'}>
+        <colgroup><col style={{width:'23%'}}/><col style={{width:'31%'}}/><col style={{width:'16%'}}/><col style={{width:'20%'}}/><col style={{width:'10%'}}/></colgroup>
         <thead className={adminTableHeadClass}><tr>
           <th className={adminTableCellClass}>Trường</th><th className={adminTableCellClass}>Lỗi phần mềm</th>
           <th className={adminTableCellClass}>Ngày chuyển</th><th className={adminTableCellClass}>Trạng thái</th>
@@ -65,9 +67,11 @@ export function SupportPage({apiBase,token,abilities,onChanged}:RolePageProps){
         <tbody>{query.data?.data.map(x=><tr key={x.id} className="border-b even:bg-muted/20">
           <td className={adminTableCellClass}>{x.school_name}</td><td className={adminTableCellClass}>{x.subject}</td>
           <td className={adminTableCellClass}>{channelDate(x.forwarded_at)}</td>
-          <td className={adminTableCellClass}><AdminStatusBadge status={x.status} label={x.status==='RESOLVED'
-            ?'CSKH đã đóng':x.checkee_responded_at?'Đã phản hồi kỹ thuật':x.status==='OPEN'?'Mới nhận':'Đang xử lý'}/></td>
-          <td className={adminTableCellClass}><AdminIconAction icon={Eye} label={'Xem ticket '+x.id}
+          <td className={adminTableCellClass}><AppStatusBadge status={x.status}
+            tone={x.status==='RESOLVED'?'success':x.checkee_responded_at?'warning':x.status==='OPEN'?'neutral':'info'}
+            label={x.status==='RESOLVED'?'CSKH đã đóng':x.checkee_responded_at?'Chờ CSKH xác nhận':x.status==='OPEN'?'Mới nhận':'Đang xử lý'}
+            size="sm" className="max-w-none whitespace-nowrap [&>span]:whitespace-nowrap"/></td>
+          <td className={adminTableCellClass+' text-center'}><AdminIconAction icon={Eye} label={'Xem ticket '+x.id}
             onClick={()=>{setSelected(x);setNote('');setTechnicalStatus('IN_PROGRESS');setError('');}}/></td>
         </tr>)}</tbody>
       </table></div>

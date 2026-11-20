@@ -91,7 +91,14 @@ export function PasswordRecovery({ onClose, onSuccess, initialEmail = '' }: { on
     password: 'Thiết lập mật khẩu mới để bảo vệ tài khoản.',
   };
   return (
-    <AuthShell title={titles[step]} description={descriptions[step]}>
+    <AuthShell title={titles[step]} description={descriptions[step]}
+      headerAction={
+        <button type="button" onClick={onClose} disabled={busy}
+          aria-label="Quay lại đăng nhập" title="Quay lại đăng nhập"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1b5e20] disabled:cursor-not-allowed disabled:opacity-50">
+          <ArrowLeft aria-hidden="true" className="size-5" />
+        </button>
+      }>
           {step === 'email' && <form onSubmit={send} className="space-y-4" noValidate>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="recovery-email">Địa chỉ email</label>
@@ -184,10 +191,6 @@ export function PasswordRecovery({ onClose, onSuccess, initialEmail = '' }: { on
               <KeyRound className="mr-2 size-4" />{busy ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}
             </Button>
           </form>}
-          <button type="button" onClick={onClose}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-4" /> Quay lại đăng nhập
-          </button>
     </AuthShell>
   );
 }

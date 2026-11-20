@@ -30,7 +30,7 @@ return <>
         </nav>
         <div className={`mb-5 flex shrink-0 items-center gap-3 rounded-xl p-2 ${sidebarOpen ? "mx-4" : "mx-2 flex-col"}`}>
           <div title={!sidebarOpen ? userName : undefined} aria-label={userName} className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffcf9f] to-[#f4978e] text-xs font-bold text-[#633b38]">
-            {avatarUrl ? <img src={avatarUrl} alt="" className="size-full rounded-full object-cover"/> : initials(userName)}
+            {avatarUrl ? <span aria-hidden="true" className="block size-full rounded-full bg-cover bg-center" style={{ backgroundImage: `url("${avatarUrl}")` }}/> : initials(userName)}
           </div>
           {sidebarOpen && <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{userName}</p>

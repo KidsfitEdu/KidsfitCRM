@@ -24,11 +24,11 @@ test('Accounting contract and payout lists share rounded cards, action icons and
   assert.match(s, /<thead className=\{adminTableHeadClass\}>/);
   assert.match(s, /<AppPageHeader eyebrow="KẾ TOÁN \/ KIDSFIT CRM"/);
   assert.doesNotMatch(s, /ariaLabel="Lọc trạng thái khoản thu"/);
-  assert.match(s, /ariaLabel="Lọc năm nhận tiền"/);
+  assert.match(s, /<AppMonthPicker label="Tháng lập phiếu"/);
   assert.match(s, /tone="blue" label=\{'Sửa phiếu chi '/);
   const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
   assert.ok(tree.includes('<AdminIconAction icon={Eye}'));
-  assert.match(s, /<AppStatusBadge size="sm" status=\{p\.status\}/);
+  assert.match(s, /<AppStatusBadge\b[\s\S]{0,180}?size="sm"[\s\S]{0,180}?status=\{p\.status\}/);
   assert.match(s, /<item\.icon className="size-4 shrink-0"/);
   assert.match(s, /\[scrollbar-width:none\]/);
 });

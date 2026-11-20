@@ -124,6 +124,13 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
             AutoReplenishment = true,
         }));
+    options.AddPolicy("avatar-upload", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10, Window = TimeSpan.FromHours(1), QueueLimit = 0,
+            AutoReplenishment = true,
+        }));
     options.AddFixedWindowLimiter("login", limiter =>
     {
         limiter.PermitLimit = 6;

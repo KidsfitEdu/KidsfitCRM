@@ -25,7 +25,7 @@ test('All statuses label is concise, with complete payout lifecycle options',()=
   for(const value of ['DRAFT','PENDING_APPROVAL','CHANGES_REQUESTED','APPROVED','PAID','CANCELLED','REJECTED'])
     assert.ok(part.includes("value:'"+value+"'"),value);
   assert.match(part,/payoutStatusLabel\(p.status\)/);
-  assert.match(part,/<AppStatusBadge\b[^>]*size="sm"[^>]*status=\{p.status\}/);
+  assert.match(part,/<AppStatusBadge\b[\s\S]{0,180}?size="sm"[\s\S]{0,180}?status=\{p.status\}/);
   assert.match(part,/channelDate\(p.created_at\)/);
   assert.match(part,/channelDate\(p.paid_at\)/);
   assert.match(part,/AppMonthPicker/);

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createApiClient } from '@/services/api.client';
 import { AuthShell } from '@/screens/Auth/AuthShell';
+import { appNotice } from '@/components/common/app-toast-provider';
 
 const request = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? '');
 type Step = 'email' | 'otp' | 'password';
@@ -36,16 +37,31 @@ export function PasswordRecovery({ onClose, onSuccess, initialEmail = '' }: { on
   const send = async (event?: SyntheticEvent) => {
     event?.preventDefault();
     if (busy) return;
+    const isResend = step === 'otp';
+    if (isResend && (remaining > 0 || resendAfter > Date.now())) return;
     if (!emailValid(email)) { setError('Vui lòng nhập địa chỉ email hợp lệ.'); return; }
     setBusy(true); setError('');
     try {
       await request('/auth/password/forgot', undefined, {
         method: 'POST', body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
-      setOtp(''); setTicket('');
-      setResendAfter(Date.now() + 60_000); setStep('otp');
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể gửi yêu cầu. Vui lòng thử lại.'); }
-    finally { setBusy(false); }
+      // The public API deliberately does not reveal whether this email exists or SMTP delivered it.
+      // On resend preserve the previous OTP while the request is being processed and afterwards.
+      if (!isResend) {
+        setOtp(''); setTicket('');
+        setStep('otp');
+      } else {
+        appNotice.info('Đã tiếp nhận yêu cầu gửi lại mã', 'Nếu tài khoản đủ điều kiện, hãy kiểm tra hộp thư và thư rác.');
+      }
+      // A 200 is only a generic acknowledgement. Hold a consistent public cooldown
+      // regardless of account status to avoid disclosing account existence or email limits.
+      setResendAfter(Date.now() + 60_000);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Không thể gửi yêu cầu. Vui lòng thử lại.';
+      setError(message);
+      if (isResend) appNotice.warning('Chưa thể gửi lại yêu cầu', message);
+      // Do not clear OTP or restart the timer when the request fails (network/429/5xx).
+    } finally { setBusy(false); }
   };
 
   const verify = async (event: SyntheticEvent) => {

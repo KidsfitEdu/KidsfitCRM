@@ -225,9 +225,6 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
   const openContract=(id:number,renewalId:number|null=null)=>{
     setFocusedRenewal(null);setSelectedPeriodId(renewalId);setSelected(id);
   };
-  const openRenewal=(contractId:number,renewalId:number,action:'view'|'confirm'|'request-info')=>{
-    setSelectedPeriodId(renewalId);setFocusedRenewal({id:renewalId,action});setSelected(contractId);
-  };
   const [detail, setDetail] = useState<Detail | null>(null);
   const [giHistory,setGiHistory]=useState<{status:string;gap_start_on:string;threshold_on:string;processed_at:string;reason:string}[]>([]);
   const [detailRevision, setDetailRevision] = useState(0);
@@ -1012,11 +1009,7 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
         {Array.from({length:6},(_,index)=><AppSkeleton key={index} className="h-11 w-full"/>)}
       </output>:<AccountingContractTreeTable key={[appliedSearch,appliedServiceFrom,appliedServiceTo,needsAction,page].join(':')}
         rows={rows} fromDate={appliedServiceFrom} toDate={appliedServiceTo} needsAction={needsAction!=='ALL'}
-        canConfirm={abilities.includes('channel_sales.renewal.confirm')||abilities.includes('*')}
-        canRequestInfo={abilities.includes('channel_sales.renewal.review')||abilities.includes('*')}
-        onView={(contractId,renewalId)=>openContract(contractId,renewalId)}
-        onReview={(contractId,renewalId)=>openRenewal(contractId,renewalId,'confirm')}
-        onRequestInfo={(contractId,renewalId)=>openRenewal(contractId,renewalId,'request-info')}/>}
+        onView={(contractId,renewalId)=>openContract(contractId,renewalId)}/>}
       {!busy && rows.length===0 && <p className="p-10 text-center text-sm text-muted-foreground">Không có hợp đồng phù hợp. Hãy thử bộ lọc khác.</p>}
       <AppPagination page={page} pageSize={pageSize} total={total} itemLabel="hợp đồng"
         disabled={busy} showSummary={false} pageSizeOptions={[20,50,100]}

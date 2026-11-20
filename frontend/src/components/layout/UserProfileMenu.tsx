@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Building2, ChevronRight, ContactRound, LockKeyhole, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
@@ -63,8 +63,7 @@ export function UserProfileMenu({
     setPasswordOpen(false); setCurrentPassword(''); setNewPassword('');
     setConfirmPassword(''); setPasswordError('');
   };
-  const changePassword = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const changePassword = async () => {
     setPasswordError('');
     if (newPassword.length < 12 || newPassword.length > 200) {
       setPasswordError('Mật khẩu mới phải từ 12 đến 200 ký tự.'); return;
@@ -134,7 +133,7 @@ export function UserProfileMenu({
         <AppButton type="button" tone="neutral" disabled={savingPassword} onClick={closePassword}>Hủy</AppButton>
         <AppButton type="submit" form="account-change-password" busy={savingPassword}>Cập nhật mật khẩu</AppButton>
       </div>}>
-      <form id="account-change-password" onSubmit={event => void changePassword(event)} className="space-y-4" noValidate>
+      <form id="account-change-password" onSubmit={event => {event.preventDefault();void changePassword();}} className="space-y-4" noValidate>
         <p className="text-sm text-muted-foreground">Nhập mật khẩu hiện tại để bảo vệ tài khoản. Sau khi đổi thành công, bạn cần đăng nhập lại.</p>
         {[
           {id:'current-password',label:'Mật khẩu hiện tại',value:currentPassword,change:setCurrentPassword,auto:'current-password'},

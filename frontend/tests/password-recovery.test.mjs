@@ -68,3 +68,14 @@ test('global toast provider covers unauthenticated Login route', () => {
   assert.match(toastProvider, /success\(title: string, description\?: string\)/);
   assert.match(login, /import \{ appNotice \} from '@\/components\/common\/app-toast-provider'/);
 });
+
+test('recovery header has accessible back icon while login has no back action', () => {
+  assert.match(authShell, /headerAction\?: ReactNode/);
+  assert.match(authShell, /\{headerAction\}/);
+  assert.match(recovery, /headerAction=\{/);
+  assert.match(recovery, /aria-label="Quay lại đăng nhập"/);
+  assert.match(recovery, /<ArrowLeft aria-hidden="true"/);
+  assert.match(recovery, /onClick=\{onClose\} disabled=\{busy\}/);
+  assert.doesNotMatch(recovery, /mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-2/);
+  assert.doesNotMatch(login, /headerAction=/);
+});

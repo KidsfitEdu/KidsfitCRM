@@ -300,7 +300,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
       </AdminListPanel>
 
       <AppDialog open={createOpen} onOpenChange={open=>{if(!busy)setCreateOpen(open);}}
-        busy={busy} title="Thêm nhân sự" description="Tạo tài khoản theo đúng tổ chức và một trong 7 vai trò hệ thống. Vai trò Admin chỉ cấp qua quản trị đặc quyền."
+        busy={busy} title="Thêm nhân sự"
         footer={<FormActions inDialogFooter busy={busy} onCancel={()=>setCreateOpen(false)} onSave={submitCreate} saveLabel="Tạo tài khoản"/>}>
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5 text-sm font-medium">
@@ -360,9 +360,7 @@ export function PersonnelPage({apiBase,token,abilities}:AdminPageProps) {
         </div>
       </AppDialog>
       <AppDialog open={edit!==null} onOpenChange={open=>{if(!busy&&!open)setEdit(null);}}
-        busy={busy} title="Chỉnh sửa nhân sự" description={edit&&isProfileOnlyRole(edit.membership_type)
-          ?'Cập nhật thông tin cá nhân; vai trò đặc quyền được giữ nguyên.'
-          :'Thay đổi vai trò phải được Backend kiểm tra quyền và dữ liệu bàn giao.'}
+        busy={busy} title="Chỉnh sửa nhân sự"
         footer={<FormActions inDialogFooter busy={busy} onCancel={()=>setEdit(null)} onSave={submitEdit} saveLabel="Lưu thay đổi"/>}>
         <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5 text-sm font-medium">

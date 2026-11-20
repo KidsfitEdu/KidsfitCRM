@@ -28,8 +28,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
-      - run: npm run test:unit
-      - run: npm run build
+      - id: frontend_build
+        run: npm run build
       - name: Verify vinext dev discovers src/app routes
         run: |
           set -euo pipefail
@@ -58,6 +58,8 @@ jobs:
           test -s /tmp/kidsfit-dev-root.html
           test -s /tmp/kidsfit-dev-schools.html
       - run: npm run test:pages
+      - run: npm run test:unit
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' }}
 
   windows-route-smoke:
     runs-on: windows-latest

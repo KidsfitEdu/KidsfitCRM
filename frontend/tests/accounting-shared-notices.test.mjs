@@ -45,7 +45,8 @@ test('Accounting form suppresses browser validation and reports empty input erro
   assert.match(ui, /if \(!\(proof instanceof File\) \|\| proof\.size === 0\) validation\.proof/);
   assert.match(ui, /fieldErrors\.amount && <p role="alert"/);
   assert.match(ui, /fieldErrors\.reference_code && <p role="alert"/);
-  assert.match(ui, /fieldErrors\.proof && <p role="alert"/);
+  assert.match(ui, /error=\{fieldErrors\.proof\}/);
+  assert.match(ui, /onFileSelected=\{\(\)=>setFieldErrors\(/);
   assert.match(ui, /delete updated\[name\]/);
 });
 

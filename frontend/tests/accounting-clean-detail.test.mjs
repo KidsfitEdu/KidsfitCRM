@@ -45,8 +45,14 @@ test('Currency inputs and evidence preview retain their behavior',()=>{
   assert.match(page,/Number\.isSafeInteger\(amount\)/);
   assert.match(input,/inputMode="numeric"/);
   assert.ok(page.includes('<EvidencePreviewDialog preview={preview} onClose={closePreview}'));
-  for(const item of ['Thu nhỏ ảnh','Phóng to ảnh','Vừa khung hình','Đóng xem chứng từ'])assert.ok(viewer.includes(item));
-  assert.match(viewer,/onWheel=\{onWheelZoom\}/);
+  // The approved viewer shows an image at its natural ratio, without zoom/pan controls.
+  assert.match(viewer, /max-h-\[80dvh\]/);
+  assert.match(viewer, /object-contain/);
+  assert.match(viewer, /aria-label="Đóng xem chứng từ"/);
+  assert.match(viewer, /aria-label="Tải chứng từ"/);
+  assert.match(viewer, /application\/pdf/);
+  assert.match(viewer, /Định dạng này chưa hỗ trợ xem trực tiếp/);
+  assert.doesNotMatch(viewer, /Phóng to ảnh|Thu nhỏ ảnh|Vừa khung hình|onWheelZoom|setPointerCapture/);
 });
 
 test('Contract files, review reasons and audit events remain accessible',()=>{

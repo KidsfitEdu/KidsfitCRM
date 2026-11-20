@@ -129,7 +129,7 @@ test('Sales actions and footer pagination remain accessible and scoped', () => {
   assert.ok(sales.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
   assert.ok(sales.includes('aria-label={`Báo hợp đồng ${customer.display_name}`}'));
   // Shared icon actions generate aria-label from the supplied Vietnamese label.
-  assert.ok(dashboard.includes('label={`Mở ${item.label}`}'));
+  assert.ok(dashboard.includes("label={'Mở '+task.label}"));
   const sharedActions = read('src/components/common/admin-list-ui.tsx');
   assert.match(sharedActions, /aria-label=\{label\}/);
   assert.ok(operations.includes('Nhận trường ${x.school_name}'));
@@ -199,7 +199,8 @@ test('Sales contract report does not ask for a contract code', () => {
   const form = view.slice(start, end);
   assert.doesNotMatch(form, /name="contract_code"|contract_code: text\(form/);
   assert.match(form, /name="contract_file"/);
-  assert.match(form, /label="Gửi Quản lý duyệt"/);
+  assert.match(form, /form="sales-contract-report-form" tone="green" busy=\{saving\}/);
+  assert.match(form, /Gửi Quản lý duyệt/);
   const model = read('src/lib/channel-sales.ts');
   const payload = model.slice(model.indexOf('export type ReportContractInput ='), model.indexOf('export type RevenueReceiptInput ='));
   assert.doesNotMatch(payload, /contract_code:/);
@@ -276,7 +277,8 @@ test('Sales contract errors appear only in shared toast and duplicate report ope
   const contract = source.slice(contractStart, contractEnd);
   assert.match(contract, /appNotice\.error\('Không thể gửi hợp đồng đến Quản lý\.'/);
   assert.doesNotMatch(contract, /setError\(message\)/);
-  assert.match(contract, /<DialogFooter saving=\{saving\} error="" onClose=\{onClose\} label="Gửi Quản lý duyệt"\/>/);
+  assert.match(contract, /<AppButton type="submit" form="sales-contract-report-form" tone="green" busy=\{saving\}/);
+  assert.match(contract, /Gửi Quản lý duyệt/);
   assert.match(contract, /latest\.contracts\.length > 0/);
   assert.match(source, /const openContractReport = async/);
   assert.match(source, /profile\.contracts\.length > 0/);
@@ -313,7 +315,7 @@ test('Contract reporting and revisions share one validator and retain existing s
   assert.match(validator, /const digits = \/\^\\d\+\$\//);
   assert.match(validator, /existingEvidence: boolean/);
   assert.match(sales, /const issues = validateContract\(/);
-  assert.match(sales, /<form onSubmit=\{submit\} noValidate>/);
+  assert.match(sales, /<form id="sales-contract-report-form" onSubmit=\{submit\} noValidate>/);
   assert.match(editor, /const issues = validateContract\(/);
   assert.match(editor, /fileInputRef\.current\?\.click\(\)/);
   assert.match(editor, /aria-label="Thay thế file hợp đồng"/);

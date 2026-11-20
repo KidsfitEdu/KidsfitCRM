@@ -19,7 +19,7 @@ test('Receipt option is compact, keyboard accessible and shows school, code and 
   assert.match(picker,/role="combobox" aria-autocomplete="list"/);
   assert.match(picker,/role="listbox"/);
   assert.match(picker,/role="option"/);
-  assert.match(picker,/event\.key==='Enter'/);
+  assert.match(picker,/e\.key==='Enter'/);
   assert.match(picker,/e\.key==='Escape'/);
   assert.match(picker,/min-h-10 w-full items-center gap-2/);
   assert.match(picker,/min-w-0 flex-1 truncate font-medium/);

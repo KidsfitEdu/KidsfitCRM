@@ -10,13 +10,13 @@ const profileSections = {
   Admin: ['Dashboard','Schools','Proposals','Personnel','Capacities','Policies','Reports','CareAssignments'],
   SalesManager: ['Dashboard','Proposals','Allocations','Progress','Contracts','Extensions','Team'],
   SalesStaff: ['Dashboard','Schools','Customers','Activities','Proposals','Income'],
-  Board: ['Dashboard','Progress','Overdue','Disputes','Policies'],
+  Board: ['Dashboard','Progress','Overdue','Policies'],
   Accounting: ['Dashboard','Revenue'],
   CustomerCare: ['Dashboard','Cases','Customers'],
   Checkee: ['Dashboard','Verification','Support'],
 };
 
-test('All 34 canonical role pages exist and are compiled from src/screens', () => {
+test('All 33 canonical role pages exist and are compiled from src/screens', () => {
   let total = 0;
   for (const [profile, screens] of Object.entries(profileSections)) {
     for (const screen of screens) {
@@ -29,7 +29,7 @@ test('All 34 canonical role pages exist and are compiled from src/screens', () =
       total += 1;
     }
   }
-  assert.equal(total, 34);
+  assert.equal(total, 33);
 });
 
 test('Active navigation targets match role page registry and preserve aliases', () => {
@@ -37,9 +37,12 @@ test('Active navigation targets match role page registry and preserve aliases', 
   const config = read('src/config/role-pages.ts');
   const known = [...nav.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]);
   // Includes the Sales Manager income route added alongside its role page.
-  assert.equal(known.length, 43, 'Expected 43 registered navigation entries including aliases');
+  assert.equal(known.length, 41, 'Expected 41 active navigation entries');
   assert.equal(new Set(known).size, known.length, 'Menu IDs must be unique');
   assert.ok(known.includes('manager-income'), 'Navigation missing: manager-income');
+  assert.ok(!known.includes('role-board-disputes'), 'Board disputes must remain a legacy alias, not an active menu');
+  const routes = read('src/config/routes.ts');
+  assert.match(routes, /view === 'role-board-disputes'/);
   assert.ok(config.includes('income:'), 'Manager income page config missing');
   for (const [profile, screens] of Object.entries(profileSections)) {
     if(profile === 'Admin') continue;
@@ -65,7 +68,7 @@ test('CHECKEE has verification and separate technical support menus', () => {
   assert.match(page, /<ConfirmDialog/);
   assert.match(page, /<AppPagination/);
   assert.match(page, /\/checkee\/verifications/);
-  assert.match(dashboard, /\/checkee\/verifications\?page=1&page_size=1/);
+  assert.match(dashboard, /\/checkee\/dashboard\/report\?period=/);
 });
 
 test('No obsolete workspace compatibility imports remain in CrmApp', () => {

@@ -289,26 +289,30 @@ body { font-family: var(--font-brand); }
   --sidebar-border: rgba(255,255,255,.12); --sidebar-ring: #a5d6a7;
 }
 .dark {
-  --background: #0e1912; --foreground: #f2f9f2;
-  --card: #17291c; --card-foreground: #f2f9f2;
-  --popover: #17291c; --popover-foreground: #f2f9f2;
-  --primary: #81c784; --primary-foreground: #09220d;
-  --secondary: #23412a; --secondary-foreground: #e1f4e2;
-  --muted: #213428; --muted-foreground: #b5c5b8;
-  --accent: #24432b; --accent-foreground: #dbf7df;
-  --destructive: #fda4af; --border: #3c5142; --input: #496250;
-  --ring: #a5d6a7;
-  --chart-1: #81c784; --chart-2: #4caf50; --chart-3: #ffb74d;
-  --chart-4: #38bdf8; --chart-5: #d8a0c5;
-  --sidebar: #0a1c10; --sidebar-foreground: #f2f9f2;
-  --sidebar-primary: #81c784; --sidebar-primary-foreground: #09220d;
-  --sidebar-accent: #1c3b23; --sidebar-accent-foreground: #f2f9f2;
-  --sidebar-border: rgba(255,255,255,.12); --sidebar-ring: #81c784;
+  /* Modern Dark: neutral charcoal surfaces and restrained emerald hierarchy. */
+  --background: #101715; --foreground: #f1f5f2;
+  --card: #1b2421; --card-foreground: #f1f5f2;
+  --popover: #202a25; --popover-foreground: #f1f5f2;
+  --primary: #78c79a; --primary-foreground: #0b2015;
+  --secondary: #26352e; --secondary-foreground: #e3efe6;
+  --muted: #26312c; --muted-foreground: #a9b9ae;
+  --accent: #30453a; --accent-foreground: #f1f5f2;
+  --destructive: #fda4af; --border: #34433b; --input: #41554a;
+  --ring: #8bd7aa;
+  --chart-1: #78c79a; --chart-2: #49b9a3; --chart-3: #ffbb68;
+  --chart-4: #76c8ee; --chart-5: #d4a3d8;
+  --sidebar: #10291d; --sidebar-foreground: #f1f5f2;
+  --sidebar-primary: #78c79a; --sidebar-primary-foreground: #10291d;
+  --sidebar-accent: #264935; --sidebar-accent-foreground: #f1f5f2;
+  --sidebar-border: rgba(255,255,255,.11); --sidebar-ring: #8bd7aa;
+  --shadow: 0 16px 38px rgba(0,0,0,.14);
+  --deep: #10291d;
 }
 .crm-brand-sidebar {
   background: linear-gradient(180deg, var(--deep), #164529 65%, #12321f);
 }
-.dark .crm-brand-sidebar { background: linear-gradient(180deg,#091d10,#12331e); }
+.dark .crm-brand-sidebar { background: linear-gradient(180deg,#10291d,#0d2419); }
+.dark .crm-brand-menu-active { background: #264935; box-shadow: inset 3px 0 0 #78c79a; color: #f1f5f2; }
 .crm-brand-menu-active { background: rgba(165,214,167,.16); box-shadow: inset 3px 0 0 #81c784; color: #fff; }
 .crm-brand-surface { box-shadow: var(--shadow); }
 .crm-brand-button { box-shadow: 0 3px 9px rgba(14,42,26,.09); }
@@ -327,6 +331,10 @@ body { font-family: var(--font-brand); }
 .crm-workspace-content table:not(.crm-school-table) thead {
   background: #1b5e20;
   color: #fff;
+}
+/* Keep the emerald table head distinct from charcoal rows only in dark mode. */
+.dark .crm-workspace-content table:not(.crm-school-table) thead {
+  background: #234d35;
 }
 .crm-workspace-content table:not(.crm-school-table) thead th {
   padding: 0.9rem 1rem;
@@ -347,6 +355,15 @@ body { font-family: var(--font-brand); }
 }
 .crm-workspace-content table:not(.crm-school-table) tbody tr:hover {
   background: var(--accent);
+}
+.dark .crm-workspace-content table:not(.crm-school-table) tbody tr:hover {
+  background: #30453a;
+}
+.dark .crm-workspace-content table:not(.crm-school-table) tbody tr:nth-child(even) {
+  background-color: rgb(255 255 255 / 2%);
+}
+.dark .crm-workspace-content table:not(.crm-school-table) tbody tr:nth-child(even):hover {
+  background-color: #30453a;
 }
 .crm-workspace-content :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
   border-radius: 0.75rem;

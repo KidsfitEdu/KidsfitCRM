@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+const read=p=>readFileSync(resolve(import.meta.dirname,'..',p),'utf8');
+const support=read('src/screens/Checkee/Support/SupportPage.tsx');
+const verify=read('src/screens/Checkee/Verification/VerificationPage.tsx');
+const dashboard=read('src/screens/Checkee/Dashboard/DashboardPage.tsx');
+const api=read('../backend/src/KidsfitCRM.Api/Features/CheckeeVerificationEndpoints.cs');
+test('CHECKEE technical filter uses shared AppSelect with stable server enum and paging',()=>{
+  assert.match(support,/filters=\{<AppSelect/);
+  assert.doesNotMatch(support,/filters=\{<select/);
+  assert.match(support,/onValueChange=\{next=>\{setStatus\(next\);setPage\(1\);\}\}/);
+  for(const state of ['ALL','OPEN','IN_PROGRESS','RESOLVED'])assert.match(support,new RegExp("value:'"+state+"'"));
+});
+test('CHECKEE verification and support show semantic badge tones, distinct workflow status',()=>{
+  assert.match(support,/AppStatusBadge status=\{x.status\}/);
+  assert.match(support,/x.checkee_responded_at\?'warning'/);
+  assert.match(support,/x.status==='RESOLVED'\?'CSKH đã đóng'/);
+  assert.match(support,/x.checkee_responded_at\?'Chờ CSKH xác nhận'/);
+  assert.match(verify,/AppStatusBadge status=\{row.status\}/);
+  assert.match(verify,/tone="amber"/);
+  assert.match(verify,/tone="green"/);
+  assert.match(verify,/DISPUTED: 'Đã phản hồi \/ Cần bổ sung'/);
+  assert.match(verify,/kind: 'confirm' \| 'dispute'/);
+});
+test('CHECKEE dashboard has exactly five cards and real six-month and status charts',()=>{
+  assert.equal((dashboard.match(/\{label:'/g)??[]).length,5);
+  assert.match(dashboard,/AppMonthPicker/);
+  assert.match(dashboard,/allowAll=\{false\}/);
+  assert.match(dashboard,/\/checkee\/dashboard\/report\?period=/);
+  assert.match(dashboard,/<LineChart/);
+  assert.match(dashboard,/<PieChart/);
+  assert.match(dashboard,/report.refetch\(\)/);
+  assert.match(dashboard,/queryKey:\['checkee-dashboard-report',apiBase,token,period\]/);
+});
+test('CHECKEE report scopes both datasets to organization and separately checks permissions',()=>{
+  assert.match(api,/MapGet\("\/checkee\/dashboard\/report", DashboardReport\)\.RequireAuthorization\(\)/);
+  const report=api.slice(api.indexOf('internal static async Task<IResult> DashboardReport('),api.indexOf('internal static async Task<IResult> List('));
+  assert.match(report,/ChannelSalesAccess.Load\(db, http.UserId\(\), ct\)/);
+  assert.match(report,/access.Has\(Permissions.ChannelSalesReconcile\)/);
+  assert.match(report,/access.Has\(Permissions.SchoolTechnicalSupportHandle\)/);
+  assert.match(report,/Scope\(db, access\)/);
+  assert.match(report,/access.OrganizationIds.Contains\(t.CheckeeOrganizationId.Value\)/);
+  assert.match(report,/ReconciliationEvents.AsNoTracking\(\)/);
+  assert.match(report,/EventType == "MANAGER_FORWARDED"/);
+  assert.match(report,/EventType == "CONFIRMED"/);
+  assert.match(report,/Select\(e => e.ReconciliationCaseId\).Distinct\(\).CountAsync\(ct\)/);
+  assert.match(report,/CheckeeRespondedAt.HasValue/);
+  assert.match(report,/DateTime.SpecifyKind\(periodMonth.AddHours\(-7\), DateTimeKind.Utc\)/);
+  assert.doesNotMatch(report,/\.Take\(/);
+});

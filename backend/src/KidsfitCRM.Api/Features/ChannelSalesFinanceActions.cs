@@ -338,9 +338,31 @@ public sealed partial class ChannelSalesActions
         if (!allowed.Contains(roleCode)) throw ApiValidationException.For("role_code", "Vai trò không được hỗ trợ.");
         if (!access.Has(Permissions.ChannelSalesIdentityManage) && roleCode != "SALES")
             throw new KeyNotFoundException();
-        if (roleCode is "ADMIN" or "DIRECTOR") throw new ApiConflictException("Không cấp vai trò Admin/BGĐ qua chức năng quản lý nhân sự thông thường.");
-        if ((roleCode == "CHECKEE") != (targetOrganization.OrganizationType == "CHECKEE") && roleCode == "CHECKEE")
-            throw new ApiConflictException("Chỉ có thể tạo vai trò CHECKEE trong tổ chức CHECKEE.");
+        // ADMIN is provisioned only through bootstrap/privileged identity procedures.
+        if (roleCode == "ADMIN")
+            throw new ApiConflictException("Không cấp tài khoản Admin qua chức năng quản lý nhân sự.");
+        // Creating privileged identities must require the actual KIDSFIT ADMIN role,
+        // not merely a claimed role_code or a broadly assigned team permission.
+        if (roleCode is "DIRECTOR" or "CHECKEE")
+        {
+            if (!access.All || !access.Has(Permissions.ChannelSalesIdentityManage)
+                || !await db.UserRoles.AnyAsync(x => x.UserId == actorId &&
+                    db.Roles.Any(r => r.Id == x.RoleId && r.Code == "ADMIN"), ct)
+                || !await db.OrganizationMemberships.AnyAsync(x => x.UserId == actorId
+                    && x.Status == "ACTIVE" && db.Organizations.Any(o => o.Id == x.OrganizationId
+                        && o.Code == "KIDSFIT" && o.Status == "ACTIVE"), ct))
+                throw new KeyNotFoundException();
+        }
+        // The seeded CHECKEE organization has type VENDOR. Use its immutable code
+        // rather than incorrectly expecting an organization_type named CHECKEE.
+        if ((roleCode == "CHECKEE") != (targetOrganization.Code == "CHECKEE"))
+            throw new ApiConflictException("Vai trò CHECKEE chỉ thuộc tổ chức CHECKEE.");
+        if (roleCode is "DIRECTOR" or "ACCOUNTANT" or "CUSTOMER_SERVICE"
+            && targetOrganization.Code != "KIDSFIT")
+            throw new ApiConflictException("Vai trò nội bộ chỉ thuộc tổ chức KIDSFIT.");
+        if (targetOrganization.Code != "KIDSFIT" && targetOrganization.Code != "CHECKEE"
+            && roleCode is not ("SALES" or "SALES_MANAGER"))
+            throw new ApiConflictException("Đối tác chỉ được cấp tài khoản Sales/CTV và Quản lý bán hàng.");
         long? managerId = null;
         if (roleCode == "SALES")
         {
@@ -357,7 +379,7 @@ public sealed partial class ChannelSalesActions
                 x.UserId == managerId.Value && x.OrganizationId == request.OrganizationId && x.Status == "ACTIVE" &&
                 (x.MembershipType == "SALES_MANAGER" || x.MembershipType == "PARTNER_ADMIN"), ct))
                 throw ApiValidationException.For("manager_user_id", "Quản lý bán hàng không thuộc tổ chức hoặc đã ngưng hoạt động.");
-            if (!managerId.HasValue && await db.Organizations.AnyAsync(x => x.Id == request.OrganizationId && x.OrganizationType != "CHECKEE", ct))
+            if (!managerId.HasValue && targetOrganization.Code != "CHECKEE")
                 throw ApiValidationException.For("manager_user_id", "Cần chọn Quản lý bán hàng trực tiếp cùng tổ chức.");
         }
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Code == roleCode, ct) ?? throw new KeyNotFoundException();

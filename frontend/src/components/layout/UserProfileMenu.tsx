@@ -150,7 +150,11 @@ export function UserProfileMenu({
     let changed = false;
     try {
       await createApiClient(apiBase)('/me/change-password', token, {
-        method: 'POST', body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+        method: 'POST', body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
       });
       changed = true;
     } catch (error) {

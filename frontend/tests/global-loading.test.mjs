@@ -63,7 +63,7 @@ test('desktop sidebar collapses to an icon rail and preserves mobile navigation'
   assert.match(header, /lg:inline-flex/);
   assert.doesNotMatch(sidebar, /onClick=\{onToggle\}/);
   assert.match(sidebar, /aria-label=\{item.label\}/);
-  assert.match(sidebar, /mobilePrimary = visibleNav\.slice\(0, 4\)/);
+  assert.match(sidebar, /mobilePrimary = visibleNav\.slice\(0, 3\)/);
   assert.match(sidebar, /mobileOverflow\.length > 0 && <AppDialog/);
   assert.match(sidebar, /aria-current=\{currentView === item.id \? 'page' : undefined\}/);
   assert.match(sidebar, /title=\{!sidebarOpen \? item.label : undefined\}/);

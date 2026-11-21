@@ -28,7 +28,8 @@ export function Sidebar({ sidebarOpen, visibleNav, currentView, onNavigate, user
   const [moreOpen, setMoreOpen] = useState(false);
   const mobilePrimary = visibleNav.slice(0, 3);
   const mobileOverflow = visibleNav.slice(3);
-  const moreActive = mobileOverflow.some(item => item.id === currentView);
+  const selectedOverflow = mobileOverflow.find(item => item.id === currentView);
+  const moreActive = Boolean(selectedOverflow);
   useEffect(() => { setMoreOpen(false); }, [currentView]);
 
   const navigate = (view: View) => {
@@ -89,7 +90,7 @@ export function Sidebar({ sidebarOpen, visibleNav, currentView, onNavigate, user
         title="Thêm chức năng"
         className={`crm-mobile-dock-item flex h-12 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#a5d6a7] ${moreActive ? 'flex-[1.85] bg-[#168355] text-white' : 'flex-1 text-[#d2e2d5] hover:bg-white/10'}`}>
         <Ellipsis aria-hidden="true" className="size-[18px] shrink-0" />
-        {moreActive && <span className="min-w-0 truncate whitespace-nowrap">Thêm</span>}
+        {moreActive && <span className="min-w-0 truncate whitespace-nowrap">{selectedOverflow?.shortLabel}</span>}
       </button>}
     </nav>
     {mobileOverflow.length > 0 && <AppDialog open={moreOpen} onOpenChange={setMoreOpen}

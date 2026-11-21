@@ -34,7 +34,7 @@
 - RBAC server + tenant/ownership scope cho từng endpoint, kể cả aggregation.
 - Transaction, audit, idempotency, concurrency; tránh logic trong UI; không tin dữ liệu client.
 - MySQL 8.4/InnoDB/utf8mb4; migrations additive, dữ liệu tồn tại và quan hệ PK/FK an toàn.
-- Không chạy `--migrate`, `--seed-demo`, `start-local.ps1`, compose/mysqldump trên DB có dữ liệu thật khi chưa có phê duyệt và backup rõ ràng.
+- Không chạy `--migrate`, `--seed-initial`, `start-local.ps1`, compose/mysqldump trên DB có dữ liệu thật khi chưa có phê duyệt và backup rõ ràng.
 
 **KIDSFIT-specific:**
 - KC-02: hợp đồng gốc khác hồ sơ tái ký; một hợp đồng gốc có nhiều kỳ; kế toán duyệt hồ sơ tái ký theo quyền.

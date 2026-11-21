@@ -20,7 +20,7 @@
 - Sales submits signed annual renewal to Accounting; Accounting can **confirm**, **request information**, or **reject** under server permission and scoped contract.
 - On confirmation, new **service period** joins chronological timeline. Retain original contract and all previous renewals. Display each original contract **once** in the main Accounting table. Present all yearly renewals inside its detailed Drawer, including pending/confirmed/rejected/needs-information records.
 - A period confirmed for the future is not already active today; preserving gaps and end dates matters for GI-01.
-- Payment by month/year is a **payment cycle**, not a reason to duplicate the original contract or grant five-year ownership. The 30% rate decision does not approve live payout arithmetic.
+- Payment by month/year is a **payment cycle**, not a reason to duplicate the original contract or grant five-year ownership. D-17 now governs future eligible-receipt accrual at the BGĐ policy default of 25% Sales + 5% Manager (subject to versioned overrides); D-18 governs shared payout approval. Historical Sales-only 30% entries must remain frozen.
 
 ## Five-year Sales protection and recent code
 

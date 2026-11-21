@@ -56,13 +56,15 @@ test('desktop sidebar collapses to an icon rail and preserves mobile navigation'
   assert.match(shell, /localStorage\.setItem/);
   assert.match(shell, /onToggleSidebar=\{toggleSidebar\}/);
   assert.match(shell, /sidebarOpen \? "lg:pl-\[248px\]" : "lg:pl-\[72px\]"/);
-  assert.match(sidebar, /sidebarOpen \? "w-\[248px\]" : "w-\[72px\]"/);
+  assert.match(sidebar, /sidebarOpen \? 'w-\[248px\]' : 'w-\[72px\]'/);
   assert.match(sidebar, /compact=\{!sidebarOpen\}/);
   assert.match(header, /aria-label=\{sidebarOpen \? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'\}/);
   assert.match(header, /aria-controls="crm-desktop-navigation"/);
   assert.match(header, /lg:inline-flex/);
   assert.doesNotMatch(sidebar, /onClick=\{onToggle\}/);
   assert.match(sidebar, /aria-label=\{item.label\}/);
+  assert.match(sidebar, /mobilePrimary = visibleNav\.slice\(0, 3\)/);
+  assert.match(sidebar, /mobileOverflow\.length > 0 && <AppDialog/);
   assert.match(sidebar, /aria-current=\{currentView === item.id \? 'page' : undefined\}/);
   assert.match(sidebar, /title=\{!sidebarOpen \? item.label : undefined\}/);
   assert.match(sidebar, /aria-label="Điều hướng di động"/);

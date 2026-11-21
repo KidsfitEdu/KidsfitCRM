@@ -59,6 +59,7 @@ export function Header({
   onProfileUpdated: (profile: CurrentUserProfile) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const measure = () => {
@@ -120,7 +121,7 @@ export function Header({
     }
   };
 
-  return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/70 bg-card/90 px-4 py-3 backdrop-blur-xl sm:pl-4 sm:pr-7">
+  return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-2 border-b border-border/70 bg-card/95 px-3 py-3 backdrop-blur-xl sm:gap-3 sm:px-6">
     <div className="flex min-w-0 items-center gap-3">
       <Button type="button" variant="outline" size="icon" onClick={onToggleSidebar}
         aria-label={sidebarOpen ? 'Thu gọn thanh điều hướng' : 'Mở rộng thanh điều hướng'}
@@ -131,14 +132,23 @@ export function Header({
       </Button>
       <div className="min-w-0">
       <p className="text-xs font-medium text-muted-foreground">{todayLabel}</p>
-      <h1 className="mt-1 text-lg font-bold tracking-[-0.03em] sm:text-xl">Chào buổi sáng, {userName}</h1>
+      <h1 className="mt-0.5 max-w-[38vw] truncate text-base font-bold tracking-tight text-foreground sm:max-w-none sm:text-xl" title={userName}>Xin chào, {userName}</h1>
       </div>
     </div>
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+      <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+        <PopoverTrigger render={<Button variant="outline" size="icon" aria-label="Mở tìm kiếm" className="rounded-xl xl:hidden" />}>
+          <Search aria-hidden="true" className="size-4" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[min(90vw,360px)] p-3">
+          <label htmlFor="crm-mobile-search" className="mb-2 block text-xs font-semibold text-muted-foreground">Tìm kiếm nhanh</label>
+          <Input id="crm-mobile-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm kiếm nhanh…" />
+        </PopoverContent>
+      </Popover>
       <div className="relative hidden xl:block">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input value={search} onChange={event => setSearch(event.target.value)}
-          className="h-10 w-64 rounded-xl bg-card pl-9" placeholder="Tìm kiếm nhanh…" />
+          aria-label="Tìm kiếm nhanh" className="h-10 w-64 rounded-xl bg-card pl-9" placeholder="Tìm kiếm nhanh…" />
       </div>
       <Button onClick={() => setDark(value => !value)} variant="outline" size="icon"
         aria-label="Đổi giao diện" className="rounded-xl">{dark ? <Sun /> : <Moon />}</Button>

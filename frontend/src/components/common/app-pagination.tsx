@@ -36,7 +36,7 @@ export function AppPagination({ page, pageSize, total, itemLabel = 'bản ghi', 
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
   return (
-    <nav aria-label="Phân trang danh sách" className="flex flex-col gap-3 border-t border-border/80 bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <nav aria-label="Phân trang danh sách" className="flex min-w-0 flex-col gap-3 border-t border-border/80 bg-card px-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div className="flex flex-wrap items-center gap-3">
         {showSummary && <span className="text-sm text-muted-foreground" aria-live="polite">
           Hiển thị {total > 0 ? `${start}–${end}` : '0'} / {total} {itemLabel}
@@ -50,8 +50,8 @@ export function AppPagination({ page, pageSize, total, itemLabel = 'bản ghi', 
             onValueChange={next => onPageSizeChange(Number(next))}/>
         </div>}
       </div>
-      <div className="flex items-center justify-end">
-        <div className="flex flex-wrap items-center justify-end gap-1" aria-label="Chọn trang">
+      <div className="flex min-w-0 items-center justify-start overflow-x-auto pb-1 sm:justify-end">
+        <div className="flex flex-nowrap items-center justify-end gap-1" aria-label="Chọn trang">
           <AppButton tone="outline" size="sm" className="h-9 min-w-9 rounded-lg px-2" aria-label="Trang trước" disabled={disabled || page <= 1}
             leadingIcon={<ChevronLeft className="size-4"/>} onClick={() => onPageChange(page - 1)}>Trước</AppButton>
           {paginationNumbers(page,pages).map((item,index) => item === 'ellipsis'

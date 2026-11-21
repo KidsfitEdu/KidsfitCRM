@@ -11,16 +11,16 @@ type AuthShellProps = {
 
 export function AuthShell({ title, description, children, headerAction }: AuthShellProps) {
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#101a2b] p-5">
-      <div aria-hidden="true" className="pointer-events-none absolute -left-32 -top-32 size-96 rounded-full bg-primary/30 blur-3xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-[#35b79b]/20 blur-3xl" />
-      <Card className="relative w-full max-w-md border-white/10 bg-white/[.96] p-3 shadow-2xl dark:bg-[#1b2940]">
+    <main className="relative grid min-h-dvh place-items-center overflow-hidden bg-[#0e2a1a] p-4 py-10 sm:p-6">
+      <div aria-hidden="true" className="pointer-events-none absolute -left-32 -top-32 size-96 rounded-full bg-[#81c784]/20 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -right-24 size-[28rem] rounded-full bg-[#4caf50]/15 blur-3xl" />
+      <Card className="relative w-full max-w-md rounded-3xl border-border/40 bg-card p-3 shadow-[0_28px_90px_rgba(0,0,0,.24)] sm:p-5">
         <CardHeader>
           <div className="mb-5 flex items-center justify-between gap-3">
             <AppBrand />
             {headerAction}
           </div>
-          <CardTitle className="text-2xl">{title}</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">{title}</CardTitle>
           <p className="text-sm text-muted-foreground">{description}</p>
         </CardHeader>
         <CardContent>{children}</CardContent>

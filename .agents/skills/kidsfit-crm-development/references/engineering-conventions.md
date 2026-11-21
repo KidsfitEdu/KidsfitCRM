@@ -1,6 +1,6 @@
 # KidsfitCRM engineering conventions
 
-Use these conventions when implementing or reviewing the education-center CRM. Existing project configuration wins where it has already made a deliberate choice.
+Use these conventions when implementing or reviewing the current KIDSFIT/CHECKEE school-sales CRM. Historical education-center patterns only apply when an explicitly retained code path requires them; they do not define the seven-role product baseline. Current source and approved business decisions override older examples.
 
 ## Contents
 

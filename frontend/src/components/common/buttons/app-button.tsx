@@ -28,7 +28,7 @@ export function AppButton({ tone = 'green', busy = false, leadingIcon, trailingI
   return <Button {...props} variant="outline" disabled={disabled || busy}
     aria-busy={busy || undefined}
     className={cn('crm-brand-button inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-center text-sm font-semibold leading-none align-middle transition-colors [&_svg]:shrink-0', tones[tone],
-      premium && 'rounded-lg font-bold shadow-[0_6px_16px_rgba(14,42,26,.14)] hover:-translate-y-px hover:shadow-[0_9px_20px_rgba(14,42,26,.19)] active:translate-y-0',
+      premium && 'rounded-lg font-bold shadow-[0_6px_16px_rgba(14,42,26,.14)] motion-safe:hover:-translate-y-px hover:shadow-[0_9px_20px_rgba(14,42,26,.19)] motion-safe:active:translate-y-0',
       (tone === 'outline') && 'border-border', className)}>
     {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : leadingIcon}
     {children != null && <span className="inline-flex items-center justify-center leading-none">{children}</span>}

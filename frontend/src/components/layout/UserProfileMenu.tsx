@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, ChevronRight, Camera, ContactRound, LockKeyhole, LogOut, Moon, Pencil, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { Building2, ChevronRight, Camera, ContactRound, LockKeyhole, LogOut, Moon, Pencil, ShieldCheck, Sun, UserRound, Eye, EyeOff } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 import { Input } from '@/components/ui/input';
 import { appNotice } from '@/components/common/app-toast-provider';
-import { createApiClient } from '@/services/api.client';
+import { ApiRequestError, createApiClient } from '@/services/api.client';
 
 export type CurrentUserProfile = {
   id: number;
@@ -119,30 +119,61 @@ export function UserProfileMenu({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState<Record<string, string>>({});
+  const [passwordVisibility, setPasswordVisibility] = useState<Record<string, boolean>>({});
   const [savingPassword, setSavingPassword] = useState(false);
   const closePassword = () => {
-    setPasswordOpen(false); setCurrentPassword(''); setNewPassword('');
-    setConfirmPassword(''); setPasswordError('');
+    setPasswordOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+    setPasswordFieldErrors({});
+    setPasswordVisibility({});
   };
   const changePassword = async () => {
+    if (savingPassword) return;
     setPasswordError('');
-    if (newPassword.length < 12 || newPassword.length > 200) {
-      setPasswordError('Mật khẩu mới phải từ 12 đến 200 ký tự.'); return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Xác nhận mật khẩu không khớp.'); return;
-    }
+    const errors: Record<string, string> = {};
+    if (!currentPassword) errors['current-password'] = 'Vui lòng nhập mật khẩu hiện tại.';
+    if (newPassword.length < 12 || newPassword.length > 200)
+      errors['new-password'] = 'Mật khẩu mới phải từ 12 đến 200 ký tự.';
+    else if (newPassword === currentPassword)
+      errors['new-password'] = 'Mật khẩu mới phải khác mật khẩu hiện tại.';
+    if (!confirmPassword) errors['confirm-password'] = 'Vui lòng xác nhận mật khẩu mới.';
+    else if (newPassword !== confirmPassword)
+      errors['confirm-password'] = 'Xác nhận mật khẩu không khớp.';
+    setPasswordFieldErrors(errors);
+    if (Object.keys(errors).length) return;
+
     setSavingPassword(true);
+    let changed = false;
     try {
       await createApiClient(apiBase)('/me/change-password', token, {
-        method: 'POST', body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+        method: 'POST', body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
       });
-      closePassword();
-      appNotice.success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
-      await onLogout();
+      changed = true;
     } catch (error) {
-      setPasswordError(error instanceof Error ? error.message : 'Không thể đổi mật khẩu.');
-    } finally { setSavingPassword(false); }
+      if (error instanceof ApiRequestError && error.status === 429)
+        setPasswordError('Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 15 phút.');
+      else {
+        const message = error instanceof Error ? error.message : 'Không thể đổi mật khẩu.';
+        if (message.includes('Mật khẩu hiện tại không chính xác'))
+          setPasswordFieldErrors({ 'current-password': message });
+        else setPasswordError(message);
+      }
+    } finally {
+      setSavingPassword(false);
+    }
+    if (!changed) return;
+    closePassword();
+    appNotice.success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
+    // The password has already changed on the server; logout errors are not password-change errors.
+    await onLogout();
   };
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState('');
@@ -242,10 +273,30 @@ export function UserProfileMenu({
           {id:'confirm-password',label:'Xác nhận mật khẩu mới',value:confirmPassword,change:setConfirmPassword,auto:'new-password'},
         ].map(field => <div key={field.id} className="flex flex-col gap-2">
           <label htmlFor={field.id} className="text-sm font-medium">{field.label}</label>
-          <Input id={field.id} type="password" required minLength={field.id==='current-password'?1:12}
-            maxLength={200} autoComplete={field.auto} className="h-10"
-            disabled={savingPassword} value={field.value} onChange={event=>field.change(event.target.value)}/>
+          <div className="relative">
+            <Input id={field.id} type={passwordVisibility[field.id] ? 'text' : 'password'} required
+              minLength={field.id==='current-password'?1:12} maxLength={200}
+              autoComplete={field.auto} className="h-11 rounded-full pr-12"
+              aria-invalid={Boolean(passwordFieldErrors[field.id])}
+              aria-describedby={passwordFieldErrors[field.id] ? `${field.id}-error` : undefined}
+              disabled={savingPassword} value={field.value}
+              onChange={event => {
+                field.change(event.target.value);
+                setPasswordFieldErrors(errors => ({ ...errors, [field.id]: '' }));
+              }}/>
+            <button type="button" disabled={savingPassword}
+              onClick={() => setPasswordVisibility(visibility => ({
+                ...visibility, [field.id]: !visibility[field.id],
+              }))}
+              aria-label={passwordVisibility[field.id] ? `Ẩn ${field.label.toLowerCase()}` : `Hiện ${field.label.toLowerCase()}`}
+              aria-pressed={Boolean(passwordVisibility[field.id])}
+              className="absolute inset-y-0 right-1 flex w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-primary disabled:opacity-50">
+              {passwordVisibility[field.id] ? <EyeOff aria-hidden="true" className="size-4"/> : <Eye aria-hidden="true" className="size-4"/>}
+            </button>
+          </div>
+          {passwordFieldErrors[field.id] && <p id={`${field.id}-error`} role="alert" className="text-xs text-destructive">{passwordFieldErrors[field.id]}</p>}
         </div>)}
+        <p className="text-xs text-muted-foreground">Mật khẩu mới phải có từ 12 đến 200 ký tự và khác mật khẩu hiện tại.</p>
         {passwordError&&<p role="alert" className="text-sm text-destructive">{passwordError}</p>}
       </form>
     </AppDrawer>

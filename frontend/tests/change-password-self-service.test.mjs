@@ -23,13 +23,33 @@ test('authenticated password change has user-only route and throttling',()=>{
 
 test('password change form validates and logs out after confirmed success',()=>{
   for(const label of ['Đổi mật khẩu','Mật khẩu hiện tại','Mật khẩu mới','Xác nhận mật khẩu mới','Cập nhật mật khẩu']) assert.ok(menu.includes(label));
-  assert.match(menu,/type="password"/);
+  assert.match(menu,/type=\{passwordVisibility\[field.id\] \? 'text' : 'password'\}/);
+  assert.match(menu,/\<EyeOff aria-hidden="true"/);
+  assert.match(menu,/\<Eye aria-hidden="true"/);
+  assert.match(menu,/aria-pressed=\{Boolean\(passwordVisibility\[field.id\]\)\}/);
+  assert.match(menu,/aria-label=\{passwordVisibility\[field.id\]/);
+  assert.match(menu,/className="absolute inset-y-0 right-1/);
+  assert.match(menu,/setPasswordFieldErrors\(errors\)/);
+  assert.match(menu,/if \(!currentPassword\)/);
+  assert.match(menu,/newPassword === currentPassword/);
+  assert.match(menu,/error.status === 429/);
   assert.match(menu,/autoComplete=\{field.auto\}/);
   assert.match(menu,/newPassword.length < 12/);
   assert.match(menu,/newPassword !== confirmPassword/);
   assert.match(menu,/role="alert"/);
   assert.match(menu,/createApiClient\(apiBase\)\('\/me\/change-password', token/);
   assert.match(menu,/method: 'POST'/);
+  assert.match(menu,/if \(!changed\) return;/);
   assert.match(menu,/await onLogout\(\)/);
+  assert.match(menu,/if \(savingPassword\) return;/);
   assert.doesNotMatch(menu,/console\.log\(.*Password/);
+});
+
+test('password change request matches backend snake_case JSON contract',()=>{
+  assert.match(program,/PropertyNamingPolicy = JsonNamingPolicy\.SnakeCaseLower/);
+  assert.match(menu,/current_password: currentPassword/);
+  assert.match(menu,/new_password: newPassword/);
+  assert.match(menu,/confirm_password: confirmPassword/);
+  assert.doesNotMatch(menu,/JSON\.stringify\(\{ currentPassword, newPassword, confirmPassword \}\)/);
+  assert.match(auth,/ChangeOwnPasswordRequest\(string\? CurrentPassword, string\? NewPassword, string\? ConfirmPassword\)/);
 });

@@ -453,3 +453,11 @@ html:has([data-slot="sheet-content"][data-side="right"]) body {
 @media (max-width: 639px) {
   .crm-workspace-content .crm-brand-surface { border-radius: 1rem; }
 }
+
+/* Mobile active-tab expansion: labels belong only to the selected item. */
+.crm-mobile-dock-item {
+  transition: flex-grow 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .crm-mobile-dock-item { transition: none; }
+}

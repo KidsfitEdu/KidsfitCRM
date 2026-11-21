@@ -5,16 +5,28 @@ import test from 'node:test';
 
 const source = path => readFileSync(resolve(import.meta.dirname, '..', 'src', path), 'utf8');
 
-test('mobile dock shows at most four authorized shortcuts and a complete More dialog', () => {
+test('mobile dock shows at most three authorized shortcuts and a complete More dialog', () => {
   const sidebar = source('components/layout/Sidebar.tsx');
-  assert.match(sidebar, /mobilePrimary = visibleNav\.slice\(0, 4\)/);
-  assert.match(sidebar, /mobileOverflow = visibleNav\.slice\(4\)/);
+  assert.match(sidebar, /mobilePrimary = visibleNav\.slice\(0, 3\)/);
+  assert.match(sidebar, /mobileOverflow = visibleNav\.slice\(3\)/);
   assert.match(sidebar, /mobilePrimary\.map\(item =>/);
   assert.match(sidebar, /mobileOverflow\.length > 0 && <AppDialog/);
   assert.match(sidebar, /visibleNav\.map\(item => <button key=\{item\.id\} type="button" onClick=\{\(\) => navigate\(item\.id\)\}/);
   assert.match(sidebar, /aria-label="Xem tất cả chức năng"/);
   assert.match(sidebar, /aria-current=\{currentView === item\.id \? 'page' : undefined\}/);
   assert.doesNotMatch(sidebar, /overflow-x-auto rounded-2xl border border-white\/10 bg-\[var\(--deep\)\]/);
+});
+
+test('expanding pill shows a label only for the active shortcut and keeps nonactive icons accessible', () => {
+  const sidebar = source('components/layout/Sidebar.tsx');
+  assert.match(sidebar, /const active = currentView === item\.id/);
+  assert.match(sidebar, /aria-current=\{active \? 'page' : undefined\}/);
+  assert.match(sidebar, /aria-label=\{item\.label\}/);
+  assert.match(sidebar, /\{active && <span className="min-w-0 truncate whitespace-nowrap">\{item\.shortLabel\}<\/span>\}/);
+  assert.match(sidebar, /\{moreActive && <span className="min-w-0 truncate whitespace-nowrap">Thêm<\/span>\}/);
+  assert.match(sidebar, /flex-\[1\.85\] bg-\[#168355\]/);
+  assert.match(sidebar, /rounded-full/);
+  assert.doesNotMatch(sidebar, /<span className="w-full truncate text-center">\{item\.shortLabel\}<\/span>/);
 });
 
 test('desktop navigation preserves original role-filtered entries and sidebar contract', () => {

@@ -22,12 +22,12 @@ type Props = {
 
 const initials = (name: string) => name.split(' ').slice(-2).map(part => part[0]).join('').toUpperCase();
 
-/** One navigation source for all seven business roles: desktop rail + five-slot mobile dock. */
+/** One navigation source for all seven business roles: desktop rail + expanding pill mobile navigation. */
 export function Sidebar({ sidebarOpen, visibleNav, currentView, onNavigate, userName, membershipType,
   organizationName, isAdminWorkspace, apiBase, onLogout, avatarUrl }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const mobilePrimary = visibleNav.slice(0, 4);
-  const mobileOverflow = visibleNav.slice(4);
+  const mobilePrimary = visibleNav.slice(0, 3);
+  const mobileOverflow = visibleNav.slice(3);
   const moreActive = mobileOverflow.some(item => item.id === currentView);
   useEffect(() => { setMoreOpen(false); }, [currentView]);
 
@@ -72,20 +72,24 @@ export function Sidebar({ sidebarOpen, visibleNav, currentView, onNavigate, user
       </div>
     </aside>
 
-    <nav className="crm-mobile-dock fixed inset-x-3 z-40 grid gap-1 rounded-2xl border border-white/15 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
-      style={{ gridTemplateColumns: `repeat(${mobilePrimary.length + (mobileOverflow.length ? 1 : 0)}, minmax(0, 1fr))` }}
+    <nav className="crm-mobile-dock fixed inset-x-3 z-40 flex items-center gap-1 rounded-full border border-white/15 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
       aria-label="Điều hướng di động">
-      {mobilePrimary.map(item => <button key={item.id} type="button" onClick={() => navigate(item.id)}
-        aria-label={item.label} aria-current={currentView === item.id ? 'page' : undefined}
-        className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#a5d6a7] ${currentView === item.id ? 'bg-white/15 font-semibold text-[#c5ebc9]' : 'text-[#d2e2d5] hover:bg-white/10'}`}>
-        <item.icon aria-hidden="true" className="size-5 shrink-0" />
-        <span className="w-full truncate text-center">{item.shortLabel}</span>
-      </button>)}
+      {mobilePrimary.map(item => {
+        const active = currentView === item.id;
+        return <button key={item.id} type="button" onClick={() => navigate(item.id)}
+          aria-label={item.label} aria-current={active ? 'page' : undefined}
+          title={item.label}
+          className={`crm-mobile-dock-item flex h-12 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#a5d6a7] ${active ? 'flex-[1.85] bg-[#168355] text-white' : 'flex-1 text-[#d2e2d5] hover:bg-white/10'}`}>
+          <item.icon aria-hidden="true" className="size-[18px] shrink-0" />
+          {active && <span className="min-w-0 truncate whitespace-nowrap">{item.shortLabel}</span>}
+        </button>;
+      })}
       {mobileOverflow.length > 0 && <button type="button" onClick={() => setMoreOpen(true)}
         aria-label="Xem tất cả chức năng" aria-haspopup="dialog" aria-expanded={moreOpen}
-        className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#a5d6a7] ${moreActive ? 'bg-white/15 font-semibold text-[#c5ebc9]' : 'text-[#d2e2d5] hover:bg-white/10'}`}>
-        <Ellipsis aria-hidden="true" className="size-5 shrink-0" />
-        <span className="truncate">Thêm</span>
+        title="Thêm chức năng"
+        className={`crm-mobile-dock-item flex h-12 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#a5d6a7] ${moreActive ? 'flex-[1.85] bg-[#168355] text-white' : 'flex-1 text-[#d2e2d5] hover:bg-white/10'}`}>
+        <Ellipsis aria-hidden="true" className="size-[18px] shrink-0" />
+        {moreActive && <span className="min-w-0 truncate whitespace-nowrap">Thêm</span>}
       </button>}
     </nav>
     {mobileOverflow.length > 0 && <AppDialog open={moreOpen} onOpenChange={setMoreOpen}

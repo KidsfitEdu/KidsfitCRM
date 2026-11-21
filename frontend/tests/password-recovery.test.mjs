@@ -40,7 +40,8 @@ test('login and recovery share the same branded visual shell', () => {
   assert.match(login, /<AuthShell title="Chào mừng trở lại"/);
   assert.match(recovery, /<AuthShell\b[\s\S]{0,160}title=\{titles\[step\]\}/);
   assert.match(authShell, /<AppBrand \/>/);
-  assert.match(authShell, /bg-\[#101a2b\]/);
+  assert.match(authShell, /bg-\[#0e2a1a\]/);
+  assert.doesNotMatch(authShell, /bg-\[#101a2b\]/);
   assert.match(authShell, /max-w-md/);
   assert.doesNotMatch(recovery, /bg-\[#f3f8f3\]/);
 });

@@ -24,7 +24,8 @@ test('Sidebar click and browser history use the same guarded navigation callback
   assert.match(app, /visibleNav\.some\(item=>item\.id===next\)/);
   assert.match(app, /window\.history\.pushState\(null,'',viewToPath\(next\)\)/);
   assert.match(app, /window\.addEventListener\('popstate',onPop\)/);
-  assert.match(sidebar, /onNavigate\(item\.id\)/);
+  assert.match(sidebar, /onNavigate\(view\)/);
+  assert.match(sidebar, /onClick=\{\(\) => navigate\(item\.id\)\}/);
 });
 
 test('shared QueryClient belongs to a keyed session, not separate role workspaces', () => {

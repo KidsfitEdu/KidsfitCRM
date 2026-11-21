@@ -1,7 +1,3 @@
-## Demo one-run cleanup scope
-
-For a user-approved one-shot CRM demo upgrade, defer orchestration and justified obsolete-code cleanup to `.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md`; the old general preserve-all language does not forbid removing **proven unused/duplicate demo-only** routes/modules, including education-center business context candidates. Do not destroy real/unknown data, financial/audit history, or production DB. Demo login passwords come from `Seed__DemoPassword` at runtime, not hardcoded in seeders/skills. Execute tests and preserve the 7-role business policy fences.
-
 ---
 name: kidsfit-crm-development
 description: Design, plan, implement, review, and test KidsfitCRM features using ASP.NET Core .NET 10, React, EF Core, and MySQL, including education-center operations and CHECKEE school directories/imports, customer protection, partner/CTV capacity, contracts, revenue, commissions, reconciliation, RBAC, APIs, schemas, and UI. Use only for this repository or when the user explicitly asks to apply the KidsfitCRM domain model.
@@ -15,7 +11,7 @@ Use this skill to keep implementation decisions aligned with the relevant Kidsfi
 
 - **Always inspect the current checkout** and read `docs/implementation/CURRENT_SOURCE_MAP.md` before editing: frontend lives under `frontend/src/`, not `frontend/components/` or `frontend/app/`. Reuse feature modules and current API contracts; do not recreate the project.
 - Use `docs/implementation/PHASED_DELIVERY_PLAN.md` for staged work and `docs/prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md` for a runnable orchestrator. Each phase requires audit/test evidence; don't silently start migrations/seeding or production actions.
-- `start-local.ps1` invokes `--migrate --seed-demo` and provisions local MySQL credentials; `compose.yaml` is demo-oriented. Migration, synthetic seed and actual MySQL dumps are distinct. Never target populated/shared/prod databases without safe approval and backup/restore plan.
+- `Program.cs` rejects retired `--seed-demo`. The only guarded bootstrap is `--migrate --seed-initial` through `InitialCrmSeeder` on explicitly disposable Development DB with private `Seed:AdminPassword`. Synthetic scenarios live in backend test fixtures. Do not run local startup/migration scripts against shared or real data.
 - Preserve migration history, legacy role rows/user memberships, financial ledger/audit/contract claims and unrelated education-center modules. Prefer additive changes and compatibility adapters.
 
 ## Current school-sales source of truth (2026-10-30)
@@ -24,7 +20,7 @@ Use this skill to keep implementation decisions aligned with the relevant Kidsfi
 - **Seven target business roles:** Admin, BGĐ KIDSFIT, Kế toán, Quản lý bán hàng, CSKH, CHECKEE, Sales. Sales combines employee/CTV business functionality, both with 10 concurrent slots. Historical role codes still exist and need a reviewed mapping/migration.
 - **Approved extension:** initial 5-day protection, 7 days per approval, maximum 3 approved extensions per approach. Old `7 days is only a proposal` or `max 2` guidance is historical and superseded.
 - **Contract:** Sales creates → direct KIDSFIT/partner Sales Manager reviews and submits to CHECKEE → CHECKEE verifies → separately authorized KIDSFIT actor grants 5 years from verification. Director/Admin are **not routine approval intermediates**; the KIDSFIT grant permission owner is OPEN.
-- **Money (2026-11-04 decision):** the owner approved a 30% commission **rate** for both employees and CTV. Base/trigger/effective date/tax/payout conditions remain OPEN. Only isolated review fixtures may use an explicitly labeled illustrative cash basis. No referrer/split feature.
+- **Money (D-17/D-18, 2026-11-13):** the confirmed default for future accrual is **25% Sales + 5% Manager**, applied to eligible cash actually collected with scoped BGĐ policy overrides. Shared Accountant/Director payout approval follows D-18. Historical 30% Sales-only ledgers remain frozen; special withholding, clawback and historical backfill remain review items. No referral split.
 - `docs/implementation/` records past/current delivery. Do not call a requirement implemented before tests and source confirm it.
 
 ## When the task involves frontend UI

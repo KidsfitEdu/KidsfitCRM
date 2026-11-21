@@ -1,31 +1,28 @@
-# KidsfitCRM — Document index
+# KIDSFIT CRM — documentation index
 
-> **Current business baseline (2026-10-30):** [requirements/CRM_FUNCTIONAL_SPECIFICATION.md](requirements/CRM_FUNCTIONAL_SPECIFICATION.md).
-> These requirements describe intended product behavior; they do **not** certify that code is implemented.
-> Approved product decisions take precedence over historical implementation notes; unresolved rules remain OPEN.
+> **Source snapshot:** `develop` at `4e9c99db374c082289608c60573a7894ee375834` (2026-11-21). Always verify the current HEAD. Product requirements describe **intent**; code/migrations describe **implementation**; only executed tests and observed behavior constitute **verification**.
+
+## Authority and precedence
+1. Current explicit user-approved scope and [Decision Log](requirements/DECISION_LOG.md) (D-17 and D-18 supersede historical 30% Sales-only policies).
+2. [Functional specification](requirements/CRM_FUNCTIONAL_SPECIFICATION.md), [business rules](requirements/BUSINESS_RULES.md), [workflows](requirements/BUSINESS_WORKFLOWS.md) and [roles](requirements/ROLES_AND_PERMISSIONS.md) for intended product behavior.
+3. Actual live code, migrations, API contracts and test evidence for current runtime behavior, compared in [gap analysis](requirements/CODEBASE_GAP_ANALYSIS.md).
+4. Prior implementation notes and skill examples as **historical** context only when current source supersedes them. Never invent a decision for OPEN items.
 
 ## Read by task
-
-| Task | Read first | Follow with |
+| Task | Primary | Follow-up |
 | --- | --- | --- |
-| Roles / organization / authorization | [Roles and permissions](requirements/ROLES_AND_PERMISSIONS.md) | [Codebase gaps](requirements/CODEBASE_GAP_ANALYSIS.md), source and tests |
-| Sales registration, allocations, proposals | [Workflows](requirements/BUSINESS_WORKFLOWS.md) | [Rules](requirements/BUSINESS_RULES.md), school directory skill reference |
-| Extension, limits, conflicts, departure | [Rules](requirements/BUSINESS_RULES.md) | [Workflows](requirements/BUSINESS_WORKFLOWS.md), regression tests |
-| Contract verification, CHECKEE, finance | [Functional spec](requirements/CRM_FUNCTIONAL_SPECIFICATION.md) | [Workflows](requirements/BUSINESS_WORKFLOWS.md), [decisions](requirements/DECISION_LOG.md) |
-| Current live source/file map | [Current source map](implementation/CURRENT_SOURCE_MAP.md) | [Frontend architecture](../frontend/docs/architecture.md), latest files and tests |
-| Phased implementation preparation | [Delivery phases](implementation/PHASED_DELIVERY_PLAN.md) | [Gap analysis](requirements/CODEBASE_GAP_ANALYSIS.md), [Master Prompt](prompts/MASTER_CRM_IMPLEMENTATION_PROMPT.md) |
-| What is currently implemented? | [Codebase gaps](requirements/CODEBASE_GAP_ANALYSIS.md) | [Implementation records](implementation/), code and tests |
-| Frontend design / responsive / UI review | [KIDSFIT design system](design/FRONTEND_DESIGN_SYSTEM.md) | [Frontend skill](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md), current components and screenshots |
-| Engineering conventions | [Repository AGENTS](../AGENTS.md) | [Skill](../.agents/skills/kidsfit-crm-development/SKILL.md) |
-| Testing and operations | [Testing](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md) | [Frontend Real API guide](../frontend/README.md) |
+| Feature state / source paths | [Source map](implementation/CURRENT_SOURCE_MAP.md) | [Feature status matrix](implementation/FEATURE_STATUS_MATRIX.md), [gap analysis](requirements/CODEBASE_GAP_ANALYSIS.md) |
+| Architecture / implementation | [Repository engineering skill](../.agents/skills/kidsfit-crm-dev/SKILL.md) | [Frontend architecture](../frontend/docs/architecture.md), [API contracts](architecture/API_CONTRACTS.md) |
+| Roles / security / organization | [Roles and permissions](requirements/ROLES_AND_PERMISSIONS.md) | [Decision log](requirements/DECISION_LOG.md), backend source |
+| Sales, school, allocation | [Workflows](requirements/BUSINESS_WORKFLOWS.md) | [Rules](requirements/BUSINESS_RULES.md), school feature endpoints |
+| CHECKEE, renewals, commissions, payout | [Decision log](requirements/DECISION_LOG.md) | [Finance domain skill](../.agents/skills/kidsfit-crm-development/SKILL.md), relevant endpoints |
+| Auth / password / API JSON | [API contracts](architecture/API_CONTRACTS.md) | `AuthFeatures.cs`, `api.client.ts`, tests |
+| Database / migration / startup | [Source map](implementation/CURRENT_SOURCE_MAP.md) | [Backend README](../backend/README.md), [DB safety](implementation/PHASE_1_DB_SAFETY.md) |
+| UI and responsive | [Design system](design/FRONTEND_DESIGN_SYSTEM.md) | [Frontend design skill](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md), [Webapp UX](../.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) |
+| Testing / synthetic data | [Feature status matrix](implementation/FEATURE_STATUS_MATRIX.md) | [Test fixtures provenance](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md), CI workflows |
 
-## Document authority
-
-1. Latest explicit approved product decisions recorded in [Decision Log](requirements/DECISION_LOG.md).
-2. [Functional specification](requirements/CRM_FUNCTIONAL_SPECIFICATION.md), [business rules](requirements/BUSINESS_RULES.md), [workflows](requirements/BUSINESS_WORKFLOWS.md), and [roles](requirements/ROLES_AND_PERMISSIONS.md) as the current intended business baseline.
-3. Existing code, migrations and tests describe **current behavior**, not automatic product approval. See [gap analysis](requirements/CODEBASE_GAP_ANALYSIS.md).
-4. Legacy implementation documents in `implementation/` and references in `.agents/` supply historical/technical context. Their old policy examples must not override current approved decisions.
-
-For new or modified features, inspect the latest code and tests; do not assert a feature is shipped without verification. Update the gap analysis/implementation notes with evidence and never migrate or delete legacy role/financial/audit records merely to match current display labels.
-
-The GitHub repository does **not** include real school source files or personal/contract evidence. The project-local Excel template mentioned in legacy docs may require an externally supplied copy.
+## Documentation maintenance requirements
+- Each significant source change updates relevant docs/skills in the **same PR**; refresh source SHA, paths, business decisions, API request/response conventions, migration notes and tests.
+- Mark each feature/claim as `CONFIRMED` (approved decision), `OPEN` (not approved), `IMPLEMENTED` (source exists), or `VERIFIED` (tested at stated SHA). These are **different dimensions**.
+- Obsolete files/sections may be rewritten, merged or removed after backlink/dependency checks; do not delete approved decisions, migration provenance, security/audit requirements or real data.
+- No real school imports, passwords, JWTs, partner/customer PII or contract evidence should appear in repository documentation or examples. Repository skills are instruction files, not automatically installed plugins.

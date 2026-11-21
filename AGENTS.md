@@ -1,9 +1,18 @@
-## One-shot demo upgrade override (approved scope)
+# KIDSFIT CRM — current repository guidance
 
-- When the user asks for end-to-end CRM demo implementation in one run, load `.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md` before execution. Its cleanup policy **supersedes earlier blanket no-deletion language** for demonstrably unused/duplicate/superseded *demo-only* code. Prove dependency removal via routes, service consumers, EF models and tests. Do not delete real/unknown-custody records, audit/finance history, or modify production.
-- The latest approved business model is 7 roles KIDSFIT/CHECKEE CRM. Historical education-center features are candidates for cleanup **if out of scope and dependencies are safely replaced**; do not retain dead code solely for backward demo compatibility.
-- Synthetic backend accounts must share the **environment-provided** `Seed__DemoPassword` when opt-in demo seed runs on disposable DB. Never hardcode the user-selected password; never use it for MySQL or JWT. Frontend static preview is not backend authentication.
-- Execute the 10 internal stages in one agent run with actual tests and incremental commits; stop only unsafe/policy-blocked slices; final reviewable PR, no auto-merge.
+## Current runtime and safety (develop snapshot 2026-11-21)
+- Read the latest `develop` HEAD, `docs/README.md`, `docs/requirements/DECISION_LOG.md`, and actual affected code/tests before implementation. The GitHub default branch can be `main`, but feature PRs target `develop`.
+- Current runtime is **Real API Only**: React 19 + TypeScript + Vinext, .NET 10 ASP.NET Core, EF Core 10 / MySQL 8.4. Frontend lives in `frontend/src/`, backend in `backend/src/KidsfitCRM.Api/`. Do not restore static demo auth or mock fallback.
+- **`--seed-demo` is disabled** in `Program.cs`. `--migrate --seed-initial` uses `InitialCrmSeeder`, requires an explicitly disposable Development database and private `Seed:AdminPassword`; it does NOT create operational demo customers or contracts. Synthetic scenarios are isolated test fixtures.
+- JSON HTTP contracts use `JsonNamingPolicy.SnakeCaseLower`. Trace actual DTOs and request/response bindings before editing frontend calls. Password-change inputs are `current_password`, `new_password`, `confirm_password`.
+- Documentation and skill cleanup **may rewrite, merge or remove inaccurate, stale, duplicate instructions or files** after checking references; preserve current business approvals, audit/financial history, historical migration provenance and data safety. Documentation edits never authorize deleting runtime code or database records.
+
+## Business decision boundaries
+- Seven target business roles: ADMIN, DIRECTOR/BGĐ, ACCOUNTANT, SALES_MANAGER, CUSTOMER_SERVICE, CHECKEE, SALES. Existing technical role IDs and presentation aliases can persist; don't infer actual permissions solely from a UI name.
+- Approved Sales approach baseline: default 10 concurrent school slots, 5-day reservation, at most three approved 7-day extensions. Actual enforcement must be verified in code/tests.
+- Sales proposal → authorized Manager → Admin. Contract → authorized Manager → CHECKEE verification → separately gated KIDSFIT long-term protection. D-12 actor assigning that final grant remains OPEN.
+- **D-17 supersedes historic Sales-only 30% commission**. Current default is 25% Sales + 5% Manager with BGĐ policy overrides and eligible collected cash; D-18 defines Accountant/Director shared payout approval. Preserve immutable historical 30% ledger entries.
+- Unapproved approval actors, SLA/grace, main school/branch scope, tax/clawback handling remain OPEN. Never silently implement guessed business behavior.
 
 ## ChatGPT / repository skill discovery
 
@@ -16,15 +25,15 @@
 
 ## Scope and sources of truth
 
-- **Live code map (2026-10-30):** `docs/implementation/CURRENT_SOURCE_MAP.md`. UI source now lives in `frontend/src/`: Vinext routes `src/app/`, workspace/screens `src/screens/`, components `src/components/`, services `src/services/`. Do not follow deprecated paths such as `frontend/components/` or create parallel `frontend/app/` directories.
+- **Live code map (recheck on each task):** `docs/implementation/CURRENT_SOURCE_MAP.md`. UI source now lives in `frontend/src/`: Vinext routes `src/app/`, workspace/screens `src/screens/`, components `src/components/`, services `src/services/`. Do not follow deprecated paths such as `frontend/components/` or create parallel `frontend/app/` directories.
 - **Phased delivery:** `docs/implementation/PHASED_DELIVERY_PLAN.md` is the execution framework; read `docs/requirements/` first for approved policy. Stages require baseline tests, explicit test DB isolation, additive migrations and actual evidence. Never delete working code merely to align names.
-- **Data safety:** `--migrate` and `--seed-demo` are distinct; `start-local.ps1` and `compose.yaml` can trigger migration/seeding and must never be run blindly against databases containing real data. Database dumps are backups, not synthetic seeds.
+- **Data safety:** migration, guarded initial bootstrap, test fixtures and database backups are distinct. Review `start-local.ps1`, compose and connection settings before running any command; never run data-changing scripts against real/shared databases.
 
 ## Scope and sources of truth
 
 - For **current KIDSFIT/CHECKEE school-sales business requirements**, start at `docs/README.md`, then read the task-specific file under `docs/requirements/`. The current seven-role business model, 10-slot Sales limit, 5+7×3 protection, and Sales Manager→CHECKEE contract verification supersede historical product recommendations. This is a target specification, not a statement that code has been migrated.
 - Compare any product requirement with `docs/requirements/CODEBASE_GAP_ANALYSIS.md`. Never silently delete legacy `BOARD`, `CHANNEL_SALES`, `PARTNER_ADMIN`, `PARTNER_COLLABORATOR` roles or historical/audit/financial data. Their technical code names may remain while business UI converges on seven roles.
-- **OPEN**: the KIDSFIT actor who grants five-year protection after CHECKEE verification; commission 30% is provisional and its base/activation remain unapproved. Do not choose either implicitly.
+- **OPEN**: the KIDSFIT actor who grants five-year protection after CHECKEE verification. For commissions, use D-17/D-18, not the superseded 30% rule.
 - No referrer or personal referral-commission split feature is in scope.
 
 

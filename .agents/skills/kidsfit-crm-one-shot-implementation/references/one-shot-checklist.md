@@ -1,18 +1,16 @@
-# One-run quality gates
+# Broad-scope implementation checklist
 
-Execute safe steps continuously in one coding-agent job, with checkpoints rather than approvals after each stage.
+| Gate | Expected evidence |
+| --- | --- |
+| Scope | Explicit approval, current `develop` HEAD, no duplicate active PR |
+| Requirements | D-17/D-18 and other approved decisions; OPEN items retained |
+| Keep/Rewrite/Merge/Remove | Dependency evidence (routes, imports, EF references, permissions, tests) |
+| Runtime | React/Vinext Real API Only and .NET 10/MySQL 8.4 preserved |
+| API | Request/response snake_case, auth/tenant scope, status codes and idempotency |
+| Database | No real/shared data writes; migration snapshot compared to model if relevant |
+| Bootstrap | **No `--seed-demo`**; `--seed-initial` only on verified disposable Development DB |
+| Finance | Default future 25% Sales + 5% Manager, D-18 payouts; old paid records frozen |
+| Tests | Exact SHA, passed/failed/not run/blocker, isolated MySQL where necessary |
+| Delivery | Updated docs/skills, Conventional Commits and PR to `develop` (no auto-merge) |
 
-| Step | Work | Gate |
-| --- | --- | --- |
-| 0 | Refresh `PHASE_0_BASELINE_AUDIT.md`, current HEAD, baseline tests | File/source matrix and actual statuses |
-| 1 | Build KEEP/FIX/MERGE/REMOVE manifest | Dependencies, routes, FKs, test coverage proven |
-| 2 | Database migration/role plan | Only isolated disposable DB writes; rollback/restore strategy |
-| 3 | Seven-role backend and Sales claims | Permission, tenant, quota 10, 5+7×3, race tests |
-| 4 | CHECKEE, finance, CSKH | No pre-verification grant or unapproved 30% payout |
-| 5 | Frontend `frontend/src/` | Real API integration, responsive/dark/a11y and regression |
-| 6 | Demo account seed | All synthetic backend users use environment-provided common password; second seed idempotent |
-| 7 | Test MySQL dump/restore | Isolated source and destination; else mark NOT_RUN |
-| 8 | Backend/MySQL/frontend/browser tests | PASS/FAIL/SKIPPED/NOT_RUN truthfully reported |
-| 9 | Docs/skills and PR | Changed/deleted files, DB effects, remaining OPEN policies, final PR |
-
-Only stop the unsafe/policy-dependent slice; progress on the rest. No auto-merge. One-run does not mean one huge untested commit.
+One-shot does **not** mean bypassing safety gates or claiming tests passed without running them.

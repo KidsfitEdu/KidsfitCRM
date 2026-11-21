@@ -15,7 +15,7 @@ Source: user-provided `CRM_Functional_Specification.docx` (2026-10-30), `CRM_Rep
 
 ## OPEN / PROPOSED — do NOT hardcode
 
-- **30% Sales commission rate is CONFIRMED** for employees and collaborators (D-10 / BR-15). Calculation base, trigger, taxes/withholding, payout cycle, clawback, exception handling and production effective policy are still OPEN (D-11). Do not activate live payout calculations just from the rate.
+- **D-17 supersedes D-10:** future eligible-cash accrual uses BGĐ board policy defaults **25% Sales + 5% Manager** with Sales > Manager > System scope overrides; historical Sales-only 30% entries are preserved. D-18 defines shared Accountant/BGĐ payout approval. Tax, clawback and historical backfill remain review items.
 - Who at KIDSFIT activates customer protection after CHECKEE verification; do not default this action to Admin or Director.
 - Pending extension temporary protection SLA; do not arbitrarily pick 24/48h.
 - Protection scope of main school vs branches; keep relation but don't implicitly grant all campuses.

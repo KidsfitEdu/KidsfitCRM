@@ -13,7 +13,7 @@ description: Professional full-stack development, requirements review, code revi
 2. **Verify live `develop` HEAD** and the relevant existing PR/branch before every implementation. Don't treat repository default branch or old SHA as current. If an unmerged PR exists for the same slice, continue on it only if safe; do not duplicate its work.
 3. Read `AGENTS.md` (including special one-shot overrides), `docs/README.md`, `docs/requirements/DECISION_LOG.md`, task-relevant requirements, `docs/requirements/CODEBASE_GAP_ANALYSIS.md`, `docs/implementation/CURRENT_SOURCE_MAP.md`, then actual files/tests/schema. Also read `.agents/skills/kidsfit-crm-development/SKILL.md`, `.agents/skills/kidsfit-crm-frontend-design/SKILL.md` and specific references as appropriate.
 4. **Conflict order:** user-approved current scope and business decisions > current approved `DECISION_LOG.md`/specific requirement decisions > authoritative schema/code/tests for *current implemented behavior* > historical notes and skill snapshots. When policy and implementation differ, **report the gap**, never silently rewrite or invent a rule. `CONFIRMED`, `OPEN`, `PROPOSED` must remain distinguishable.
-5. Treat document dates and version names as snapshots, not claims that everything has shipped. This skill was refreshed against `develop` on **2026-11-11**; reverify before acting.
+5. Treat document dates and version names as snapshots, not claims that everything has shipped. Source review refreshed for documentation on **2026-11-21** (HEAD `4e9c99d`); always reverify before acting.
 
 ## 1. Minimal, evidence-driven workflow
 
@@ -26,6 +26,10 @@ description: Professional full-stack development, requirements review, code revi
 - **Verify**: checks must be run *on the exact commit or working state being reported*. Record `PASS`, `FAIL`, `NOT RUN`, `BLOCKED` honestly. No generic “CI passed” if only earlier SHA passed.
 - **Git**: before committing, inspect the actual staged diff and write a concise, factual English Conventional Commit subject: `<type>(<scope>): <action> <object>` (prefer <=72 characters). Use the smallest accurate scope, an action verb, and describe what really changed—not what was planned. Group by logical, independently reviewable outcome rather than by file or editing iteration; keep tests with the change when appropriate. Avoid generic titles, repetitive fixups, artificial numbering and unrelated changes. Use a commit body only for non-obvious rationale or breaking changes. **Do not force a single commit** and **do not produce dozens of tiny fixes**. After a commit is pushed, never rewrite it or force-push without explicit approval. **Before creating a branch, use `type/module/feature` naming (for example, `feat/sales/income-rates`); use lowercase English ASCII and kebab-case, omit dates and personal names, and check for name collisions. Do not rename an existing PR branch without explicit approval.** See [Git & Delivery](references/git-and-delivery.md).
 - **Handoff**: state exactly what was changed, where, branch/SHA/PR, tests and any unresolved risks. Never claim production deployment or visual QA without actual verification.
+
+- **Documentation cleanup:** after approval, remove/rewrite inaccurate, duplicate, superseded skill and Markdown guidance once linked references have been checked; this permission does not authorize runtime or database deletion.
+- **Current startup:** `Program.cs` rejects `--seed-demo`; initial bootstrap requires guarded `--seed-initial` + private `Seed:AdminPassword` on a disposable Development database.
+- **API binding:** JSON contracts use `JsonNamingPolicy.SnakeCaseLower`; test actual HTTP input/output binding, not only direct action calls.
 
 ## 2. Engineering boundaries
 

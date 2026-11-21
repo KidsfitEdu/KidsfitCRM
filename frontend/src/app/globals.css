@@ -432,3 +432,25 @@ html:has([data-slot="sheet-content"][data-side="right"]) {
 html:has([data-slot="sheet-content"][data-side="right"]) body {
   width: 100% !important;
 }
+
+/* Modern Web App foundation: role-agnostic, no domain, API or table-state changes. */
+:root {
+  --crm-surface-radius: 1.125rem;
+  --crm-surface-elevation: 0 4px 16px rgb(14 42 26 / 5%), 0 20px 44px -32px rgb(14 42 26 / 20%);
+  --crm-dock-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.dark {
+  --crm-surface-elevation: 0 5px 22px rgb(0 0 0 / 18%);
+}
+.crm-mobile-dock { bottom: var(--crm-dock-bottom); }
+.crm-workspace-content { min-width: 0; }
+.crm-workspace-content :where(section, article, div) { min-width: 0; }
+.crm-workspace-content :where(input, select, textarea) { max-width: 100%; }
+.crm-workspace-content .crm-brand-surface { box-shadow: var(--crm-surface-elevation); }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .crm-workspace-content .crm-brand-surface { transition: box-shadow 180ms ease, border-color 180ms ease; }
+  .crm-workspace-content .crm-brand-surface:hover { box-shadow: 0 10px 32px rgb(14 42 26 / 10%); }
+}
+@media (max-width: 639px) {
+  .crm-workspace-content .crm-brand-surface { border-radius: 1rem; }
+}

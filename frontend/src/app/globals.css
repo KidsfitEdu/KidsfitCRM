@@ -444,7 +444,6 @@ html:has([data-slot="sheet-content"][data-side="right"]) body {
 }
 .crm-mobile-dock { bottom: var(--crm-dock-bottom); }
 .crm-workspace-content { min-width: 0; }
-.crm-workspace-content :where(section, article, div) { min-width: 0; }
 .crm-workspace-content :where(input, select, textarea) { max-width: 100%; }
 .crm-workspace-content .crm-brand-surface { box-shadow: var(--crm-surface-elevation); }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {

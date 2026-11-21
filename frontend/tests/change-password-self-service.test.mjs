@@ -44,3 +44,12 @@ test('password change form validates and logs out after confirmed success',()=>{
   assert.match(menu,/if \(savingPassword\) return;/);
   assert.doesNotMatch(menu,/console\.log\(.*Password/);
 });
+
+test('password change request matches backend snake_case JSON contract',()=>{
+  assert.match(program,/PropertyNamingPolicy = JsonNamingPolicy\.SnakeCaseLower/);
+  assert.match(menu,/current_password: currentPassword/);
+  assert.match(menu,/new_password: newPassword/);
+  assert.match(menu,/confirm_password: confirmPassword/);
+  assert.doesNotMatch(menu,/JSON\.stringify\(\{ currentPassword, newPassword, confirmPassword \}\)/);
+  assert.match(auth,/ChangeOwnPasswordRequest\(string\? CurrentPassword, string\? NewPassword, string\? ConfirmPassword\)/);
+});

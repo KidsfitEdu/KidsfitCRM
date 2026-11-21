@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Features;
@@ -18,6 +19,28 @@ public sealed class ChangePasswordMySqlTests(ChannelMySqlFixture fixture) : ICla
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, id.ToString())], "test"));
         return context;
+    }
+
+    [Fact]
+    public void ChangePasswordJsonBodyBindsUsingApplicationSnakeCaseContract()
+    {
+        // Matches ConfigureHttpJsonOptions in Program.cs; a direct action call does not cover request binding.
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        };
+        const string json = """
+            {"current_password":"current-example","new_password":"new-example","confirm_password":"new-example"}
+            """;
+
+        var request = JsonSerializer.Deserialize<ChangeOwnPasswordRequest>(json, options);
+        Assert.NotNull(request);
+        Assert.Equal("current-example", request.CurrentPassword);
+        Assert.Equal("new-example", request.NewPassword);
+        Assert.Equal("new-example", request.ConfirmPassword);
+        Assert.Equal(
+            "current_password",
+            JsonNamingPolicy.SnakeCaseLower.ConvertName(nameof(ChangeOwnPasswordRequest.CurrentPassword)));
     }
 
     [MySqlFact]

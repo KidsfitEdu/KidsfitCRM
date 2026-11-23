@@ -197,7 +197,7 @@ export function Header({
           <div className="max-h-[min(55dvh,355px)] min-h-0 overflow-y-auto overscroll-contain px-2 py-1.5">
             {!apiBase && <p className="px-2 py-4 text-sm text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
             {workflowNotifications.isPending && !!apiBase &&
-              <p role="status" className="px-2 py-4 text-sm text-muted-foreground">Đang tải thông báo…</p>}
+              <output className="block px-2 py-4 text-sm text-muted-foreground">Đang tải thông báo…</output>}
             {workflowNotifications.error &&
               <p role="alert" className="px-2 py-2 text-sm text-destructive">{workflowNotifications.error.message}</p>}
             {actionError && <p role="alert" className="px-2 py-2 text-sm text-destructive">{actionError}</p>}

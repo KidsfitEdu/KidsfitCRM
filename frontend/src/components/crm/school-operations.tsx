@@ -1595,7 +1595,7 @@ export function SchoolOperations({
             <SchoolProfileDetails units={proposalProfileUnits} displayName={selectedProposal.name}
               schoolCode={selectedProposal.school_code} statusLabel={workflowLabels[selectedProposal.status] ?? selectedProposal.status}/>}
           <section className="space-y-2 border-t pt-4 text-sm">
-            <h3 className="font-semibold">Thông tin đề xuất</h3>
+            <h3 className="font-semibold">Thông tin xử lý đề xuất</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <div><p className="text-xs text-muted-foreground">Trạng thái</p>
                 <p>{workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p></div>

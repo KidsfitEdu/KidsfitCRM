@@ -24,6 +24,8 @@ type Props = {
   statusLabel?: string | null;
   /** Optional customer tax code, only when returned in the authorized profile. */
   taxCode?: string | null;
+  /** Existing customer contact fields, used only as read-only fallback for missing unit fields. */
+  customerContact?: Partial<SchoolProfileUnit> | null;
   /** A scoped parent/proposal name, even when MAIN is not included in units. */
   displayName?: string | null;
 };
@@ -107,10 +109,18 @@ export function SchoolBranchDetails({units}: {units: SchoolProfileUnit[]}) {
 }
 
 /** Shared read-only profile for Admin directory, Sales/CTV and proposal-review drawers. */
-export function SchoolProfileDetails({units, schoolCode, statusLabel, displayName, taxCode}: Props) {
+export function SchoolProfileDetails({units, schoolCode, statusLabel, displayName, taxCode, customerContact}: Props) {
   const main = units.find(unit => unit.unit_type === 'MAIN');
   const mainCount = units.filter(unit => unit.unit_type === 'MAIN').length;
   const summaryName = displayName?.trim() || main?.name?.trim();
+  const visibleMain = main && customerContact ? {
+    ...main,
+    address: main.address || customerContact.address,
+    contact_name: main.contact_name || customerContact.contact_name,
+    contact_position: main.contact_position || customerContact.contact_position,
+    contact_phone: main.contact_phone || customerContact.contact_phone,
+    email: main.email || customerContact.email,
+  } : main;
   return <div className="min-w-0 space-y-3 text-sm">
     {(summaryName || schoolCode || statusLabel || taxCode) && <section aria-label="Tổng quan trường học" className="flex min-w-0 items-start gap-3 rounded-2xl border border-border bg-card p-3.5 sm:p-4">
       <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -126,10 +136,16 @@ export function SchoolProfileDetails({units, schoolCode, statusLabel, displayNam
       </div>
     </section>}
     {mainCount > 1 && <output className="block rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-foreground">Hồ sơ có nhiều đơn vị trường chính; chỉ hiển thị đơn vị đầu tiên. Vui lòng kiểm tra dữ liệu nguồn.</output>}
-    {main ? <SchoolMainInfo unit={main}/>
-      : <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
-          Chưa có thông tin trường chính trong phạm vi hồ sơ được phép xem.
-        </p>}
+    {visibleMain ? <SchoolMainInfo unit={visibleMain}/>
+      : <>
+          <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
+            Chưa có thông tin trường chính trong phạm vi hồ sơ được phép xem.
+          </p>
+          {customerContact && <section aria-label="Liên hệ khách hàng" className="space-y-3 rounded-2xl border border-border bg-card p-3.5 sm:p-4">
+            <h3 className="text-sm font-bold">Thông tin liên hệ khách hàng</h3>
+            <SchoolFields unit={{id: -1, unit_type: 'CUSTOMER_CONTACT', name: '', ...customerContact}}/>
+          </section>}
+        </>}
     <SchoolBranchDetails units={units}/>
   </div>;
 }

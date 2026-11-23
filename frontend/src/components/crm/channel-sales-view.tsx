@@ -500,9 +500,9 @@ export function ChannelSalesView({
         {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
         {!schoolProfile && !profileError && <output className="block text-sm text-muted-foreground">Đang tải thông tin trường…</output>}
         {schoolProfile && <>
-          {schoolProfile.can_view_school_contacts === false && <p role="status" className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+          {schoolProfile.can_view_school_contacts === false && <output className="block rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
             Thông tin liên hệ của trường chưa được cấp quyền xem trong phạm vi tài khoản hiện tại.
-          </p>}
+          </output>}
           <SchoolProfileDetails
             units={schoolProfile.school_units}
             displayName={schoolProfile.data.display_name}

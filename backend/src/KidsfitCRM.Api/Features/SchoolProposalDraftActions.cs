@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
@@ -147,6 +148,9 @@ public sealed partial class ChannelSalesActions
         draft.Version++; draft.UpdatedAt = DateTime.UtcNow;
         Audit.Add(db, actorId, "SUBMIT_SCHOOL_PROPOSAL", nameof(SchoolProposal), id,
             new { status = previousStatus }, new { draft.Status, draft.ManagerUserId, draft.ReviewDueAt, units = units.Length }, http);
+        CrmNotificationWriter.Add(db, orgId, managerId, "SCHOOL_PROPOSAL_SUBMITTED",
+            nameof(SchoolProposal), id, "Đề xuất trường cần kiểm tra",
+            "Sales/CTV đã gửi đề xuất trường từ bản nháp. Vui lòng xem và xác nhận.", "manager-proposals", draft.Version);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);
@@ -167,6 +171,13 @@ public sealed partial class ChannelSalesActions
         proposal.Version++; proposal.UpdatedAt = DateTime.UtcNow;
         Audit.Add(db, actorId, "REQUEST_SCHOOL_PROPOSAL_REVISION", nameof(SchoolProposal), id,
             new { status = "PENDING_MANAGER" }, new { proposal.Status, proposal.Version, reason }, http);
+        var salesIsCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+            m.UserId == proposal.SubmittedByUserId && m.OrganizationId == proposal.OrganizationId
+            && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
+        CrmNotificationWriter.Add(db, proposal.OrganizationId, proposal.SubmittedByUserId,
+            "SCHOOL_PROPOSAL_NEEDS_REVISION", nameof(SchoolProposal), proposal.Id,
+            "Đề xuất trường cần bổ sung", "Quản lý đã yêu cầu chỉnh sửa hồ sơ đề xuất trường. Mở hồ sơ để xem lý do.",
+            salesIsCollaborator ? "role-collaborator-proposals" : "role-sales-staff-proposals", proposal.Version);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);

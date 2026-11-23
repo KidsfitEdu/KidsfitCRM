@@ -1,6 +1,7 @@
 using System.Data;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
@@ -46,6 +47,22 @@ public sealed partial class ChannelSalesActions
         db.ContractCancellations.Add(cancellation); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "CANCEL_SALES_CONTRACT", nameof(ContractCancellation), cancellation.Id, new { cancellation.PreviousStatus },
             new { cancellation.ContractId, contract.Status, cancellation.DecisionReference }, http);
+        var owners = new HashSet<long> { contract.OwnerUserId };
+        if (contract.CareUserId.HasValue) owners.Add(contract.CareUserId.Value);
+        var managerId = await db.OrganizationMemberships.AsNoTracking()
+            .Where(m => m.UserId == contract.OwnerUserId && m.OrganizationId == contract.OwnerOrganizationId
+                && m.Status == "ACTIVE").Select(m => m.ManagerUserId).FirstOrDefaultAsync(ct);
+        if (managerId.HasValue) owners.Add(managerId.Value);
+        foreach (var recipient in owners.Where(id => id != actorId))
+        {
+            var org = await CrmNotificationWriter.RecipientOrganization(db, recipient, contract.OwnerOrganizationId, ct);
+            if (org.HasValue)
+                CrmNotificationWriter.Add(db, org.Value, recipient, "CONTRACT_CANCELLED",
+                    nameof(SalesContract), contract.Id, "Hợp đồng đã chấm dứt",
+                    $"Hợp đồng {contract.ContractCode} đã hủy/chấm dứt theo quyết định. Vui lòng xem hồ sơ.",
+                    recipient == contract.CareUserId ? "role-customer-care-customers"
+                        : recipient == managerId ? "manager-contracts" : "role-sales-staff-customers");
+        }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return cancellation.Id;
     }, ct);
 
@@ -88,6 +105,16 @@ public sealed partial class ChannelSalesActions
         await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "RECORD_REVENUE_REFUND", nameof(RevenueRefund), refund.Id, null,
             new { refund.ContractId, refund.RevenueReceiptId, refund.Amount, refund.RefundedAt, refund.ReferenceCode, refund.DecisionReference }, http);
+        var accountingOrg = await CrmNotificationWriter.CentralOrganization(db, ct);
+        if (accountingOrg.HasValue)
+        {
+            var accountants = await CrmNotificationWriter.CentralReviewers(db, Permissions.ChannelSalesRevenueRefund, ct);
+            foreach (var recipient in accountants.Where(id => id != actorId))
+                CrmNotificationWriter.Add(db, accountingOrg.Value, recipient, "REVENUE_REFUNDED",
+                    nameof(RevenueRefund), refund.Id, "Đã ghi nhận hoàn tiền",
+                    "Khoản hoàn tiền đã được ghi nhận. Vui lòng đối chiếu chứng từ.",
+                    "role-accounting-revenue");
+        }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return refund.Id;
     }, ct);
 

@@ -430,6 +430,18 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             });
             Audit.Add(db, actorId, "REPORT_SIGNED_CONTRACT", nameof(SalesContract), contract.Id, null,
                 new { contract.CustomerId, contract.ContractCode, contract.SignedOn, contract.TotalValue, contract.ProtectionUntil }, http);
+            if (contract.RequiresSchoolVerification)
+            {
+                var managerId = await db.OrganizationMemberships.AsNoTracking()
+                    .Where(m => m.UserId == contract.OwnerUserId && m.OrganizationId == contract.OwnerOrganizationId
+                        && m.Status == "ACTIVE")
+                    .Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);
+                if (managerId.HasValue)
+                    CrmNotificationWriter.Add(db, contract.OwnerOrganizationId, managerId.Value,
+                        "SCHOOL_CONTRACT_REPORTED", nameof(SalesContract), contract.Id,
+                        "Hợp đồng cần Quản lý kiểm tra", "Sales đã gửi hồ sơ hợp đồng, cần Quản lý kiểm tra và chuyển CHECKEE.",
+                        "manager-contracts");
+            }
             await db.SaveChangesAsync(cancellationToken);
             db.ReconciliationEvents.Add(new ReconciliationEvent
             {
@@ -721,6 +733,40 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         });
         Audit.Add(db, actorId, confirm ? "CONFIRM_RECONCILIATION" : "DISPUTE_RECONCILIATION", nameof(ReconciliationCase), reconciliation.Id,
             new { status = previous }, new { reconciliation.Status, reconciliation.DisputeReason }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(SalesContract)
+            && x.EntityId == schoolContract.Id && x.Kind == "CONTRACT_FORWARDED_TO_CHECKEE" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, now), cancellationToken);
+        if (schoolContract.RequiresSchoolVerification)
+        {
+            // An already completed reconciliation may later be re-opened by an authorized business path.
+            // The Nth real transition gets a new notice; replay of the same state returns earlier.
+            var occurrence = await db.ReconciliationEvents.AsNoTracking()
+                .CountAsync(x => x.ReconciliationCaseId == reconciliation.Id
+                    && x.EventType == (confirm ? "CONFIRMED" : "DISPUTED"), cancellationToken);
+            // Reconciliation after contract cancellation is a settlement review, not a new
+            // school contract verification or long-term protection grant.
+            var isSettlementOnly = confirm && schoolContract.Status == "CANCELLED";
+            var kind = isSettlementOnly ? "CHECKEE_SETTLEMENT_CONFIRMED"
+                : confirm ? "CHECKEE_CONTRACT_VERIFIED" : "CHECKEE_CONTRACT_DISPUTED";
+            var title = isSettlementOnly ? "CHECKEE đã xác nhận đối soát hợp đồng đã hủy"
+                : confirm ? "CHECKEE đã xác minh hợp đồng" : "CHECKEE yêu cầu xử lý hợp đồng";
+            var message = isSettlementOnly ? "CHECKEE đã xác nhận kết quả đối soát; hợp đồng vẫn đã hủy và không được khôi phục quyền bảo vệ."
+                : confirm ? "Hợp đồng đã được CHECKEE xác minh. Xem trạng thái và quyền bảo vệ theo hồ sơ."
+                : "CHECKEE đã phản hồi hợp đồng; cần xem thông tin tranh chấp hoặc hồ sơ cần bổ sung.";
+            var isCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                m.UserId == schoolContract.OwnerUserId && m.OrganizationId == schoolContract.OwnerOrganizationId
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), cancellationToken);
+            CrmNotificationWriter.Add(db, schoolContract.OwnerOrganizationId, schoolContract.OwnerUserId,
+                kind, nameof(ReconciliationCase), reconciliation.Id, title, message,
+                isCollaborator ? "role-collaborator-approaches" : "role-sales-staff-customers", occurrence);
+            var managerId = await db.OrganizationMemberships.AsNoTracking()
+                .Where(m => m.UserId == schoolContract.OwnerUserId && m.OrganizationId == schoolContract.OwnerOrganizationId
+                    && m.Status == "ACTIVE").Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);
+            if (managerId.HasValue)
+                CrmNotificationWriter.Add(db, schoolContract.OwnerOrganizationId, managerId.Value,
+                    kind, nameof(ReconciliationCase), reconciliation.Id, title, message, "manager-contracts", occurrence);
+        }
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
@@ -814,6 +860,16 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         registration.UpdatedAt = now;
         await db.CustomerProtections.Where(x => x.ApproachRegistrationId == registration.Id && x.Status == "ACTIVE")
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "EXPIRED").SetProperty(x => x.UpdatedAt, now), cancellationToken);
+        // Expiry is already authorized by existing policy; this only records the event.
+        var collaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+            m.UserId == registration.OwnerUserId && m.OrganizationId == registration.OwnerOrganizationId
+            && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR"
+                || m.MembershipType == "PARTNER_COLLABORATOR"), cancellationToken);
+        CrmNotificationWriter.Add(db, registration.OwnerOrganizationId, registration.OwnerUserId,
+            "SCHOOL_APPROACH_EXPIRED", nameof(ApproachRegistration), registration.Id,
+            "Quyền tiếp cận trường đã hết hạn",
+            "Quyền tiếp cận trường đã kết thúc và trường có thể được đăng ký theo quy tắc CRM.",
+            collaborator ? "role-collaborator-approaches" : "role-sales-staff-customers");
         await db.SaveChangesAsync(cancellationToken);
     }
 

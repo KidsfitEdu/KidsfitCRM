@@ -1,6 +1,7 @@
 using System.Data;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
@@ -57,6 +58,10 @@ public sealed partial class ChannelSalesActions
         db.ContractCareHandovers.Add(handover); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "ASSIGN_CONTRACT_CARE", nameof(ContractCareHandover), handover.Id, new { handover.PreviousUserId },
             new { handover.ContractId, handover.AssignedUserId, handover.CareOrganizationId }, http);
+        CrmNotificationWriter.Add(db, handover.CareOrganizationId, handover.AssignedUserId,
+            "CARE_CONTRACT_ASSIGNED", nameof(ContractCareHandover), handover.Id,
+            "Bạn được phân công chăm sóc trường", "Admin đã phân công trường cho bạn phụ trách CSKH.",
+            "role-customer-care-customers");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return handover.Id;
     }, ct);
 
@@ -94,6 +99,12 @@ public sealed partial class ChannelSalesActions
         db.CustomerSupportCases.Add(item); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "CREATE_CUSTOMER_SUPPORT_CASE", nameof(CustomerSupportCase), item.Id, null,
             new { item.ContractId, item.AssignedUserId, item.OrganizationId, item.Status, item.TicketType, item.CheckeeOrganizationId }, http);
+        var technicians = await CrmNotificationWriter.OrganizationRecipients(db, checkeeOrg.Value,
+            Permissions.SchoolTechnicalSupportHandle, ct);
+        foreach (var technician in technicians)
+            CrmNotificationWriter.Add(db, checkeeOrg.Value, technician,
+                "SUPPORT_CASE_FORWARDED", nameof(CustomerSupportCase), item.Id, "Yêu cầu hỗ trợ kỹ thuật mới",
+                "CSKH đã chuyển yêu cầu hỗ trợ lỗi hệ thống đến CHECKEE.", "role-checkee-support");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return item.Id;
     }, ct);
 
@@ -121,6 +132,11 @@ public sealed partial class ChannelSalesActions
             Content = content, OccurredAt = now, NextFollowUpAt = request.NextFollowUpAt?.ToUniversalTime(), CreatedAt = now, UpdatedAt = now,
         });
         Audit.Add(db, actorId, "UPDATE_CUSTOMER_SUPPORT_CASE", nameof(CustomerSupportCase), item.Id, new { status = previous }, new { item.Status, item.ResolvedAt }, http);
+        // A CASE_RESOLVED message is terminal; incremental progress stays in the work log.
+        if (status == "RESOLVED" && previous != "RESOLVED" && item.CreatedByUserId != actorId)
+            CrmNotificationWriter.Add(db, item.OrganizationId, item.CreatedByUserId,
+                "SUPPORT_CASE_RESOLVED", nameof(CustomerSupportCase), item.Id, "Yêu cầu hỗ trợ đã hoàn tất",
+                "CSKH đã kết thúc yêu cầu hỗ trợ. Xem hồ sơ để biết kết quả.", "role-customer-care-cases");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return id;
     }, ct);
 

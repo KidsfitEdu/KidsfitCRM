@@ -123,6 +123,9 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTime?>("DueAt").HasColumnType("datetime(6)").HasColumnName("due_at");
+                    b.Property<DateOnly?>("DueOn").HasColumnType("date").HasColumnName("due_on");
+                    b.Property<DateOnly?>("MilestoneOn").HasColumnType("date").HasColumnName("milestone_on");
                     b.Property<long>("EntityId")
                         .HasColumnType("bigint")
                         .HasColumnName("entity_id");
@@ -2897,33 +2900,49 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                     b.ToTable("school_proposals");
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolProposalAlert", b =>
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.CrmNotification", b =>
                 {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("created_at");
 
                     b.Property<string>("DeduplicationKey")
                         .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("varchar(120)")
+                        .HasMaxLength(180)
+                        .HasColumnType("varchar(180)")
                         .HasColumnName("deduplication_key")
                         .UseCollation("utf8mb4_bin");
 
-                    b.Property<DateTime>("DueAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("due_at");
+                    b.Property<long>("EntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("varchar(48)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
 
                     b.Property<string>("Kind")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
                         .HasColumnName("kind");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
 
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("datetime(6)")
@@ -2937,15 +2956,23 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("resolved_at");
 
-                    b.Property<long>("SchoolProposalId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("school_proposal_id");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(24)
                         .HasColumnType("varchar(24)")
                         .HasColumnName("status");
+
+                    b.Property<string>("TargetView")
+                        .IsRequired()
+                        .HasMaxLength(96)
+                        .HasColumnType("varchar(96)")
+                        .HasColumnName("target_view");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("varchar(180)")
+                        .HasColumnName("title");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)")
@@ -2953,14 +2980,12 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DeduplicationKey")
-                        .IsUnique();
-
-                    b.HasIndex("SchoolProposalId", "Status");
-
+                    b.HasIndex("DeduplicationKey").IsUnique();
+                    b.HasIndex("EntityType", "EntityId");
+                    b.HasIndex("OrganizationId");
                     b.HasIndex("RecipientUserId", "Status", "CreatedAt");
 
-                    b.ToTable("school_proposal_alerts");
+                    b.ToTable("crm_notifications");
                 });
 
             modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolProposalUnit", b =>
@@ -4229,17 +4254,17 @@ namespace KidsfitCRM.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("KidsfitCRM.Api.Domain.SchoolProposalAlert", b =>
+            modelBuilder.Entity("KidsfitCRM.Api.Domain.CrmNotification", b =>
                 {
-                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
+                    b.HasOne("KidsfitCRM.Api.Domain.Organization", null)
                         .WithMany()
-                        .HasForeignKey("RecipientUserId")
+                        .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("KidsfitCRM.Api.Domain.SchoolProposal", null)
+                    b.HasOne("KidsfitCRM.Api.Domain.User", null)
                         .WithMany()
-                        .HasForeignKey("SchoolProposalId")
+                        .HasForeignKey("RecipientUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

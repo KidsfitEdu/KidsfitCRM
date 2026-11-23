@@ -216,6 +216,16 @@ public sealed partial class ChannelSalesActions
         contract.ManagerReviewedByUserId = actorId;
         contract.UpdatedAt = DateTime.UtcNow;
         Audit.Add(db, actorId, "REVIEW_SCHOOL_CONTRACT", nameof(SalesContract), contract.Id, null, new { contract.Status }, http);
+        if (linkedCase is not null)
+        {
+            var verifiers = await CrmNotificationWriter.OrganizationRecipients(db, linkedCase.CheckeeOrganizationId,
+                Permissions.ChannelSalesReconcile, ct);
+            foreach (var verifier in verifiers)
+                CrmNotificationWriter.Add(db, linkedCase.CheckeeOrganizationId, verifier,
+                    "CONTRACT_FORWARDED_TO_CHECKEE", nameof(SalesContract), contract.Id,
+                    "Hợp đồng mới cần CHECKEE xác minh",
+                    "Quản lý đã chuyển hồ sơ hợp đồng. Vui lòng xem xét và xác minh.", "role-checkee-verification");
+        }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }

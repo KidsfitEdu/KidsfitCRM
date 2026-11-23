@@ -2,6 +2,7 @@ using System.Data;
 using System.Net.Mail;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -156,6 +157,16 @@ public sealed partial class ChannelSalesActions
         AddPayoutEvent(payout, actorId, "SUBMITTED", payout.AdjustmentReason, payout.UpdatedAt);
         Audit.Add(db, actorId, "SUBMIT_PAYOUT", nameof(Payout), id, new { status = oldStatus },
             new { payout.Status, payout.SuggestedAmount, payout.RequestedAmount, payout.AdjustmentReason }, http);
+        var centralOrgId = await CrmNotificationWriter.CentralOrganization(db, ct);
+        if (centralOrgId.HasValue)
+        {
+            var directors = await CrmNotificationWriter.CentralReviewers(db, Permissions.ChannelSalesPayoutApprove, ct);
+            foreach (var director in directors.Where(u => u != actorId))
+                CrmNotificationWriter.Add(db, centralOrgId.Value, director,
+                    "PAYOUT_SUBMITTED", nameof(Payout), payout.Id, "Phiếu chi cần phê duyệt",
+                    "Kế toán đã gửi phiếu chi, cần BGĐ phê duyệt hoặc yêu cầu bổ sung.",
+                    "role-board-payouts", payout.SubmittedAt!.Value.Ticks);
+        }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
@@ -186,6 +197,15 @@ public sealed partial class ChannelSalesActions
         AddPayoutEvent(payout, actorId, "CHANGES_REQUESTED", reason, payout.UpdatedAt);
         Audit.Add(db, actorId, "RETURN_PAYOUT", nameof(Payout), id,
             new { status = "PENDING_APPROVAL" }, new { payout.Status, reason }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(Payout)
+            && x.EntityId == payout.Id && x.Kind == "PAYOUT_SUBMITTED" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, payout.UpdatedAt), ct);
+        var returnOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.CreatedByUserId, payout.OrganizationId, ct);
+        if (returnOrgId.HasValue)
+            CrmNotificationWriter.Add(db, returnOrgId.Value, payout.CreatedByUserId,
+                "PAYOUT_CHANGES_REQUESTED", nameof(Payout), payout.Id, "Phiếu chi cần bổ sung",
+                "BGĐ đã yêu cầu chỉnh sửa phiếu chi; mở hồ sơ để xem lý do.", "role-accounting-revenue", payout.UpdatedAt.Ticks);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
@@ -211,6 +231,16 @@ public sealed partial class ChannelSalesActions
         payout.UpdatedAt = DateTime.UtcNow;
         AddPayoutEvent(payout, actorId, "APPROVED", null, payout.UpdatedAt);
         Audit.Add(db, actorId, "APPROVE_PAYOUT", nameof(Payout), id, new { status = "PENDING_APPROVAL" }, new { payout.Status, payout.NetAmount }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(Payout)
+            && x.EntityId == payout.Id && x.Kind == "PAYOUT_SUBMITTED" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, payout.UpdatedAt), ct);
+        var accountingOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.CreatedByUserId, payout.OrganizationId, ct);
+        if (accountingOrgId.HasValue)
+            CrmNotificationWriter.Add(db, accountingOrgId.Value, payout.CreatedByUserId,
+                "PAYOUT_APPROVED", nameof(Payout), payout.Id, "Phiếu chi được phê duyệt",
+                "BGĐ đã phê duyệt phiếu chi. Kế toán có thể xử lý thanh toán theo quy trình.",
+                "role-accounting-revenue");
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
@@ -248,6 +278,21 @@ public sealed partial class ChannelSalesActions
         payout.UpdatedAt = DateTime.UtcNow;
         AddPayoutEvent(payout, actorId, "PAID", CleanOptional(request.Reason, 1000), payout.UpdatedAt);
         Audit.Add(db, actorId, "COMPLETE_PAYOUT", nameof(Payout), id, new { status = "APPROVED" }, new { payout.Status, payout.NetAmount, payout.PaymentReference, payout.PaidAt }, http);
+        if (payout.BeneficiaryUserId is long beneficiaryUserId)
+        {
+            var beneficiaryOrgId = await CrmNotificationWriter.RecipientOrganization(db, beneficiaryUserId, payout.OrganizationId, ct);
+            if (beneficiaryOrgId.HasValue)
+            {
+            var beneficiaryManager = payout.BeneficiaryRole == "MANAGER";
+            var beneficiaryCollaborator = !beneficiaryManager && await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                m.UserId == beneficiaryUserId && m.OrganizationId == beneficiaryOrgId.Value
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
+                CrmNotificationWriter.Add(db, beneficiaryOrgId.Value, beneficiaryUserId,
+                    "PAYOUT_PAID", nameof(Payout), payout.Id, "Hoa hồng đã được thanh toán",
+                    "Kế toán đã xác nhận chi trả hoa hồng theo phiếu đã duyệt.",
+                    beneficiaryManager ? "manager-income" : beneficiaryCollaborator ? "role-collaborator-income" : "role-sales-staff-income");
+            }
+        }
         try
         {
             await db.SaveChangesAsync(ct);
@@ -305,6 +350,24 @@ public sealed partial class ChannelSalesActions
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { throw new ApiConflictException("Khóa điều chỉnh đã được sử dụng."); }
         Audit.Add(db, actorId, "ADJUST_COMMISSION", nameof(CommissionLedgerEntry), entry.Id, null, new { entry.RelatedEntryId, entry.Amount, entry.Period, entry.Reason }, http);
+        if (entry.BeneficiaryUserId > 0 && entry.BeneficiaryUserId != actorId)
+        {
+            var org = await CrmNotificationWriter.RecipientOrganization(db, entry.BeneficiaryUserId,
+                entry.BeneficiaryOrganizationId, ct);
+            if (org.HasValue)
+            {
+                var collaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                    m.UserId == entry.BeneficiaryUserId && m.OrganizationId == org.Value
+                    && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR"
+                        || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
+                CrmNotificationWriter.Add(db, org.Value, entry.BeneficiaryUserId,
+                    "COMMISSION_ADJUSTED", nameof(CommissionLedgerEntry), entry.Id,
+                    entry.Amount < 0 ? "Hoa hồng được điều chỉnh giảm" : "Hoa hồng được điều chỉnh",
+                    "Kế toán đã ghi nhận điều chỉnh hoa hồng có lý do và chứng từ. Vui lòng xem thu nhập.",
+                    entry.BeneficiaryRole == "MANAGER" ? "manager-income" :
+                        collaborator ? "role-collaborator-income" : "role-sales-staff-income");
+            }
+        }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return entry.Id;

@@ -2,6 +2,7 @@ using System.Data;
 using System.Net.Mail;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using MySql.Data.MySqlClient;
 
@@ -45,6 +46,9 @@ public sealed partial class ChannelSalesActions
         await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "SUBMIT_SCHOOL_PROPOSAL", nameof(SchoolProposal), proposal.Id, null,
             new { proposal.Status, proposal.ManagerUserId, proposal.OrganizationId, proposal.ReviewDueAt }, http);
+        CrmNotificationWriter.Add(db, proposal.OrganizationId, proposal.ManagerUserId, "SCHOOL_PROPOSAL_SUBMITTED",
+            nameof(SchoolProposal), proposal.Id, "Đề xuất trường mới",
+            "Sales/CTV đã gửi đề xuất trường mới, cần Quản lý kiểm tra.", "manager-proposals");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return proposal.Id;
     }, ct);
@@ -245,12 +249,51 @@ public sealed partial class ChannelSalesActions
         proposal.Status = target; proposal.ReviewedByUserId = actorId; proposal.DecisionReason = reason; proposal.UpdatedAt = now;
         if (finalReview && proposal.Status != "PENDING_ADMIN")
         {
-            await db.SchoolProposalAlerts.Where(x => x.SchoolProposalId == proposal.Id && x.Status == "OPEN")
+            await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolProposal) && x.EntityId == proposal.Id
+                && x.Status == "OPEN" && (x.Kind == "ADMIN_OVERDUE" || x.Kind == "DIRECTOR_ESCALATION"))
                 .ExecuteUpdateAsync(updates => updates.SetProperty(x => x.Status, "RESOLVED")
                     .SetProperty(x => x.ResolvedAt, now), ct);
         }
+        // Remove handled approval tasks from the unread queue, but preserve history.
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolProposal)
+            && x.EntityId == id && x.Status == "OPEN"
+            && (x.Kind == "SCHOOL_PROPOSAL_SUBMITTED" || x.Kind == "SCHOOL_PROPOSAL_FORWARDED"))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, now), ct);
         Audit.Add(db, actorId, finalReview ? "ADMIN_REVIEW_SCHOOL_PROPOSAL" : "MANAGER_REVIEW_SCHOOL_PROPOSAL", nameof(SchoolProposal), id,
             new { status = previous }, new { proposal.Status, proposal.ReviewDueAt, proposal.DirectorySchoolId, request.DuplicateReviewed, reason }, http);
+        if (!finalReview && request.Approve)
+        {
+            var central = await CrmNotificationWriter.CentralOrganization(db, ct);
+            if (central.HasValue)
+            {
+                var admins = await CrmNotificationWriter.CentralReviewers(db, Permissions.SchoolDirectoryManage, ct);
+                foreach (var adminId in admins)
+                    CrmNotificationWriter.Add(db, central.Value, adminId, "SCHOOL_PROPOSAL_FORWARDED",
+                        nameof(SchoolProposal), proposal.Id, "Đề xuất trường cần Admin duyệt",
+                        "Quản lý đã chuyển đề xuất trường đến Admin KIDSFIT.", "admin-proposals", proposal.Version);
+            }
+        }
+        else
+        {
+            var salesIsCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                m.UserId == proposal.SubmittedByUserId && m.OrganizationId == proposal.OrganizationId
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
+            CrmNotificationWriter.Add(db, proposal.OrganizationId, proposal.SubmittedByUserId,
+                proposal.Status == "APPROVED" ? "SCHOOL_PROPOSAL_APPROVED" : "SCHOOL_PROPOSAL_REJECTED",
+                nameof(SchoolProposal), proposal.Id,
+                proposal.Status == "APPROVED" ? "Đề xuất trường được duyệt" : "Đề xuất trường bị từ chối",
+                proposal.Status == "APPROVED" ? "Đề xuất trường đã được Admin KIDSFIT phê duyệt." :
+                    "Đề xuất trường bị từ chối; vui lòng mở hồ sơ để xem lý do.",
+                salesIsCollaborator ? "role-collaborator-proposals" : "role-sales-staff-proposals", proposal.Version);
+            if (finalReview && proposal.ManagerUserId != actorId)
+                CrmNotificationWriter.Add(db, proposal.OrganizationId, proposal.ManagerUserId,
+                    proposal.Status == "APPROVED" ? "SCHOOL_PROPOSAL_APPROVED" : "SCHOOL_PROPOSAL_REJECTED",
+                    nameof(SchoolProposal), proposal.Id,
+                    proposal.Status == "APPROVED" ? "Đề xuất trường được Admin duyệt" : "Đề xuất trường bị Admin từ chối",
+                    "Admin KIDSFIT đã xử lý đề xuất trường của đội ngũ.",
+                    "manager-proposals", proposal.Version);
+        }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);

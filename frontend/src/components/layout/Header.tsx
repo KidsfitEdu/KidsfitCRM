@@ -2,7 +2,7 @@
 
 import { Bell, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,31 +10,33 @@ import { createApiClient } from '@/services/api.client';
 import { UserProfileMenu, type CurrentUserProfile } from '@/components/layout/UserProfileMenu';
 import type { View } from '@/config/navigation';
 
-type Notice = {
-  id: number;
-  kind: 'ADMIN_OVERDUE' | 'DIRECTOR_ESCALATION';
-  created_at: string;
-  due_at: string;
-  read_at: string | null;
-  school_proposal_id: number;
-  school_name: string;
-  school_code: string;
-  message: string;
-};
-type NotificationsResponse = { unread_count: number; data: Notice[] };
-type ExpiryNotice = {
+type WorkflowNotice = {
   id: number;
   kind: string;
-  read_at: string | null;
-  created_at: string;
-  contract_id: number;
-  contract_code: string;
-  school_name: string;
+  title: string;
   message: string;
-  due_at: string;
-  target: 'role-sales-staff-customers' | 'role-collaborator-approaches' | 'role-customer-care-customers' | 'manager-contracts';
+  entity_type: string;
+  entity_id: number;
+  target_view: View;
+  created_at: string;
+  read_at: string | null;
+  status: string;
 };
-type ExpiryNotificationsResponse = { unread_count: number; data: ExpiryNotice[] };
+type WorkflowNotificationsResponse = { unread_count: number; data: WorkflowNotice[]; page: number };
+
+const NOTIFICATION_PAGE_SIZE = 50;
+
+function notificationTime(value: string): string {
+  const created = new Date(value);
+  if (Number.isNaN(created.getTime())) return '';
+  const difference = Date.now() - created.getTime();
+  if (difference >= 0 && difference < 60_000) return 'Vừa xong';
+  if (difference >= 0 && difference < 60 * 60_000) return `${Math.floor(difference / 60_000)} phút trước`;
+  return created.toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
 
 export function Header({
   todayLabel, userName, search, setSearch, dark, setDark,
@@ -60,6 +62,7 @@ export function Header({
 }) {
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [noticeFilter, setNoticeFilter] = useState<'ALL' | 'UNREAD' | 'ACTION'>('ALL');
   const headerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const measure = () => {
@@ -76,50 +79,57 @@ export function Header({
   const [actionError, setActionError] = useState('');
   const client = useQueryClient();
   const request = createApiClient(apiBase);
-  const queryKey = ['crm-notifications', apiBase, token];
-  const notifications = useQuery({
-    queryKey,
-    queryFn: () => request<NotificationsResponse>('/notifications', token),
+  const workflowQueryKey = ['crm-workflow-notifications', apiBase, token];
+  const workflowNotifications = useInfiniteQuery({
+    queryKey: workflowQueryKey,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => request<WorkflowNotificationsResponse>(`/notifications?page=${pageParam}`, token),
+    getNextPageParam: (lastPage) => lastPage.data.length === NOTIFICATION_PAGE_SIZE
+      ? lastPage.page + 1 : undefined,
     enabled: !!apiBase && !!token,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
+  const unreadTotal = workflowNotifications.data?.pages[0]?.unread_count ?? 0;
 
-  const expiryQueryKey = ['crm-contract-expiry-notifications', apiBase, token];
-  const expiryNotifications = useQuery({
-    queryKey: expiryQueryKey,
-    queryFn: () => request<ExpiryNotificationsResponse>('/notifications/contract-expiry', token),
-    enabled: !!apiBase && !!token,
-    refetchInterval: 60_000,
-    refetchOnWindowFocus: true,
-  });
-  const openExpiryNotice = async (notice: ExpiryNotice) => {
-    setActionError('');
-    try {
-      if (!notice.read_at) {
-        await request('/notifications/contract-expiry/' + notice.id + '/read', token, { method: 'POST' });
-        await client.invalidateQueries({ queryKey: expiryQueryKey });
-      }
-      setOpen(false);
-      onNavigate?.(notice.target);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Không thể đánh dấu thông báo đã đọc.');
-    }
-  };
-
-  const openNotice = async (notice: Notice) => {
+  const openWorkflowNotice = async (notice: WorkflowNotice) => {
     setActionError('');
     try {
       if (!notice.read_at) {
         await request('/notifications/' + notice.id + '/read', token, { method: 'POST' });
-        await client.invalidateQueries({ queryKey });
+        await client.invalidateQueries({ queryKey: workflowQueryKey });
       }
+      // Deliver the selected entity ID to the destination page without encoding sensitive data in the URL.
+      window.sessionStorage.setItem('crm-notification-target', JSON.stringify({
+        view: notice.target_view, entityType: notice.entity_type, entityId: notice.entity_id,
+      }));
+      onNavigate?.(notice.target_view);
+      window.dispatchEvent(new Event('crm-notification-open'));
       setOpen(false);
-      onNavigate?.(notice.kind === 'ADMIN_OVERDUE' ? 'admin-proposals' : 'role-board-overdue');
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Không thể đánh dấu thông báo đã đọc.');
+      setActionError(err instanceof Error ? err.message : 'Không thể mở thông báo.');
     }
   };
+  // The API paginates 50 records per page; retain all loaded pages when more are requested.
+  const notices = workflowNotifications.data?.pages.flatMap(page => page.data) ?? [];
+  const noticeItems = [
+    ...(notices.map(notice => ({
+      key: 'workflow-' + notice.id,
+      createdAt: notice.created_at,
+      readAt: notice.read_at,
+      title: notice.title,
+      message: notice.message,
+      actionable: [
+        'SCHOOL_EXTENSION_REQUESTED', 'SCHOOL_PROPOSAL_SUBMITTED',
+        'SCHOOL_PROPOSAL_FORWARDED', 'SCHOOL_INVITATION_NEW', 'SCHOOL_CONTRACT_REPORTED',
+        'CONTRACT_FORWARDED_TO_CHECKEE', 'PAYOUT_SUBMITTED', 'SUPPORT_CASE_FORWARDED',
+      ].includes(notice.kind) && notice.status === 'OPEN',
+      resolved: notice.status !== 'OPEN',
+      onOpen: () => openWorkflowNotice(notice),
+    })) ?? []),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const visibleNotices = noticeItems.filter(notice => noticeFilter === 'ALL'
+    || (noticeFilter === 'UNREAD' ? !notice.readAt && !notice.resolved : notice.actionable));
 
   return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-2 border-b border-border/70 bg-card/95 px-3 py-3 backdrop-blur-xl sm:gap-3 sm:px-6">
     <div className="flex min-w-0 items-center gap-3">
@@ -155,35 +165,73 @@ export function Header({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger render={<Button variant="outline" size="icon" aria-label="Thông báo" className="relative rounded-xl" />}>
           <Bell aria-hidden="true" />
-          {!!((notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0)) && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
-            {(notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0) > 99 ? '99+' : (notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0)}
+          {unreadTotal > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+            {unreadTotal > 99 ? '99+' : unreadTotal}
           </span>}
         </PopoverTrigger>
-        <PopoverContent align="end" className="max-h-[430px] w-[min(90vw,360px)] overflow-y-auto p-3">
-          <p className="mb-2 font-semibold">Thông báo công việc</p>
-          {!apiBase && <p className="text-sm text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
-          {notifications.isPending && !!apiBase && <p className="text-sm text-muted-foreground">Đang tải thông báo…</p>}
-          {notifications.error && <p role="alert" className="text-sm text-red-600">{notifications.error.message}</p>}
-          {expiryNotifications.error && <p role="alert" className="text-sm text-red-600">{expiryNotifications.error.message}</p>}
-          {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
-          {notifications.data?.data.length === 0 && expiryNotifications.data?.data.length === 0 &&
-            <p className="text-sm text-muted-foreground">Hiện không có thông báo cần xử lý.</p>}
-          {expiryNotifications.data?.data.map(notice => <button type="button" key={`contract-${notice.id}`}
-            onClick={() => void openExpiryNotice(notice)}
-            className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
-            <span className="block font-semibold">{notice.school_name}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">{notice.contract_code}</span>
-            <span className="mt-1 block text-muted-foreground">{notice.message}</span>
-            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
-          </button>)}
-          {notifications.data?.data.map(notice => <button type="button" key={notice.id}
-            onClick={() => void openNotice(notice)}
-            className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
-            <span className="block font-semibold">{notice.school_name}</span>
-            <span className="mt-1 block text-muted-foreground">{notice.message}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">Hạn duyệt: {new Date(notice.due_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
-            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
-          </button>)}
+        <PopoverContent align="end" className="w-[min(92vw,320px)] gap-0 overflow-hidden rounded-xl !p-0 shadow-lg">
+          <div className="shrink-0 border-b border-border/60 px-3 py-2.5">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-[13px] font-semibold text-foreground">Thông báo</h2>
+              {unreadTotal > 0 && <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                {unreadTotal > 99 ? '99+' : unreadTotal} chưa đọc
+              </span>}
+            </div>
+            <fieldset aria-label="Lọc thông báo" className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
+              {(['ALL', 'UNREAD', 'ACTION'] as const).map(filter => <button type="button" key={filter}
+                aria-pressed={noticeFilter === filter}
+                onClick={() => setNoticeFilter(filter)}
+                className={`min-h-9 flex-1 rounded-md px-1 py-1 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${noticeFilter === filter ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>
+                {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
+              </button>)}
+            </fieldset>
+          </div>
+          <div className="max-h-[min(48dvh,300px)] min-h-0 overflow-y-auto overscroll-contain">
+            {!apiBase && <p className="px-3 py-4 text-xs text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
+            {workflowNotifications.isPending && !!apiBase &&
+              <output className="block px-3 py-4 text-xs text-muted-foreground">Đang tải thông báo…</output>}
+            {workflowNotifications.error && noticeItems.length === 0 &&
+              <p role="alert" className="px-3 py-2 text-xs text-destructive">{workflowNotifications.error.message}</p>}
+            {actionError && <p role="alert" className="px-3 py-2 text-xs text-destructive">{actionError}</p>}
+            {visibleNotices.length === 0 && !workflowNotifications.isPending && !workflowNotifications.error &&
+              <p className="px-3 py-6 text-center text-xs text-muted-foreground">Không có thông báo phù hợp.</p>}
+            <div className="divide-y divide-border/50">
+              {visibleNotices.map(notice => {
+                const unread = !notice.readAt && !notice.resolved;
+                return <button type="button" key={notice.key} aria-label={`Mở thông báo: ${notice.title}`}
+                  onClick={() => void notice.onOpen()}
+                  className={`group flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-accent/60 focus-visible:outline-2 focus-visible:outline-primary ${unread ? 'bg-primary/[0.035]' : ''}`}>
+                  <span aria-hidden="true" className={`mt-[7px] size-1.5 shrink-0 rounded-full ${unread ? 'bg-blue-600' : 'bg-muted-foreground/25'}`}/>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-baseline justify-between gap-1.5">
+                      <span className={`min-w-0 flex-1 truncate text-xs leading-[18px] ${unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/85'}`} title={notice.title}>
+                        {notice.title}
+                      </span>
+                      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{notificationTime(notice.createdAt)}</span>
+                    </span>
+                    <span className="mt-0.5 block line-clamp-2 break-words text-[11px] leading-4 text-muted-foreground" title={notice.message}>
+                      {notice.message}
+                    </span>
+                    {(notice.resolved || notice.actionable) && <span className="mt-1 block text-[10px] font-medium text-muted-foreground">
+                      {notice.resolved ? 'Đã xử lý' : 'Cần xử lý'}
+                    </span>}
+                  </span>
+                </button>;
+              })}
+            </div>
+          </div>
+          <div className="shrink-0 border-t border-border/60 bg-muted/20 px-2 py-1.5">
+            {workflowNotifications.hasNextPage
+              ? <button type="button"
+                  onClick={() => void workflowNotifications.fetchNextPage()}
+                  disabled={workflowNotifications.isFetchingNextPage}
+                  className="min-h-9 w-full rounded-lg text-xs font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-60">
+                  {workflowNotifications.isFetchingNextPage ? 'Đang tải thêm…' : 'Tải thêm'}
+                </button>
+              : <p className="py-1.5 text-center text-[11px] text-muted-foreground">
+                  {workflowNotifications.isFetching ? 'Đang cập nhật…' : 'Đã hiển thị tất cả thông báo'}
+                </p>}
+          </div>
         </PopoverContent>
       </Popover>
       <UserProfileMenu user={profile} dark={dark} setDark={setDark} onLogout={onLogout} isAdmin={isAdmin}

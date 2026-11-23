@@ -22,7 +22,7 @@ public static class ApiEndpoints
         secured.MapPost("/me/change-password", AuthFeatures.ChangeOwnPassword).RequireRateLimiting("password-change");
         secured.MapPost("/logout", AuthFeatures.Logout);
         secured.MapChannelSalesApi();
-        secured.MapSchoolProposalAlerts();
+        secured.MapWorkflowNotifications();
         return app;
     }
 }

@@ -154,6 +154,18 @@ public static class ContractRenewalEndpoints
         });
     }
 
+    private static async Task NotifyAccounting(KidsfitDbContext db, ContractRenewal renewal,
+        string kind, string title, CancellationToken ct)
+    {
+        var org = await CrmNotificationWriter.CentralOrganization(db, ct);
+        if (!org.HasValue) return;
+        var accountants = await CrmNotificationWriter.CentralReviewers(db, Permissions.ContractRenewalReview, ct);
+        foreach (var recipient in accountants)
+            CrmNotificationWriter.Add(db, org.Value, recipient, kind, nameof(ContractRenewal), renewal.Id,
+                title, $"Hồ sơ tái ký {renewal.ContractCode} đang chờ Kế toán kiểm tra.",
+                "role-accounting-revenue", renewal.SubmittedAt?.Ticks ?? 0);
+    }
+
     public static async Task<IResult> Submit(long contractId, SubmitRequest request,
         HttpContext http, KidsfitDbContext db, CancellationToken ct)
     {
@@ -212,6 +224,7 @@ public static class ContractRenewalEndpoints
         Event(db, renewal, access.UserId, "SUBMITTED");
         Audit.Add(db, access.UserId, "SUBMIT_CONTRACT_RENEWAL", nameof(ContractRenewal), renewal.Id,
             null, new { renewal.ContractId, renewal.ServiceStartOn, renewal.ServiceEndOn, renewal.GapReason, renewal.TotalValue }, http);
+        await NotifyAccounting(db, renewal, "RENEWAL_SUBMITTED", "Hợp đồng tái ký mới", ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Created($"/api/channel-sales/accounting/renewals/{renewal.Id}", new { data = new { id = renewal.Id } });
@@ -261,6 +274,7 @@ public static class ContractRenewalEndpoints
         Event(db, renewal, access.UserId, "RESUBMITTED");
         Audit.Add(db, access.UserId, "RESUBMIT_CONTRACT_RENEWAL", nameof(ContractRenewal), renewal.Id, null,
             new { renewal.ServiceStartOn, renewal.ServiceEndOn, renewal.GapReason, renewal.TotalValue }, http);
+        await NotifyAccounting(db, renewal, "RENEWAL_RESUBMITTED", "Hồ sơ tái ký được gửi lại", ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { data = new { id = renewal.Id } });
@@ -610,6 +624,23 @@ public static class ContractRenewalEndpoints
         Event(db, renewal, access.UserId, action, reason);
         Audit.Add(db, access.UserId, "REVIEW_CONTRACT_RENEWAL", nameof(ContractRenewal),
             id, new { status = previous }, new { status = action, reason }, http);
+        // Notify the original sender of the actual decision. This does not grant any rights.
+        var recipientOrg = await CrmNotificationWriter.RecipientOrganization(db,
+            renewal.SubmittedByUserId, source.OwnerOrganizationId, ct);
+        if (recipientOrg.HasValue)
+        {
+            var senderCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                m.UserId == renewal.SubmittedByUserId && m.OrganizationId == recipientOrg.Value
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR"
+                    || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
+            CrmNotificationWriter.Add(db, recipientOrg.Value, renewal.SubmittedByUserId,
+                action == "NEEDS_INFO" ? "RENEWAL_NEEDS_INFO" : action == "REJECTED" ? "RENEWAL_REJECTED" : "RENEWAL_CONFIRMED",
+                nameof(ContractRenewal), renewal.Id,
+                action == "NEEDS_INFO" ? "Tái ký cần bổ sung hồ sơ" : action == "REJECTED" ? "Tái ký bị từ chối" : "Tái ký được xác nhận",
+                action == "CONFIRMED" ? $"Kế toán đã xác nhận kỳ tái ký {renewal.ContractCode}."
+                    : $"Kế toán đã phản hồi hồ sơ tái ký {renewal.ContractCode}; vui lòng xem lý do.",
+                senderCollaborator ? "role-collaborator-approaches" : "role-sales-staff-customers");
+        }
         // A signed renewal owns its independent annual receivables. Do not mutate
         // original schedules or original contract value; commission accrues only on cash.
         if (action == "CONFIRMED")

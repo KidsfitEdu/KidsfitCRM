@@ -12,6 +12,8 @@ export class ApiRequestError extends Error {
 }
 
 const BOOTSTRAP_TIMEOUT_MS = 12000;
+const DEFAULT_TIMEOUT_MS = 30000;
+const UPLOAD_TIMEOUT_MS = 60000;
 const bootstrapPaths = new Set(['/login', '/me', '/health', '/channel-sales/workspace']);
 
 export function isBackendUnavailable(error: unknown): boolean {
@@ -27,17 +29,18 @@ export function createApiClient(apiBase: string) {
     const finishLoading = trackAppRequest();
     try {
       const headers = new Headers(options.headers);
-      headers.set('Content-Type', 'application/json');
+      if (typeof options.body === 'string' && !headers.has('Content-Type'))
+        headers.set('Content-Type', 'application/json');
       headers.set('Accept', 'application/json');
       if (token) headers.set('Authorization', `Bearer ${token}`);
 
-      const shouldTimeout = bootstrapPaths.has(path);
-      const controller = shouldTimeout ? new AbortController() : null;
-      const signal = controller
-        ? options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal
-        : options.signal;
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      if (controller) timeout = setTimeout(() => controller.abort(), BOOTSTRAP_TIMEOUT_MS);
+      const controller = new AbortController();
+      const signal = options.signal
+        ? AbortSignal.any([options.signal, controller.signal])
+        : controller.signal;
+      const limit = bootstrapPaths.has(path) ? BOOTSTRAP_TIMEOUT_MS
+        : options.body instanceof FormData ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+      const timeout = setTimeout(() => controller.abort(), limit);
 
       let response: Response;
       let payload: { message?: string; errors?: Record<string, string[]> };
@@ -45,12 +48,12 @@ export function createApiClient(apiBase: string) {
         response = await fetch(`${apiBase}${path}`, { ...options, headers, signal });
         payload = (await response.json().catch(() => ({}))) as typeof payload;
       } catch (error) {
-        if (controller?.signal.aborted)
-          throw new ApiRequestError('Máy chủ phản hồi quá lâu. Vui lòng thử lại.', 0, 'timeout');
         if (options.signal?.aborted) throw error;
+        if (controller.signal.aborted)
+          throw new ApiRequestError('Máy chủ phản hồi quá lâu. Vui lòng thử lại.', 0, 'timeout');
         throw new ApiRequestError('Không thể kết nối đến máy chủ KIDSFIT CRM.', 0, 'network');
       } finally {
-        if (timeout) clearTimeout(timeout);
+        clearTimeout(timeout);
       }
       const firstError = payload.errors
         ? Object.values(payload.errors).flat()[0]

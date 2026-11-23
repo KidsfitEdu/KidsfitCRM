@@ -171,6 +171,20 @@ app.Use(async (context, next) =>
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         await context.Response.WriteAsJsonAsync(new { message = "Không tìm thấy dữ liệu yêu cầu." });
     }
+    catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+    {
+        // The caller disconnected. Never report it as a server failure.
+        throw;
+    }
+    catch (Exception exception)
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("UnhandledApiError");
+        logger.LogError(exception, "Unhandled CRM API request failure. TraceId: {TraceId}", context.TraceIdentifier);
+        if (context.Response.HasStarted) throw;
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        await context.Response.WriteAsJsonAsync(new { message = "Máy chủ đang gặp sự cố. Vui lòng thử lại.", trace_id = context.TraceIdentifier });
+    }
 });
 app.UseCors();
 app.UseRateLimiter();

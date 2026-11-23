@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide-react';
+import { Bell, CalendarClock, FileText, Headset, Moon, PanelLeftClose, PanelLeftOpen, School, Search, Sun, Wallet } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,27 @@ type WorkflowNotice = {
   status: string;
 };
 type WorkflowNotificationsResponse = { unread_count: number; data: WorkflowNotice[]; page: number };
+
+function notificationIcon(kind: string) {
+  if (/PAYOUT|COMMISSION|REVENUE/.test(kind)) return Wallet;
+  if (/EXTENSION|RENEWAL|EXPIRED|SERVICE_|PROTECTION_|GI01_/.test(kind)) return CalendarClock;
+  if (/CONTRACT|CHECKEE|PROPOSAL/.test(kind)) return FileText;
+  if (/CARE|SUPPORT/.test(kind)) return Headset;
+  if (/INVITATION|APPROACH/.test(kind)) return School;
+  return Bell;
+}
+
+function notificationTime(value: string): string {
+  const created = new Date(value);
+  if (Number.isNaN(created.getTime())) return '';
+  const difference = Date.now() - created.getTime();
+  if (difference >= 0 && difference < 60_000) return 'Vừa xong';
+  if (difference >= 0 && difference < 60 * 60_000) return `${Math.floor(difference / 60_000)} phút trước`;
+  return created.toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
 
 export function Header({
   todayLabel, userName, search, setSearch, dark, setDark,
@@ -101,6 +122,7 @@ export function Header({
       readAt: notice.read_at,
       title: notice.title,
       message: notice.message,
+      kind: notice.kind,
       actionable: [
         'SCHOOL_EXTENSION_REQUESTED', 'SCHOOL_PROPOSAL_SUBMITTED',
         'SCHOOL_PROPOSAL_FORWARDED', 'SCHOOL_INVITATION_NEW', 'SCHOOL_CONTRACT_REPORTED',
@@ -151,35 +173,66 @@ export function Header({
             {unreadTotal > 99 ? '99+' : unreadTotal}
           </span>}
         </PopoverTrigger>
-        <PopoverContent align="end" className="max-h-[430px] w-[min(90vw,360px)] overflow-y-auto p-3">
-          <p className="mb-2 font-semibold">Thông báo công việc</p>
-          {!apiBase && <p className="text-sm text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
-          {workflowNotifications.isPending && !!apiBase && <p className="text-sm text-muted-foreground">Đang tải thông báo…</p>}
-          {workflowNotifications.error && <p role="alert" className="text-sm text-red-600">{workflowNotifications.error.message}</p>}
-          {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
-          <fieldset aria-label="Lọc thông báo" className="mb-2 flex gap-1 rounded-lg bg-muted/40 p-1">
-            {(['ALL', 'UNREAD', 'ACTION'] as const).map(filter => <button type="button" key={filter}
-              aria-pressed={noticeFilter === filter}
-              onClick={() => setNoticeFilter(filter)}
-              className={`min-h-10 flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${noticeFilter === filter ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>
-              {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
-            </button>)}
-          </fieldset>
-          {visibleNotices.length === 0 && !workflowNotifications.isPending &&
-            <p className="py-5 text-center text-sm text-muted-foreground">Không có thông báo phù hợp.</p>}
-          {visibleNotices.map(notice => <button type="button" key={notice.key} aria-label={`Mở thông báo: ${notice.title}`}
-            onClick={() => void notice.onOpen()}
-            className="my-1 flex w-full gap-2 rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
-            <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${!notice.readAt && !notice.resolved ? 'bg-green-600' : 'bg-muted-foreground/20'}`}/>
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold">{notice.title}</span>
-              <span className="mt-1 block text-muted-foreground">{notice.message}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">
-                {new Date(notice.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
-                {notice.resolved ? ' · Đã xử lý' : !notice.readAt ? ' · Chưa đọc' : ''}
-              </span>
-            </span>
-          </button>)}
+        <PopoverContent align="end" className="w-[min(92vw,380px)] gap-0 overflow-hidden rounded-2xl !p-0 shadow-xl">
+          <div className="shrink-0 border-b border-border/60 px-4 pb-2.5 pt-3.5">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="flex min-w-0 items-center gap-2 text-sm font-bold text-foreground">
+                <Bell aria-hidden="true" className="size-4 text-primary" />
+                Thông báo
+                {unreadTotal > 0 && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                  {unreadTotal > 99 ? '99+' : unreadTotal} mới
+                </span>}
+              </h2>
+              <span className="shrink-0 text-[11px] text-muted-foreground">Gần đây</span>
+            </div>
+            <fieldset aria-label="Lọc thông báo" className="flex gap-0.5 rounded-xl bg-muted/60 p-1">
+              {(['ALL', 'UNREAD', 'ACTION'] as const).map(filter => <button type="button" key={filter}
+                aria-pressed={noticeFilter === filter}
+                onClick={() => setNoticeFilter(filter)}
+                className={`min-h-9 flex-1 rounded-lg px-1.5 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${noticeFilter === filter ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>
+                {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
+              </button>)}
+            </fieldset>
+          </div>
+          <div className="max-h-[min(55dvh,355px)] min-h-0 overflow-y-auto overscroll-contain px-2 py-1.5">
+            {!apiBase && <p className="px-2 py-4 text-sm text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
+            {workflowNotifications.isPending && !!apiBase &&
+              <p role="status" className="px-2 py-4 text-sm text-muted-foreground">Đang tải thông báo…</p>}
+            {workflowNotifications.error &&
+              <p role="alert" className="px-2 py-2 text-sm text-destructive">{workflowNotifications.error.message}</p>}
+            {actionError && <p role="alert" className="px-2 py-2 text-sm text-destructive">{actionError}</p>}
+            {visibleNotices.length === 0 && !workflowNotifications.isPending &&
+              <p className="px-2 py-7 text-center text-sm text-muted-foreground">Không có thông báo phù hợp.</p>}
+            <div className="divide-y divide-border/50">
+              {visibleNotices.map(notice => {
+                const NoticeIcon = notificationIcon(notice.kind);
+                const unread = !notice.readAt && !notice.resolved;
+                return <button type="button" key={notice.key} aria-label={`Mở thông báo: ${notice.title}`}
+                  onClick={() => void notice.onOpen()}
+                  className={`group flex w-full items-start gap-2.5 rounded-lg px-2 py-3 text-left transition-colors hover:bg-accent/70 focus-visible:outline-2 focus-visible:outline-primary ${unread ? 'bg-primary/[0.035]' : ''}`}>
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-foreground">
+                    <NoticeIcon aria-hidden="true" className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 space-y-1">
+                    <span className="flex min-w-0 items-start gap-1.5">
+                      <span className={`min-w-0 flex-1 truncate text-[13px] leading-5 ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground/90'}`} title={notice.title}>
+                        {notice.title}
+                      </span>
+                      {unread && <span aria-hidden="true" className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />}
+                    </span>
+                    <span className="line-clamp-2 break-words text-xs leading-[18px] text-muted-foreground" title={notice.message}>
+                      {notice.message}
+                    </span>
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground/90">
+                      <span>{notificationTime(notice.createdAt)}</span>
+                      {notice.resolved && <span>· Đã xử lý</span>}
+                      {notice.actionable && <span className="font-semibold text-primary">· Cần xử lý</span>}
+                    </span>
+                  </span>
+                </button>;
+              })}
+            </div>
+          </div>
         </PopoverContent>
       </Popover>
       <UserProfileMenu user={profile} dark={dark} setDark={setDark} onLogout={onLogout} isAdmin={isAdmin}

@@ -8,6 +8,7 @@ import { createServer } from 'vite';
 // Render the real TSX through Vite's SSR transformer rather than inspecting its source.
 let vite;
 let SchoolProfileDetails;
+let SchoolProposalWorkflowDetails;
 let formatSchoolAddress;
 const root = resolve(import.meta.dirname, '..');
 const unit = (id, type, name, fields = {}) => ({
@@ -25,6 +26,8 @@ before(async () => {
   });
   ({ SchoolProfileDetails, formatSchoolAddress } =
     await vite.ssrLoadModule('/src/components/crm/schools/school-profile-details.tsx'));
+  ({ SchoolProposalWorkflowDetails } =
+    await vite.ssrLoadModule('/src/components/crm/schools/school-proposal-workflow-details.tsx'));
 });
 
 after(async () => { await vite?.close(); });
@@ -111,4 +114,39 @@ test('missing MAIN preserves customer contact without inventing a school unit', 
   assert.match(html, /Liên hệ khách hàng/);
   assert.match(html, /0900000000/);
   assert.doesNotMatch(html, /aria-label="Thông tin trường chính"/);
+});
+
+test('proposal workflow renders consistent role metadata without repeating status', () => {
+  for (const mode of ['NEW_MAIN', 'ADD_BRANCHES', 'LEGACY']) {
+    const html = renderToStaticMarkup(React.createElement(SchoolProposalWorkflowDetails, {
+      submittedBy: 'Nhân viên thử nghiệm',
+      managerName: 'Quản lý thử nghiệm',
+      reviewDueAt: '2026-11-27T10:00:00',
+      proposalMode: mode,
+      reason: 'Bổ sung thông tin',
+      decisionReason: 'Đã ghi nhận',
+      formatReviewDueAt: () => '27/11/2026',
+    }));
+    assert.equal((html.match(/aria-label="Thông tin xử lý đề xuất"/g) ?? []).length, 1);
+    assert.match(html, /Nhân viên thử nghiệm/);
+    assert.match(html, /Quản lý thử nghiệm/);
+    assert.match(html, /27\/11\/2026/);
+    assert.match(html, /Bổ sung thông tin/);
+    assert.match(html, /Đã ghi nhận/);
+    assert.doesNotMatch(html, /<dt[^>]*>Trạng thái<\/dt>/);
+  }
+});
+
+test('proposal workflow is responsive and preserves empty/pending fields', () => {
+  const html = renderToStaticMarkup(React.createElement(SchoolProposalWorkflowDetails, {
+    submittedBy: null,
+    managerName: null,
+    reviewDueAt: null,
+    proposalMode: 'NEW_MAIN',
+    formatReviewDueAt: () => '—',
+  }));
+  assert.match(html, /Chưa cập nhật/);
+  assert.match(html, /grid-cols-1/);
+  assert.match(html, /min-\\[400px\\]:grid-cols-2/);
+  assert.doesNotMatch(html, /Hạn xử lý/);
 });

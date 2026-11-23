@@ -29,16 +29,22 @@ test('proposal overdue worker shares inbox without changing admin and director r
   assert.match(worker, /INSERT IGNORE INTO crm_notifications/);
 });
 
-test('notification popover stays compact, accessible and independently scrollable', () => {
+test('notification bell matches the small reference layout and supports real pagination', () => {
   const header = read('src/components/layout/Header.tsx');
-  assert.match(header, /w-\[min\(92vw,380px\)\]/);
-  assert.match(header, /max-h-\[min\(55dvh,355px\)\]/);
-  assert.match(header, /overflow-y-auto overscroll-contain/);
+  assert.match(header, /w-\\[min\\(92vw,320px\\)\\]/);
+  assert.match(header, /max-h-\\[min\\(48dvh,300px\\)\\]/);
+  assert.match(header, /useInfiniteQuery\\(/);
+  assert.match(header, /initialPageParam: 1/);
+  assert.match(header, /\\/notifications\\?page=\\$\\{pageParam\\}/);
+  assert.match(header, /getNextPageParam:/);
+  assert.match(header, /lastPage\\.data\\.length === NOTIFICATION_PAGE_SIZE/);
+  assert.match(header, /pages\\.flatMap\\(page => page\\.data\\)/);
+  assert.match(header, /hasNextPage/);
+  assert.match(header, /fetchNextPage\\(\\)/);
+  assert.match(header, /isFetchingNextPage/);
+  assert.match(header, /Tải thêm/);
+  assert.match(header, /aria-pressed=\\{noticeFilter === filter\\}/);
   assert.match(header, /line-clamp-2 break-words/);
-  assert.match(header, /min-w-0 flex-1 truncate/);
-  assert.match(header, /aria-pressed=\{noticeFilter === filter\}/);
-  assert.match(header, /notificationIcon\(notice\.kind\)/);
-  assert.match(header, /notice\.actionable/);
-  assert.match(header, /notificationTime\(notice\.createdAt\)/);
-  assert.doesNotMatch(header, /my-1 flex w-full gap-2 rounded-xl border p-3/);
+  assert.match(header, /notificationTime\\(notice\\.createdAt\\)/);
+  assert.doesNotMatch(header, /notificationIcon\\(/);
 });

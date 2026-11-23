@@ -1,8 +1,8 @@
 'use client';
 
-import { Bell, CalendarClock, FileText, Headset, Moon, PanelLeftClose, PanelLeftOpen, School, Search, Sun, Wallet } from 'lucide-react';
+import { Bell, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,14 +24,7 @@ type WorkflowNotice = {
 };
 type WorkflowNotificationsResponse = { unread_count: number; data: WorkflowNotice[]; page: number };
 
-function notificationIcon(kind: string) {
-  if (/PAYOUT|COMMISSION|REVENUE/.test(kind)) return Wallet;
-  if (/EXTENSION|RENEWAL|EXPIRED|SERVICE_|PROTECTION_|GI01_/.test(kind)) return CalendarClock;
-  if (/CONTRACT|CHECKEE|PROPOSAL/.test(kind)) return FileText;
-  if (/CARE|SUPPORT/.test(kind)) return Headset;
-  if (/INVITATION|APPROACH/.test(kind)) return School;
-  return Bell;
-}
+const NOTIFICATION_PAGE_SIZE = 50;
 
 function notificationTime(value: string): string {
   const created = new Date(value);
@@ -87,14 +80,17 @@ export function Header({
   const client = useQueryClient();
   const request = createApiClient(apiBase);
   const workflowQueryKey = ['crm-workflow-notifications', apiBase, token];
-  const workflowNotifications = useQuery({
+  const workflowNotifications = useInfiniteQuery({
     queryKey: workflowQueryKey,
-    queryFn: () => request<WorkflowNotificationsResponse>('/notifications', token),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => request<WorkflowNotificationsResponse>(`/notifications?page=${pageParam}`, token),
+    getNextPageParam: (lastPage) => lastPage.data.length === NOTIFICATION_PAGE_SIZE
+      ? lastPage.page + 1 : undefined,
     enabled: !!apiBase && !!token,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
-  const unreadTotal = workflowNotifications.data?.unread_count ?? 0;
+  const unreadTotal = workflowNotifications.data?.pages[0]?.unread_count ?? 0;
 
   const openWorkflowNotice = async (notice: WorkflowNotice) => {
     setActionError('');
@@ -114,15 +110,15 @@ export function Header({
       setActionError(err instanceof Error ? err.message : 'Không thể mở thông báo.');
     }
   };
-  // All workflow, overdue school-proposal and contract milestone notices come from one inbox.
+  // The API paginates 50 records per page; retain all loaded pages when more are requested.
+  const notices = workflowNotifications.data?.pages.flatMap(page => page.data) ?? [];
   const noticeItems = [
-    ...(workflowNotifications.data?.data.map(notice => ({
+    ...(notices.map(notice => ({
       key: 'workflow-' + notice.id,
       createdAt: notice.created_at,
       readAt: notice.read_at,
       title: notice.title,
       message: notice.message,
-      kind: notice.kind,
       actionable: [
         'SCHOOL_EXTENSION_REQUESTED', 'SCHOOL_PROPOSAL_SUBMITTED',
         'SCHOOL_PROPOSAL_FORWARDED', 'SCHOOL_INVITATION_NEW', 'SCHOOL_CONTRACT_REPORTED',
@@ -173,65 +169,68 @@ export function Header({
             {unreadTotal > 99 ? '99+' : unreadTotal}
           </span>}
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-[min(92vw,380px)] gap-0 overflow-hidden rounded-2xl !p-0 shadow-xl">
-          <div className="shrink-0 border-b border-border/60 px-4 pb-2.5 pt-3.5">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="flex min-w-0 items-center gap-2 text-sm font-bold text-foreground">
-                <Bell aria-hidden="true" className="size-4 text-primary" />
-                Thông báo
-                {unreadTotal > 0 && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                  {unreadTotal > 99 ? '99+' : unreadTotal} mới
-                </span>}
-              </h2>
-              <span className="shrink-0 text-[11px] text-muted-foreground">Gần đây</span>
+        <PopoverContent align="end" className="w-[min(92vw,320px)] gap-0 overflow-hidden rounded-xl !p-0 shadow-lg">
+          <div className="shrink-0 border-b border-border/60 px-3 py-2.5">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-[13px] font-semibold text-foreground">Thông báo</h2>
+              {unreadTotal > 0 && <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                {unreadTotal > 99 ? '99+' : unreadTotal} chưa đọc
+              </span>}
             </div>
-            <fieldset aria-label="Lọc thông báo" className="flex gap-0.5 rounded-xl bg-muted/60 p-1">
+            <fieldset aria-label="Lọc thông báo" className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
               {(['ALL', 'UNREAD', 'ACTION'] as const).map(filter => <button type="button" key={filter}
                 aria-pressed={noticeFilter === filter}
                 onClick={() => setNoticeFilter(filter)}
-                className={`min-h-9 flex-1 rounded-lg px-1.5 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${noticeFilter === filter ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>
+                className={`min-h-9 flex-1 rounded-md px-1 py-1 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${noticeFilter === filter ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>
                 {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
               </button>)}
             </fieldset>
           </div>
-          <div className="max-h-[min(55dvh,355px)] min-h-0 overflow-y-auto overscroll-contain px-2 py-1.5">
-            {!apiBase && <p className="px-2 py-4 text-sm text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
+          <div className="max-h-[min(48dvh,300px)] min-h-0 overflow-y-auto overscroll-contain">
+            {!apiBase && <p className="px-3 py-4 text-xs text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
             {workflowNotifications.isPending && !!apiBase &&
-              <output className="block px-2 py-4 text-sm text-muted-foreground">Đang tải thông báo…</output>}
-            {workflowNotifications.error &&
-              <p role="alert" className="px-2 py-2 text-sm text-destructive">{workflowNotifications.error.message}</p>}
-            {actionError && <p role="alert" className="px-2 py-2 text-sm text-destructive">{actionError}</p>}
-            {visibleNotices.length === 0 && !workflowNotifications.isPending &&
-              <p className="px-2 py-7 text-center text-sm text-muted-foreground">Không có thông báo phù hợp.</p>}
+              <output className="block px-3 py-4 text-xs text-muted-foreground">Đang tải thông báo…</output>}
+            {workflowNotifications.error && noticeItems.length === 0 &&
+              <p role="alert" className="px-3 py-2 text-xs text-destructive">{workflowNotifications.error.message}</p>}
+            {actionError && <p role="alert" className="px-3 py-2 text-xs text-destructive">{actionError}</p>}
+            {visibleNotices.length === 0 && !workflowNotifications.isPending && !workflowNotifications.error &&
+              <p className="px-3 py-6 text-center text-xs text-muted-foreground">Không có thông báo phù hợp.</p>}
             <div className="divide-y divide-border/50">
               {visibleNotices.map(notice => {
-                const NoticeIcon = notificationIcon(notice.kind);
                 const unread = !notice.readAt && !notice.resolved;
                 return <button type="button" key={notice.key} aria-label={`Mở thông báo: ${notice.title}`}
                   onClick={() => void notice.onOpen()}
-                  className={`group flex w-full items-start gap-2.5 rounded-lg px-2 py-3 text-left transition-colors hover:bg-accent/70 focus-visible:outline-2 focus-visible:outline-primary ${unread ? 'bg-primary/[0.035]' : ''}`}>
-                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-foreground">
-                    <NoticeIcon aria-hidden="true" className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1 space-y-1">
-                    <span className="flex min-w-0 items-start gap-1.5">
-                      <span className={`min-w-0 flex-1 truncate text-[13px] leading-5 ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground/90'}`} title={notice.title}>
+                  className={`group flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-accent/60 focus-visible:outline-2 focus-visible:outline-primary ${unread ? 'bg-primary/[0.035]' : ''}`}>
+                  <span aria-hidden="true" className={`mt-[7px] size-1.5 shrink-0 rounded-full ${unread ? 'bg-blue-600' : 'bg-muted-foreground/25'}`}/>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-baseline justify-between gap-1.5">
+                      <span className={`min-w-0 flex-1 truncate text-xs leading-[18px] ${unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/85'}`} title={notice.title}>
                         {notice.title}
                       </span>
-                      {unread && <span aria-hidden="true" className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />}
+                      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{notificationTime(notice.createdAt)}</span>
                     </span>
-                    <span className="line-clamp-2 break-words text-xs leading-[18px] text-muted-foreground" title={notice.message}>
+                    <span className="mt-0.5 block line-clamp-2 break-words text-[11px] leading-4 text-muted-foreground" title={notice.message}>
                       {notice.message}
                     </span>
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground/90">
-                      <span>{notificationTime(notice.createdAt)}</span>
-                      {notice.resolved && <span>· Đã xử lý</span>}
-                      {notice.actionable && <span className="font-semibold text-primary">· Cần xử lý</span>}
-                    </span>
+                    {(notice.resolved || notice.actionable) && <span className="mt-1 block text-[10px] font-medium text-muted-foreground">
+                      {notice.resolved ? 'Đã xử lý' : 'Cần xử lý'}
+                    </span>}
                   </span>
                 </button>;
               })}
             </div>
+          </div>
+          <div className="shrink-0 border-t border-border/60 bg-muted/20 px-2 py-1.5">
+            {workflowNotifications.hasNextPage
+              ? <button type="button"
+                  onClick={() => void workflowNotifications.fetchNextPage()}
+                  disabled={workflowNotifications.isFetchingNextPage}
+                  className="min-h-9 w-full rounded-lg text-xs font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-60">
+                  {workflowNotifications.isFetchingNextPage ? 'Đang tải thêm…' : 'Tải thêm'}
+                </button>
+              : <p className="py-1.5 text-center text-[11px] text-muted-foreground">
+                  {workflowNotifications.isFetching ? 'Đang cập nhật…' : 'Đã hiển thị tất cả thông báo'}
+                </p>}
           </div>
         </PopoverContent>
       </Popover>

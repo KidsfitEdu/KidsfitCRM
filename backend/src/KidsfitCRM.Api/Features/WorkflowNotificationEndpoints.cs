@@ -16,8 +16,8 @@ public static class WorkflowNotificationEndpoints
             var userId = http.UserId();
             var pageNumber = Math.Clamp(page ?? 1, 1, 1000);
             var query = Visible(db, userId);
-            if (unreadOnly == true) query = query.Where(x => x.ReadAt == null);
-            var unread = await Visible(db, userId).CountAsync(x => x.ReadAt == null, ct);
+            if (unreadOnly == true) query = query.Where(x => x.ReadAt == null && x.Status == "OPEN");
+            var unread = await Visible(db, userId).CountAsync(x => x.ReadAt == null && x.Status == "OPEN", ct);
             var rows = await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
                 .Skip((pageNumber - 1) * 50).Take(50)
                 .Select(x => new { x.Id, x.Kind, x.Title, x.Message, x.EntityType, x.EntityId,
@@ -39,7 +39,7 @@ public static class WorkflowNotificationEndpoints
     }
 
     private static IQueryable<CrmNotification> Visible(KidsfitDbContext db, long userId) =>
-        db.CrmNotifications.Where(x => x.RecipientUserId == userId && x.Status == "OPEN"
+        db.CrmNotifications.Where(x => x.RecipientUserId == userId
             && db.Users.Any(u => u.Id == userId && u.Status == "ACTIVE")
             && db.OrganizationMemberships.Any(m => m.OrganizationId == x.OrganizationId
                 && m.UserId == userId && m.Status == "ACTIVE"

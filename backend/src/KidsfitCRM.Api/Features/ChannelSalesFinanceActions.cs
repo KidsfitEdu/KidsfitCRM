@@ -197,6 +197,10 @@ public sealed partial class ChannelSalesActions
         AddPayoutEvent(payout, actorId, "CHANGES_REQUESTED", reason, payout.UpdatedAt);
         Audit.Add(db, actorId, "RETURN_PAYOUT", nameof(Payout), id,
             new { status = "PENDING_APPROVAL" }, new { payout.Status, reason }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(Payout)
+            && x.EntityId == payout.Id && x.Kind == "PAYOUT_SUBMITTED" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, payout.UpdatedAt), ct);
         var returnOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.CreatedByUserId, payout.OrganizationId, ct);
         if (returnOrgId.HasValue)
             CrmNotificationWriter.Add(db, returnOrgId.Value, payout.CreatedByUserId,
@@ -227,6 +231,10 @@ public sealed partial class ChannelSalesActions
         payout.UpdatedAt = DateTime.UtcNow;
         AddPayoutEvent(payout, actorId, "APPROVED", null, payout.UpdatedAt);
         Audit.Add(db, actorId, "APPROVE_PAYOUT", nameof(Payout), id, new { status = "PENDING_APPROVAL" }, new { payout.Status, payout.NetAmount }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(Payout)
+            && x.EntityId == payout.Id && x.Kind == "PAYOUT_SUBMITTED" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, payout.UpdatedAt), ct);
         var accountingOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.CreatedByUserId, payout.OrganizationId, ct);
         if (accountingOrgId.HasValue)
             CrmNotificationWriter.Add(db, accountingOrgId.Value, payout.CreatedByUserId,

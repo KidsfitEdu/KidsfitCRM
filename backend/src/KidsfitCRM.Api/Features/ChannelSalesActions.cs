@@ -733,14 +733,22 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         });
         Audit.Add(db, actorId, confirm ? "CONFIRM_RECONCILIATION" : "DISPUTE_RECONCILIATION", nameof(ReconciliationCase), reconciliation.Id,
             new { status = previous }, new { reconciliation.Status, reconciliation.DisputeReason }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(SalesContract)
+            && x.EntityId == schoolContract.Id && x.Kind == "CONTRACT_FORWARDED_TO_CHECKEE" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, now), cancellationToken);
         if (schoolContract.RequiresSchoolVerification)
         {
             var kind = confirm ? "CHECKEE_CONTRACT_VERIFIED" : "CHECKEE_CONTRACT_DISPUTED";
             var title = confirm ? "CHECKEE đã xác minh hợp đồng" : "CHECKEE yêu cầu xử lý hợp đồng";
             var message = confirm ? "Hợp đồng đã được CHECKEE xác minh. Xem trạng thái và quyền bảo vệ theo hồ sơ."
                 : "CHECKEE đã phản hồi hợp đồng; cần xem thông tin tranh chấp hoặc hồ sơ cần bổ sung.";
+            var isCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                m.UserId == schoolContract.OwnerUserId && m.OrganizationId == schoolContract.OwnerOrganizationId
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), cancellationToken);
             CrmNotificationWriter.Add(db, schoolContract.OwnerOrganizationId, schoolContract.OwnerUserId,
-                kind, nameof(ReconciliationCase), reconciliation.Id, title, message, "role-sales-staff-customers");
+                kind, nameof(ReconciliationCase), reconciliation.Id, title, message,
+                isCollaborator ? "role-collaborator-approaches" : "role-sales-staff-customers");
             var managerId = await db.OrganizationMemberships.AsNoTracking()
                 .Where(m => m.UserId == schoolContract.OwnerUserId && m.OrganizationId == schoolContract.OwnerOrganizationId
                     && m.Status == "ACTIVE").Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);

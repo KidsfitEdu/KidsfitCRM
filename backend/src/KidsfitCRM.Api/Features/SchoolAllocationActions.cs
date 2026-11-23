@@ -53,9 +53,11 @@ public sealed partial class ChannelSalesActions
         db.SchoolInvitations.Add(invitation); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "INVITE_SCHOOL_COLLABORATOR", nameof(SchoolInvitation), invitation.Id, null,
             new { invitation.DirectorySchoolId, invitation.OrganizationId, invitation.AssigneeUserId, invitation.RespondBy, invitation.Reason }, http);
+        var inviteIsCollaborator = membership.MembershipType is "COLLABORATOR" or "PARTNER_COLLABORATOR";
         CrmNotificationWriter.Add(db, organizationId, invitation.AssigneeUserId,
             "SCHOOL_INVITATION_NEW", nameof(SchoolInvitation), invitation.Id, "Trường mới được phân bổ",
-            "Quản lý đã gửi lời mời tiếp cận một trường. Vui lòng xem và phản hồi.", "role-collaborator-invitations");
+            "Quản lý đã gửi lời mời tiếp cận một trường. Vui lòng xem và phản hồi.",
+            inviteIsCollaborator ? "role-collaborator-invitations" : "role-sales-staff-schools");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return invitation.Id;
     }, ct);
 
@@ -102,6 +104,10 @@ public sealed partial class ChannelSalesActions
         invitation.Status = target; invitation.ResponseReason = reason; invitation.RespondedAt = now; invitation.UpdatedAt = now;
         Audit.Add(db, actorId, "RESPOND_SCHOOL_INVITATION", nameof(SchoolInvitation), id, new { status = "PENDING" },
             new { invitation.Status, invitation.ResponseReason, invitation.ApproachRegistrationId, invitation.RespondedAt }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolInvitation)
+            && x.EntityId == invitation.Id && x.Kind == "SCHOOL_INVITATION_NEW" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, now), ct);
         CrmNotificationWriter.Add(db, invitation.OrganizationId, invitation.AssignedByUserId,
             request.Accept ? "SCHOOL_INVITATION_ACCEPTED" : "SCHOOL_INVITATION_DECLINED",
             nameof(SchoolInvitation), invitation.Id, request.Accept ? "Sales/CTV đã nhận trường" : "Sales/CTV từ chối nhận trường",
@@ -125,9 +131,17 @@ public sealed partial class ChannelSalesActions
         if (invitation.Status != "PENDING") throw new ApiConflictException("Chỉ hủy được lời mời chưa được nhận hoặc từ chối.");
         invitation.Status = "CANCELLED"; invitation.ResponseReason = reason; invitation.RespondedAt = DateTime.UtcNow; invitation.UpdatedAt = DateTime.UtcNow;
         Audit.Add(db, actorId, "CANCEL_SCHOOL_INVITATION", nameof(SchoolInvitation), id, new { status = "PENDING" }, new { invitation.Status, reason }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolInvitation)
+            && x.EntityId == invitation.Id && x.Kind == "SCHOOL_INVITATION_NEW" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, invitation.RespondedAt), ct);
+        var cancelIsCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+            m.UserId == invitation.AssigneeUserId && m.OrganizationId == invitation.OrganizationId
+            && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
         CrmNotificationWriter.Add(db, invitation.OrganizationId, invitation.AssigneeUserId, "SCHOOL_INVITATION_CANCELLED",
             nameof(SchoolInvitation), invitation.Id, "Lời mời nhận trường đã bị hủy",
-            "Quản lý đã hủy lời mời tiếp cận trường. Vui lòng kiểm tra danh sách phân bổ.", "role-collaborator-invitations");
+            "Quản lý đã hủy lời mời tiếp cận trường. Vui lòng kiểm tra danh sách phân bổ.",
+            cancelIsCollaborator ? "role-collaborator-invitations" : "role-sales-staff-schools");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return id;
     }, ct);
 
@@ -240,6 +254,10 @@ public sealed partial class ChannelSalesActions
         extension.Status = target; extension.ReviewedByUserId = actorId; extension.ReviewedAt = now; extension.DecisionReason = reason; extension.UpdatedAt = now;
         Audit.Add(db, actorId, "REVIEW_SCHOOL_EXTENSION", nameof(SchoolExtensionRequest), id, new { status = "PENDING" },
             new { extension.Status, extension.ApprovedUntil, extension.NextReviewAt, extension.PolicyVersionId, reason }, http);
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolExtensionRequest)
+            && x.EntityId == id && x.Kind == "SCHOOL_EXTENSION_REQUESTED" && x.Status == "OPEN")
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, now), ct);
         var salesIsCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
             m.UserId == extension.RequestedByUserId && m.OrganizationId == extension.OrganizationId
             && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);

@@ -10,11 +10,11 @@ namespace KidsfitCRM.Api.Infrastructure;
 public static class CrmNotificationWriter
 {
     public static void Add(KidsfitDbContext db, long organizationId, long recipientUserId,
-        string kind, string entityType, long entityId, string title, string message, string targetView)
+        string kind, string entityType, long entityId, string title, string message, string targetView, int occurrence = 0)
     {
         if (organizationId <= 0 || recipientUserId <= 0 || entityId <= 0) return;
         // Unique per event kind / business record / recipient, even on retried HTTP requests.
-        var key = $"{entityType}:{entityId}:{kind}:{recipientUserId}";
+        var key = $"{entityType}:{entityId}:{kind}:{recipientUserId}:{occurrence}";
         if (key.Length > 180) throw new InvalidOperationException("CRM notice key exceeds schema limit.");
         if (db.CrmNotifications.Local.Any(x => x.DeduplicationKey == key)) return;
         var now = DateTime.UtcNow;

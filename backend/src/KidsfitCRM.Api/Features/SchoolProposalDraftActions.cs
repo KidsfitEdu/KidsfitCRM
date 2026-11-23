@@ -150,7 +150,7 @@ public sealed partial class ChannelSalesActions
             new { status = previousStatus }, new { draft.Status, draft.ManagerUserId, draft.ReviewDueAt, units = units.Length }, http);
         CrmNotificationWriter.Add(db, orgId, managerId, "SCHOOL_PROPOSAL_SUBMITTED",
             nameof(SchoolProposal), id, "Đề xuất trường cần kiểm tra",
-            "Sales/CTV đã gửi đề xuất trường từ bản nháp. Vui lòng xem và xác nhận.", "manager-proposals");
+            "Sales/CTV đã gửi đề xuất trường từ bản nháp. Vui lòng xem và xác nhận.", "manager-proposals", draft.Version);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);
@@ -177,7 +177,7 @@ public sealed partial class ChannelSalesActions
         CrmNotificationWriter.Add(db, proposal.OrganizationId, proposal.SubmittedByUserId,
             "SCHOOL_PROPOSAL_NEEDS_REVISION", nameof(SchoolProposal), proposal.Id,
             "Đề xuất trường cần bổ sung", "Quản lý đã yêu cầu chỉnh sửa hồ sơ đề xuất trường. Mở hồ sơ để xem lý do.",
-            salesIsCollaborator ? "role-collaborator-proposals" : "role-sales-staff-proposals");
+            salesIsCollaborator ? "role-collaborator-proposals" : "role-sales-staff-proposals", proposal.Version);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);

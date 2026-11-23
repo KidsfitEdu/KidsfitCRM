@@ -35,6 +35,19 @@ type ExpiryNotice = {
   target: 'role-sales-staff-customers' | 'role-collaborator-approaches' | 'role-customer-care-customers' | 'manager-contracts';
 };
 type ExpiryNotificationsResponse = { unread_count: number; data: ExpiryNotice[] };
+type WorkflowNotice = {
+  id: number;
+  kind: string;
+  title: string;
+  message: string;
+  entity_type: string;
+  entity_id: number;
+  target_view: View;
+  created_at: string;
+  read_at: string | null;
+  status: string;
+};
+type WorkflowNotificationsResponse = { unread_count: number; data: WorkflowNotice[]; page: number };
 
 export function Header({
   todayLabel, userName, search, setSearch, dark, setDark,
@@ -93,6 +106,31 @@ export function Header({
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
+  const workflowQueryKey = ['crm-workflow-notifications', apiBase, token];
+  const workflowNotifications = useQuery({
+    queryKey: workflowQueryKey,
+    queryFn: () => request<WorkflowNotificationsResponse>('/notifications/workflow', token),
+    enabled: !!apiBase && !!token,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const unreadTotal = (notifications.data?.unread_count ?? 0)
+    + (expiryNotifications.data?.unread_count ?? 0)
+    + (workflowNotifications.data?.unread_count ?? 0);
+
+  const openWorkflowNotice = async (notice: WorkflowNotice) => {
+    setActionError('');
+    try {
+      if (!notice.read_at) {
+        await request('/notifications/workflow/' + notice.id + '/read', token, { method: 'POST' });
+        await client.invalidateQueries({ queryKey: workflowQueryKey });
+      }
+      setOpen(false);
+      onNavigate?.(notice.target_view);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Không thể mở thông báo.');
+    }
+  };
   const openExpiryNotice = async (notice: ExpiryNotice) => {
     setActionError('');
     try {
@@ -155,8 +193,8 @@ export function Header({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger render={<Button variant="outline" size="icon" aria-label="Thông báo" className="relative rounded-xl" />}>
           <Bell aria-hidden="true" />
-          {!!((notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0)) && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
-            {(notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0) > 99 ? '99+' : (notifications.data?.unread_count??0)+(expiryNotifications.data?.unread_count??0)}
+          {unreadTotal > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+            {unreadTotal > 99 ? '99+' : unreadTotal}
           </span>}
         </PopoverTrigger>
         <PopoverContent align="end" className="max-h-[430px] w-[min(90vw,360px)] overflow-y-auto p-3">
@@ -165,9 +203,18 @@ export function Header({
           {notifications.isPending && !!apiBase && <p className="text-sm text-muted-foreground">Đang tải thông báo…</p>}
           {notifications.error && <p role="alert" className="text-sm text-red-600">{notifications.error.message}</p>}
           {expiryNotifications.error && <p role="alert" className="text-sm text-red-600">{expiryNotifications.error.message}</p>}
+          {workflowNotifications.error && <p role="alert" className="text-sm text-red-600">{workflowNotifications.error.message}</p>}
           {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
-          {notifications.data?.data.length === 0 && expiryNotifications.data?.data.length === 0 &&
+          {notifications.data?.data.length === 0 && expiryNotifications.data?.data.length === 0 && workflowNotifications.data?.data.length === 0 &&
             <p className="text-sm text-muted-foreground">Hiện không có thông báo cần xử lý.</p>}
+          {workflowNotifications.data?.data.map(notice => <button type="button" key={`workflow-${notice.id}`}
+            onClick={() => void openWorkflowNotice(notice)}
+            className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
+            <span className="block font-semibold">{notice.title}</span>
+            <span className="mt-1 block text-muted-foreground">{notice.message}</span>
+            <span className="mt-1 block text-xs text-muted-foreground">{new Date(notice.created_at).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}</span>
+            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
+          </button>)}
           {expiryNotifications.data?.data.map(notice => <button type="button" key={`contract-${notice.id}`}
             onClick={() => void openExpiryNotice(notice)}
             className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">

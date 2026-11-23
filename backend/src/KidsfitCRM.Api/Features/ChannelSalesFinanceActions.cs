@@ -350,12 +350,12 @@ public sealed partial class ChannelSalesActions
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { throw new ApiConflictException("Khóa điều chỉnh đã được sử dụng."); }
         Audit.Add(db, actorId, "ADJUST_COMMISSION", nameof(CommissionLedgerEntry), entry.Id, null, new { entry.RelatedEntryId, entry.Amount, entry.Period, entry.Reason }, http);
-        if (entry.BeneficiaryUserId.HasValue && entry.BeneficiaryUserId.Value != actorId)
+        if (entry.BeneficiaryUserId > 0 && entry.BeneficiaryUserId != actorId)
         {
-            var org = await CrmNotificationWriter.RecipientOrganization(db, entry.BeneficiaryUserId.Value,
-                entry.BeneficiaryOrganizationId ?? 0, ct);
+            var org = await CrmNotificationWriter.RecipientOrganization(db, entry.BeneficiaryUserId,
+                entry.BeneficiaryOrganizationId, ct);
             if (org.HasValue)
-                CrmNotificationWriter.Add(db, org.Value, entry.BeneficiaryUserId.Value,
+                CrmNotificationWriter.Add(db, org.Value, entry.BeneficiaryUserId,
                     "COMMISSION_ADJUSTED", nameof(CommissionLedgerEntry), entry.Id,
                     entry.Amount < 0 ? "Hoa hồng được điều chỉnh giảm" : "Hoa hồng được điều chỉnh",
                     "Kế toán đã ghi nhận điều chỉnh hoa hồng có lý do và chứng từ. Vui lòng xem thu nhập.",

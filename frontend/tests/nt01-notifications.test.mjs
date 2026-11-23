@@ -28,3 +28,17 @@ test('proposal overdue worker shares inbox without changing admin and director r
   assert.match(worker, /DIRECTOR_ESCALATION/);
   assert.match(worker, /INSERT IGNORE INTO crm_notifications/);
 });
+
+test('notification popover stays compact, accessible and independently scrollable', () => {
+  const header = read('src/components/layout/Header.tsx');
+  assert.match(header, /w-\[min\(92vw,380px\)\]/);
+  assert.match(header, /max-h-\[min\(55dvh,355px\)\]/);
+  assert.match(header, /overflow-y-auto overscroll-contain/);
+  assert.match(header, /line-clamp-2 break-words/);
+  assert.match(header, /min-w-0 flex-1 truncate/);
+  assert.match(header, /aria-pressed=\{noticeFilter === filter\}/);
+  assert.match(header, /notificationIcon\(notice\.kind\)/);
+  assert.match(header, /notice\.actionable/);
+  assert.match(header, /notificationTime\(notice\.createdAt\)/);
+  assert.doesNotMatch(header, /my-1 flex w-full gap-2 rounded-xl border p-3/);
+});

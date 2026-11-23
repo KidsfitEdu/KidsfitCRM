@@ -51,6 +51,10 @@ npm run build
 
 ## Deployment
 
-Deploy the built CRM frontend alongside a reachable ASP.NET Core Backend, configure CORS on the Backend for the frontend origin, and set `NEXT_PUBLIC_API_URL` during the build/deployment lifecycle. Do not use a static Pages preview as a substitute for a configured API.
+**Production hosting has not been configured or certified in this repository.** `frontend/Dockerfile` is **for local development only** and its `npm run dev` is not a production entrypoint. The current `npm run start` uses `wrangler dev`, which is likewise not a production deployment.
+
+Choose a supported Vinext hosting target and implement/test its actual production build and deploy pipeline in a separate reviewed PR. One candidate is a properly initialized Cloudflare Workers target; do not assume the current source is already initialized for deployment. Point `NEXT_PUBLIC_API_URL` at the reachable HTTPS backend **during the frontend build**; set matching server CORS, and keep all secrets out of browser-visible `NEXT_PUBLIC_*` settings. See [staging/production readiness](../docs/operations/PRODUCTION_READINESS.md).
+
+Do not use a static Pages preview or a development container as a substitute for a configured production API.
 
 For server and business rules, see [Backend README](../backend/README.md), [CRM functional specification](../docs/requirements/CRM_FUNCTIONAL_SPECIFICATION.md), and [cleanup dependency manifest](../docs/implementation/CLEANUP_DEPENDENCY_MANIFEST.md).

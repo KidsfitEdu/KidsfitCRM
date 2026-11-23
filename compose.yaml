@@ -1,3 +1,5 @@
+# DEVELOPMENT COMPOSE ONLY. Do not use as a production deployment manifest.
+# Use private variables; MySQL host port is loopback-only. See docs/operations/PRODUCTION_READINESS.md.
 services:
   mysql:
     image: mysql:8.4
@@ -5,16 +7,16 @@ services:
     environment:
       MYSQL_DATABASE: kidsfit_crm
       MYSQL_USER: kidsfit_crm
-      MYSQL_PASSWORD: kidsfit_secret
-      MYSQL_ROOT_PASSWORD: kidsfit_root_secret
+      MYSQL_PASSWORD: ${KIDSFIT_DB_PASSWORD:?Set KIDSFIT_DB_PASSWORD in a private environment}
+      MYSQL_ROOT_PASSWORD: ${KIDSFIT_DB_ROOT_PASSWORD:?Set KIDSFIT_DB_ROOT_PASSWORD privately}
       TZ: UTC
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci", "--default-time-zone=+00:00"]
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - kidsfit_mysql_net10:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pkidsfit_root_secret"]
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h localhost -u root --silent"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -24,11 +26,11 @@ services:
     restart: "no"
     environment: &api-environment
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__MySql: Server=mysql;Port=3306;Database=kidsfit_crm;User=kidsfit_crm;Password=kidsfit_secret;Character Set=utf8mb4;
+      ConnectionStrings__MySql: "Server=mysql;Port=3306;Database=kidsfit_crm;User=kidsfit_crm;Password=${KIDSFIT_DB_PASSWORD:?Set KIDSFIT_DB_PASSWORD};Character Set=utf8mb4;"
       Jwt__Issuer: KidsfitCRM.Api
       Jwt__Audience: KidsfitCRM.Web
-      Jwt__Key: local-docker-key-change-before-production-2026
-      Cors__Origins__0: http://localhost:3000
+      Jwt__Key: ${KIDSFIT_JWT_KEY:?Set a private JWT signing key of at least 32 bytes}
+      Cors__Origins__0: ${KIDSFIT_WEB_ORIGIN:-http://localhost:3000}
       Seed__DemoEnabled: "false"
       Storage__RootPath: /var/lib/kidsfit-crm/storage
     depends_on:
@@ -52,7 +54,7 @@ services:
     build: ./frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+      NEXT_PUBLIC_API_URL: ${KIDSFIT_PUBLIC_API_URL:-http://localhost:8000/api}
     ports:
       - "3000:3000"
     depends_on:

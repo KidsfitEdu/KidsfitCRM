@@ -29,7 +29,7 @@ Load for every feature that creates, reads, marks, routes, expires or displays p
 - MySQL 8.4 isolated integration: one event/replay, concurrent duplicate, valid second occurrence, cross-org/missing membership, revocation, read/resolve semantics, worker twice, stale/missing target and original business rollback.
 - Frontend: keyboard/focus and screen readers, dark mode, 320/375/390px, 200% zoom, long Vietnamese strings, scrolling with sticky header/footer, page loading and `Tải thêm`, wrong/forbidden entity navigation.
 - Trace **action → audit → notice → API permission → UI navigation → tests**. State missing coverage honestly; a green build is not seven-role end-to-end UAT.
-- For currently reviewed notice events and known gaps also see [notification matrix](../../../docs/implementation/CRM_NOTIFICATION_MATRIX.md). This document may be older than `develop` and must not override live code.
+- For currently reviewed notice events and known gaps also see [notification matrix](../../../../docs/implementation/CRM_NOTIFICATION_MATRIX.md). This document may be older than `develop` and must not override live code.
 
 ## Anti-patterns
 

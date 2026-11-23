@@ -60,16 +60,16 @@ test('CHECKEE contract detail reuses the compact personnel-style drawer and pres
   assert.match(drawer,/rounded-2xl border border-border bg-card p-4/);
   assert.match(drawer,/grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2/);
   for(const label of ['Địa chỉ trường','Sales phụ trách','Thông tin hợp đồng','Giá trị hợp đồng',
-    'Gói dịch vụ','Số học sinh','File hợp đồng đã ký','Lịch thanh toán','Lịch sử xác minh'])
+    'Gói dịch vụ','Số học sinh','File hợp đồng đã ký'])
     assert.ok(drawer.includes(label),label);
-  for(const icon of ['School','ClipboardList','FileText','CalendarDays','History'])
+  for(const icon of ['School','ClipboardList','FileText'])
     assert.match(verify,new RegExp('<'+icon+'\\b'));
   assert.match(drawer,/detail\.data\.reconciliation_status/);
   assert.match(drawer,/channelMoney\(detail\.data\.total_value\)/);
   assert.match(drawer,/viewFile\(file\)/);
-  assert.match(drawer,/detail\.installments\.map/);
-  assert.match(drawer,/detail\.history\.map/);
-  assert.match(drawer,/eventLabels\[entry\.event_type\]/);
+  for(const removed of ['Lịch thanh toán','Lịch sử xác minh']) assert.ok(!drawer.includes(removed),removed);
+  assert.doesNotMatch(drawer,/detail\.installments\.map|detail\.history\.map/);
+  assert.doesNotMatch(verify,/<CalendarDays\b|<History\b|eventLabels\[entry\.event_type\]/);
   assert.match(drawer,/detail\?\.data\.can_feedback/);
   assert.match(drawer,/detail\?\.data\.can_verify/);
   assert.match(drawer,/openFeedback\(detail\.data\.id\)/);

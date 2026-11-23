@@ -11,7 +11,7 @@ test('shared school profile renders main school once and branch-only list', () =
   assert.match(profile, /export function SchoolBranchDetails/);
   assert.match(profile, /units\.find\(unit => unit\.unit_type === 'MAIN'\)/);
   assert.match(profile, /units\.filter\(unit => unit\.unit_type === 'BRANCH'\)/);
-  assert.match(profile, /<SchoolMainInfo unit=\{main\}\/>/);
+  assert.match(profile, /<SchoolMainInfo unit=\{visibleMain\}\/>/);
   assert.match(profile, /<SchoolBranchDetails units=\{units\}\/>/);
   assert.match(profile, /Trường chưa có phân hiệu/);
   assert.match(profile, /formatSchoolAddress/);

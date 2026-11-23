@@ -60,7 +60,7 @@ export function SchoolMainSection({unit,index,onFieldChange,errors={},prefix='sc
   onFieldChange:(index:number,key:keyof SchoolFormUnit,value:string)=>void;
   errors?:Record<string,string>; prefix?:string; readOnly?:boolean; description?:string;
 }) {
-  return <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
+  return <section className="space-y-3 rounded-xl border bg-muted/20 p-3 sm:p-4">
     <h3 className="font-semibold">Trường chính</h3>
     {description && <p className="text-xs text-muted-foreground">{description}</p>}
     <SchoolUnitFields unit={unit} index={index} onFieldChange={onFieldChange} errors={errors} prefix={prefix} readOnly={readOnly}/>
@@ -95,7 +95,7 @@ export function SchoolBranchList({units,expanded,onExpandedChange,onAdd,onRemove
           <Trash2 className="size-4"/>
         </button>}
       </div>
-      {expanded.includes(index)&&<div className="border-t p-4">
+      {expanded.includes(index)&&<div className="border-t p-3 sm:p-4">
         <SchoolUnitFields unit={unit} index={index} onFieldChange={onFieldChange} errors={errors} prefix={prefix}/>
       </div>}
     </div>)}

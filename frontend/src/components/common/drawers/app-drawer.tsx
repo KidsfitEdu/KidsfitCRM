@@ -26,7 +26,7 @@ type Props = {
 export function AppDrawer({ open, onOpenChange, title, description, children, footer, busy = false, bodyClassName, wide = false, compactAccountingHeader = false, compactHeader = false }: Props) {
   return <Sheet open={open} onOpenChange={next=>{if(!busy)onOpenChange(next);}}>
     <SheetContent side="right" showCloseButton={false}
-      className={cn("right-0 h-dvh w-screen max-w-none gap-0 overflow-hidden border-l border-border bg-card p-0 shadow-[0_22px_80px_rgba(14,42,26,.22)]", wide ? "sm:!w-[min(800px,100vw)] sm:!max-w-[800px]" : "sm:!w-[min(560px,100vw)] sm:!max-w-[560px]")}>
+      className={cn("right-0 h-dvh w-screen max-w-none gap-0 overflow-hidden border-l border-border bg-card !p-0 shadow-[0_22px_80px_rgba(14,42,26,.22)]", wide ? "sm:!w-[min(800px,100vw)] sm:!max-w-[800px]" : "sm:!w-[min(560px,100vw)] sm:!max-w-[560px]")}>
       <header className={cn("relative w-full shrink-0 self-stretch bg-[#1b5e20] px-5 pr-16 text-white",
         compactAccountingHeader ? "py-3" : compactHeader ? "py-3.5" : "py-5")}>
         {compactAccountingHeader ? (
@@ -39,9 +39,7 @@ export function AppDrawer({ open, onOpenChange, title, description, children, fo
               <span className="text-[11px] font-semibold tracking-[.14em] text-[#d8eedb]">KIDSFIT CRM</span>
               <SheetTitle className="text-lg font-bold leading-snug text-white">{title}</SheetTitle>
             </div>
-            <SheetDescription className={description && !compactHeader ? 'mt-1 text-sm text-[#d8eedb]' : 'sr-only'}>
-              {description ?? title}
-            </SheetDescription>
+            <SheetDescription className="sr-only">{description ?? title}</SheetDescription>
           </>
         )}
         {compactAccountingHeader && <SheetDescription className="sr-only">{description ?? title}</SheetDescription>}
@@ -50,7 +48,7 @@ export function AppDrawer({ open, onOpenChange, title, description, children, fo
           <X aria-hidden="true" className="size-5"/>
         </button>
       </header>
-      <div className={cn('crm-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-5',bodyClassName)}>
+      <div className={cn('crm-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5',bodyClassName)}>
         {children}
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:px-5 sm:pb-3">

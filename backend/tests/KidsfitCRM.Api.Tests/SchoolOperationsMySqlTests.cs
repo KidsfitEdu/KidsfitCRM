@@ -2578,4 +2578,47 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(0, care.GetProperty("open_tickets").GetInt32());
     }
 
+    [MySqlFact] public async Task WorkflowNotificationsAreScopedAndIdempotentForExtensionsAndInvitations()
+    {
+        var s = await Arrange();
+        await Policy(s.OrgId);
+        await using var db = fixture.Open();
+        var actions = new ChannelSalesActions(db);
+        var registrationId = await actions.RegisterCustomerApproach(Claim(s.CustomerId), s.Seller.UserId, Http(s.Seller.UserId), Ct);
+        var request = new RequestSchoolExtensionRequest(Key(), null, null, null, "Đã làm việc với nhà trường.", null);
+        var extensionId = await actions.RequestSchoolExtension(registrationId, request, s.Seller.UserId, Http(s.Seller.UserId), Ct);
+        Assert.Equal(extensionId, await actions.RequestSchoolExtension(registrationId, request, s.Seller.UserId, Http(s.Seller.UserId), Ct));
+
+        var incoming = await db.CrmNotifications.AsNoTracking().Where(x => x.EntityType == nameof(SchoolExtensionRequest)
+            && x.EntityId == extensionId && x.Kind == "SCHOOL_EXTENSION_REQUESTED").ToArrayAsync(Ct);
+        Assert.Single(incoming);
+        Assert.Equal(s.Manager.UserId, incoming[0].RecipientUserId);
+        Assert.Equal(s.OrgId, incoming[0].OrganizationId);
+        Assert.DoesNotContain(incoming, x => x.RecipientUserId == s.Peer.UserId);
+
+        var decision = new ReviewSchoolExtensionRequest(true, null, null, null);
+        await actions.ReviewSchoolExtension(extensionId, decision, s.Manager.UserId, Http(s.Manager.UserId), Ct);
+        await actions.ReviewSchoolExtension(extensionId, decision, s.Manager.UserId, Http(s.Manager.UserId), Ct);
+        var result = await db.CrmNotifications.AsNoTracking().Where(x => x.EntityType == nameof(SchoolExtensionRequest)
+            && x.EntityId == extensionId && x.Kind == "SCHOOL_EXTENSION_APPROVED").ToArrayAsync(Ct);
+        Assert.Single(result);
+        Assert.Equal(s.Seller.UserId, result[0].RecipientUserId);
+
+        // Read state is notification-only and never changes extension decisions or protected-until dates.
+        var approvedUntil = await db.ApproachRegistrations.Where(x => x.Id == registrationId)
+            .Select(x => x.ProtectedUntil).SingleAsync(Ct);
+        await db.CrmNotifications.Where(x => x.Id == result[0].Id)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.ReadAt, DateTime.UtcNow), Ct);
+        Assert.Equal("APPROVED", await db.SchoolExtensionRequests.Where(x => x.Id == extensionId).Select(x => x.Status).SingleAsync(Ct));
+        Assert.Equal(approvedUntil, await db.ApproachRegistrations.Where(x => x.Id == registrationId).Select(x => x.ProtectedUntil).SingleAsync(Ct));
+
+        var invitation = new CreateSchoolInvitationRequest(Key(), s.OtherSchoolId, null,
+            s.Peer.UserId, "Phân bổ trường tiếp theo", null);
+        var invitationId = await actions.InviteSchoolCollaborator(invitation, s.Manager.UserId, Http(s.Manager.UserId), Ct);
+        Assert.Equal(invitationId, await actions.InviteSchoolCollaborator(invitation, s.Manager.UserId, Http(s.Manager.UserId), Ct));
+        Assert.Single(await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolInvitation)
+            && x.EntityId == invitationId && x.Kind == "SCHOOL_INVITATION_NEW"
+            && x.RecipientUserId == s.Peer.UserId).ToArrayAsync(Ct));
+    }
+
 }

@@ -2260,6 +2260,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await Assert.ThrowsAsync<ApiConflictException>(() => a.RecordRevenueReceipt(contractId, new(Key(), null, 1, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct));
         var reconciliation = await check.ReconciliationCases.Where(x => x.ContractId == contractId).Select(x => x.Id).SingleAsync();
         await a.Reconcile(reconciliation, true, new("Đã rà soát quyết toán"), await User("checkee@kidsfit.vn"), Http(), Ct);
+        Assert.True(await check.CrmNotifications.AsNoTracking().AnyAsync(x =>
+            x.EntityType == nameof(ReconciliationCase) && x.EntityId == reconciliation
+            && x.Kind == "CHECKEE_SETTLEMENT_CONFIRMED", Ct));
         Assert.Equal("CANCELLED", await check.SalesContracts.Where(x => x.Id == contractId).Select(x => x.Status).SingleAsync());
         Assert.False(await check.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE"));
         Assert.Single(await check.RevenueRefunds.Where(x => x.ContractId == contractId).ToArrayAsync());

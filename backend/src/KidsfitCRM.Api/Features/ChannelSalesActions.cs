@@ -744,9 +744,15 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             var occurrence = await db.ReconciliationEvents.AsNoTracking()
                 .CountAsync(x => x.ReconciliationCaseId == reconciliation.Id
                     && x.EventType == (confirm ? "CONFIRMED" : "DISPUTED"), cancellationToken);
-            var kind = confirm ? "CHECKEE_CONTRACT_VERIFIED" : "CHECKEE_CONTRACT_DISPUTED";
-            var title = confirm ? "CHECKEE đã xác minh hợp đồng" : "CHECKEE yêu cầu xử lý hợp đồng";
-            var message = confirm ? "Hợp đồng đã được CHECKEE xác minh. Xem trạng thái và quyền bảo vệ theo hồ sơ."
+            // Reconciliation after contract cancellation is a settlement review, not a new
+            // school contract verification or long-term protection grant.
+            var isSettlementOnly = confirm && schoolContract.Status == "CANCELLED";
+            var kind = isSettlementOnly ? "CHECKEE_SETTLEMENT_CONFIRMED"
+                : confirm ? "CHECKEE_CONTRACT_VERIFIED" : "CHECKEE_CONTRACT_DISPUTED";
+            var title = isSettlementOnly ? "CHECKEE đã xác nhận đối soát hợp đồng đã hủy"
+                : confirm ? "CHECKEE đã xác minh hợp đồng" : "CHECKEE yêu cầu xử lý hợp đồng";
+            var message = isSettlementOnly ? "CHECKEE đã xác nhận kết quả đối soát; hợp đồng vẫn đã hủy và không được khôi phục quyền bảo vệ."
+                : confirm ? "Hợp đồng đã được CHECKEE xác minh. Xem trạng thái và quyền bảo vệ theo hồ sơ."
                 : "CHECKEE đã phản hồi hợp đồng; cần xem thông tin tranh chấp hoặc hồ sơ cần bổ sung.";
             var isCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
                 m.UserId == schoolContract.OwnerUserId && m.OrganizationId == schoolContract.OwnerOrganizationId

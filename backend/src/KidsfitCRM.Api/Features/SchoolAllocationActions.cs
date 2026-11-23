@@ -199,9 +199,11 @@ public sealed partial class ChannelSalesActions
         db.SchoolExtensionRequests.Add(extension); await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "REQUEST_SCHOOL_EXTENSION", nameof(SchoolExtensionRequest), extension.Id, null,
             new { extension.ApproachRegistrationId, extension.RequestedUntil, extension.ReviewDueAt, extension.NextAppointmentAt }, http);
+        var requestedSchoolName = await db.ChannelCustomers.AsNoTracking()
+            .Where(x => x.Id == registration.CustomerId).Select(x => x.DisplayName).SingleAsync(ct);
         CrmNotificationWriter.Add(db, extension.OrganizationId, extension.ManagerUserId, "SCHOOL_EXTENSION_REQUESTED",
             nameof(SchoolExtensionRequest), extension.Id, "Yêu cầu gia hạn tiếp cận",
-            "Sales/CTV đã gửi yêu cầu gia hạn tiếp cận trường, cần xem tiến độ và xét duyệt.", "manager-extensions");
+            $"Sales/CTV đã gửi yêu cầu gia hạn tiếp cận {requestedSchoolName}. Vui lòng xem và xét duyệt.", "manager-extensions");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return extension.Id;
     }, ct);
 
@@ -261,11 +263,14 @@ public sealed partial class ChannelSalesActions
         var salesIsCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
             m.UserId == extension.RequestedByUserId && m.OrganizationId == extension.OrganizationId
             && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
+        var reviewedSchoolName = await db.ChannelCustomers.AsNoTracking()
+            .Where(x => x.Id == registration.CustomerId).Select(x => x.DisplayName).SingleAsync(ct);
         CrmNotificationWriter.Add(db, extension.OrganizationId, extension.RequestedByUserId,
             request.Approve ? "SCHOOL_EXTENSION_APPROVED" : "SCHOOL_EXTENSION_REJECTED",
             nameof(SchoolExtensionRequest), extension.Id,
             request.Approve ? "Gia hạn đã được duyệt" : "Gia hạn bị từ chối",
-            request.Approve ? "Quản lý đã đồng ý gia hạn tiếp cận trường của bạn." : "Quản lý đã từ chối gia hạn; mở chi tiết yêu cầu để xem lý do.",
+            request.Approve ? $"Quản lý đã duyệt gia hạn tiếp cận {reviewedSchoolName}."
+                : $"Quản lý đã từ chối gia hạn tiếp cận {reviewedSchoolName}; mở chi tiết để xem lý do.",
             salesIsCollaborator ? "role-collaborator-extensions" : "role-sales-staff-customers");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return id;
     }, ct);

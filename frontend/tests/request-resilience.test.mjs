@@ -29,8 +29,8 @@ test('both transports distinguish request cancellation from network failures', a
   caller.abort();
   try {
     globalThis.fetch = (_url, options) => Promise.reject(options.signal.reason ?? new DOMException('Aborted', 'AbortError'));
-    await assert.rejects(createApiClient('http://localhost/api')('/customers', undefined, { signal: caller.signal }), /Abort/);
-    await assert.rejects(channelRequest('http://localhost/api', 'token', '/customers', { signal: caller.signal }), /Abort/);
+    await assert.rejects(createApiClient('http://localhost/api')('/customers', undefined, { signal: caller.signal }), e => e.name === 'AbortError');
+    await assert.rejects(channelRequest('http://localhost/api', 'token', '/customers', { signal: caller.signal }), e => e.name === 'AbortError');
     assert.equal(getPendingAppRequests(), 0);
     globalThis.fetch = async () => { throw new TypeError('offline'); };
     await assert.rejects(createApiClient('http://localhost/api')('/customers'), e => e instanceof ApiRequestError && e.kind === 'network');

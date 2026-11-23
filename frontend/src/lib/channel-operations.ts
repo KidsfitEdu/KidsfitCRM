@@ -202,22 +202,31 @@ export async function channelRequest<T>(
     const finishLoading = trackAppRequest();
     try {
     const headers = new Headers(options.headers);
-    if (!(options.body instanceof FormData))
+    if (typeof options.body === 'string' && !headers.has('Content-Type'))
       headers.set('Content-Type', 'application/json');
     headers.set('Authorization', `Bearer ${token}`);
+    const controller = new AbortController();
+    const signal = options.signal
+      ? AbortSignal.any([options.signal, controller.signal])
+      : controller.signal;
+    const timeout = setTimeout(() => controller.abort(), options.body instanceof FormData ? 60000 : 30000);
     let response: Response;
+    let payload: { message?: string; errors?: Record<string, string[]> };
     try {
       response = await fetch(`${base}/channel-sales${path}`, {
         ...options,
         headers,
+        signal,
       });
-    } catch {
+      payload = (await response.json().catch(() => ({}))) as typeof payload;
+    } catch (cause) {
+      if (options.signal?.aborted) throw cause;
+      if (controller.signal.aborted)
+        throw new ChannelRequestError('Máy chủ phản hồi quá lâu. Vui lòng thử lại.', 0);
       throw new ChannelRequestError('Không thể kết nối đến Backend. Vui lòng kiểm tra máy chủ hoặc kết nối mạng.', 0);
+    } finally {
+      clearTimeout(timeout);
     }
-    const payload = (await response.json().catch(() => ({}))) as {
-      message?: string;
-      errors?: Record<string, string[]>;
-    };
     if (!response.ok) {
       const errors = payload.errors && typeof payload.errors === 'object'
         ? payload.errors : {};

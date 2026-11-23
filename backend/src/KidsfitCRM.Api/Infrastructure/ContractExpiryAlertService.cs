@@ -214,7 +214,7 @@ public static class ContractExpiryAlertService
             {
                 var isGap = item.Kind.StartsWith("SERVICE_GAP_", StringComparison.Ordinal)
                     || item.Kind == "SERVICE_INTERRUPTED";
-                var obsoleteGap = isGap && (!item.MilestoneOn.HasValue && validGapStarts.Contains(item.MilestoneOn.Value)
+                var obsoleteGap = isGap && (!item.MilestoneOn.HasValue || !validGapStarts.Contains(item.MilestoneOn.Value)
                     || !recipients.Contains(item.RecipientUserId));
                 var obsoleteService = !isGap && item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
                     && (!serviceEnd.HasValue || item.MilestoneOn != serviceEnd.Value

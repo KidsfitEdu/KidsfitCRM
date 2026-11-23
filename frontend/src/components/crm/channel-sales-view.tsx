@@ -505,6 +505,14 @@ export function ChannelSalesView({
             schoolCode={detailCustomer?.code}
             statusLabel={detailCustomer ? contractBadge(detailCustomer).label : undefined}
             taxCode={schoolProfile.data.tax_code}
+            customerContact={{
+              address: schoolProfile.data.address,
+              province: schoolProfile.data.province,
+              contact_phone: schoolProfile.data.phone,
+              contact_name: schoolProfile.data.contact_name,
+              contact_position: schoolProfile.data.contact_position,
+              email: schoolProfile.data.email,
+            }}
           />
         )}
       </AppDrawer>

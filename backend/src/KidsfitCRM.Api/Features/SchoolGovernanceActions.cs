@@ -176,6 +176,11 @@ public sealed partial class ChannelSalesActions
         if (request.ReactivateAccount) { user.Status = "ACTIVE"; user.UpdatedAt = now; }
         Audit.Add(db, actorId, "REACTIVATE_SCHOOL_MEMBERSHIP", nameof(OrganizationMembership), id,
             new { membership_status = previousMember, account_status = previousAccount }, new { membership_status = member.Status, account_status = user.Status, reason }, http);
+        if (member.Status == "ACTIVE" && user.Status == "ACTIVE")
+            CrmNotificationWriter.Add(db, member.OrganizationId, member.UserId,
+                "SCHOOL_MEMBERSHIP_REACTIVATED", nameof(OrganizationMembership), member.Id,
+                "Quyền truy cập CRM đã được khôi phục",
+                "Quản lý đã khôi phục quyền truy cập tổ chức của bạn.", "role-sales-staff-dashboard");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);

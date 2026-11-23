@@ -860,6 +860,12 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         registration.UpdatedAt = now;
         await db.CustomerProtections.Where(x => x.ApproachRegistrationId == registration.Id && x.Status == "ACTIVE")
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "EXPIRED").SetProperty(x => x.UpdatedAt, now), cancellationToken);
+        // Expiry is already authorized by existing policy; this only records the event.
+        CrmNotificationWriter.Add(db, registration.OwnerOrganizationId, registration.OwnerUserId,
+            "SCHOOL_APPROACH_EXPIRED", nameof(ApproachRegistration), registration.Id,
+            "Quyền tiếp cận trường đã hết hạn",
+            "Quyền tiếp cận trường đã kết thúc và trường có thể được đăng ký theo quy tắc CRM.",
+            "role-sales-staff-customers");
         await db.SaveChangesAsync(cancellationToken);
     }
 

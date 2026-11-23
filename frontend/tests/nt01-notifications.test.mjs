@@ -7,7 +7,7 @@ const read = path => readFileSync(resolve(import.meta.dirname, '..', path), 'utf
 
 test('unified bell fetches one backend inbox with three filters and one read endpoint', () => {
   const header = read('src/components/layout/Header.tsx');
-  assert.match(header, /request<WorkflowNotificationsResponse>\('\/notifications', token\)/);
+  assert.ok(header.includes('request<WorkflowNotificationsResponse>(`/notifications?page=${pageParam}`, token)'));
   assert.match(header, /'\/notifications\/' \+ notice\.id \+ '\/read'/);
   assert.doesNotMatch(header, /\/notifications\/contract-expiry|\/notifications\/workflow/);
   assert.match(header, /noticeFilter === 'UNREAD'/);
@@ -29,22 +29,25 @@ test('proposal overdue worker shares inbox without changing admin and director r
   assert.match(worker, /INSERT IGNORE INTO crm_notifications/);
 });
 
-test('notification bell matches the small reference layout and supports real pagination', () => {
+test('notification bell matches compact reference and fetches actual next pages', () => {
   const header = read('src/components/layout/Header.tsx');
-  assert.match(header, /w-\\[min\\(92vw,320px\\)\\]/);
-  assert.match(header, /max-h-\\[min\\(48dvh,300px\\)\\]/);
-  assert.match(header, /useInfiniteQuery\\(/);
-  assert.match(header, /initialPageParam: 1/);
-  assert.match(header, /\\/notifications\\?page=\\$\\{pageParam\\}/);
-  assert.match(header, /getNextPageParam:/);
-  assert.match(header, /lastPage\\.data\\.length === NOTIFICATION_PAGE_SIZE/);
-  assert.match(header, /pages\\.flatMap\\(page => page\\.data\\)/);
-  assert.match(header, /hasNextPage/);
-  assert.match(header, /fetchNextPage\\(\\)/);
-  assert.match(header, /isFetchingNextPage/);
-  assert.match(header, /Tải thêm/);
-  assert.match(header, /aria-pressed=\\{noticeFilter === filter\\}/);
-  assert.match(header, /line-clamp-2 break-words/);
-  assert.match(header, /notificationTime\\(notice\\.createdAt\\)/);
-  assert.doesNotMatch(header, /notificationIcon\\(/);
+  const required = [
+    'w-[min(92vw,320px)]',
+    'max-h-[min(48dvh,300px)]',
+    'useInfiniteQuery({',
+    'initialPageParam: 1',
+    '/notifications?page=${pageParam}',
+    'getNextPageParam:',
+    'lastPage.data.length === NOTIFICATION_PAGE_SIZE',
+    'pages.flatMap(page => page.data)',
+    'workflowNotifications.hasNextPage',
+    'workflowNotifications.fetchNextPage()',
+    'workflowNotifications.isFetchingNextPage',
+    'Tải thêm',
+    'aria-pressed={noticeFilter === filter}',
+    'line-clamp-2 break-words',
+    'notificationTime(notice.createdAt)',
+  ];
+  for (const expected of required) assert.ok(header.includes(expected), expected);
+  assert.ok(!header.includes('notificationIcon('));
 });

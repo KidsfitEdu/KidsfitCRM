@@ -278,17 +278,20 @@ public sealed partial class ChannelSalesActions
         payout.UpdatedAt = DateTime.UtcNow;
         AddPayoutEvent(payout, actorId, "PAID", CleanOptional(request.Reason, 1000), payout.UpdatedAt);
         Audit.Add(db, actorId, "COMPLETE_PAYOUT", nameof(Payout), id, new { status = "APPROVED" }, new { payout.Status, payout.NetAmount, payout.PaymentReference, payout.PaidAt }, http);
-        var beneficiaryOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.BeneficiaryUserId, payout.OrganizationId, ct);
-        if (beneficiaryOrgId.HasValue)
+        if (payout.BeneficiaryUserId is long beneficiaryUserId)
         {
+            var beneficiaryOrgId = await CrmNotificationWriter.RecipientOrganization(db, beneficiaryUserId, payout.OrganizationId, ct);
+            if (beneficiaryOrgId.HasValue)
+            {
             var beneficiaryManager = payout.BeneficiaryRole == "MANAGER";
             var beneficiaryCollaborator = !beneficiaryManager && await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
-                m.UserId == payout.BeneficiaryUserId && m.OrganizationId == beneficiaryOrgId.Value
+                m.UserId == beneficiaryUserId && m.OrganizationId == beneficiaryOrgId.Value
                 && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
-            CrmNotificationWriter.Add(db, beneficiaryOrgId.Value, payout.BeneficiaryUserId,
-                "PAYOUT_PAID", nameof(Payout), payout.Id, "Hoa hồng đã được thanh toán",
-                "Kế toán đã xác nhận chi trả hoa hồng theo phiếu đã duyệt.",
-                beneficiaryManager ? "manager-income" : beneficiaryCollaborator ? "role-collaborator-income" : "role-sales-staff-income");
+                CrmNotificationWriter.Add(db, beneficiaryOrgId.Value, beneficiaryUserId,
+                    "PAYOUT_PAID", nameof(Payout), payout.Id, "Hoa hồng đã được thanh toán",
+                    "Kế toán đã xác nhận chi trả hoa hồng theo phiếu đã duyệt.",
+                    beneficiaryManager ? "manager-income" : beneficiaryCollaborator ? "role-collaborator-income" : "role-sales-staff-income");
+            }
         }
         try
         {

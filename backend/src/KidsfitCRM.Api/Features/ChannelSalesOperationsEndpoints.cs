@@ -117,6 +117,7 @@ public static class ChannelSalesOperationsEndpoints
                 contact_position = internalScope ? customer.ContactPosition : null,
                 customer.LifecycleStatus },
             school_units = schoolUnits,
+            can_view_school_contacts = internalScope,
             contracts,
             activities,
             can_record_support = internalScope && customer.LifecycleStatus == "CONTRACTED" && access.Has(Permissions.ChannelSalesActivity)

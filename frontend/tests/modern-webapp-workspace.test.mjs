@@ -25,8 +25,10 @@ test('expanding pill shows a label only for the active shortcut and keeps nonact
   assert.match(sidebar, /\{active && <span className="min-w-0 truncate whitespace-nowrap">\{item\.shortLabel\}<\/span>\}/);
   assert.match(sidebar, /selectedOverflow = mobileOverflow\.find\(item => item\.id === currentView\)/);
   assert.match(sidebar, /\{moreActive && <span className="min-w-0 truncate whitespace-nowrap">\{selectedOverflow\?\.shortLabel\}<\/span>\}/);
-  assert.match(sidebar, /flex-\[1\.85\] bg-\[#168355\]/);
-  assert.match(sidebar, /rounded-full/);
+  assert.match(sidebar, /flex-\[1\.85\] bg-\[#355943\]/);
+  assert.match(sidebar, /rounded-\[18px\]/);
+  assert.match(sidebar, /rounded-xl/);
+  assert.match(sidebar, /bg-\[#173c29\]/);
   assert.doesNotMatch(sidebar, /<span className="w-full truncate text-center">\{item\.shortLabel\}<\/span>/);
 });
 

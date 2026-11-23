@@ -461,3 +461,11 @@ html:has([data-slot="sheet-content"][data-side="right"]) body {
 @media (prefers-reduced-motion: reduce) {
   .crm-mobile-dock-item { transition: none; }
 }
+
+/* Muted KIDSFIT dock surface matches the original rounded app navigation.
+   The current destination alone expands to show its label. */
+.crm-mobile-dock { max-width: 32rem; margin-inline: auto; }
+@media (max-width: 359px) {
+  .crm-mobile-dock { gap: 0.125rem; padding: 0.25rem; }
+  .crm-mobile-dock-item { gap: 0.25rem; padding-inline: 0.25rem; }
+}

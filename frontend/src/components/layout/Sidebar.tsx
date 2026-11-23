@@ -73,14 +73,14 @@ export function Sidebar({ sidebarOpen, visibleNav, currentView, onNavigate, user
       </div>
     </aside>
 
-    <nav className="crm-mobile-dock fixed inset-x-3 z-40 flex items-center gap-1 rounded-full border border-white/15 bg-[var(--deep)]/95 p-1.5 text-white shadow-2xl backdrop-blur-xl lg:hidden"
+    <nav className="crm-mobile-dock fixed inset-x-3 z-40 flex items-center gap-1 rounded-[18px] border border-white/10 bg-[#173c29] p-1.5 text-white shadow-[0_12px_32px_rgba(14,42,26,.22)] backdrop-blur-xl lg:hidden"
       aria-label="Điều hướng di động">
       {mobilePrimary.map(item => {
         const active = currentView === item.id;
         return <button key={item.id} type="button" onClick={() => navigate(item.id)}
           aria-label={item.label} aria-current={active ? 'page' : undefined}
           title={item.label}
-          className={`crm-mobile-dock-item flex h-12 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#a5d6a7] ${active ? 'flex-[1.85] bg-[#168355] text-white' : 'flex-1 text-[#d2e2d5] hover:bg-white/10'}`}>
+          className={`crm-mobile-dock-item flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl px-1.5 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#a5d6a7] ${active ? 'flex-[1.85] bg-[#355943] text-white' : 'flex-1 text-[#b7c9bc] hover:bg-white/10'}`}>
           <item.icon aria-hidden="true" className="size-[18px] shrink-0" />
           {active && <span className="min-w-0 truncate whitespace-nowrap">{item.shortLabel}</span>}
         </button>;
@@ -88,7 +88,7 @@ export function Sidebar({ sidebarOpen, visibleNav, currentView, onNavigate, user
       {mobileOverflow.length > 0 && <button type="button" onClick={() => setMoreOpen(true)}
         aria-label="Xem tất cả chức năng" aria-haspopup="dialog" aria-expanded={moreOpen}
         title="Thêm chức năng"
-        className={`crm-mobile-dock-item flex h-12 min-w-0 items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#a5d6a7] ${moreActive ? 'flex-[1.85] bg-[#168355] text-white' : 'flex-1 text-[#d2e2d5] hover:bg-white/10'}`}>
+        className={`crm-mobile-dock-item flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl px-1.5 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#a5d6a7] ${moreActive ? 'flex-[1.85] bg-[#355943] text-white' : 'flex-1 text-[#b7c9bc] hover:bg-white/10'}`}>
         <Ellipsis aria-hidden="true" className="size-[18px] shrink-0" />
         {moreActive && <span className="min-w-0 truncate whitespace-nowrap">{selectedOverflow?.shortLabel}</span>}
       </button>}

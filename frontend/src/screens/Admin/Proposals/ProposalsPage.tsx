@@ -16,6 +16,7 @@ import { AdminListPanel,AdminListToolbar,AdminIconAction,AdminStatusBadge,adminT
 import { fetchAdminOperations,reviewAdminProposal,fetchAdminProposalProfile,type AdminProposalProfile } from '@/services/proposal.service';
 import { AdminProposalProfileEditor } from '@/components/crm/schools/admin-proposal-profile-editor';
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
+import { SchoolProposalWorkflowDetails } from '@/components/crm/schools/school-proposal-workflow-details';
 import { workflowDate,workflowLabels,type SchoolOperationsWorkspace } from '@/lib/school-operations';
 import { AdminPageStatus } from '@/components/admin/AdminPageStatus';
 import type { AdminPageProps } from '../types';
@@ -141,24 +142,23 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
   </AdminListPanel>
 </div>
     <AppDrawer open={detailId!==null} onOpenChange={open=>{if(!open){setDetailId(null);setDetail(null);}}}
-      wide title="Chi tiết đề xuất trường" description={detail?.name??'Thông tin trường chính và phân hiệu'}>
+      compactHeader bodyClassName="space-y-4 bg-muted/10"
+      title="Chi tiết đề xuất trường" description={detail?.name??'Thông tin trường chính và phân hiệu'}>
       {detailLoading?<p className="text-sm text-muted-foreground">Đang tải chi tiết…</p>:
         detail?<div className="space-y-5">
           <SchoolProfileDetails units={profileUnits(detail)} displayName={detail.name}
             schoolCode={operations?.proposals.find(item=>item.id===detailId)?.school_code}
             statusLabel={workflowLabels[detail.status] ?? detail.status}/>
-          <section className="space-y-3 rounded-2xl border border-border bg-card p-4 text-sm">
-            <h3 className="text-sm font-bold">Thông tin xử lý đề xuất</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-            <div><p className="text-xs text-muted-foreground">Người đề xuất</p><p>{detail.submitted_by}</p></div>
-            <div><p className="text-xs text-muted-foreground">Quản lý bán hàng</p><p>{detail.manager_name}</p></div>
-            <div><p className="text-xs text-muted-foreground">Trạng thái</p><p>{workflowLabels[detail.status]??detail.status}</p></div>
-            <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{workflowDate(detail.review_due_at)}</p></div>
-            <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Loại đề xuất</p>
-              <p>{detail.proposal_mode==='ADD_BRANCHES'?'Bổ sung phân hiệu vào trường hiện hữu':'Đề xuất trường chính mới'}</p></div>
-            </div>
-            {detail.decision_reason && <p className="text-sm">Phản hồi phê duyệt: {detail.decision_reason}</p>}
-          </section>
+          <SchoolProposalWorkflowDetails
+            submittedBy={detail.submitted_by}
+            managerName={detail.manager_name}
+            reviewDueAt={detail.status !== 'DRAFT' ? detail.review_due_at : null}
+            proposalMode={detail.proposal_mode}
+            reason={detail.reason}
+            decisionReason={detail.decision_reason}
+            possibleDuplicate={operations?.proposals.find(item=>item.id===detailId)?.possible_duplicate}
+            formatReviewDueAt={workflowDate}
+          />
 
         </div>:<p className="text-sm text-muted-foreground">Không tải được thông tin đề xuất.</p>}
     </AppDrawer>

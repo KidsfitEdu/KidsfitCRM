@@ -503,7 +503,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
               <output>Đang tải trường chính hiện hữu…</output>}
             {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.error &&
               <p role="alert" className="text-amber-700">Không thể tải đầy đủ trường chính trong phạm vi quyền truy cập. Chỉ hiển thị thông tin được phép xem.</p>}
-            <SchoolProfileDetails units={proposalUnits}/>
+            <SchoolProfileDetails units={proposalUnits} displayName={selectedProposal.name}/>
           </>}
           <section className="space-y-2 border-t pt-3">
             <p className="font-semibold text-base">Thông tin xử lý đề xuất</p>

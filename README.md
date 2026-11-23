@@ -11,6 +11,9 @@ KIDSFIT / CHECKEE CRM for school sales, customer onboarding, protected approach 
 - [Business specification](docs/requirements/CRM_FUNCTIONAL_SPECIFICATION.md)
 - [Architecture and source map](docs/implementation/CURRENT_SOURCE_MAP.md)
 - [Cleanup removal manifest](docs/implementation/CLEANUP_DEPENDENCY_MANIFEST.md)
+- [Staging and Production Readiness](docs/operations/PRODUCTION_READINESS.md)
+- [Read-only database verification](docs/operations/DB_VERIFICATION.md)
+- [Seven-role UAT](docs/operations/SEVEN_ROLE_UAT.md)
 
 The seven business roles are **Admin, Director (BGĐ), Accountant, Sales Manager, Customer Service, CHECKEE and Sales** (employees and external CTV share the Sales workflow, subject to membership/organization permissions).
 

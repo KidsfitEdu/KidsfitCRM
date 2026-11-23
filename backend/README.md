@@ -4,6 +4,8 @@
 
 Backend cung cấp API cho danh bạ trường học, Sales/CTV tiếp cận, đề xuất và phân bổ trường, xác minh hợp đồng CHECKEE, doanh thu thực thu, hoa hồng, đối soát, CSKH và các nghiệp vụ CRM giáo dục cũ còn được giữ để bảo toàn tương thích. Frontend tương ứng nằm trong [`../frontend/README.md`](../frontend/README.md).
 
+Production deployment must use separate operator-provided secrets (not tracked appsettings / example Compose), approved staging, database integrity checks and a tested backup/rollback plan. See [Production Readiness](../docs/operations/PRODUCTION_READINESS.md) and [DB Verification](../docs/operations/DB_VERIFICATION.md).
+
 ## 1. Công nghệ và yêu cầu môi trường
 
 | Thành phần | Hiện tại |

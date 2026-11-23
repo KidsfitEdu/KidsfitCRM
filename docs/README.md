@@ -17,6 +17,7 @@
 | Sales, school, allocation | [Workflows](requirements/BUSINESS_WORKFLOWS.md) | [Rules](requirements/BUSINESS_RULES.md), school feature endpoints |
 | CHECKEE, renewals, commissions, payout | [Decision log](requirements/DECISION_LOG.md) | [Finance domain skill](../.agents/skills/kidsfit-crm-development/SKILL.md), relevant endpoints |
 | Auth / password / API JSON | [API contracts](architecture/API_CONTRACTS.md) | `AuthFeatures.cs`, `api.client.ts`, tests |
+| Release / production safety | [Production readiness](operations/PRODUCTION_READINESS.md) | [Database verification](operations/DB_VERIFICATION.md), [seven-role UAT](operations/SEVEN_ROLE_UAT.md) |
 | Database / migration / startup | [Source map](implementation/CURRENT_SOURCE_MAP.md) | [Backend README](../backend/README.md), [DB safety](implementation/PHASE_1_DB_SAFETY.md) |
 | UI and responsive | [Design system](design/FRONTEND_DESIGN_SYSTEM.md) | [Frontend design skill](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md), [Webapp UX](../.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) |
 | Testing / synthetic data | [Feature status matrix](implementation/FEATURE_STATUS_MATRIX.md) | [Test fixtures provenance](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md), CI workflows |

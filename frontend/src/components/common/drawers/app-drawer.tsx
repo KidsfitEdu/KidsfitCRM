@@ -50,10 +50,10 @@ export function AppDrawer({ open, onOpenChange, title, description, children, fo
           <X aria-hidden="true" className="size-5"/>
         </button>
       </header>
-      <div className={cn('crm-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5',bodyClassName)}>
+      <div className={cn('crm-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-5',bodyClassName)}>
         {children}
       </div>
-      <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border bg-muted/30 px-5 py-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:px-5 sm:pb-3">
         {footer ?? <AppButton tone="neutral" type="button" onClick={()=>onOpenChange(false)}>Đóng</AppButton>}
       </div>
     </SheetContent>

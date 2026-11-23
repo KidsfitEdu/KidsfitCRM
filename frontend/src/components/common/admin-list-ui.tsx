@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 /** Layout shared by Admin lists, matching the approved School Directory. */
 export function AdminListPanel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cn('crm-brand-surface overflow-hidden rounded-2xl border border-border/80 bg-card', className)}>
+    <section className={cn('crm-brand-surface min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card', className)}>
       {children}
     </section>
   );
@@ -39,8 +39,8 @@ export function AdminListToolbar({
   };
   return (
     <form onSubmit={submit}
-      className="flex flex-wrap items-center gap-3 border-b border-border/80 px-5 py-5 sm:px-6">
-      <div className="relative min-w-[220px] flex-[1_1_320px]">
+      className="flex min-w-0 flex-wrap items-center gap-3 border-b border-border/80 px-3 py-4 sm:px-6 sm:py-5">
+      <div className="relative min-w-0 flex-[1_1_100%] sm:min-w-[220px] sm:flex-[1_1_320px]">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input aria-label={searchLabel} value={search} onChange={event => onSearchChange(event.target.value)}
           placeholder={placeholder} className="h-10 w-full rounded-lg bg-card pl-10" />
@@ -83,7 +83,7 @@ export function AdminIconAction({
   return (
     <button type="button" title={label} aria-label={label} disabled={disabled}
       onClick={onClick}
-      className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card shadow-sm transition-colors',
+      className={cn('inline-flex size-10 shrink-0 items-center justify-center rounded-xl border bg-card shadow-sm transition-colors',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50',
         actionTones[tone])}>
       <Icon aria-hidden="true" className="size-4" />

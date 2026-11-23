@@ -171,7 +171,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var today = ContractExpiryAlertService.BusinessDate(now);
         await using var db = fixture.Open();
         var protection = await db.CustomerProtections.SingleAsync(x =>
-            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE", Ct);
+            x.ContractId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE", Ct);
         // Use local noon to avoid UTC-local date transitions during the test.
         protection.EffectiveUntil = today.AddDays(30).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
         await db.SaveChangesAsync(Ct);
@@ -207,7 +207,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         contract.ServiceStartOn = expires.AddYears(-1).AddDays(1);
         contract.ServiceEndOn = expires;
         var protection = await db.CustomerProtections.SingleAsync(x =>
-            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT", Ct);
+            x.ContractId == contractId && x.SourceType == "CONTRACT", Ct);
         var oldEnd = expires.ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc);
         protection.EffectiveUntil = oldEnd;
         var nextStart = expires.AddDays(1);
@@ -224,11 +224,11 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
 
         await ProtectionRenewalPolicy.SweepAsync(db, now, Ct);
         await ProtectionRenewalPolicy.SweepAsync(db, now, Ct);
-        var item = await db.ProtectionRenewalCases.SingleAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct);
+        var item = await db.ProtectionRenewalCases.SingleAsync(x => x.ContractId == contractId, Ct);
         Assert.Equal("APPROVED", item.Status);
         Assert.Equal("AUTO", item.Source);
-        Assert.Equal(1, await db.ProtectionRenewalCases.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct));
-        var protections = await db.CustomerProtections.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId
+        Assert.Equal(1, await db.ProtectionRenewalCases.CountAsync(x => x.ContractId == contractId, Ct));
+        var protections = await db.CustomerProtections.Where(x => x.ContractId == contractId
             && x.SourceType == "CONTRACT").OrderBy(x => x.EffectiveUntil).ToArrayAsync(Ct);
         Assert.Equal(2, protections.Length);
         Assert.True(protections[1].EffectiveFrom >= oldEnd);
@@ -246,7 +246,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         contract.ServiceEndOn = expiredYesterday;
         contract.ServiceStartOn = expiredYesterday.AddYears(-1).AddDays(1);
         var protection = await db.CustomerProtections.SingleAsync(x =>
-            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT", Ct);
+            x.ContractId == contractId && x.SourceType == "CONTRACT", Ct);
         protection.EffectiveUntil = expiredYesterday.ToDateTime(new TimeOnly(1, 0), DateTimeKind.Utc);
         await db.SaveChangesAsync(Ct);
 
@@ -255,10 +255,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.False(await ProtectionRenewalPolicy.HasPriorityForOtherSalesAsync(
             db, scenario.CustomerId, scenario.Seller.UserId, DateTime.UtcNow, Ct));
         await ProtectionRenewalPolicy.SweepAsync(db, DateTime.UtcNow, Ct);
-        var pending = await db.ProtectionRenewalCases.SingleAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct);
+        var pending = await db.ProtectionRenewalCases.SingleAsync(x => x.ContractId == contractId, Ct);
         Assert.Equal("WAITING_RENEWAL", pending.Status);
         Assert.Equal(1, await db.CustomerProtections.CountAsync(x =>
-            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT", Ct));
+            x.ContractId == contractId && x.SourceType == "CONTRACT", Ct));
         var actions = new ChannelSalesActions(db);
         await Assert.ThrowsAsync<ApiConflictException>(() =>
             actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Peer.UserId,

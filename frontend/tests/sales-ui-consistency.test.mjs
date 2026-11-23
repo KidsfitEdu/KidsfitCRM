@@ -89,7 +89,7 @@ test('Sales overview uses authorized KPIs, actual series, and current actionable
 test('Sales school drawer and modal form reuse branded shared primitives', () => {
   const source = read('src/components/crm/channel-sales-view.tsx');
   assert.match(source, /title="Thông tin trường học"/);
-  assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
+  assert.match(source, /<SchoolProfileDetails\s+units=\{schoolProfile\.school_units\}/);
   assert.match(source, /bodyClassName="space-y-4 bg-muted\/10"/);
   assert.match(source, /<AppDialog open onOpenChange/);
   assert.match(source, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
@@ -110,7 +110,7 @@ test('Sales school list remains rounded and school drawer matches the shared scr
   assert.match(drawer, /overflow-y-auto overscroll-contain/);
   assert.match(drawer, /compactHeader\?: boolean/);
   assert.doesNotMatch(drawer, /alignToViewportEdge|extendHeaderToViewportEdge|calc\(100% - 100vw\)/);
-  assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
+  assert.match(source, /<SchoolProfileDetails\s+units=\{schoolProfile\.school_units\}/);
 });
 
 test('Right-side CRM sheet removes root scrollbar gutter without changing scroll locking', () => {

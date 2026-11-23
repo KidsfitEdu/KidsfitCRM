@@ -255,6 +255,29 @@ public static class ContractExpiryAlertService
                 .SetProperty(a => a.ResolvedAt, now).SetProperty(a => a.UpdatedAt, now), ct);
     }
 
+    private static string MilestoneMessage(string kind, DateOnly expires) => kind switch
+    {
+        "SERVICE_BEFORE_30" => $"Kỳ sử dụng phần mềm sẽ hết hạn sau 30 ngày ({expires:dd/MM/yyyy}).",
+        "SERVICE_BEFORE_15" => $"Kỳ sử dụng phần mềm sẽ hết hạn sau 15 ngày ({expires:dd/MM/yyyy}).",
+        "SERVICE_BEFORE_7" => $"Kỳ sử dụng phần mềm sẽ hết hạn sau 7 ngày ({expires:dd/MM/yyyy}).",
+        "SERVICE_EXPIRED" => $"Kỳ sử dụng phần mềm kết thúc hôm nay ({expires:dd/MM/yyyy}).",
+        "SERVICE_AFTER_30" => $"Kỳ sử dụng phần mềm đã hết hạn 30 ngày ({expires:dd/MM/yyyy}).",
+        "SERVICE_GAP_BEFORE_30" => $"Kỳ sử dụng sẽ tạm gián đoạn sau 30 ngày dù đã xác nhận tái ký ({expires:dd/MM/yyyy}).",
+        "SERVICE_GAP_BEFORE_15" => $"Kỳ sử dụng sẽ tạm gián đoạn sau 15 ngày dù đã xác nhận tái ký ({expires:dd/MM/yyyy}).",
+        "SERVICE_GAP_BEFORE_7" => $"Kỳ sử dụng sẽ tạm gián đoạn sau 7 ngày dù đã xác nhận tái ký ({expires:dd/MM/yyyy}).",
+        "SERVICE_INTERRUPTED" => $"Kỳ sử dụng bắt đầu gián đoạn hôm nay ({expires:dd/MM/yyyy}).",
+        "PROTECTION_BEFORE_30" => $"Quyền bảo vệ Sales sẽ hết hạn sau 30 ngày ({expires:dd/MM/yyyy}).",
+        "PROTECTION_BEFORE_7" => $"Quyền bảo vệ Sales sẽ hết hạn sau 7 ngày ({expires:dd/MM/yyyy}).",
+        "PROTECTION_EXPIRED" => $"Quyền bảo vệ Sales đến hạn hôm nay ({expires:dd/MM/yyyy}).",
+        "GI01_CONFIG_REQUIRED" => "Cần cấu hình thời hạn ngoại lệ kế toán trước khi xử lý gián đoạn sử dụng.",
+        "GI01_EXCEPTION_OVERDUE" => "Ngoại lệ gián đoạn sử dụng đã quá hạn, cần BGĐ kiểm tra.",
+        "GI01_THRESHOLD" => $"Trường đạt ngưỡng gián đoạn sử dụng vào {expires:dd/MM/yyyy}.",
+        "GI01_BEFORE_30" => $"Trường sắp đạt ngưỡng gián đoạn sử dụng sau 30 ngày ({expires:dd/MM/yyyy}).",
+        "GI01_BEFORE_15" => $"Trường sắp đạt ngưỡng gián đoạn sử dụng sau 15 ngày ({expires:dd/MM/yyyy}).",
+        "GI01_BEFORE_7" => $"Trường sắp đạt ngưỡng gián đoạn sử dụng sau 7 ngày ({expires:dd/MM/yyyy}).",
+        _ => $"Có mốc hợp đồng hoặc quyền bảo vệ cần kiểm tra ({expires:dd/MM/yyyy})."
+    };
+
     private static async Task<int> InsertAsync(KidsfitDbContext db, long contractId, long recipient,
         string kind, DateOnly milestone, DateOnly due, string key, DateTime now, CancellationToken ct)
     {
@@ -270,9 +293,16 @@ public static class ContractExpiryAlertService
         var title = kind.StartsWith("PROTECTION_", StringComparison.Ordinal) ? "Nhắc hạn quyền bảo vệ trường"
             : kind.StartsWith("GI01_", StringComparison.Ordinal) ? "Cảnh báo gián đoạn sử dụng"
             : "Nhắc hạn kỳ sử dụng phần mềm";
-        var message = $"Trường {name}: {kind} — mốc {milestone:dd/MM/yyyy}. Xem hợp đồng để biết chi tiết.";
+        var message = $"Trường {name}: {MilestoneMessage(kind, milestone)}";
+        var collaborator = recipient == contract.OwnerUserId && await db.OrganizationMemberships.AsNoTracking()
+            .AnyAsync(m => m.UserId == recipient && m.OrganizationId == contract.OwnerOrganizationId
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR"
+                    || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
         var target = recipient == contract.CareUserId ? "role-customer-care-customers"
-            : recipient == contract.OwnerUserId ? "role-sales-staff-customers" : "manager-contracts";
+            : recipient == contract.OwnerUserId
+                ? (collaborator ? "role-collaborator-approaches" : "role-sales-staff-customers")
+                : kind.StartsWith("GI01_EXCEPTION_", StringComparison.Ordinal) || kind == "GI01_CONFIG_REQUIRED"
+                    ? "role-board-overdue" : "manager-contracts";
         return await db.Database.ExecuteSqlInterpolatedAsync($@"
             INSERT IGNORE INTO crm_notifications
                 (organization_id, recipient_user_id, kind, entity_type, entity_id,

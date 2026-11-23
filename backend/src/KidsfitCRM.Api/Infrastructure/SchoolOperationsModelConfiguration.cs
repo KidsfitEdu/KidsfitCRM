@@ -9,6 +9,7 @@ public sealed partial class KidsfitDbContext
     public DbSet<SchoolProposal> SchoolProposals => Set<SchoolProposal>();
     public DbSet<SchoolProposalUnit> SchoolProposalUnits => Set<SchoolProposalUnit>();
     public DbSet<SchoolProposalAlert> SchoolProposalAlerts => Set<SchoolProposalAlert>();
+    public DbSet<CrmNotification> CrmNotifications => Set<CrmNotification>();
     public DbSet<ContractExpiryAlert> ContractExpiryAlerts => Set<ContractExpiryAlert>();
     public DbSet<SchoolProposalRevision> SchoolProposalRevisions => Set<SchoolProposalRevision>();
     public DbSet<SchoolInvitation> SchoolInvitations => Set<SchoolInvitation>();
@@ -50,6 +51,21 @@ public sealed partial class KidsfitDbContext
                 });
             }
         }
+        // Shared append-only recipient-scoped workflow inbox.
+        var notification = b.Entity<CrmNotification>();
+        notification.ToTable("crm_notifications");
+        notification.Property(x => x.Kind).HasMaxLength(64);
+        notification.Property(x => x.EntityType).HasMaxLength(48);
+        notification.Property(x => x.Title).HasMaxLength(180);
+        notification.Property(x => x.Message).HasMaxLength(1000);
+        notification.Property(x => x.TargetView).HasMaxLength(96);
+        notification.Property(x => x.Status).HasMaxLength(24);
+        notification.Property(x => x.DeduplicationKey).HasMaxLength(180).UseCollation("utf8mb4_bin");
+        notification.HasIndex(x => x.DeduplicationKey).IsUnique();
+        notification.HasIndex(x => new { x.RecipientUserId, x.Status, x.CreatedAt });
+        notification.HasIndex(x => new { x.EntityType, x.EntityId });
+        Restrict<CrmNotification, User>(b, x => x.RecipientUserId);
+        Restrict<CrmNotification, Organization>(b, x => x.OrganizationId);
         // Each recipient is notified once per proposal deadline and alert kind.
         // This unique key protects against duplicate delivery from concurrent app instances.
         b.Entity<SchoolProposalAlert>().Property(x => x.Kind).HasMaxLength(32);

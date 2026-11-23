@@ -25,8 +25,18 @@ type Props = {
 };
 
 const missing = (value?: string | null) => value?.trim() || 'Chưa cập nhật';
-const address = (unit: SchoolProfileUnit) =>
-  missing([unit.address, unit.ward, unit.province].filter(Boolean).join(', '));
+const address = (unit: SchoolProfileUnit) => {
+  // Some imported street addresses already contain the ward/province.
+  // Show the location once rather than duplicating place names in the detail drawer.
+  const parts: string[] = [];
+  for (const value of [unit.address, unit.ward, unit.province]) {
+    const text = value?.trim();
+    if (text && !parts.join(', ').toLocaleLowerCase('vi-VN').includes(text.toLocaleLowerCase('vi-VN'))) {
+      parts.push(text);
+    }
+  }
+  return missing(parts.join(', '));
+};
 
 function SchoolField({label, value}: {label: string; value?: string | null}) {
   return <div className="min-w-0 space-y-1">

@@ -249,7 +249,8 @@ public sealed partial class ChannelSalesActions
         proposal.Status = target; proposal.ReviewedByUserId = actorId; proposal.DecisionReason = reason; proposal.UpdatedAt = now;
         if (finalReview && proposal.Status != "PENDING_ADMIN")
         {
-            await db.CrmNotifications.Where(x => x.SchoolProposalId == proposal.Id && x.Status == "OPEN")
+            await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolProposal) && x.EntityId == proposal.Id
+                && x.Status == "OPEN" && (x.Kind == "ADMIN_OVERDUE" || x.Kind == "DIRECTOR_ESCALATION"))
                 .ExecuteUpdateAsync(updates => updates.SetProperty(x => x.Status, "RESOLVED")
                     .SetProperty(x => x.ResolvedAt, now), ct);
         }

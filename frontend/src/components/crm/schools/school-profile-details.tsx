@@ -22,6 +22,8 @@ type Props = {
   /** Shown only when supplied by a permission-scoped school detail response. */
   schoolCode?: string | null;
   statusLabel?: string | null;
+  /** Optional customer tax code, only when returned in the authorized profile. */
+  taxCode?: string | null;
   /** A scoped parent/proposal name, even when MAIN is not included in units. */
   displayName?: string | null;
 };
@@ -105,12 +107,12 @@ export function SchoolBranchDetails({units}: {units: SchoolProfileUnit[]}) {
 }
 
 /** Shared read-only profile for Admin directory, Sales/CTV and proposal-review drawers. */
-export function SchoolProfileDetails({units, schoolCode, statusLabel, displayName}: Props) {
+export function SchoolProfileDetails({units, schoolCode, statusLabel, displayName, taxCode}: Props) {
   const main = units.find(unit => unit.unit_type === 'MAIN');
   const mainCount = units.filter(unit => unit.unit_type === 'MAIN').length;
   const summaryName = displayName?.trim() || main?.name?.trim();
   return <div className="min-w-0 space-y-3 text-sm">
-    {(summaryName || schoolCode || statusLabel) && <section aria-label="Tổng quan trường học" className="flex min-w-0 items-start gap-3 rounded-2xl border border-border bg-card p-3.5 sm:p-4">
+    {(summaryName || schoolCode || statusLabel || taxCode) && <section aria-label="Tổng quan trường học" className="flex min-w-0 items-start gap-3 rounded-2xl border border-border bg-card p-3.5 sm:p-4">
       <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Building2 aria-hidden="true" className="size-5"/>
       </span>
@@ -120,6 +122,7 @@ export function SchoolProfileDetails({units, schoolCode, statusLabel, displayNam
         {statusLabel && <span className="inline-flex max-w-full rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
           {statusLabel}
         </span>}
+        {taxCode && <p className="break-all text-xs text-muted-foreground">Mã số thuế: {taxCode}</p>}
       </div>
     </section>}
     {mainCount > 1 && <output className="block rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-foreground">Hồ sơ có nhiều đơn vị trường chính; chỉ hiển thị đơn vị đầu tiên. Vui lòng kiểm tra dữ liệu nguồn.</output>}

@@ -165,7 +165,7 @@ export function Header({
               {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
             </button>)}
           </fieldset>
-          {visibleNotices.length === 0 && !workflowNotifications.isPending && !workflowNotifications.isPending && !workflowNotifications.isPending &&
+          {visibleNotices.length === 0 && !workflowNotifications.isPending &&
             <p className="py-5 text-center text-sm text-muted-foreground">Không có thông báo phù hợp.</p>}
           {visibleNotices.map(notice => <button type="button" key={notice.key} aria-label={`Mở thông báo: ${notice.title}`}
             onClick={() => void notice.onOpen()}

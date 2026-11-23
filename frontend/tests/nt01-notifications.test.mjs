@@ -5,37 +5,26 @@ import test from 'node:test';
 
 const read = path => readFileSync(resolve(import.meta.dirname, '..', path), 'utf8');
 
-test('NT-01 keeps proposal notifications separate from verified-contract expiry alerts', () => {
+test('unified bell fetches one backend inbox with three filters and one read endpoint', () => {
   const header = read('src/components/layout/Header.tsx');
-  assert.match(header, /\/notifications\/contract-expiry/);
-  assert.match(header, /\/notifications\/contract-expiry\/.*\/read/);
-  assert.match(header, /\/notifications\/.*\/read/);
-  assert.match(header, /expiryNotifications\.data\?\.unread_count/);
-  assert.doesNotMatch(header, /expiryNotifications\\.data/);
-  assert.match(header, /onNavigate\?\.\(notice\.target\)/);
-});
-
-test('NT-01 backend separates service and Sales rights milestone notifications', () => {
-  const service = read('../backend/src/KidsfitCRM.Api/Infrastructure/ContractExpiryAlertService.cs');
-  assert.match(service, /ServiceOffsets = \[30, 15, 7, 0, -30\]/);
-  assert.match(service, /ProtectionOffsets = \[30, 7, 0\]/);
-  assert.match(service, /Asia\/Ho_Chi_Minh/);
-  assert.match(service, /INSERT IGNORE INTO contract_expiry_alerts/);
-  assert.match(service, /x\.Status == "CONFIRMED"/);
-  assert.match(service, /p\.SourceType == "CONTRACT"/);
-  const endpoint = read('../backend/src/KidsfitCRM.Api/Features/SchoolProposalAlertEndpoints.cs');
-  assert.match(endpoint, /visibleContracts\.Contains\(x\.ContractId\)/);
-  assert.match(endpoint, /x\.RecipientUserId == access\.UserId/);
-});
-
-test('unified bell keeps NT-01 and proposal notifications, sorts them and filters active tasks', () => {
-  const header = read('src/components/layout/Header.tsx');
-  assert.match(header, /noticeItems = \[/);
-  assert.doesNotMatch(header, /expiryNotifications\\.data/);
-  assert.doesNotMatch(header, /notifications\\.data/);
-  assert.match(header, /workflowNotifications\.data\?\.data\.map/);
-  assert.match(header, /sort\(\(a, b\) => new Date\(b\.createdAt\)/);
+  assert.match(header, /request<WorkflowNotificationsResponse>\('\/notifications', token\)/);
+  assert.match(header, /'\/notifications\/' \+ notice\.id \+ '\/read'/);
+  assert.doesNotMatch(header, /\/notifications\/contract-expiry|\/notifications\/workflow/);
   assert.match(header, /noticeFilter === 'UNREAD'/);
   assert.match(header, /aria-pressed=\{noticeFilter === filter\}/);
   assert.match(header, /crm-notification-target/);
+});
+test('NT-01 worker retains local milestones and writes to shared inbox', () => {
+  const worker = read('../backend/src/KidsfitCRM.Api/Infrastructure/ContractExpiryAlertService.cs');
+  assert.match(worker, /ServiceOffsets = \[30, 15, 7, 0, -30\]/);
+  assert.match(worker, /ProtectionOffsets = \[30, 7, 0\]/);
+  assert.match(worker, /Asia\/Ho_Chi_Minh/);
+  assert.match(worker, /INSERT IGNORE INTO crm_notifications/);
+  assert.doesNotMatch(worker, /INSERT IGNORE INTO contract_expiry_alerts/);
+});
+test('proposal overdue worker shares inbox without changing admin and director recipients', () => {
+  const worker = read('../backend/src/KidsfitCRM.Api/Infrastructure/SchoolProposalAlertService.cs');
+  assert.match(worker, /ADMIN_OVERDUE/);
+  assert.match(worker, /DIRECTOR_ESCALATION/);
+  assert.match(worker, /INSERT IGNORE INTO crm_notifications/);
 });

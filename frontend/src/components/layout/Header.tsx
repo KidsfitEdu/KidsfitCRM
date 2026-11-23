@@ -73,6 +73,7 @@ export function Header({
 }) {
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [noticeFilter, setNoticeFilter] = useState<'ALL' | 'UNREAD' | 'ACTION'>('ALL');
   const headerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const measure = () => {
@@ -125,8 +126,13 @@ export function Header({
         await request('/notifications/workflow/' + notice.id + '/read', token, { method: 'POST' });
         await client.invalidateQueries({ queryKey: workflowQueryKey });
       }
-      setOpen(false);
+      // Deliver the selected entity ID to the destination page without encoding sensitive data in the URL.
+      window.sessionStorage.setItem('crm-notification-target', JSON.stringify({
+        view: notice.target_view, entityType: notice.entity_type, entityId: notice.entity_id,
+      }));
       onNavigate?.(notice.target_view);
+      window.dispatchEvent(new Event('crm-notification-open'));
+      setOpen(false);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Không thể mở thông báo.');
     }
@@ -158,6 +164,46 @@ export function Header({
       setActionError(err instanceof Error ? err.message : 'Không thể đánh dấu thông báo đã đọc.');
     }
   };
+
+  // One chronological visual inbox. Legacy NT-01 and proposal alerts remain owned by their APIs.
+  const noticeItems = [
+    ...(workflowNotifications.data?.data.map(notice => ({
+      key: 'workflow-' + notice.id,
+      createdAt: notice.created_at,
+      readAt: notice.read_at,
+      title: notice.title,
+      message: notice.message,
+      actionable: [
+        'SCHOOL_EXTENSION_REQUESTED', 'SCHOOL_PROPOSAL_SUBMITTED',
+        'SCHOOL_PROPOSAL_FORWARDED', 'SCHOOL_INVITATION_NEW', 'SCHOOL_CONTRACT_REPORTED',
+        'CONTRACT_FORWARDED_TO_CHECKEE', 'PAYOUT_SUBMITTED', 'SUPPORT_CASE_FORWARDED',
+      ].includes(notice.kind) && notice.status === 'OPEN',
+      resolved: notice.status !== 'OPEN',
+      onOpen: () => openWorkflowNotice(notice),
+    })) ?? []),
+    ...(expiryNotifications.data?.data.map(notice => ({
+      key: 'expiry-' + notice.id,
+      createdAt: notice.created_at,
+      readAt: notice.read_at,
+      title: notice.school_name,
+      message: notice.message,
+      actionable: true,
+      resolved: false,
+      onOpen: () => openExpiryNotice(notice),
+    })) ?? []),
+    ...(notifications.data?.data.map(notice => ({
+      key: 'proposal-' + notice.id,
+      createdAt: notice.created_at,
+      readAt: notice.read_at,
+      title: notice.school_name,
+      message: notice.message,
+      actionable: true,
+      resolved: false,
+      onOpen: () => openNotice(notice),
+    })) ?? []),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const visibleNotices = noticeItems.filter(notice => noticeFilter === 'ALL'
+    || (noticeFilter === 'UNREAD' ? !notice.readAt && !notice.resolved : notice.actionable));
 
   return <header ref={headerRef} className="sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-2 border-b border-border/70 bg-card/95 px-3 py-3 backdrop-blur-xl sm:gap-3 sm:px-6">
     <div className="flex min-w-0 items-center gap-3">
@@ -205,31 +251,28 @@ export function Header({
           {expiryNotifications.error && <p role="alert" className="text-sm text-red-600">{expiryNotifications.error.message}</p>}
           {workflowNotifications.error && <p role="alert" className="text-sm text-red-600">{workflowNotifications.error.message}</p>}
           {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
-          {notifications.data?.data.length === 0 && expiryNotifications.data?.data.length === 0 && workflowNotifications.data?.data.length === 0 &&
-            <p className="text-sm text-muted-foreground">Hiện không có thông báo cần xử lý.</p>}
-          {workflowNotifications.data?.data.map(notice => <button type="button" key={`workflow-${notice.id}`}
-            onClick={() => void openWorkflowNotice(notice)}
-            className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
-            <span className="block font-semibold">{notice.title}</span>
-            <span className="mt-1 block text-muted-foreground">{notice.message}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">{new Date(notice.created_at).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}</span>
-            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
-          </button>)}
-          {expiryNotifications.data?.data.map(notice => <button type="button" key={`contract-${notice.id}`}
-            onClick={() => void openExpiryNotice(notice)}
-            className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
-            <span className="block font-semibold">{notice.school_name}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">{notice.contract_code}</span>
-            <span className="mt-1 block text-muted-foreground">{notice.message}</span>
-            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
-          </button>)}
-          {notifications.data?.data.map(notice => <button type="button" key={notice.id}
-            onClick={() => void openNotice(notice)}
-            className="my-1 block w-full rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
-            <span className="block font-semibold">{notice.school_name}</span>
-            <span className="mt-1 block text-muted-foreground">{notice.message}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">Hạn duyệt: {new Date(notice.due_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
-            {!notice.read_at && <span className="mt-1 inline-block text-xs font-semibold text-green-700">Chưa đọc</span>}
+          <div role="group" aria-label="Lọc thông báo" className="mb-2 flex gap-1 rounded-lg bg-muted/40 p-1">
+            {(['ALL', 'UNREAD', 'ACTION'] as const).map(filter => <button type="button" key={filter}
+              aria-pressed={noticeFilter === filter}
+              onClick={() => setNoticeFilter(filter)}
+              className={`min-h-10 flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${noticeFilter === filter ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>
+              {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
+            </button>)}
+          </div>
+          {visibleNotices.length === 0 && !notifications.isPending && !expiryNotifications.isPending && !workflowNotifications.isPending &&
+            <p className="py-5 text-center text-sm text-muted-foreground">Không có thông báo phù hợp.</p>}
+          {visibleNotices.map(notice => <button type="button" key={notice.key}
+            onClick={() => void notice.onOpen()}
+            className="my-1 flex w-full gap-2 rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
+            <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${!notice.readAt && !notice.resolved ? 'bg-green-600' : 'bg-muted-foreground/20'}`}/>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">{notice.title}</span>
+              <span className="mt-1 block text-muted-foreground">{notice.message}</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {new Date(notice.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                {notice.resolved ? ' · Đã xử lý' : !notice.readAt ? ' · Chưa đọc' : ''}
+              </span>
+            </span>
           </button>)}
         </PopoverContent>
       </Popover>

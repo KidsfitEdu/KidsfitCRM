@@ -27,3 +27,15 @@ test('NT-01 backend separates service and Sales rights milestone notifications',
   assert.match(endpoint, /visibleContracts\.Contains\(x\.ContractId\)/);
   assert.match(endpoint, /x\.RecipientUserId == access\.UserId/);
 });
+
+test('unified bell keeps NT-01 and proposal notifications, sorts them and filters active tasks', () => {
+  const header = read('src/components/layout/Header.tsx');
+  assert.match(header, /noticeItems = \[/);
+  assert.match(header, /expiryNotifications\.data\?\.data\.map/);
+  assert.match(header, /notifications\.data\?\.data\.map/);
+  assert.match(header, /workflowNotifications\.data\?\.data\.map/);
+  assert.match(header, /sort\(\(a, b\) => new Date\(b\.createdAt\)/);
+  assert.match(header, /noticeFilter === 'UNREAD'/);
+  assert.match(header, /aria-pressed=\{noticeFilter === filter\}/);
+  assert.match(header, /crm-notification-target/);
+});

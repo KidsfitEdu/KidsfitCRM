@@ -152,7 +152,9 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
             <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Loại đề xuất</p>
               <p>{detail.proposal_mode==='ADD_BRANCHES'?'Bổ sung phân hiệu vào trường hiện hữu':'Đề xuất trường chính mới'}</p></div>
           </div>
-          <SchoolProfileDetails units={profileUnits(detail)} displayName={detail.name}/>
+          <SchoolProfileDetails units={profileUnits(detail)} displayName={detail.name}
+            schoolCode={operations?.proposals.find(item=>item.id===detailId)?.school_code}
+            statusLabel={workflowLabels[detail.status] ?? detail.status}/>
         </div>:<p className="text-sm text-muted-foreground">Không tải được thông tin đề xuất.</p>}
     </AppDrawer>
     <ConfirmDialog open={reviewMode==='approve'&&selected!==null}

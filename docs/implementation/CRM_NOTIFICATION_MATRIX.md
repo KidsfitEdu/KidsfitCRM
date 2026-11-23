@@ -4,16 +4,30 @@
 
 Implementation baseline: `develop` HEAD `0daf52f`, branch `feat/notifications/workflow-inbox`, 2026-11-23. This document reflects source integrations in this branch, **not** a deployed instance or an all-role UAT certification.
 
-The existing `school_proposal_alerts` (overdue Admin/BGĐ, D-15) and `contract_expiry_alerts` (NT-01) remain intact. New `crm_notifications` is additive; it does not change approval, protection, invoicing, revenue, payout or any preexisting business decision. In particular D-12 and D-13 are still OPEN.
+Legacy tables are removed by the approved consolidation migration; notice rows in them are not preserved.
 
-### Persistence and read permissions
+### One-table notification persistence
 
-- `CrmNotificationWriter.Add` appends workflow notices inside the **same EF business transaction** before SaveChanges/Commit. It does not send email/SMS and does not auto-change business status.
-- One recipient + event kind + entity + occurrence forms a unique binary collation deduplication key. A retry of the same idempotent business request must not duplicate notices. Versioned draft events and repeated payout submission use distinct occurrences.
-- Recipient can fetch and mark only **their own** notice with an active user and active membership in the notice's active organization. A closed task stays in read-only history (`RESOLVED`) and does not contribute to unread count.
-- API: `GET /api/notifications/workflow?page=1&unreadOnly=false` (up to 50/page), `POST /api/notifications/workflow/{id}/read`. This marks the **notification** read, not the linked business record.
-- Bell combines new workflow notices with existing overdue-proposal and NT-01 notifications, newest first; filters `Tất cả`, `Chưa đọc`, `Cần xử lý`. Both legacy APIs and read endpoints remain supported.
-- Notification click can navigate only to an authorized `View`. Manager proposals/extensions/invitations in the currently loaded server page open their exact record. Other destinations navigate to the respective screen; full record-level deep linking across paginated lists remains a follow-up.
+- **Only `crm_notifications`** stores notifications going forward. The newer
+  `20261123123000_UnifiedCrmNotifications` migration adds optional due/milestone
+  metadata and **drops** `school_proposal_alerts` and `contract_expiry_alerts`.
+  The old migration files remain immutable to support a fresh database migration
+  from the beginning. As explicitly approved for this development system, old
+  alerts are **discarded**, not backfilled. No production database has been touched.
+- School-proposal and NT-01/GI-01 workers keep their original schedules, milestone
+  and role rules but now write into the shared table with recipient/org scope and
+  binary deduplication keys. Notifications keep `due_at`, `due_on`,
+  `milestone_on`, read state and resolution state where relevant.
+- New workflow events are appended within the initiating business transaction.
+  Scheduled worker inserts use `INSERT IGNORE` against a unique key for
+  concurrent API instances.
+- Canonical API: `GET /api/notifications?page=1&unreadOnly=false` (50/page)
+  and `POST /api/notifications/{id}/read`. This marks only the notification,
+  not its linked business entity.
+- The shared Header bell reads just one feed and supports All / Unread / Action
+  filters; old separate endpoints have been removed from current source.
+- Notification access requires recipient identity with active membership.
+  Further role/record-scoped revocation tests must be run on staging.
 
 ## Implemented event matrix
 
@@ -28,6 +42,13 @@ The existing `school_proposal_alerts` (overdue Admin/BGĐ, D-15) and `contract_e
 | `SCHOOL_INVITATION_NEW` | Assigned Sales/CTV | Manager invites school | Allocations/invitations |
 | `SCHOOL_INVITATION_ACCEPTED/DECLINED` | Allocating manager | Assigned Sales response | Manager allocations |
 | `SCHOOL_INVITATION_CANCELLED` | Assigned Sales/CTV | Manager cancels invite | Sales allocations |
+| `RENEWAL_SUBMITTED/RESUBMITTED` | Active KIDSFIT accounting reviewers | Sales submits or resubmits annual contract | Accounting renewals |
+| `RENEWAL_NEEDS_INFO/REJECTED/CONFIRMED` | Original Sales sender | Accounting renewal decision | Sales contract |
+| `CONTRACT_CANCELLED` | Owner Sales, manager and CSKH where active | Authorized cancellation | Contract detail |
+| `REVENUE_REFUNDED` | Other authorized accounting users | Refund entry | Accounting |
+| `COMMISSION_ADJUSTED` | Beneficiary | Accountant ledger correction | Income |
+| `SCHOOL_CONTRACT_NEEDS_REVISION/RESUBMITTED` | Sales sender or manager | Contract revision | Contract detail |
+| `SCHOOL_APPROACH_EXPIRED` | Owner Sales | Existing expiry transition | Sales customers |
 | `SCHOOL_CONTRACT_REPORTED` | Direct manager (when active mapping exists) | Sales reports signed school contract | Manager contracts |
 | `CONTRACT_FORWARDED_TO_CHECKEE` | Active CHECKEE verifiers with permission | Manager verifies and forwards contract | CHECKEE verification |
 | `CHECKEE_CONTRACT_VERIFIED/DISPUTED` | Sales + direct manager | CHECKEE reconciliation | Sales contract / Manager contracts |

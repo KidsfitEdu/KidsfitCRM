@@ -1,79 +1,41 @@
-# KIDSFIT CRM — current repository guidance
+# KIDSFIT CRM — repository agent instructions
 
-## Current runtime and safety (develop snapshot 2026-11-21)
-- Read the latest `develop` HEAD, `docs/README.md`, `docs/requirements/DECISION_LOG.md`, and actual affected code/tests before implementation. The GitHub default branch can be `main`, but feature PRs target `develop`.
-- Current runtime is **Real API Only**: React 19 + TypeScript + Vinext, .NET 10 ASP.NET Core, EF Core 10 / MySQL 8.4. Frontend lives in `frontend/src/`, backend in `backend/src/KidsfitCRM.Api/`. Do not restore static demo auth or mock fallback.
-- **`--seed-demo` is disabled** in `Program.cs`. `--migrate --seed-initial` uses `InitialCrmSeeder`, requires an explicitly disposable Development database and private `Seed:AdminPassword`; it does NOT create operational demo customers or contracts. Synthetic scenarios are isolated test fixtures.
-- JSON HTTP contracts use `JsonNamingPolicy.SnakeCaseLower`. Trace actual DTOs and request/response bindings before editing frontend calls. Password-change inputs are `current_password`, `new_password`, `confirm_password`.
-- Documentation and skill cleanup **may rewrite, merge or remove inaccurate, stale, duplicate instructions or files** after checking references; preserve current business approvals, audit/financial history, historical migration provenance and data safety. Documentation edits never authorize deleting runtime code or database records.
+## Scope, authorization and sources of truth
 
-## Business decision boundaries
-- Seven target business roles: ADMIN, DIRECTOR/BGĐ, ACCOUNTANT, SALES_MANAGER, CUSTOMER_SERVICE, CHECKEE, SALES. Existing technical role IDs and presentation aliases can persist; don't infer actual permissions solely from a UI name.
-- Approved Sales approach baseline: default 10 concurrent school slots, 5-day reservation, at most three approved 7-day extensions. Actual enforcement must be verified in code/tests.
-- Sales proposal → authorized Manager → Admin. Contract → authorized Manager → CHECKEE verification → separately gated KIDSFIT long-term protection. D-12 actor assigning that final grant remains OPEN.
-- **D-17 supersedes historic Sales-only 30% commission**. Current default is 25% Sales + 5% Manager with BGĐ policy overrides and eligible collected cash; D-18 defines Accountant/Director shared payout approval. Preserve immutable historical 30% ledger entries.
-- Unapproved approval actors, SLA/grace, main school/branch scope, tax/clawback handling remain OPEN. Never silently implement guessed business behavior.
+1. Check the user's exact request and authorization. **“Xác nhận trước khi code” means analysis only**: do not edit, branch, commit or open a PR. “Chốt” authorizes only the approved slice. Never merge, deploy, reset a real database, or overwrite stored customer/financial data without separate permission.
+2. Verify the **latest `develop` commit**, relevant open PRs, and real affected code/tests. The GitHub default branch may differ; CRM PRs target `develop`. Read [docs/README.md](docs/README.md), [Decision Log](docs/requirements/DECISION_LOG.md), [Source Map](docs/implementation/CURRENT_SOURCE_MAP.md), and relevant requirements before editing.
+3. Distinguish approved product intent, actual implementation and verification evidence. In a conflict: explicit approved user scope and decision log > current requirements for intended behavior > verified code/schema/tests for current behavior > historical notes/skill examples. Identify gaps instead of silently inferring a business rule. `CONFIRMED`, `OPEN`, `IMPLEMENTED`, `VERIFIED` are not interchangeable.
+4. Read the **single primary workflow skill** at [kidsfit-crm-dev](.agents/skills/kidsfit-crm-dev/SKILL.md); load only topic-relevant references. Repository-hosted skills are source instructions, **not automatically installed ChatGPT plugins**.
 
-## ChatGPT / repository skill discovery
+## Skill routing (no mandatory all-skills loading)
 
-- **Primary cross-functional KIDSFIT CRM skill:** `.agents/skills/kidsfit-crm-dev/SKILL.md`. Read this for CRM implementation, code review, UI/UX, contracts, renewals KC-02, GI-01, finance, security, Git and CI; load only the task-relevant files under `.agents/skills/kidsfit-crm-dev/references/`.
-- This is a **repository-hosted instruction file**, not an automatically installed ChatGPT plugin. When working from ChatGPT, access it through the connected GitHub repository (read `AGENTS.md` and the skill by path), or install the skill separately if that workflow is supported. Do not claim GitHub upload alone installed a ChatGPT skill.
-- Keep the existing specialist skills (`kidsfit-crm-development`, `kidsfit-crm-frontend-design`, `kidsfit-crm-webapp-ux` and one-shot implementation) for their appropriate domain workflows. Follow the latest approved `docs/requirements/DECISION_LOG.md` and source code when any skill snapshot is stale.
-- Work on the latest branch/HEAD. For user requests requiring confirmation, stop before code. For approved Git changes, use multiple meaningful incremental Conventional Commits when appropriate; never force-push/rewrite published commits without explicit authorization.
+- Engineering, API, architecture, security, finance, DB, Git, code review: primary `kidsfit-crm-dev` + the relevant reference.
+- School directory, partner/CTV, CHECKEE, renewals, protection and payout: primary skill + `kidsfit-crm-development/references/checkee-sales-crm.md`, `school-directory-workflows.md`, `domain-workflows.md` as applicable. `kidsfit-crm-development/SKILL.md` is a **compatibility/domain entrypoint**, not a second competing workflow.
+- UI styling, tables, dashboards, forms and shared components: [frontend-design](.agents/skills/kidsfit-crm-frontend-design/SKILL.md) + primary skill when business/data semantics matter.
+- Mobile web, touch/keyboard, overlay/modal, responsive navigation: [webapp-ux](.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) + frontend-design when styling changes.
+- Notifications, unread/resolve, recipient routing, worker deduplication and inbox UI: [notifications-and-events](.agents/skills/kidsfit-crm-dev/references/notifications-and-events.md).
+- Testing, migration smoke, regression and exact-SHA CI claims: [testing-and-regression](.agents/skills/kidsfit-crm-dev/references/testing-and-regression.md).
+- Approved multi-module, staged work only: [one-shot](.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md) coordinates the relevant specialist references, never overrides safety.
 
-# KidsfitCRM repository instructions
+## Runtime / architecture
 
-## Scope and sources of truth
+- Real API Only. React 19, TypeScript, **Vinext**, Tailwind v4, shared shadcn/Base UI, TanStack Query, frontend source `frontend/src/{app,screens,components,config,services}`. Do not migrate the existing CRM to Next.js or React Router by implication; do not restore mock fallback/auth.
+- Backend ASP.NET Core .NET 10, EF Core 10, MySQL 8.4/InnoDB/utf8mb4. `JsonNamingPolicy.SnakeCaseLower` applies to HTTP JSON. Check DTO and client request mapping, not only direct feature calls.
+- `--seed-demo` is disabled. `--migrate --seed-initial` is a gated Development bootstrap requiring an explicitly disposable DB and private `Seed:AdminPassword`; it is not operational demo data. Test fixtures are separate. Never run database-changing tooling on a real/shared/unknown database.
+- Keep modular boundaries; centralize server authorization, organization/record scoping, audit, idempotency, financial precision, and transaction boundaries. Never rely on UI role names for data access. Side effects requiring external delivery run only after commit.
 
-- **Live code map (recheck on each task):** `docs/implementation/CURRENT_SOURCE_MAP.md`. UI source now lives in `frontend/src/`: Vinext routes `src/app/`, workspace/screens `src/screens/`, components `src/components/`, services `src/services/`. Do not follow deprecated paths such as `frontend/components/` or create parallel `frontend/app/` directories.
-- **Phased delivery:** `docs/implementation/PHASED_DELIVERY_PLAN.md` is the execution framework; read `docs/requirements/` first for approved policy. Stages require baseline tests, explicit test DB isolation, additive migrations and actual evidence. Never delete working code merely to align names.
-- **Data safety:** migration, guarded initial bootstrap, test fixtures and database backups are distinct. Review `start-local.ps1`, compose and connection settings before running any command; never run data-changing scripts against real/shared databases.
+## Business policy guardrails
 
-## Scope and sources of truth
+- Target seven business roles: Admin, BGĐ, Kế toán, Quản lý bán hàng, CSKH, CHECKEE, Sales; technical legacy role codes may remain. Employees and CTV are both Sales under the intended product model.
+- Sales/CTV: default 10 concurrent schools, 5-day approach reservation, up to three **approved 7-day extensions** (subject to actual code verification). New school proposal: Sales → direct Manager → Admin.
+- School contracts: Sales → direct Manager → CHECKEE verification → separately authorized KIDSFIT five-year protection; the specific grant actor **D-12 remains OPEN**. D-13 pending-extension semantics and D-14 branch scope remain OPEN; never guess.
+- D-17/D-18: eligible collected revenue drives default **25% Sales + 5% Manager** versioned BGĐ policies, independent ledger entitlements and shared Accountant/Director payout approval. Historical 30% Sales-only payouts remain immutable; tax/clawback/withholding remain review items. No school referrer commission feature.
+- Keep school, main campus/branch, claim/protection, contract, annual renewal, receipts, commissions, payouts and CHECKEE reconciliation distinct. No cancellation, elapsed expiry or frontend badge alone creates a contract/permission transition.
+- Legacy education-center lead/guardian/student/course workflow references are separate bounded context; do not apply them blindly to school-sales CRM.
 
-- For **current KIDSFIT/CHECKEE school-sales business requirements**, start at `docs/README.md`, then read the task-specific file under `docs/requirements/`. The current seven-role business model, 10-slot Sales limit, 5+7×3 protection, and Sales Manager→CHECKEE contract verification supersede historical product recommendations. This is a target specification, not a statement that code has been migrated.
-- Compare any product requirement with `docs/requirements/CODEBASE_GAP_ANALYSIS.md`. Never silently delete legacy `BOARD`, `CHANNEL_SALES`, `PARTNER_ADMIN`, `PARTNER_COLLABORATOR` roles or historical/audit/financial data. Their technical code names may remain while business UI converges on seven roles.
-- **OPEN**: the KIDSFIT actor who grants five-year protection after CHECKEE verification. For commissions, use D-17/D-18, not the superseded 30% rule.
-- No referrer or personal referral-commission split feature is in scope.
+## Delivery and checks
 
-
-- Implement only the user's requested slice. The product requirement is a baseline, not a request to scaffold the entire CRM.
-- For **KidsfitCRM frontend design, layout, component styling, responsive behavior, accessibility or screenshot/UI review**, use `.agents/skills/kidsfit-crm-frontend-design/SKILL.md` and the relevant references plus `docs/design/FRONTEND_DESIGN_SYSTEM.md`. For app-like Web UX, mobile-first interaction, virtual keyboards, safe areas, navigation behavior and touch usability, also read `.agents/skills/kidsfit-crm-webapp-ux/SKILL.md` and task-relevant references. For any business status, permission, contract, finance or data mutation, ALSO use the domain engineering skill and `docs/requirements/`; design instructions never supersede backend authorization. A user-provided screenshot is visual evidence, not a permission to change adjacent screens or business logic.
-- For KidsfitCRM domain, schema, workflow, API, UI, architecture, security, or review work, use the repository skill at `.agents/skills/kidsfit-crm-development/SKILL.md` and load only its relevant references. Database work must also load `references/mysql-conventions.md`.
-- For every CHECKEE, customer-protection, partner/CTV, contract, revenue, commission, payout, or reconciliation request, also load `.agents/skills/kidsfit-crm-development/references/checkee-sales-crm.md` before planning or editing.
-- For school directory/import, branch, CTV capacity, assignment, proposal, extension, or school-contract verification work, also load `.agents/skills/kidsfit-crm-development/references/school-directory-workflows.md`.
-- For workflows from `KidsfitCRM_Notes.docx`, also read `docs/implementation/CRM_NOTES_INSTRUCTIONS_AND_ISSUES.md`. Its `DRAFT` recommendations are proposals, not approved runtime rules. Keep its requirement matrix and verification evidence accurate when changing these workflows.
-- Resolve conflicts in this order: current explicit user request, current accepted decisions in `docs/requirements/DECISION_LOG.md`, current requirements (intended behavior), verified code/schema/tests (actual behavior), then historical implementation notes and skill references. Surface migration gaps instead of silently treating legacy implementation as current policy. Call out breaking conflicts rather than silently choosing one.
-
-## Product invariants
-
-- Model guardians/parents as customers and students as separate entities connected by an explicit relationship.
-- Keep course, class, trial session, enrollment, invoice, and payment as distinct concepts.
-- Validate workflow transitions and permissions on the server.
-- Make lead conversion atomic, traceable, and safe to retry.
-- Use exact server-side money calculations and append-oriented payment/audit records.
-- Record relevant activity/audit data with business mutations and send queued side effects after commit.
-- In CHECKEE channel sales, keep canonical customer, approach registration/protection, contract, receipt, commission ledger, payout, and reconciliation as distinct concepts. An elapsed five-day protection never creates a signed contract.
-
-## Engineering conventions
-
-- Default to a modular monolith. Preserve module ownership and use named business actions for cross-record changes.
-- Use MySQL 8.4 LTS with InnoDB and `utf8mb4`. Keep database access compatible with EF Core 10 and `MySql.EntityFrameworkCore`; avoid PostgreSQL-specific SQL, types, operators, and index features.
-- Use English identifiers and stable machine codes; keep Vietnamese UI copy in localization/presentation resources.
-- Do not add Redis, Reverb, S3/R2, SMS, Zalo, Firebase, or other operational dependencies until the requested feature needs them.
-- Do not hard-code lead sources, localized status labels, role checks, tuition totals, or provider-specific values in business logic.
-- Protect guardian/student PII and financial data in authorization, logs, audit payloads, fixtures, exports, and object storage.
-- Follow existing project tooling once present. Do not replace package managers, formatters, test runners, or architectural patterns without an explicit migration request.
-
-## Change workflow
-
-- Inspect nearby code, tests, schema, and config before editing.
-- Add or update tests for changed business rules, permissions, transaction rollback, and retry/concurrency behavior according to risk.
-- Run the narrow relevant checks during development, then all configured checks for touched areas before handoff.
-- Keep migrations backward-safe and deterministic. Never destroy production data merely to make a migration pass.
-- Document material assumptions and unresolved product decisions in the handoff.
-
-## Code review rules
-
-- Flag partial or non-idempotent lead conversion, invalid status bypass, missing tenant/assignee scope, scattered role-name checks, floating-point money, destructive financial/audit edits, pre-commit external side effects, exposure of guardian or minor PII, PostgreSQL-only SQL, incorrect MySQL collation/type choices, and database behavior tested only on SQLite.
-- Tie findings to concrete runtime or business impact and give the smallest safe remediation path.
+- Inspect affected UI consumers, endpoints, DTOs, permissions, EF mappings, migrations, tests and CI **before** changing shared parts. Reuse current primitives; do not duplicate layouts or invent infrastructure.
+- With approved code changes: small task-aligned branch from current `develop`; meaningful Conventional Commits; reviewable PR to `develop`. Do not force-push or edit unrelated modules.
+- Match verification to risk; run existing commands from `frontend/package.json` and backend/CI; for MySQL use isolated test DB. Report exact-commit `PASS/FAIL/NOT RUN/BLOCKED`; lint/build does not prove browser visual QA or production readiness. See the testing reference.
+- Documentation cleanup may consolidate stale/duplicate **instruction files** after checking backlinks; it never grants permission to delete runtime code, historical migrations, audit/finance records, or real data.

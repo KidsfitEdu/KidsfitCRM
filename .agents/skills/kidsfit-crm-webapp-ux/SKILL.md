@@ -30,6 +30,12 @@ Read in this order, selecting only relevant references:
 - Frontend is **Real API Only**: `NEXT_PUBLIC_API_URL` must target the Backend. Never insert fake operational data, static demo login or mock responses as fallback.
 - Source files, exports, branch HEAD and script names can change: re-inspect rather than blindly pasting this snapshot.
 
+## Ownership boundaries
+
+- **This skill owns** responsive behavior and accessibility across viewports: touch/keyboard/IME, focus/restoration, modal/dialog/drawer scrolling, safe area, truncation and loading/empty/error interactions.
+- [Frontend Design](../kidsfit-crm-frontend-design/SKILL.md) owns color/typography/visual tokens and the shared component appearance. Do not redefine the design system here.
+- [Primary Dev](../kidsfit-crm-dev/SKILL.md) owns endpoint permissions, business transitions, exact-commit testing and Git/PR delivery. For notification popovers and task navigation, read [Notifications & Events](../kidsfit-crm-dev/references/notifications-and-events.md).
+
 ## Workflow for each UX request
 
 1. **Clarify authorization:** screenshot/route, intended device and role, task outcome, allowed scope. If asked to confirm before code, provide analysis and **stop without editing, branching or PR**.

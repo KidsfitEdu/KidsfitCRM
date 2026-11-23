@@ -7,6 +7,11 @@ description: Coordinate an explicitly approved broad KidsfitCRM implementation w
 
 Use **only when the user approves a broad multi-module coding project**. This skill does not authorize demo seeding, database resets, application rewrites or production actions.
 
+## Responsibility boundary
+
+- This skill **coordinates** an explicitly approved multi-module implementation. The [primary skill](../kidsfit-crm-dev/SKILL.md) owns engineering and Git/CI workflow; [domain reference index](../kidsfit-crm-development/SKILL.md), [Frontend Design](../kidsfit-crm-frontend-design/SKILL.md) and [Webapp UX](../kidsfit-crm-webapp-ux/SKILL.md) are loaded only when relevant.
+- Never interpret "chốt" as approval for unrelated code, production DB deletion, merge, deploy or changed OPEN decisions. Use [Testing & Regression](../kidsfit-crm-dev/references/testing-and-regression.md) for exact-SHA evidence.
+
 ## Mandatory start
 1. Read `AGENTS.md`, `docs/README.md`, `docs/requirements/DECISION_LOG.md`, `docs/implementation/CURRENT_SOURCE_MAP.md`, `docs/requirements/CODEBASE_GAP_ANALYSIS.md`, relevant primary engineering/domain/UI skills and live source.
 2. Verify latest `develop` HEAD and whether a relevant PR already exists. Create a branch for approved changes only.

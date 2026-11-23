@@ -24,6 +24,13 @@ Current frontend architecture is `frontend/src/app/` for Vinext pages, `frontend
    - [UI review checklist](references/ui-review-checklist.md): implementation and visual verification.
 5. If an action, status, policy, permission or source-of-truth is involved, additionally read \`.agents/skills/kidsfit-crm-development/SKILL.md\` and relevant \`docs/requirements/\` files. **Frontend design rules never override business rules, backend authorization or financial policy.**
 
+## Ownership boundaries
+
+- **This skill owns** brand language, design tokens, visual hierarchy, reusable visual components, tables, forms, drawers, dashboards, status badge presentation and screenshot comparison.
+- [Webapp UX](../kidsfit-crm-webapp-ux/SKILL.md) owns responsive device/input behavior: touch, focus, keyboard/IME, viewport/safe-area scrolling, overlay dismissal and compact mobile interactions. Avoid repeating its interaction rules here; load both only when both visuals and behavior are affected.
+- [Primary Dev](../kidsfit-crm-dev/SKILL.md) owns business logic, API/permission mapping, testing and Git delivery; [Notifications](../kidsfit-crm-dev/references/notifications-and-events.md) owns inbox event/lifecycle semantics. Visual code must not mutate server state or invent new recipient rules.
+- Newer visual references are **guidance** unless actually stored in this repo. No screenshot-fidelity claims without inspecting a rendered build.
+
 ## Workflow for every UI task
 
 1. **Scope:** Identify route/view, role(s), purpose, source screenshot if any, real vs preview/demo data, devices and requested changes. If a user explicitly asks to confirm first, **describe the proposed change and stop before editing**.

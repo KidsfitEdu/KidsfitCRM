@@ -11,9 +11,9 @@ description: Professional full-stack development, requirements review, code revi
 
 1. **Read the explicit request first.** If the user says **“xác nhận trước khi code”**, research, identify change files and tests, provide the proposed scope, then **STOP**. No code, commit, branch or PR until approval. If the user subsequently says “chốt triển khai”, execute the approved scope; Git write actions must be in the previously approved scope or explicitly requested.
 2. **Verify live `develop` HEAD** and the relevant existing PR/branch before every implementation. Don't treat repository default branch or old SHA as current. If an unmerged PR exists for the same slice, continue on it only if safe; do not duplicate its work.
-3. Read `AGENTS.md` (including special one-shot overrides), `docs/README.md`, `docs/requirements/DECISION_LOG.md`, task-relevant requirements, `docs/requirements/CODEBASE_GAP_ANALYSIS.md`, `docs/implementation/CURRENT_SOURCE_MAP.md`, then actual files/tests/schema. Also read `.agents/skills/kidsfit-crm-development/SKILL.md`, `.agents/skills/kidsfit-crm-frontend-design/SKILL.md` and specific references as appropriate.
+3. Read `AGENTS.md` (including special one-shot overrides), `docs/README.md`, `docs/requirements/DECISION_LOG.md`, task-relevant requirements, `docs/requirements/CODEBASE_GAP_ANALYSIS.md`, `docs/implementation/CURRENT_SOURCE_MAP.md`, then actual files/tests/schema. For domain-only details consult the applicable `kidsfit-crm-development/references/` document; load Frontend Design / Webapp UX only for UI tasks and their relevant references. Do not load all skills by default.
 4. **Conflict order:** user-approved current scope and business decisions > current approved `DECISION_LOG.md`/specific requirement decisions > authoritative schema/code/tests for *current implemented behavior* > historical notes and skill snapshots. When policy and implementation differ, **report the gap**, never silently rewrite or invent a rule. `CONFIRMED`, `OPEN`, `PROPOSED` must remain distinguishable.
-5. Treat document dates and version names as snapshots, not claims that everything has shipped. Source review refreshed for documentation on **2026-11-21** (HEAD `4e9c99d`); always reverify before acting.
+5. Treat document dates and version names as snapshots, not proof of deployment. Recheck the current `develop` HEAD and PR target on every task.
 
 ## 1. Minimal, evidence-driven workflow
 
@@ -39,6 +39,15 @@ description: Professional full-stack development, requirements review, code revi
 - **Business**: seven target roles (legacy technical roles may remain), Sales capacity default 10, 5-day approach and 7-day × up-to-3 approved extensions, proposal via Manager→Admin, CHECKEE contract verification, 5-year protection and separately confirmed annual renewal workflows. **D-17 (2026-11-13) supersedes historical D-10: BGĐ policy defaults to 25% Sales + 5% Manager, with scoped overrides and eligible-cash accrual; D-18 controls shared payout approvals. Never reapply the historical 30% Sales-only rate to new receipts.** Do not invent finance rules. See [Business Rules](references/business-rules.md) and [KC-02 / GI-01](references/kc02-gi01-accounting.md).
 - **Security**: restrict data to authorized organization and record, no PII or finance data in unscoped output, no secrets in Git, read-only review before hazardous operations. See [Security & Audit](references/security-and-audit.md).
 
+## 2a. Skill ownership (do not duplicate authorities)
+
+- **This skill owns** implementation workflow, branch/PR delivery, cross-layer architecture and default engineering checks.
+- `kidsfit-crm-development` is retained for **backward-compatible domain reference discovery**; its old broad implementation instructions are consolidated here, while its original domain references remain available. Do not treat it as an independent source of newer business policy.
+- `kidsfit-crm-frontend-design` owns visual design language, components, typography, theme and screenshots.
+- `kidsfit-crm-webapp-ux` owns behavior across viewport/device/input, keyboard/safe area, modal scroll/focus and interaction states.
+- `kidsfit-crm-one-shot-implementation` coordinates independently approved multi-module deliveries only.
+- Domain notification semantics and tests have dedicated references below; task-specific source, current permission checks and the decision log always outweigh examples.
+
 ## 3. Task-based reference routing
 
 | Task | Read |
@@ -48,6 +57,8 @@ description: Professional full-stack development, requirements review, code revi
 | Mobile-first Web App UX, touch, overlays, safe areas, responsive app-like navigation | [Frontend & Design](references/frontend-and-design.md), [Web App UX skill](../kidsfit-crm-webapp-ux/SKILL.md), repo frontend-design skill |
 | Contract, renewal, GI-01, Sales protection, Accounting | [Business Rules](references/business-rules.md), [KC-02 / GI-01](references/kc02-gi01-accounting.md), repo CHECKEE reference |
 | Schema, migration, locking, seed | [MySQL](references/mysql-and-migrations.md), repo `mysql-conventions.md`, [Security & Audit](references/security-and-audit.md) |
+| Workflow notifications, inbox, read/resolved, deduplication, scheduled alerts | [Notifications & Events](references/notifications-and-events.md), affected service/endpoints/tests; UI specialist only when visual behavior changes |
+| Testing, CI, migrations and regressions | [Testing & Regression](references/testing-and-regression.md), [Quality Checklist](references/quality-checklist.md) |
 | Branch, commit, PR, CI and deployment | [Git & Delivery](references/git-and-delivery.md), [Quality Checklist](references/quality-checklist.md), [AI Workflow](references/ai-workflow.md) |
 | Code review / bug / test | [Quality Checklist](references/quality-checklist.md), nearby tests and affected domain reference |
 

@@ -1,6 +1,6 @@
 # KIDSFIT CRM — documentation index
 
-> **Source snapshot:** `develop` at `4e9c99db374c082289608c60573a7894ee375834` (2026-11-21). Always verify the current HEAD. Product requirements describe **intent**; code/migrations describe **implementation**; only executed tests and observed behavior constitute **verification**.
+> **Skill documentation review baseline:** `develop` at `780ed155f4872e2f61dacd267bd2c340782282ca` (2026-11-23). Always verify the current HEAD. Product requirements describe **intent**; code/migrations describe **implementation**; only executed tests and observed behavior constitute **verification**.
 
 ## Authority and precedence
 1. Current explicit user-approved scope and [Decision Log](requirements/DECISION_LOG.md) (D-17 and D-18 supersede historical 30% Sales-only policies).
@@ -15,12 +15,18 @@
 | Architecture / implementation | [Repository engineering skill](../.agents/skills/kidsfit-crm-dev/SKILL.md) | [Frontend architecture](../frontend/docs/architecture.md), [API contracts](architecture/API_CONTRACTS.md) |
 | Roles / security / organization | [Roles and permissions](requirements/ROLES_AND_PERMISSIONS.md) | [Decision log](requirements/DECISION_LOG.md), backend source |
 | Sales, school, allocation | [Workflows](requirements/BUSINESS_WORKFLOWS.md) | [Rules](requirements/BUSINESS_RULES.md), school feature endpoints |
-| CHECKEE, renewals, commissions, payout | [Decision log](requirements/DECISION_LOG.md) | [Finance domain skill](../.agents/skills/kidsfit-crm-development/SKILL.md), relevant endpoints |
+| CHECKEE, renewals, commissions, payout | [Decision log](requirements/DECISION_LOG.md) | [Domain references](../.agents/skills/kidsfit-crm-development/SKILL.md), relevant endpoints |
 | Auth / password / API JSON | [API contracts](architecture/API_CONTRACTS.md) | `AuthFeatures.cs`, `api.client.ts`, tests |
 | Release / production safety | [Production readiness](operations/PRODUCTION_READINESS.md) | [Database verification](operations/DB_VERIFICATION.md), [seven-role UAT](operations/SEVEN_ROLE_UAT.md) |
 | Database / migration / startup | [Source map](implementation/CURRENT_SOURCE_MAP.md) | [Backend README](../backend/README.md), [DB safety](implementation/PHASE_1_DB_SAFETY.md) |
 | UI and responsive | [Design system](design/FRONTEND_DESIGN_SYSTEM.md) | [Frontend design skill](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md), [Webapp UX](../.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) |
-| Testing / synthetic data | [Feature status matrix](implementation/FEATURE_STATUS_MATRIX.md) | [Test fixtures provenance](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md), CI workflows |
+| Notifications / workers / unread / routing | [Notifications & events](../.agents/skills/kidsfit-crm-dev/references/notifications-and-events.md) | [Notification event matrix](implementation/CRM_NOTIFICATION_MATRIX.md), source and tests |
+| Testing / synthetic data | [Testing & regression](../.agents/skills/kidsfit-crm-dev/references/testing-and-regression.md) | [Test fixtures provenance](testing/CRM_SYNTHETIC_SEED_SCENARIOS.md), CI workflows |
+
+## Skill ownership
+- Start with [AGENTS.md](../AGENTS.md) and [primary implementation skill](../.agents/skills/kidsfit-crm-dev/SKILL.md). The older [development skill](../.agents/skills/kidsfit-crm-development/SKILL.md) remains a compatible domain-reference index; it is not a competing implementation workflow.
+- Use [Frontend Design](../.agents/skills/kidsfit-crm-frontend-design/SKILL.md) for visual language and [Webapp UX](../.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) for responsive behavior, input and overlays. Only invoke [One-shot](../.agents/skills/kidsfit-crm-one-shot-implementation/SKILL.md) for authorized multi-module deliveries.
+- Do not load every skill by default. Choose references by affected code and business domain; documentation-only changes should be checked for Markdown links and stale source claims.
 
 ## Documentation maintenance requirements
 - Each significant source change updates relevant docs/skills in the **same PR**; refresh source SHA, paths, business decisions, API request/response conventions, migration notes and tests.

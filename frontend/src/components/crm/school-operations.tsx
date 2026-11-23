@@ -1592,7 +1592,7 @@ export function SchoolOperations({
           </p>}
           {(!selectedProposal.proposal_mode || selectedProposal.proposal_mode === 'LEGACY'
             || proposalDetail.isSuccess) &&
-            <SchoolProfileDetails units={proposalProfileUnits}/>}
+            <SchoolProfileDetails units={proposalProfileUnits} displayName={selectedProposal.name}/>}
           <section className="space-y-2 border-t pt-4 text-sm">
             <h3 className="font-semibold">Thông tin đề xuất</h3>
             <div className="grid gap-3 sm:grid-cols-2">

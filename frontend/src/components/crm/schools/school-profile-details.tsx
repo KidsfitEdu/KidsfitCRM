@@ -122,7 +122,7 @@ export function SchoolProfileDetails({units, schoolCode, statusLabel, displayNam
         </span>}
       </div>
     </section>}
-    {mainCount > 1 && <p role="status" className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-foreground">Hồ sơ có nhiều đơn vị trường chính; chỉ hiển thị đơn vị đầu tiên. Vui lòng kiểm tra dữ liệu nguồn.</p>}
+    {mainCount > 1 && <output className="block rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-foreground">Hồ sơ có nhiều đơn vị trường chính; chỉ hiển thị đơn vị đầu tiên. Vui lòng kiểm tra dữ liệu nguồn.</output>}
     {main ? <SchoolMainInfo unit={main}/>
       : <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
           Chưa có thông tin trường chính trong phạm vi hồ sơ được phép xem.

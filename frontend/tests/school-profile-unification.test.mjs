@@ -34,7 +34,7 @@ test('Sales and reviewers share profile while keeping their workflow detail fiel
   const manager = read('components/roles/ManagerWorklists.tsx');
   const admin = read('screens/Admin/Proposals/ProposalsPage.tsx');
   for (const source of [sales, manager, admin]) assert.match(source, /<SchoolProfileDetails units=/);
-  assert.match(sales, /Thông tin đề xuất/);
+  assert.match(sales, /Thông tin xử lý đề xuất/);
   assert.match(manager, /Thông tin xử lý đề xuất/);
   assert.match(admin, /Người đề xuất/);
   assert.doesNotMatch(manager, /Chưa có thông tin trường chính liên kết/);

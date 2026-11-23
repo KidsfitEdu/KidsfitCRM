@@ -57,6 +57,32 @@ test('mobile shell and overlay actions respect the virtual keyboard and device s
   assert.match(dialog, /flex-1 overflow-y-auto/);
 });
 
+test('shared modal and drawer headers suppress visual subtitles while retaining screen-reader descriptions', () => {
+  const dialog = source('components/common/dialogs/app-dialog.tsx');
+  const drawer = source('components/common/drawers/app-drawer.tsx');
+  const confirm = source('components/common/dialogs/confirm-dialog.tsx');
+  assert.match(dialog, /<DialogDescription className="sr-only">\{description \?\? title\}<\/DialogDescription>/);
+  assert.doesNotMatch(dialog, /DialogDescription className="pt-1/);
+  assert.match(drawer, /<SheetDescription className="sr-only">\{description \?\? title\}<\/SheetDescription>/);
+  assert.doesNotMatch(drawer, /description && !compactHeader/);
+  // Destructive confirmations still show the warning within their scrollable body.
+  assert.match(confirm, /\{description && <p className="text-\[15px\]/);
+});
+
+test('shared overlay surfaces have no outer padding while form sections retain mobile spacing', () => {
+  const dialog = source('components/common/dialogs/app-dialog.tsx');
+  const drawer = source('components/common/drawers/app-drawer.tsx');
+  const form = source('components/crm/schools/school-units-editor.tsx');
+  assert.match(dialog, /bg-card !p-0 shadow-/);
+  assert.match(drawer, /bg-card !p-0 shadow-/);
+  assert.match(dialog, /overscroll-contain px-3 py-4 sm:px-6 sm:py-5/);
+  assert.match(drawer, /overscroll-contain px-3 py-4 sm:px-5 sm:py-5/);
+  assert.match(form, /rounded-xl border bg-muted\/20 p-3 sm:p-4/);
+  assert.match(form, /border-t p-3 sm:p-4/);
+  assert.match(dialog, /safe-area-inset-bottom/);
+  assert.match(drawer, /safe-area-inset-bottom/);
+});
+
 test('role-wide shared presentation maintains app-like density and semantic theming', () => {
   const header = source('components/layout/Header.tsx');
   const page = source('components/common/app-page-header.tsx');

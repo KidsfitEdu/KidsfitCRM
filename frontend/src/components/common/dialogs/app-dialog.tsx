@@ -39,7 +39,7 @@ export function AppDialog({
         } : undefined}
         showCloseButton={false}
         className={cn(
-          'flex max-h-[min(92dvh,800px)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden rounded-[20px] border-border/60 bg-card p-0 shadow-[0_28px_95px_rgba(14,42,26,.24)] sm:max-w-2xl',
+          'flex max-h-[min(92dvh,800px)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden rounded-[20px] border-border/60 bg-card !p-0 shadow-[0_28px_95px_rgba(14,42,26,.24)] sm:max-w-2xl',
           contentClassName,
         )}
       >
@@ -57,11 +57,10 @@ export function AppDialog({
               <X aria-hidden="true" className="size-5" />
             </button>
           </div>
-          {description
-            ? <DialogDescription className="pt-1 text-sm leading-6 text-white/90">{description}</DialogDescription>
-            : <DialogDescription className="sr-only">{title}</DialogDescription>}
+          {/* Keep the description available to screen readers without adding a second header line. */}
+          <DialogDescription className="sr-only">{description ?? title}</DialogDescription>
         </DialogHeader>
-        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6', bodyClassName)}>
+        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-5', bodyClassName)}>
           {children}
         </div>
         {footer && (

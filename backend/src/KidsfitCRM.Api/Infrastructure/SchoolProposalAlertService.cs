@@ -51,6 +51,9 @@ public static class SchoolProposalAlertService
             {
                 var kind = recipient.RoleCode == "ADMIN" ? "ADMIN_OVERDUE" : "DIRECTOR_ESCALATION";
                 var key = $"proposal:{proposal.Id}:{proposal.ReviewDueAt.Ticks}:{recipient.UserId}:{kind}";
+                var title = kind == "ADMIN_OVERDUE" ? "Đề xuất trường quá hạn" : "Đề xuất trường cần BGĐ giám sát";
+                var message = kind == "ADMIN_OVERDUE" ? "Đề xuất trường quá hạn chờ Admin xem xét." : "Đề xuất trường quá hạn Admin, cần BGĐ giám sát.";
+                var target = kind == "ADMIN_OVERDUE" ? "admin-proposals" : "role-board-overdue";
                 // INSERT IGNORE + unique binary key is concurrency-safe even with several API workers.
                 added += await db.Database.ExecuteSqlInterpolatedAsync($@"
                     INSERT IGNORE INTO crm_notifications
@@ -58,9 +61,9 @@ public static class SchoolProposalAlertService
                        title, message, target_view, deduplication_key, status,
                        due_at, created_at, updated_at)
                     VALUES ({recipient.OrganizationId}, {recipient.UserId}, {kind}, {nameof(SchoolProposal)}, {proposal.Id},
-                            {kind == "ADMIN_OVERDUE" ? "Đề xuất trường quá hạn" : "Đề xuất trường cần BGĐ giám sát"},
-                            {kind == "ADMIN_OVERDUE" ? "Đề xuất trường quá hạn chờ Admin xem xét." : "Đề xuất trường quá hạn Admin, cần BGĐ giám sát."},
-                            {kind == "ADMIN_OVERDUE" ? "admin-proposals" : "role-board-overdue"},
+                            {title},
+                            {message},
+                            {target},
                             {key}, {"OPEN"}, {proposal.ReviewDueAt}, {now}, {now})", ct);
             }
         }

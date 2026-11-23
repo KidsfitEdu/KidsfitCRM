@@ -643,7 +643,8 @@ export function SchoolDirectory({
             <p>Đang tải hồ sơ…</p>
           ) : (
             detail.data && (
-              <SchoolDetail data={detail.data} />
+              <SchoolDetail data={detail.data}
+                 statusLabel={labels[schools.data?.data.find(s => s.id === selected)?.visible_status ?? '']}/>
             )
           )}
           {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
@@ -664,7 +665,7 @@ export function SchoolDirectory({
       </AppDialog>
       <AppDialog open={editingUnit !== null}
         onOpenChange={open => { if (!open && !adminBusy) { setEditingUnit(null); setAdminError(''); } }}
-        busy={adminBusy} title="Sửa thông tin trường/phân hiệu">
+        busy={adminBusy} title="Chỉnh sửa trường chính hoặc phân hiệu">
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">Mã trường chính được giữ nguyên để bảo vệ quan hệ dữ liệu.</p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -723,8 +724,8 @@ export function SchoolDirectory({
 }
 
 /** Read-only profile used by the school directory. */
-function SchoolDetail({ data }: { data: Detail }) {
-  return <SchoolProfileDetails units={data.units} schoolCode={data.school_code} />;
+function SchoolDetail({ data, statusLabel }: { data: Detail; statusLabel?: string }) {
+  return <SchoolProfileDetails units={data.units} schoolCode={data.school_code} statusLabel={statusLabel} />;
 }
 
 const capacitySchema = z.object({

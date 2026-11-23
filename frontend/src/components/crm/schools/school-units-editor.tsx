@@ -38,7 +38,7 @@ export function SchoolUnitFields({unit,index,onFieldChange,errors={},prefix='sch
 }) {
   return <div className="grid gap-3 sm:grid-cols-2">
     {schoolUnitFields.map(field => <label key={field.key} className="block min-w-0 text-sm" htmlFor={`${prefix}-${index}-${field.key}`}>
-      {field.label} {field.required&&<span className="text-destructive">*</span>}
+      {field.key==='name' && unit.unit_type==='BRANCH' ? 'Tên phân hiệu' : field.label} {field.required&&<span className="text-destructive">*</span>}
       <Input id={`${prefix}-${index}-${field.key}`} className="mt-1" value={unit[field.key]??''}
         maxLength={field.key==='email'?190:field.key==='province'||field.key==='ward'?100:field.key==='contact_position'?120:field.key==='contact_phone'||field.key==='school_phone'?40:500}
         aria-invalid={!!errors[`${index}.${field.key}`]} disabled={readOnly}

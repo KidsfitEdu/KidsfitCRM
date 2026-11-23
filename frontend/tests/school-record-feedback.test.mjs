@@ -18,7 +18,8 @@ test('Admin school form separates input validation from server notifications', (
 test('Admin directory retains school codes for review while preserving data bindings', () => {
   const source = read('components/crm/school-directory.tsx');
   assert.match(source, /\{s\.school_code\}/);
-  assert.match(source, /description=\{adminMode \?/);
+  assert.match(source, /title="Thông tin trường học"/);
+  assert.match(source, /<SchoolDetail data=\{detail.data\}/);
   const editor = read('components/crm/schools/school-record-editor.tsx');
   assert.match(editor, /body:JSON\.stringify\(\{units\}\)/);
   assert.doesNotMatch(editor, /official-school-code|Mã trường chính/);

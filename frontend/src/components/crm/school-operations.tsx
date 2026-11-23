@@ -43,6 +43,7 @@ import { type SchoolAction, type SchoolActionField } from '@/components/crm/scho
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
 import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-editor';
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
+import { SchoolProposalWorkflowDetails } from '@/components/crm/schools/school-proposal-workflow-details';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { appNotice } from '@/components/common/app-toast-provider';
 
@@ -1578,11 +1579,11 @@ export function SchoolOperations({
       <AppDrawer
         open={selectedProposal !== null}
         onOpenChange={open => !open && setSelectedProposal(null)}
-        title={selectedProposal?.name || 'Chi tiết đề xuất trường'}
+        title="Chi tiết đề xuất trường"
         description={selectedProposal?.school_code?.startsWith('DRAFT-')
           ? 'Hồ sơ đề xuất trường học'
           : selectedProposal?.school_code || 'Hồ sơ đề xuất trường học'}
-        wide
+        compactHeader bodyClassName="space-y-4 bg-muted/10"
       >
         {selectedProposal && <div className="space-y-5">
           {proposalDetail.isPending && selectedProposal.proposal_mode !== 'LEGACY' &&
@@ -1592,26 +1593,18 @@ export function SchoolOperations({
           </p>}
           {(!selectedProposal.proposal_mode || selectedProposal.proposal_mode === 'LEGACY'
             || proposalDetail.isSuccess) &&
-            <SchoolProfileDetails units={proposalProfileUnits}/>}
-          <section className="space-y-2 border-t pt-4 text-sm">
-            <h3 className="font-semibold">Thông tin đề xuất</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Trạng thái</p>
-                <p>{workflowLabels[selectedProposal.status] ?? selectedProposal.status}</p></div>
-              <div><p className="text-xs text-muted-foreground">Người đề xuất</p>
-                <p>{selectedProposal.submitted_by || 'Chưa cập nhật'}</p></div>
-              <div><p className="text-xs text-muted-foreground">Quản lý bán hàng</p>
-                <p>{selectedProposal.manager_name || 'Chưa cập nhật'}</p></div>
-              {selectedProposal.status !== 'DRAFT' && <div>
-                <p className="text-xs text-muted-foreground">Hạn xử lý</p>
-                <p>{workflowDate(selectedProposal.review_due_at)}</p>
-              </div>}
-            </div>
-            {selectedProposal.decision_reason && <div>
-              <p className="text-xs text-muted-foreground">Phản hồi phê duyệt</p>
-              <p>{selectedProposal.decision_reason}</p>
-            </div>}
-          </section>
+            <SchoolProfileDetails units={proposalProfileUnits} displayName={selectedProposal.name}
+              schoolCode={selectedProposal.school_code} statusLabel={workflowLabels[selectedProposal.status] ?? selectedProposal.status}/>}
+          <SchoolProposalWorkflowDetails
+            submittedBy={selectedProposal.submitted_by}
+            managerName={selectedProposal.manager_name}
+            reviewDueAt={selectedProposal.status !== 'DRAFT' ? selectedProposal.review_due_at : null}
+            proposalMode={selectedProposal.proposal_mode}
+            reason={selectedProposal.reason}
+            decisionReason={selectedProposal.decision_reason}
+            possibleDuplicate={selectedProposal.possible_duplicate}
+            formatReviewDueAt={workflowDate}
+          />
         </div>}
       </AppDrawer>
       <SchoolProposalEditor open={proposalEditorOpen} draftId={proposalEditorId}

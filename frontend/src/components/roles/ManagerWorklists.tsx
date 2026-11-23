@@ -13,6 +13,7 @@ import { AllocationDetail, ExtensionDetail } from '@/components/crm/schools/mana
 import { SchoolWorkLogDrawer } from '@/components/crm/schools/school-work-log-drawer';
 import { ProgressTableHeading, ProgressTableRows, type ProgressSchool } from '@/components/crm/schools/school-progress-table';
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
+import { SchoolProposalWorkflowDetails } from '@/components/crm/schools/school-proposal-workflow-details';
 import { Button } from '@/components/ui/button';
 import { type SchoolAction, type SchoolActionField } from '@/components/crm/schools/school-action-form';
 import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialog';
@@ -480,19 +481,10 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       }:field),
     }:action} onClose={() => setAction(null)} save={save} />
     <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}
-      title={selectedProposal?.name ?? (selection?.kind==='invitation'?'Chi tiết phân bổ trường':selection?.kind==='extension'?'Chi tiết yêu cầu gia hạn':'Chi tiết hồ sơ')}
+      title={selectedProposal ? 'Chi tiết đề xuất trường' : (selection?.kind==='invitation'?'Chi tiết phân bổ trường':selection?.kind==='extension'?'Chi tiết yêu cầu gia hạn':'Chi tiết hồ sơ')}
       description={selectedProposal ? selectedProposal.school_code : 'Thông tin trong phạm vi quản lý được Backend cho phép truy cập.'}
-      wide={selectedProposal !== null} bodyClassName="bg-muted/10">
+      compactHeader={selectedProposal !== null} bodyClassName="space-y-4 bg-muted/10">
         {selectedProposal && <div className="space-y-4 text-sm">
-          <section className="space-y-2">
-            <p className="font-semibold text-base">Thông tin đề xuất</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Người đề xuất</p><p>{selectedProposal.submitted_by}</p></div>
-              <div><p className="text-xs text-muted-foreground">Quản lý phụ trách</p><p>{selectedProposal.manager_name}</p></div>
-              <div><p className="text-xs text-muted-foreground">Trạng thái</p><p>{statusLabel(selectedProposal.status)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{nice(selectedProposal.review_due_at)}</p></div>
-            </div>
-          </section>
           {proposalDetailQuery.isPending && <output>Đang tải thông tin trường chính và phân hiệu…</output>}
           {proposalDetailQuery.error && <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 p-3">
             <p>Không thể tải chi tiết trường: {proposalDetailQuery.error.message}</p>
@@ -503,16 +495,20 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
               <output>Đang tải trường chính hiện hữu…</output>}
             {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.error &&
               <p role="alert" className="text-amber-700">Không thể tải đầy đủ trường chính trong phạm vi quyền truy cập. Chỉ hiển thị thông tin được phép xem.</p>}
-            <SchoolProfileDetails units={proposalUnits}/>
-            {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && !proposalDetail.target && proposalUnits.every(x => x.unit_type !== 'MAIN') &&
-              <p className="text-muted-foreground">Chưa có thông tin trường chính liên kết.</p>}
+            <SchoolProfileDetails units={proposalUnits} displayName={selectedProposal.name}
+              schoolCode={selectedProposal.school_code} statusLabel={statusLabel(selectedProposal.status)}/>
           </>}
-          <section className="space-y-2 border-t pt-3">
-            <p className="font-semibold text-base">Thông tin xử lý đề xuất</p>
-            <p>Lý do đề xuất: {selectedProposal.reason || 'Chưa cập nhật'}</p>
-            {selectedProposal.possible_duplicate && <p className="rounded-xl bg-amber-50 p-3 text-amber-800">Có khả năng trùng tên/khu vực. Admin cần đối chiếu mã định danh.</p>}
-            {selectedProposal.decision_reason && <p>Phản hồi: {selectedProposal.decision_reason}</p>}
-          </section>
+          <SchoolProposalWorkflowDetails
+            submittedBy={selectedProposal.submitted_by}
+            managerName={selectedProposal.manager_name}
+            reviewDueAt={selectedProposal.status !== 'DRAFT' ? selectedProposal.review_due_at : null}
+            proposalMode={proposalDetail?.proposal_mode ?? selectedProposal.proposal_mode}
+            reason={selectedProposal.reason}
+            decisionReason={selectedProposal.decision_reason}
+            possibleDuplicate={selectedProposal.possible_duplicate}
+            formatReviewDueAt={nice}
+          />
+
         </div>}
         {selection?.kind==='invitation' && <AllocationDetail item={selection.item}/>}
         {selection?.kind==='extension' && <ExtensionDetail item={selection.item}/>}

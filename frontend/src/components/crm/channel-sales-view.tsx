@@ -52,6 +52,7 @@ import type {
 } from '@/lib/channel-sales';
 
 type SalesSchoolProfile = {
+  can_view_school_contacts?: boolean;
   data: { id:number; display_name:string; tax_code:string|null; address:string|null;
     province:string|null; district:string|null; phone:string|null; email:string|null;
     contact_name:string|null; contact_position:string|null; lifecycle_status:string };
@@ -499,42 +500,24 @@ export function ChannelSalesView({
         {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
         {!schoolProfile && !profileError && <output className="block text-sm text-muted-foreground">Đang tải thông tin trường…</output>}
         {schoolProfile && <>
-          <section className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-start gap-3">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Building2 className="size-6" aria-hidden="true"/>
-              </span>
-              <div className="min-w-0 space-y-1.5">
-                <h2 className="break-words text-base font-bold text-foreground">{schoolProfile.data.display_name}</h2>
-                <p className="text-xs text-muted-foreground">{detailCustomer?.code || 'Chưa cập nhật mã trường'}</p>
-                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${detailCustomer ? contractBadge(detailCustomer).className : statusCopy.AVAILABLE.className}`}>
-                  {detailCustomer ? contractBadge(detailCustomer).label : 'Chưa cập nhật trạng thái'}
-                </span>
-              </div>
-            </div>
-          </section>
-          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <Building2 className="size-4 text-primary" aria-hidden="true"/>Thông tin trường chính
-            </h3>
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-              {([
-                ['Địa chỉ', [schoolProfile.data.address, schoolProfile.data.province].filter(Boolean).join(', ')],
-                ['Số điện thoại', schoolProfile.data.phone],
-                ['Email', schoolProfile.data.email],
-                ['Người liên hệ', schoolProfile.data.contact_name],
-                ['Chức vụ', schoolProfile.data.contact_position],
-                ['Mã số thuế', schoolProfile.data.tax_code],
-              ] as [string, string | null][]).map(([label,value])=>
-                <div key={label} className="min-w-0 space-y-1">
-                  <dt className="text-xs text-muted-foreground">{label}</dt>
-                  <dd className="break-words font-medium text-foreground">{value || 'Chưa cập nhật'}</dd>
-                </div>)}
-            </dl>
-          </section>
-          <section className="rounded-2xl border border-border bg-card p-4">
-            <SchoolProfileDetails units={schoolProfile.school_units}/>
-          </section>
+          {schoolProfile.can_view_school_contacts === false && <output className="block rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+            Thông tin liên hệ của trường chưa được cấp quyền xem trong phạm vi tài khoản hiện tại.
+          </output>}
+          <SchoolProfileDetails
+            units={schoolProfile.school_units}
+            displayName={schoolProfile.data.display_name}
+            schoolCode={detailCustomer?.code}
+            statusLabel={detailCustomer ? contractBadge(detailCustomer).label : undefined}
+            taxCode={schoolProfile.data.tax_code}
+            customerContact={schoolProfile.can_view_school_contacts === false ? undefined : {
+              address: schoolProfile.data.address,
+              province: schoolProfile.data.province,
+              contact_phone: schoolProfile.data.phone,
+              contact_name: schoolProfile.data.contact_name,
+              contact_position: schoolProfile.data.contact_position,
+              email: schoolProfile.data.email,
+            }}
+          />
         </>}
       </AppDrawer>
       {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}

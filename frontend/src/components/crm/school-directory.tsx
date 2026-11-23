@@ -176,6 +176,7 @@ export function SchoolDirectory({
   const [provinceFilter, setProvinceFilter] = useState('');
   const [wardFilter, setWardFilter] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
+  const [selectedSchoolSnapshot, setSelectedSchoolSnapshot] = useState<School | null>(null);
   const [editingUnit, setEditingUnit] = useState<Detail['units'][number] | null>(null);
   const [editUnitChoices, setEditUnitChoices] = useState<Detail['units']>([]);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
@@ -212,6 +213,10 @@ export function SchoolDirectory({
     queryFn: () => api<{ data: Capacity[] }>('/school-capacities'),
     enabled: !adminMode && can('channel_sales.school.capacity.manage'),
   });
+  const openSchoolDetails = (school: School) => {
+    setSelectedSchoolSnapshot(school);
+    setSelected(school.id);
+  };
   const detail = useQuery({
     queryKey: [...channelQueryKeys.all, 'school', selected],
     queryFn: () => api<Detail>(`/schools/${selected}`),
@@ -460,7 +465,7 @@ export function SchoolDirectory({
                     <td className="p-4">
                       <button
                         className="text-left font-semibold text-foreground hover:text-primary focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
-                        onClick={() => setSelected(s.id)}
+                        onClick={() => openSchoolDetails(s)}
                       >
                         {s.display_name}
                       </button>
@@ -505,7 +510,7 @@ export function SchoolDirectory({
                         <AppButton tone="outline" size="icon-sm"
                           className="h-9 w-9 min-w-9 rounded-lg border border-[#1b5e20] bg-white p-0 text-[#1b5e20] shadow-sm hover:bg-[#1b5e20] hover:text-white dark:border-[#81c784] dark:bg-[#17341f] dark:text-[#a5d6a7] dark:hover:bg-[#1b5e20] dark:hover:text-white"
                           aria-label={`Xem chi tiết ${s.display_name}`}
-                          title="Xem chi tiết" onClick={() => setSelected(s.id)}>
+                          title="Xem chi tiết" onClick={() => openSchoolDetails(s)}>
                           <Eye className="size-4" aria-hidden="true"/>
                         </AppButton>
                         {canAdminManage && !s.is_deleted && <AppButton tone="outline" size="icon-sm"
@@ -636,13 +641,19 @@ export function SchoolDirectory({
             </>
           )}
         </AppDialog>
-      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={adminMode ? 'Thông tin trường chính và các phân hiệu' : (detail.data?.school_code ?? '')} wide>
+      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) {setSelected(null);setSelectedSchoolSnapshot(null);}}}
+        title="Thông tin trường học" description={detail.data?.display_name ?? 'Thông tin trường chính và phân hiệu'}>
           {detail.error && <ErrorText>{detail.error.message}</ErrorText>}
           {detail.isPending ? (
             <p>Đang tải hồ sơ…</p>
           ) : (
             detail.data && (
-              <SchoolDetail data={detail.data} />
+              <SchoolDetail data={detail.data}
+                 statusLabel={(() => {
+                   const school = schools.data?.data.find(s => s.id === selected)
+                     ?? (selectedSchoolSnapshot?.id === selected ? selectedSchoolSnapshot : null);
+                   return school ? (school.is_deleted ? 'Đã ngừng sử dụng' : (labels[school.visible_status] ?? school.visible_status)) : undefined;
+                 })()}/>
             )
           )}
           {mutation.error && <ErrorText>{mutation.error.message}</ErrorText>}
@@ -663,7 +674,7 @@ export function SchoolDirectory({
       </AppDialog>
       <AppDialog open={editingUnit !== null}
         onOpenChange={open => { if (!open && !adminBusy) { setEditingUnit(null); setAdminError(''); } }}
-        busy={adminBusy} title="Sửa thông tin trường/phân hiệu">
+        busy={adminBusy} title="Chỉnh sửa trường chính hoặc phân hiệu">
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">Mã trường chính được giữ nguyên để bảo vệ quan hệ dữ liệu.</p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -722,8 +733,8 @@ export function SchoolDirectory({
 }
 
 /** Read-only profile used by the school directory. */
-function SchoolDetail({ data }: { data: Detail }) {
-  return <SchoolProfileDetails units={data.units} />;
+function SchoolDetail({ data, statusLabel }: { data: Detail; statusLabel?: string }) {
+  return <SchoolProfileDetails units={data.units} schoolCode={data.school_code} statusLabel={statusLabel} displayName={data.display_name} />;
 }
 
 const capacitySchema = z.object({

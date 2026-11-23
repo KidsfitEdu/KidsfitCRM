@@ -89,7 +89,7 @@ test('Sales overview uses authorized KPIs, actual series, and current actionable
 test('Sales school drawer and modal form reuse branded shared primitives', () => {
   const source = read('src/components/crm/channel-sales-view.tsx');
   assert.match(source, /title="Thông tin trường học"/);
-  assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
+  assert.match(source, /<SchoolProfileDetails\s+units=\{schoolProfile\.school_units\}/);
   assert.match(source, /bodyClassName="space-y-4 bg-muted\/10"/);
   assert.match(source, /<AppDialog open onOpenChange/);
   assert.match(source, /<AppButton type="button" tone="neutral" disabled=\{saving\}/);
@@ -110,7 +110,7 @@ test('Sales school list remains rounded and school drawer matches the shared scr
   assert.match(drawer, /overflow-y-auto overscroll-contain/);
   assert.match(drawer, /compactHeader\?: boolean/);
   assert.doesNotMatch(drawer, /alignToViewportEdge|extendHeaderToViewportEdge|calc\(100% - 100vw\)/);
-  assert.match(source, /<SchoolProfileDetails units=\{schoolProfile\.school_units\}/);
+  assert.match(source, /<SchoolProfileDetails\s+units=\{schoolProfile\.school_units\}/);
 });
 
 test('Right-side CRM sheet removes root scrollbar gutter without changing scroll locking', () => {
@@ -137,4 +137,20 @@ test('Sales school action icons distinguish view, edit and history in both list 
   assert.ok(row.includes('aria-label={`Cập nhật tư vấn ${customer.display_name}`}'));
   assert.doesNotMatch(row, /: 'Chưa có lịch hẹn'/);
   assert.match(row, /\{customer\.next_follow_up_at && \(/);
+});
+
+test('outer CRM scrollbar is hidden without disabling page, drawer, or sidebar scrolling', () => {
+  const css = read('src/app/globals.css');
+  const shell = read('src/components/crm/crm-app.tsx');
+  const drawer = read('src/components/common/drawers/app-drawer.tsx');
+  const sidebar = read('src/components/layout/Sidebar.tsx');
+  assert.match(shell, /crm-workspace-content/);
+  assert.match(css, /html:has\(\.crm-workspace-content\) \{/);
+  assert.match(css, /scrollbar-width: none/);
+  assert.match(css, /html:has\(\.crm-workspace-content\)::-webkit-scrollbar/);
+  assert.match(css, /display: none/);
+  assert.doesNotMatch(css, /html:has\(\.crm-workspace-content\) \{[^}]*overflow:\s*hidden/s);
+  assert.match(drawer, /overflow-y-auto overscroll-contain/);
+  assert.match(sidebar, /overflow-y-auto/);
+  assert.match(css, /@media \(forced-colors: active\)/);
 });

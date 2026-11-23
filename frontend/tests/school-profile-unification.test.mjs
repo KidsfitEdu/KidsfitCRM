@@ -14,6 +14,8 @@ test('shared school profile renders main school once and branch-only list', () =
   assert.match(profile, /<SchoolMainInfo unit=\{main\}\/>/);
   assert.match(profile, /<SchoolBranchDetails units=\{units\}\/>/);
   assert.match(profile, /Trường chưa có phân hiệu/);
+  assert.match(profile, /formatSchoolAddress/);
+  assert.match(profile, /mainCount > 1/);
   assert.match(profile, /Chưa có thông tin trường chính trong phạm vi hồ sơ/);
   assert.doesNotMatch(profile, /Trường điểm|trường điểm/);
 });
@@ -22,7 +24,7 @@ test('Admin directory reuses the same detail body and does not repeat main campu
   const directory = read('components/crm/school-directory.tsx');
   assert.match(directory, /title="Thông tin trường học"/);
   assert.match(directory, /<SchoolDetail data=\{detail\.data\}/);
-  assert.match(directory, /<SchoolProfileDetails units=\{data\.units\} schoolCode=\{data\.school_code\} statusLabel=\{statusLabel\}/);
+  assert.match(directory, /<SchoolProfileDetails units=\{data\.units\} schoolCode=\{data\.school_code\} statusLabel=\{statusLabel\} displayName=\{data\.display_name\}\/>/);
   assert.match(directory, /title="Chỉnh sửa trường chính hoặc phân hiệu"/);
   assert.doesNotMatch(directory, /Sửa thông tin trường\/phân hiệu/);
 });

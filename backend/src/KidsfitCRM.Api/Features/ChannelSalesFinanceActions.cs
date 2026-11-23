@@ -282,10 +282,13 @@ public sealed partial class ChannelSalesActions
         if (beneficiaryOrgId.HasValue)
         {
             var beneficiaryManager = payout.BeneficiaryRole == "MANAGER";
+            var beneficiaryCollaborator = !beneficiaryManager && await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                m.UserId == payout.BeneficiaryUserId && m.OrganizationId == beneficiaryOrgId.Value
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
             CrmNotificationWriter.Add(db, beneficiaryOrgId.Value, payout.BeneficiaryUserId,
                 "PAYOUT_PAID", nameof(Payout), payout.Id, "Hoa hồng đã được thanh toán",
                 "Kế toán đã xác nhận chi trả hoa hồng theo phiếu đã duyệt.",
-                beneficiaryManager ? "manager-income" : "role-sales-staff-income");
+                beneficiaryManager ? "manager-income" : beneficiaryCollaborator ? "role-collaborator-income" : "role-sales-staff-income");
         }
         try
         {

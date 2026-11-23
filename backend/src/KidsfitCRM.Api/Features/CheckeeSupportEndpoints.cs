@@ -79,6 +79,17 @@ public sealed partial class ChannelSalesActions
         });
         Audit.Add(db, actorId, "CHECKEE_SUPPORT_PROGRESS", nameof(CustomerSupportCase), id,
             null, new { request.Completed, item.Status, item.CheckeeRespondedAt }, http);
+        if (request.Completed)
+        {
+            await db.CrmNotifications.Where(x => x.EntityType == nameof(CustomerSupportCase)
+                && x.EntityId == item.Id && x.Kind == "SUPPORT_CASE_FORWARDED" && x.Status == "OPEN")
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                    .SetProperty(x => x.ResolvedAt, now), ct);
+            CrmNotificationWriter.Add(db, item.OrganizationId, item.AssignedUserId,
+                "SUPPORT_CHECKEE_COMPLETED", nameof(CustomerSupportCase), item.Id, "CHECKEE đã xử lý ticket",
+                "CHECKEE đã hoàn tất xử lý kỹ thuật; CSKH cần xác nhận kết quả với trường.",
+                "role-customer-care-cases");
+        }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return id;

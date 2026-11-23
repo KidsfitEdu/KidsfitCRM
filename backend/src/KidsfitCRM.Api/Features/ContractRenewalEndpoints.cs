@@ -163,7 +163,7 @@ public static class ContractRenewalEndpoints
         foreach (var recipient in accountants)
             CrmNotificationWriter.Add(db, org.Value, recipient, kind, nameof(ContractRenewal), renewal.Id,
                 title, $"Hồ sơ tái ký {renewal.ContractCode} đang chờ Kế toán kiểm tra.",
-                "role-accounting-revenue", renewal.SubmittedAt.Ticks);
+                "role-accounting-revenue", renewal.SubmittedAt?.Ticks ?? 0);
     }
 
     public static async Task<IResult> Submit(long contractId, SubmitRequest request,

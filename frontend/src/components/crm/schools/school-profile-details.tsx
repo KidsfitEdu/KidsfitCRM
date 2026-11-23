@@ -22,18 +22,21 @@ type Props = {
   /** Shown only when supplied by a permission-scoped school detail response. */
   schoolCode?: string | null;
   statusLabel?: string | null;
+  /** A scoped parent/proposal name, even when MAIN is not included in units. */
+  displayName?: string | null;
 };
 
 const missing = (value?: string | null) => value?.trim() || 'Chưa cập nhật';
-const address = (unit: SchoolProfileUnit) => {
-  // Some imported street addresses already contain the ward/province.
-  // Show the location once rather than duplicating place names in the detail drawer.
+export const formatSchoolAddress = (unit: SchoolProfileUnit) => {
+  // Match complete comma/semicolon-delimited address components. Substring
+  // matching can silently drop a ward whose name occurs inside a street name.
   const parts: string[] = [];
+  const normalize = (value: string) => value.trim().replace(/\\s+/g, ' ').toLocaleLowerCase('vi-VN');
   for (const value of [unit.address, unit.ward, unit.province]) {
     const text = value?.trim();
-    if (text && !parts.join(', ').toLocaleLowerCase('vi-VN').includes(text.toLocaleLowerCase('vi-VN'))) {
-      parts.push(text);
-    }
+    if (!text) continue;
+    const present = parts.some(part => part.split(/[,;]/).some(segment => normalize(segment) === normalize(text)));
+    if (!present) parts.push(text);
   }
   return missing(parts.join(', '));
 };
@@ -47,7 +50,7 @@ function SchoolField({label, value}: {label: string; value?: string | null}) {
 
 function SchoolFields({unit}: {unit: SchoolProfileUnit}) {
   return <dl className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 min-[400px]:grid-cols-2">
-    <SchoolField label="Địa chỉ" value={address(unit)}/>
+    <SchoolField label="Địa chỉ" value={formatSchoolAddress(unit)}/>
     <SchoolField label="Điện thoại trường" value={unit.school_phone}/>
     <SchoolField label="Người liên hệ" value={unit.contact_name}/>
     <SchoolField label="Chức vụ" value={unit.contact_position}/>
@@ -101,21 +104,24 @@ export function SchoolBranchDetails({units}: {units: SchoolProfileUnit[]}) {
 }
 
 /** Shared read-only profile for Admin directory, Sales/CTV and proposal-review drawers. */
-export function SchoolProfileDetails({units, schoolCode, statusLabel}: Props) {
+export function SchoolProfileDetails({units, schoolCode, statusLabel, displayName}: Props) {
   const main = units.find(unit => unit.unit_type === 'MAIN');
+  const mainCount = units.filter(unit => unit.unit_type === 'MAIN').length;
+  const summaryName = displayName?.trim() || main?.name?.trim();
   return <div className="min-w-0 space-y-3 text-sm">
-    {main && <section className="flex min-w-0 items-start gap-3 rounded-2xl border border-border bg-card p-3.5 sm:p-4">
+    {(summaryName || schoolCode || statusLabel) && <section aria-label="Tổng quan trường học" className="flex min-w-0 items-start gap-3 rounded-2xl border border-border bg-card p-3.5 sm:p-4">
       <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Building2 aria-hidden="true" className="size-5"/>
       </span>
       <div className="min-w-0 space-y-1">
-        <p className="break-words text-base font-bold leading-6">{missing(main.name)}</p>
+        <p className="break-words text-base font-bold leading-6">{missing(summaryName)}</p>
         {schoolCode && <p className="break-all text-xs text-muted-foreground">{schoolCode}</p>}
         {statusLabel && <span className="inline-flex max-w-full rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
           {statusLabel}
         </span>}
       </div>
     </section>}
+    {mainCount > 1 && <p role="status" className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-foreground">Hồ sơ có nhiều đơn vị trường chính; chỉ hiển thị đơn vị đầu tiên. Vui lòng kiểm tra dữ liệu nguồn.</p>}
     {main ? <SchoolMainInfo unit={main}/>
       : <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
           Chưa có thông tin trường chính trong phạm vi hồ sơ được phép xem.

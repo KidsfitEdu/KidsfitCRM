@@ -416,11 +416,15 @@ public static class ManagerContractEndpoints
         }
         Audit.Add(db, http.UserId(), "REQUEST_SCHOOL_CONTRACT_REVISION", nameof(SalesContract), id,
             new { status = previousStatus }, new { contract.Status, reason }, http);
+        var collaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+            m.UserId == contract.OwnerUserId && m.OrganizationId == contract.OwnerOrganizationId
+            && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR"
+                || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
         CrmNotificationWriter.Add(db, contract.OwnerOrganizationId, contract.OwnerUserId,
             "SCHOOL_CONTRACT_NEEDS_REVISION", nameof(SalesContract), id,
             "Hợp đồng cần bổ sung hồ sơ",
             $"Quản lý đã yêu cầu chỉnh sửa hợp đồng {contract.ContractCode}. Mở chi tiết để xem lý do.",
-            "role-sales-staff-customers", now.Ticks);
+            collaborator ? "role-collaborator-approaches" : "role-sales-staff-customers", now.Ticks);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { message = "Đã trả hồ sơ để Sales bổ sung." });

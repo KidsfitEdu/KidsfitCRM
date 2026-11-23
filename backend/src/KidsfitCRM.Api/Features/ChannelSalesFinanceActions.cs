@@ -355,11 +355,18 @@ public sealed partial class ChannelSalesActions
             var org = await CrmNotificationWriter.RecipientOrganization(db, entry.BeneficiaryUserId,
                 entry.BeneficiaryOrganizationId, ct);
             if (org.HasValue)
+            {
+                var collaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                    m.UserId == entry.BeneficiaryUserId && m.OrganizationId == org.Value
+                    && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR"
+                        || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
                 CrmNotificationWriter.Add(db, org.Value, entry.BeneficiaryUserId,
                     "COMMISSION_ADJUSTED", nameof(CommissionLedgerEntry), entry.Id,
                     entry.Amount < 0 ? "Hoa hồng được điều chỉnh giảm" : "Hoa hồng được điều chỉnh",
                     "Kế toán đã ghi nhận điều chỉnh hoa hồng có lý do và chứng từ. Vui lòng xem thu nhập.",
-                    entry.BeneficiaryRole == "MANAGER" ? "manager-income" : "role-sales-staff-income");
+                    entry.BeneficiaryRole == "MANAGER" ? "manager-income" :
+                        collaborator ? "role-collaborator-income" : "role-sales-staff-income");
+            }
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

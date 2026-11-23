@@ -97,7 +97,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var contractId = await ActiveContract(scenario);
         var actor = await User("admin@kidsfit.vn");
         await using var db = fixture.Open();
-        var dueId = await db.RevenueSchedules.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        var dueId = await db.RevenueSchedules.Where(x => x.ContractId == contractId)
             .Select(x => x.Id).FirstAsync(Ct);
         var existingReceipts = await db.RevenueReceipts.CountAsync(x => x.ContractId == contractId, Ct);
         var existingLedger = await db.CommissionLedgerEntries.CountAsync(x => x.ContractId == contractId, Ct);
@@ -171,7 +171,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var today = ContractExpiryAlertService.BusinessDate(now);
         await using var db = fixture.Open();
         var protection = await db.CustomerProtections.SingleAsync(x =>
-            x.ContractId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE", Ct);
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE", Ct);
         // Use local noon to avoid UTC-local date transitions during the test.
         protection.EffectiveUntil = today.AddDays(30).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
         await db.SaveChangesAsync(Ct);
@@ -186,13 +186,13 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.DoesNotContain(alerts, x => x.RecipientUserId == scenario.Peer.UserId);
         await ContractExpiryAlertService.SweepAsync(db, now, Ct);
         Assert.Equal(2, await db.CrmNotifications.CountAsync(x =>
-            x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30", Ct));
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.Kind == "PROTECTION_BEFORE_30", Ct));
 
         protection.EffectiveUntil = today.AddDays(60).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
         await db.SaveChangesAsync(Ct);
         await ContractExpiryAlertService.SweepAsync(db, now, Ct);
         Assert.Equal(0, await db.CrmNotifications.CountAsync(x =>
-            x.ContractId == contractId && x.Kind == "PROTECTION_BEFORE_30" && x.Status == "OPEN", Ct));
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.Kind == "PROTECTION_BEFORE_30" && x.Status == "OPEN", Ct));
     }
 
     [MySqlFact] public async Task Sl02AccountingConfirmedRenewalAutomaticallyGrantsOnceWithoutManager()
@@ -207,7 +207,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         contract.ServiceStartOn = expires.AddYears(-1).AddDays(1);
         contract.ServiceEndOn = expires;
         var protection = await db.CustomerProtections.SingleAsync(x =>
-            x.ContractId == contractId && x.SourceType == "CONTRACT", Ct);
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT", Ct);
         var oldEnd = expires.ToDateTime(new TimeOnly(2, 0), DateTimeKind.Utc);
         protection.EffectiveUntil = oldEnd;
         var nextStart = expires.AddDays(1);
@@ -224,10 +224,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
 
         await ProtectionRenewalPolicy.SweepAsync(db, now, Ct);
         await ProtectionRenewalPolicy.SweepAsync(db, now, Ct);
-        var item = await db.ProtectionRenewalCases.SingleAsync(x => x.ContractId == contractId, Ct);
+        var item = await db.ProtectionRenewalCases.SingleAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct);
         Assert.Equal("APPROVED", item.Status);
         Assert.Equal("AUTO", item.Source);
-        Assert.Equal(1, await db.ProtectionRenewalCases.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(1, await db.ProtectionRenewalCases.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct));
         var protections = await db.CustomerProtections.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId
             && x.SourceType == "CONTRACT").OrderBy(x => x.EffectiveUntil).ToArrayAsync(Ct);
         Assert.Equal(2, protections.Length);
@@ -246,7 +246,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         contract.ServiceEndOn = expiredYesterday;
         contract.ServiceStartOn = expiredYesterday.AddYears(-1).AddDays(1);
         var protection = await db.CustomerProtections.SingleAsync(x =>
-            x.ContractId == contractId && x.SourceType == "CONTRACT", Ct);
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT", Ct);
         protection.EffectiveUntil = expiredYesterday.ToDateTime(new TimeOnly(1, 0), DateTimeKind.Utc);
         await db.SaveChangesAsync(Ct);
 
@@ -255,10 +255,10 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.False(await ProtectionRenewalPolicy.HasPriorityForOtherSalesAsync(
             db, scenario.CustomerId, scenario.Seller.UserId, DateTime.UtcNow, Ct));
         await ProtectionRenewalPolicy.SweepAsync(db, DateTime.UtcNow, Ct);
-        var pending = await db.ProtectionRenewalCases.SingleAsync(x => x.ContractId == contractId, Ct);
+        var pending = await db.ProtectionRenewalCases.SingleAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct);
         Assert.Equal("WAITING_RENEWAL", pending.Status);
         Assert.Equal(1, await db.CustomerProtections.CountAsync(x =>
-            x.ContractId == contractId && x.SourceType == "CONTRACT", Ct));
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT", Ct));
         var actions = new ChannelSalesActions(db);
         await Assert.ThrowsAsync<ApiConflictException>(() =>
             actions.RegisterCustomerApproach(Claim(scenario.CustomerId), scenario.Peer.UserId,
@@ -300,7 +300,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await db.SaveChangesAsync(Ct);
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
         Assert.Equal(2, await db.CrmNotifications.CountAsync(a =>
-            a.ContractId == contractId && a.Status == "RESOLVED", Ct));
+            a.EntityType == nameof(SalesContract) && a.EntityId == contractId && a.Status == "RESOLVED", Ct));
     }
 
     [MySqlFact] public async Task Nt01CreatesScopedServiceNoticeOnlyOnceAndResolvesOnChangedServiceTerm()
@@ -326,7 +326,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.DoesNotContain(notices, x => x.RecipientUserId == scenario.Peer.UserId);
 
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
-        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct));
 
         // A KC-02 renewal confirmed for the next year supersedes the old expiry milestone.
         var renewalStart = today.AddDays(31);
@@ -340,8 +340,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         });
         await db.SaveChangesAsync(Ct);
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
-        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.ContractId == contractId && x.Status == "RESOLVED", Ct));
-        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.ContractId == contractId, Ct));
+        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.Status == "RESOLVED", Ct));
+        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct));
     }
 
     [MySqlFact] public async Task CheckeeConfirmationAutomaticallyActivatesExactlyOneFiveYearSchoolProtection()
@@ -353,7 +353,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var contractId = await actions.ReportSignedContract(registrationId, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"),
             scenario.Seller.UserId, Http(), Ct);
         await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
-        var reconciliationId = await db.ReconciliationCases.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        var reconciliationId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
             .Select(x => x.Id).SingleAsync(Ct);
         var checkee = await User("checkee@kidsfit.vn");
         await actions.Reconcile(reconciliationId, true, new("Đã xác minh hợp lệ"), checkee, Http(), Ct);
@@ -364,7 +364,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(contract.VerifiedAt, contract.ProtectionStartsAt);
         Assert.Equal(contract.VerifiedAt!.Value.AddYears(5), contract.ProtectionUntil);
         var protections = await db.CustomerProtections.AsNoTracking()
-            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE")
+            .Where(x => x.ContractId == contractId && x.SourceType == "CONTRACT" && x.Status == "ACTIVE")
             .ToArrayAsync(Ct);
         Assert.Single(protections);
         Assert.Equal(scenario.Seller.UserId, protections[0].OwnerUserId);
@@ -392,7 +392,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var contractId = await actions.ReportSignedContract(registration, new(Key(), "TEST-" + Key(), ChannelSalesValidation.BusinessDate(DateTime.UtcNow), null, 1_000_000, null, "TEST-CONTRACT", ServicePlan: "SCHOOL_YEAR", MaintenanceFee: 1_000_000m, SetupFee: 0m, ServiceStartOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow), ServiceEndOn: ChannelSalesValidation.BusinessDate(DateTime.UtcNow).AddYears(1).AddDays(-1), PaymentCycle: "YEARLY"),
             scenario.Seller.UserId, Http(), Ct);
         await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
-        var caseId = await db.ReconciliationCases.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        var caseId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
             .Select(x => x.Id).SingleAsync(Ct);
         await actions.Reconcile(caseId, false, new("Thông tin hồ sơ có tranh chấp"),
             await User("checkee@kidsfit.vn"), Http(), Ct);
@@ -590,7 +590,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(beginning.ToString("yyyy-MM-dd"),
             managerView.GetProperty("service_start_on").GetString());
         await actions.ReviewSchoolContract(contractId, scenario.Manager.UserId, Http(), Ct);
-        var caseId = await db.ReconciliationCases.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        var caseId = await db.ReconciliationCases.Where(x => x.ContractId == contractId)
             .Select(x => x.Id).SingleAsync(Ct);
         var checkee = await User("checkee@kidsfit.vn");
         var checkeeView = Json(await CheckeeVerificationEndpoints.Detail(caseId,
@@ -624,7 +624,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var originalTotal = before.TotalValue;
         var originalPlan = before.ServicePlan;
         var originalProtection = before.ProtectionUntil;
-        var originalSchedules = await db.RevenueSchedules.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        var originalSchedules = await db.RevenueSchedules.Where(x => x.ContractId == contractId)
             .Select(x => new { x.DueOn, x.AmountDue }).ToArrayAsync(Ct);
         Assert.Null(before.ServiceStartOn);
         Assert.Null(before.ServiceEndOn);
@@ -647,7 +647,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(originalTotal, modified.TotalValue);
         Assert.Equal(originalPlan, modified.ServicePlan);
         Assert.Equal(originalProtection, modified.ProtectionUntil);
-        var afterSchedules = await db.RevenueSchedules.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        var afterSchedules = await db.RevenueSchedules.Where(x => x.ContractId == contractId)
             .Select(x => new { x.DueOn, x.AmountDue }).ToArrayAsync(Ct);
         Assert.Equal(originalSchedules, afterSchedules);
         await AccountingContractEndpoints.SetServiceTerm(contractId,
@@ -1942,7 +1942,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await db.SaveChangesAsync(Ct);
 
         var ledgerBefore = await db.CommissionLedgerEntries
-            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).Select(x => x.Amount).ToArrayAsync(Ct);
+            .Where(x => x.ContractId == contractId).Select(x => x.Amount).ToArrayAsync(Ct);
         var release = new ReleaseSchoolApproachesRequest(Key(), "Rà soát quyền tiếp cận của Sales");
         var releaseId = await actions.ReleaseSchoolApproaches(
             s.Seller.MembershipId, release, s.Manager.UserId, Http(s.Manager.UserId), Ct);
@@ -1965,7 +1965,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.True(await db.ApproachRegistrations.AnyAsync(x => x.CustomerId == s.CustomerId
             && x.OwnerUserId == s.Seller.UserId && x.Status == "CONVERTED", Ct));
         Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries
-            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).Select(x => x.Amount).ToArrayAsync(Ct));
+            .Where(x => x.ContractId == contractId).Select(x => x.Amount).ToArrayAsync(Ct));
         var journal = await db.SchoolHandovers.SingleAsync(x => x.Id == releaseId, Ct);
         Assert.False(journal.AccountSuspended);
         Assert.Equal(1, journal.RevokedRegistrations);
@@ -1996,7 +1996,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await using var db = fixture.Open(); var a = new ChannelSalesActions(db);
         var unsigned = await a.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct);
         await a.RecordRevenueReceipt(contractId, new(Key(), null, 1_000_000, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct);
-        var ledgerBefore = await db.CommissionLedgerEntries.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync();
+        var ledgerBefore = await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync();
         var request = new CompleteSchoolHandoverRequest(Key(), "Ngưng hợp tác", "Đã bàn giao lịch demo và các cam kết; hồ sơ hợp đồng giữ nguyên.", false);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.CompleteSchoolHandover(s.Seller.MembershipId, request with { SuspendAccount = true }, s.Manager.UserId, Http(), Ct));
         Assert.Equal("ACTIVE", await db.ApproachRegistrations.Where(x => x.Id == unsigned).Select(x => x.Status).SingleAsync());
@@ -2005,7 +2005,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(1, (await db.SchoolHandovers.FindAsync(id))!.RevokedRegistrations);
         Assert.Equal("REVOKED", await db.ApproachRegistrations.Where(x => x.Id == unsigned).Select(x => x.Status).SingleAsync());
         Assert.True(await db.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE"));
-        Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync());
+        Assert.Equal(ledgerBefore, await db.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES").Select(x => x.Amount).SingleAsync());
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.RegisterCustomerApproach(Claim(s.OtherCustomerId), s.Seller.UserId, Http(), Ct));
         var payout = await a.CreatePayout(new(Key(), s.OrgId, s.Seller.UserId, ChannelSalesValidation.BusinessPeriod(DateTime.UtcNow), 0, null), admin, Http(), Ct);
         await a.SubmitPayout(payout, admin, Http(), Ct);
@@ -2118,7 +2118,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
             new(Key(), first.UserId, careOrg, "Manager không được phân công"), s.Manager.UserId, Http(), Ct));
         await a.AssignContractCare(contractId, new(Key(), first.UserId, careOrg, null), admin, Http(), Ct);
         Assert.Equal("Admin phân công nhân viên CSKH.", await db.ContractCareHandovers
-            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.AssignedUserId == first.UserId)
+            .Where(x => x.ContractId == contractId && x.AssignedUserId == first.UserId)
             .Select(x => x.Reason).SingleAsync(Ct));
         var ticket = await a.CreateCustomerSupportCase(new(Key(), contractId, "Lỗi đăng nhập", "Máy chủ đăng nhập lỗi"), first.UserId, Http(), Ct);
         await a.UpdateCustomerSupportCase(ticket, new("IN_PROGRESS", "Đã báo CHECKEE", DateTime.UtcNow.AddDays(1)), first.UserId, Http(), Ct);
@@ -2126,7 +2126,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await a.AssignContractCare(contractId, handover, admin, Http(), Ct);
         await a.AssignContractCare(contractId, handover, admin, Http(), Ct);
         Assert.Equal("Admin điều chuyển nhân viên CSKH.", await db.ContractCareHandovers
-            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.AssignedUserId == second.UserId)
+            .Where(x => x.ContractId == contractId && x.AssignedUserId == second.UserId)
             .Select(x => x.Reason).SingleAsync(Ct));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => a.UpdateCustomerSupportCase(ticket, new("RESOLVED", "Không còn phụ trách", null), first.UserId, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => a.UpdateCustomerSupportCase(ticket,
@@ -2220,9 +2220,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Single(await Task.WhenAll(Refund(), Refund()), x => x.HasValue);
         await using var check = fixture.Open(); var a = new ChannelSalesActions(check);
         Assert.Equal(1_000_000, await check.RevenueReceipts.Where(x => x.Id == receipt).Select(x => x.Amount).SingleAsync());
-        Assert.Equal(250_000, await check.CommissionLedgerEntries.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.BeneficiaryRole == "SALES")
+        Assert.Equal(250_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "SALES")
             .Select(x => x.Amount).SingleAsync());
-        Assert.Equal(50_000, await check.CommissionLedgerEntries.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.BeneficiaryRole == "MANAGER")
+        Assert.Equal(50_000, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId && x.BeneficiaryRole == "MANAGER")
             .Select(x => x.Amount).SingleAsync());
         // Aggregate organizational receipts are available to the authorized finance Admin, not a Sales-only view.
         var finance = Json(await ChannelSalesOperationsEndpoints.Finance(Http(admin), check, null, Ct));
@@ -2252,22 +2252,22 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(System.Text.Json.JsonValueKind.Array, finance.GetProperty("payout_statuses").ValueKind);
         Assert.Equal(System.Text.Json.JsonValueKind.Array, finance.GetProperty("attention").ValueKind);
         Assert.True(finance.GetProperty("summary").GetProperty("eligible_for_payout").GetDecimal() >= 0);
-        Assert.Equal(250_000m, (await check.RevenueReceipts.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).SumAsync(x => x.Amount))
-            - (await check.RevenueRefunds.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).SumAsync(x => x.Amount)));
+        Assert.Equal(250_000m, (await check.RevenueReceipts.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount))
+            - (await check.RevenueRefunds.Where(x => x.ContractId == contractId).SumAsync(x => x.Amount)));
         var cancellation = new CancelSalesContractRequest(Key(), "Chấm dứt theo quyết định", "TEST-CANCELLATION");
         var id = await a.CancelSalesContract(contractId, cancellation, admin, Http(), Ct);
         Assert.Equal(id, await a.CancelSalesContract(contractId, cancellation, admin, Http(), Ct));
         await Assert.ThrowsAsync<ApiConflictException>(() => a.RecordRevenueReceipt(contractId, new(Key(), null, 1, null, "RC-" + Key(), "BANK_TRANSFER"), admin, Http(), Ct));
-        var reconciliation = await check.ReconciliationCases.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).Select(x => x.Id).SingleAsync();
+        var reconciliation = await check.ReconciliationCases.Where(x => x.ContractId == contractId).Select(x => x.Id).SingleAsync();
         await a.Reconcile(reconciliation, true, new("Đã rà soát quyết toán"), await User("checkee@kidsfit.vn"), Http(), Ct);
         Assert.True(await check.CrmNotifications.AsNoTracking().AnyAsync(x =>
             x.EntityType == nameof(ReconciliationCase) && x.EntityId == reconciliation
             && x.Kind == "CHECKEE_SETTLEMENT_CONFIRMED", Ct));
         Assert.Equal("CANCELLED", await check.SalesContracts.Where(x => x.Id == contractId).Select(x => x.Status).SingleAsync());
         Assert.False(await check.CustomerProtections.AnyAsync(x => x.ContractId == contractId && x.Status == "ACTIVE"));
-        Assert.Single(await check.RevenueRefunds.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).ToArrayAsync());
-        Assert.Equal(2, await check.CommissionLedgerEntries.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).CountAsync());
-        Assert.Contains(await check.CommissionLedgerEntries.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).ToArrayAsync(),
+        Assert.Single(await check.RevenueRefunds.Where(x => x.ContractId == contractId).ToArrayAsync());
+        Assert.Equal(2, await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).CountAsync());
+        Assert.Contains(await check.CommissionLedgerEntries.Where(x => x.ContractId == contractId).ToArrayAsync(),
             entry => entry.BeneficiaryRole == "MANAGER");
     }
 
@@ -2468,9 +2468,9 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(450, submitted.StudentCount);
         Assert.Equal(2, submitted.BranchCount);
         Assert.Equal("Đã cập nhật theo yêu cầu Quản lý.", submitted.ContractNote);
-        Assert.Equal(1_100_000m, await db.RevenueSchedules.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        Assert.Equal(1_100_000m, await db.RevenueSchedules.Where(x => x.ContractId == contractId)
             .Select(x => x.AmountDue).SingleAsync(Ct));
-        Assert.Equal(1_100_000m, await db.SalesContractItems.Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId)
+        Assert.Equal(1_100_000m, await db.SalesContractItems.Where(x => x.ContractId == contractId)
             .SumAsync(x => x.Amount, Ct));
         Assert.True(await db.AuditLogs.AnyAsync(x => x.EntityId == contractId
             && x.EntityType == nameof(SalesContract)

@@ -104,7 +104,7 @@ public static class ChannelSalesOperationsEndpoints
                     join unit in db.SchoolUnits.AsNoTracking() on school.Id equals unit.DirectorySchoolId
                     where school.CustomerId == id
                     orderby unit.UnitType, unit.Name
-                    select new { unit.Id, unit.Name, unit.UnitType, unit.Address, unit.Province, unit.Ward, unit.ContactName, unit.ContactPosition, unit.ContactPhone, unit.Email }).ToArrayAsync(ct)
+                    select new { unit.Id, unit.Name, unit.UnitType, unit.Address, unit.Province, unit.Ward, unit.ContactName, unit.ContactPosition, unit.ContactPhone, unit.SchoolPhone, unit.Email, unit.Note }).ToArrayAsync(ct)
             : [];
         return Results.Ok(new
         {

@@ -416,6 +416,11 @@ public static class ManagerContractEndpoints
         }
         Audit.Add(db, http.UserId(), "REQUEST_SCHOOL_CONTRACT_REVISION", nameof(SalesContract), id,
             new { status = previousStatus }, new { contract.Status, reason }, http);
+        CrmNotificationWriter.Add(db, contract.OwnerOrganizationId, contract.OwnerUserId,
+            "SCHOOL_CONTRACT_NEEDS_REVISION", nameof(SalesContract), id,
+            "Hợp đồng cần bổ sung hồ sơ",
+            $"Quản lý đã yêu cầu chỉnh sửa hợp đồng {contract.ContractCode}. Mở chi tiết để xem lý do.",
+            "role-sales-staff-customers", now.Ticks);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { message = "Đã trả hồ sơ để Sales bổ sung." });
@@ -594,6 +599,15 @@ public static class ManagerContractEndpoints
         }
         Audit.Add(db, http.UserId(), "RESUBMIT_SCHOOL_CONTRACT", nameof(SalesContract), id,
             new { status = "NEEDS_REVISION" }, new { contract.Status, evidence_id = evidence?.Id, reused_existing_evidence = evidence is null }, http);
+        var managerId = await db.OrganizationMemberships.AsNoTracking().Where(m =>
+            m.UserId == contract.OwnerUserId && m.OrganizationId == contract.OwnerOrganizationId
+            && m.Status == "ACTIVE").Select(m => m.ManagerUserId).FirstOrDefaultAsync(ct);
+        if (managerId.HasValue && managerId.Value != http.UserId())
+            CrmNotificationWriter.Add(db, contract.OwnerOrganizationId, managerId.Value,
+                "SCHOOL_CONTRACT_RESUBMITTED", nameof(SalesContract), id,
+                "Sales đã bổ sung hợp đồng",
+                $"Hợp đồng {contract.ContractCode} đã được gửi lại để Quản lý kiểm tra.",
+                "manager-contracts", now.Ticks);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { message = "Đã bổ sung hợp đồng, chuyển lại Quản lý kiểm tra." });

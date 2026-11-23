@@ -184,6 +184,23 @@ textarea {
 }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--crm-scrollbar-thumb-hover); }
 ::-webkit-scrollbar-corner { background: transparent; }
+/* Hide only the outer CRM document scrollbar. Keep the page scrollable and
+ * preserve visible scrollbars in drawers, tables, dialogs and the sidebar. */
+html:has(.crm-workspace-content) {
+  scrollbar-width: none;
+}
+html:has(.crm-workspace-content)::-webkit-scrollbar {
+  display: none;
+}
+@media (forced-colors: active) {
+  html:has(.crm-workspace-content) {
+    scrollbar-width: auto;
+  }
+  html:has(.crm-workspace-content)::-webkit-scrollbar {
+    display: initial;
+  }
+}
+
 /* Shared scroll containers: contract detail drawers, dialogs and scrollable lists. */
 .crm-scrollbar,
 [data-slot="sheet-content"] .crm-scrollbar {

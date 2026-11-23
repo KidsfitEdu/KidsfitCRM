@@ -147,6 +147,6 @@ test('proposal workflow is responsive and preserves empty/pending fields', () =>
   }));
   assert.match(html, /Chưa cập nhật/);
   assert.match(html, /grid-cols-1/);
-  assert.match(html, /min-\\[400px\\]:grid-cols-2/);
+  assert.match(html, /min-\[400px\]:grid-cols-2/);
   assert.doesNotMatch(html, /Hạn xử lý/);
 });

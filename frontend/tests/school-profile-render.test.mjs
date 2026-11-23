@@ -81,13 +81,34 @@ test('duplicate MAIN units display a diagnostic without repeating the main secti
   assert.doesNotMatch(html, /<h4[^>]*>Trường B/);
 });
 
-test('address matcher deduplicates complete geographic segments without dropping street text', () => {
-  assert.equal(formatSchoolAddress(unit(1, 'MAIN', 'A', {
-    address: '123 Đường A, Phường Ninh Kiều, Thành phố Cần Thơ',
-  })), '123 Đường A, Phường Ninh Kiều, Thành phố Cần Thơ');
-  assert.equal(formatSchoolAddress(unit(1, 'MAIN', 'A', {
+test('school address always prefers the stored address over repeated wards and provinces', () => {
+  const address = 'Số 68 đường 923, Phường An Bình, TP Cần Thơ; Khu vực Mỹ Lộc, Phường An Bình, TP Cần Thơ';
+  assert.equal(formatSchoolAddress(unit(1, 'BRANCH', 'Phân hiệu A', {
+    address, ward: 'An Bình', province: 'Cần Thơ',
+  })), address);
+  assert.equal(formatSchoolAddress(unit(1, 'MAIN', 'Trường A', {
     address: 'Đường Cần Thơ số 7', ward: 'Ninh Kiều', province: 'Cần Thơ',
-  })), 'Đường Cần Thơ số 7, Ninh Kiều, Cần Thơ');
+  })), 'Đường Cần Thơ số 7');
+});
+
+test('missing addresses fall back to ward and province without empty delimiters', () => {
+  assert.equal(formatSchoolAddress(unit(1, 'MAIN', 'A', {
+    address: '  ', ward: 'Ninh Kiều', province: 'Cần Thơ',
+  })), 'Ninh Kiều, Cần Thơ');
+  assert.equal(formatSchoolAddress(unit(1, 'BRANCH', 'B', {
+    address: null, ward: '', province: 'Cần Thơ',
+  })), 'Cần Thơ');
+  assert.equal(formatSchoolAddress(unit(1, 'BRANCH', 'B', {
+    address: null, ward: '', province: '',
+  })), 'Chưa cập nhật');
+});
+
+test('school phone is distinct from contact phone in the shared profile', () => {
+  const html = render({ units: [unit(1, 'MAIN', 'Trường A', {
+    school_phone: '02923824130', contact_phone: '0901234567',
+  })] });
+  assert.match(html, /02923824130/);
+  assert.match(html, /0901234567/);
 });
 
 test('Sales profile retains tax code and customer contact without duplicate MAIN', () => {

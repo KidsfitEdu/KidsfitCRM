@@ -1,4 +1,5 @@
 using KidsfitCRM.Api.Common;
+using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,7 +38,7 @@ public static class WorkflowNotificationEndpoints
         return secured;
     }
 
-    private static IQueryable<Domain.CrmNotification> Visible(KidsfitDbContext db, long userId) =>
+    private static IQueryable<CrmNotification> Visible(KidsfitDbContext db, long userId) =>
         db.CrmNotifications.Where(x => x.RecipientUserId == userId && x.Status == "OPEN"
             && db.Users.Any(u => u.Id == userId && u.Status == "ACTIVE")
             && db.OrganizationMemberships.Any(m => m.OrganizationId == x.OrganizationId

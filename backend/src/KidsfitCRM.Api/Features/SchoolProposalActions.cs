@@ -2,6 +2,7 @@ using System.Data;
 using System.Net.Mail;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using MySql.Data.MySqlClient;
 
@@ -45,6 +46,9 @@ public sealed partial class ChannelSalesActions
         await db.SaveChangesAsync(ct);
         Audit.Add(db, actorId, "SUBMIT_SCHOOL_PROPOSAL", nameof(SchoolProposal), proposal.Id, null,
             new { proposal.Status, proposal.ManagerUserId, proposal.OrganizationId, proposal.ReviewDueAt }, http);
+        CrmNotificationWriter.Add(db, proposal.OrganizationId, proposal.ManagerUserId, "SCHOOL_PROPOSAL_SUBMITTED",
+            nameof(SchoolProposal), proposal.Id, "Đề xuất trường mới",
+            "Sales/CTV đã gửi đề xuất trường mới, cần Quản lý kiểm tra.", "manager-proposals");
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return proposal.Id;
     }, ct);
@@ -251,6 +255,31 @@ public sealed partial class ChannelSalesActions
         }
         Audit.Add(db, actorId, finalReview ? "ADMIN_REVIEW_SCHOOL_PROPOSAL" : "MANAGER_REVIEW_SCHOOL_PROPOSAL", nameof(SchoolProposal), id,
             new { status = previous }, new { proposal.Status, proposal.ReviewDueAt, proposal.DirectorySchoolId, request.DuplicateReviewed, reason }, http);
+        if (!finalReview && request.Approve)
+        {
+            var central = await CrmNotificationWriter.CentralOrganization(db, ct);
+            if (central.HasValue)
+            {
+                var admins = await CrmNotificationWriter.CentralReviewers(db, Permissions.SchoolDirectoryManage, ct);
+                foreach (var adminId in admins)
+                    CrmNotificationWriter.Add(db, central.Value, adminId, "SCHOOL_PROPOSAL_FORWARDED",
+                        nameof(SchoolProposal), proposal.Id, "Đề xuất trường cần Admin duyệt",
+                        "Quản lý đã chuyển đề xuất trường đến Admin KIDSFIT.", "admin-proposals");
+            }
+        }
+        else
+        {
+            var salesIsCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                m.UserId == proposal.SubmittedByUserId && m.OrganizationId == proposal.OrganizationId
+                && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), ct);
+            CrmNotificationWriter.Add(db, proposal.OrganizationId, proposal.SubmittedByUserId,
+                proposal.Status == "APPROVED" ? "SCHOOL_PROPOSAL_APPROVED" : "SCHOOL_PROPOSAL_REJECTED",
+                nameof(SchoolProposal), proposal.Id,
+                proposal.Status == "APPROVED" ? "Đề xuất trường được duyệt" : "Đề xuất trường bị từ chối",
+                proposal.Status == "APPROVED" ? "Đề xuất trường đã được Admin KIDSFIT phê duyệt." :
+                    "Đề xuất trường bị từ chối; vui lòng mở hồ sơ để xem lý do.",
+                salesIsCollaborator ? "role-collaborator-proposals" : "role-sales-staff-proposals");
+        }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return id;
     }, ct);

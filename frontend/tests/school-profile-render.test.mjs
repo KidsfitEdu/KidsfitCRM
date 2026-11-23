@@ -86,3 +86,29 @@ test('address matcher deduplicates complete geographic segments without dropping
     address: 'Đường Cần Thơ số 7', ward: 'Ninh Kiều', province: 'Cần Thơ',
   })), 'Đường Cần Thơ số 7, Ninh Kiều, Cần Thơ');
 });
+
+test('Sales profile retains tax code and customer contact without duplicate MAIN', () => {
+  const html = render({
+    units: [unit(1, 'MAIN', 'Trường A', {address: null, contact_name: null, contact_phone: null})],
+    displayName: 'Trường A',
+    statusLabel: 'Đang tiếp cận',
+    taxCode: 'TAX-123',
+    customerContact: {address: 'Số 99 Ngô Quyền', contact_name: 'Cô Lan', contact_phone: '0901234567'},
+  });
+  assert.equal((html.match(/aria-label="Thông tin trường chính"/g) ?? []).length, 1);
+  assert.equal((html.match(/aria-label="Tổng quan trường học"/g) ?? []).length, 1);
+  assert.match(html, /Mã số thuế: TAX-123/);
+  assert.match(html, /Số 99 Ngô Quyền/);
+  assert.match(html, /0901234567/);
+});
+
+test('missing MAIN preserves customer contact without inventing a school unit', () => {
+  const html = render({
+    units: [],
+    displayName: 'Trường chờ xác minh',
+    customerContact: {contact_name: 'Người liên hệ', contact_phone: '0900000000'},
+  });
+  assert.match(html, /Liên hệ khách hàng/);
+  assert.match(html, /0900000000/);
+  assert.doesNotMatch(html, /aria-label="Thông tin trường chính"/);
+});

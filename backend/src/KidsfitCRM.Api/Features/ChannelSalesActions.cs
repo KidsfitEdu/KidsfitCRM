@@ -430,6 +430,18 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             });
             Audit.Add(db, actorId, "REPORT_SIGNED_CONTRACT", nameof(SalesContract), contract.Id, null,
                 new { contract.CustomerId, contract.ContractCode, contract.SignedOn, contract.TotalValue, contract.ProtectionUntil }, http);
+            if (contract.RequiresSchoolVerification)
+            {
+                var managerId = await db.OrganizationMemberships.AsNoTracking()
+                    .Where(m => m.UserId == contract.OwnerUserId && m.OrganizationId == contract.OwnerOrganizationId
+                        && m.Status == "ACTIVE")
+                    .Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);
+                if (managerId.HasValue)
+                    CrmNotificationWriter.Add(db, contract.OwnerOrganizationId, managerId.Value,
+                        "SCHOOL_CONTRACT_REPORTED", nameof(SalesContract), contract.Id,
+                        "Hợp đồng cần Quản lý kiểm tra", "Sales đã gửi hồ sơ hợp đồng, cần Quản lý kiểm tra và chuyển CHECKEE.",
+                        "manager-contracts");
+            }
             await db.SaveChangesAsync(cancellationToken);
             db.ReconciliationEvents.Add(new ReconciliationEvent
             {
@@ -721,6 +733,21 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
         });
         Audit.Add(db, actorId, confirm ? "CONFIRM_RECONCILIATION" : "DISPUTE_RECONCILIATION", nameof(ReconciliationCase), reconciliation.Id,
             new { status = previous }, new { reconciliation.Status, reconciliation.DisputeReason }, http);
+        if (schoolContract.RequiresSchoolVerification)
+        {
+            var kind = confirm ? "CHECKEE_CONTRACT_VERIFIED" : "CHECKEE_CONTRACT_DISPUTED";
+            var title = confirm ? "CHECKEE đã xác minh hợp đồng" : "CHECKEE yêu cầu xử lý hợp đồng";
+            var message = confirm ? "Hợp đồng đã được CHECKEE xác minh. Xem trạng thái và quyền bảo vệ theo hồ sơ."
+                : "CHECKEE đã phản hồi hợp đồng; cần xem thông tin tranh chấp hoặc hồ sơ cần bổ sung.";
+            CrmNotificationWriter.Add(db, schoolContract.OwnerOrganizationId, schoolContract.OwnerUserId,
+                kind, nameof(ReconciliationCase), reconciliation.Id, title, message, "role-sales-staff-customers");
+            var managerId = await db.OrganizationMemberships.AsNoTracking()
+                .Where(m => m.UserId == schoolContract.OwnerUserId && m.OrganizationId == schoolContract.OwnerOrganizationId
+                    && m.Status == "ACTIVE").Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);
+            if (managerId.HasValue)
+                CrmNotificationWriter.Add(db, schoolContract.OwnerOrganizationId, managerId.Value,
+                    kind, nameof(ReconciliationCase), reconciliation.Id, title, message, "manager-contracts");
+        }
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }

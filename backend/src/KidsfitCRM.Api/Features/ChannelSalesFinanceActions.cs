@@ -2,6 +2,7 @@ using System.Data;
 using System.Net.Mail;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -156,6 +157,16 @@ public sealed partial class ChannelSalesActions
         AddPayoutEvent(payout, actorId, "SUBMITTED", payout.AdjustmentReason, payout.UpdatedAt);
         Audit.Add(db, actorId, "SUBMIT_PAYOUT", nameof(Payout), id, new { status = oldStatus },
             new { payout.Status, payout.SuggestedAmount, payout.RequestedAmount, payout.AdjustmentReason }, http);
+        var centralOrgId = await CrmNotificationWriter.CentralOrganization(db, ct);
+        if (centralOrgId.HasValue)
+        {
+            var directors = await CrmNotificationWriter.CentralReviewers(db, Permissions.ChannelSalesPayoutApprove, ct);
+            foreach (var director in directors.Where(u => u != actorId))
+                CrmNotificationWriter.Add(db, centralOrgId.Value, director,
+                    "PAYOUT_SUBMITTED", nameof(Payout), payout.Id, "Phiếu chi cần phê duyệt",
+                    "Kế toán đã gửi phiếu chi, cần BGĐ phê duyệt hoặc yêu cầu bổ sung.",
+                    "role-board-payouts", payout.SubmittedAt!.Value.Ticks);
+        }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
@@ -186,6 +197,11 @@ public sealed partial class ChannelSalesActions
         AddPayoutEvent(payout, actorId, "CHANGES_REQUESTED", reason, payout.UpdatedAt);
         Audit.Add(db, actorId, "RETURN_PAYOUT", nameof(Payout), id,
             new { status = "PENDING_APPROVAL" }, new { payout.Status, reason }, http);
+        var returnOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.CreatedByUserId, payout.OrganizationId, ct);
+        if (returnOrgId.HasValue)
+            CrmNotificationWriter.Add(db, returnOrgId.Value, payout.CreatedByUserId,
+                "PAYOUT_CHANGES_REQUESTED", nameof(Payout), payout.Id, "Phiếu chi cần bổ sung",
+                "BGĐ đã yêu cầu chỉnh sửa phiếu chi; mở hồ sơ để xem lý do.", "role-accounting-revenue", payout.UpdatedAt.Ticks);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
@@ -211,6 +227,12 @@ public sealed partial class ChannelSalesActions
         payout.UpdatedAt = DateTime.UtcNow;
         AddPayoutEvent(payout, actorId, "APPROVED", null, payout.UpdatedAt);
         Audit.Add(db, actorId, "APPROVE_PAYOUT", nameof(Payout), id, new { status = "PENDING_APPROVAL" }, new { payout.Status, payout.NetAmount }, http);
+        var accountingOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.CreatedByUserId, payout.OrganizationId, ct);
+        if (accountingOrgId.HasValue)
+            CrmNotificationWriter.Add(db, accountingOrgId.Value, payout.CreatedByUserId,
+                "PAYOUT_APPROVED", nameof(Payout), payout.Id, "Phiếu chi được phê duyệt",
+                "BGĐ đã phê duyệt phiếu chi. Kế toán có thể xử lý thanh toán theo quy trình.",
+                "role-accounting-revenue");
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
@@ -248,6 +270,15 @@ public sealed partial class ChannelSalesActions
         payout.UpdatedAt = DateTime.UtcNow;
         AddPayoutEvent(payout, actorId, "PAID", CleanOptional(request.Reason, 1000), payout.UpdatedAt);
         Audit.Add(db, actorId, "COMPLETE_PAYOUT", nameof(Payout), id, new { status = "APPROVED" }, new { payout.Status, payout.NetAmount, payout.PaymentReference, payout.PaidAt }, http);
+        var beneficiaryOrgId = await CrmNotificationWriter.RecipientOrganization(db, payout.BeneficiaryUserId, payout.OrganizationId, ct);
+        if (beneficiaryOrgId.HasValue)
+        {
+            var beneficiaryManager = payout.BeneficiaryRole == "MANAGER";
+            CrmNotificationWriter.Add(db, beneficiaryOrgId.Value, payout.BeneficiaryUserId,
+                "PAYOUT_PAID", nameof(Payout), payout.Id, "Hoa hồng đã được thanh toán",
+                "Kế toán đã xác nhận chi trả hoa hồng theo phiếu đã duyệt.",
+                beneficiaryManager ? "manager-income" : "role-sales-staff-income");
+        }
         try
         {
             await db.SaveChangesAsync(ct);

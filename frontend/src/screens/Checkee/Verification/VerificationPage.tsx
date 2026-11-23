@@ -2,7 +2,7 @@
 
 import { getServicePlanLabel } from '@/lib/contract-payment-plan';
 import { useCallback, useEffect, useState } from 'react';
-import { BadgeCheck, CalendarDays, ClipboardList, Eye, ExternalLink, FileText, History, MessageSquareWarning, School } from 'lucide-react';
+import { BadgeCheck, ClipboardList, Eye, ExternalLink, FileText, MessageSquareWarning, School } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import {
   AdminListPanel, AdminListToolbar, AdminIconAction,
@@ -44,15 +44,6 @@ type Detail = {
 export const verificationStatusLabels: Record<string, string> = {
   PENDING: 'Chờ xác minh', DISPUTED: 'Đã phản hồi / Cần bổ sung',
   CONFIRMED: 'Đã xác minh', RESOLVED: 'Đã hoàn tất',
-};
-const eventLabels: Record<string, string> = {
-  OPENED: 'Sales gửi hợp đồng',
-  MANAGER_FORWARDED: 'Quản lý chuyển CHECKEE',
-  MANAGER_REVISION: 'Quản lý yêu cầu bổ sung',
-  SALES_RESUBMITTED: 'Sales bổ sung hợp đồng',
-  CONFIRMED: 'CHECKEE xác minh hợp lệ',
-  DISPUTED: 'CHECKEE phản hồi hồ sơ',
-  RESOLVED: 'Đã hoàn tất',
 };
 const canVerify = (abilities: string[]) => abilities.includes('*') || abilities.includes('channel_sales.reconcile');
 
@@ -204,7 +195,7 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
     </AdminListPanel>
     <AppDrawer open={selected !== null}
       onOpenChange={open => {if(!open){setSelected(null);setActionError('');}}}
-      title="Chi tiết hợp đồng" description="Hồ sơ CHECKEE và lịch sử xác minh"
+      title="Chi tiết hợp đồng" description="Hồ sơ hợp đồng cần xác minh"
       bodyClassName="space-y-4 bg-muted/10"
       footer={<div className="flex w-full flex-wrap items-center justify-end gap-2">
         <AppButton tone="neutral" onClick={() => setSelected(null)}>Đóng</AppButton>
@@ -280,34 +271,7 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
             </div>
           </section>
 
-          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
-            <h4 className="flex items-center gap-2 text-sm font-bold">
-              <CalendarDays aria-hidden="true" className="size-4 text-primary"/>Lịch thanh toán
-            </h4>
-            {detail.installments.length
-              ? <div className="divide-y divide-border">
-                  {detail.installments.map((part,index) => <div key={index} className="flex min-w-0 items-start justify-between gap-3 py-2 first:pt-0 last:pb-0">
-                    <span className="text-muted-foreground">{channelDate(part.due_on)}</span>
-                    <span className="shrink-0 text-right font-semibold tabular-nums">{channelMoney(part.amount)}</span>
-                  </div>)}
-                </div>
-              : <p className="text-muted-foreground">Chưa có lịch thanh toán.</p>}
-          </section>
 
-          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
-            <h4 className="flex items-center gap-2 text-sm font-bold">
-              <History aria-hidden="true" className="size-4 text-primary"/>Lịch sử xác minh
-            </h4>
-            {detail.history.length
-              ? <ol className="space-y-3">
-                  {detail.history.map((entry,index) => <li key={index} className="border-l-2 border-primary/30 pl-3">
-                    <p className="font-semibold">{eventLabels[entry.event_type] ?? entry.event_type}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{entry.actor_name} · {channelDate(entry.created_at)}</p>
-                    {entry.reason && <p className="mt-1 whitespace-pre-wrap break-words">{entry.reason}</p>}
-                  </li>)}
-                </ol>
-              : <p className="text-muted-foreground">Chưa có lịch sử xử lý.</p>}
-          </section>
         </div>}
     </AppDrawer>
     <ConfirmDialog open={confirmId !== null} busy={busy}

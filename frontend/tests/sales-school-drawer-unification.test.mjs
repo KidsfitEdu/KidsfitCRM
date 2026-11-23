@@ -22,7 +22,7 @@ test('My Schools drawer has one shared profile and no legacy duplicate cards', (
   assert.match(drawer, /Đang tải thông tin trường/);
 });
 
-test('proposal drawers reuse the same summary and preserve workflow metadata', () => {
+test('proposal drawers match the school detail panel dimensions and share workflow metadata', () => {
   const entries = [
     'components/crm/school-operations.tsx',
     'components/roles/ManagerWorklists.tsx',
@@ -30,13 +30,23 @@ test('proposal drawers reuse the same summary and preserve workflow metadata', (
   ];
   for (const path of entries) {
     const source = read(path);
-    const profile = source.match(/<SchoolProfileDetails\b[\s\S]*?\/>/)?.[0];
+    const profile = source.match(/<SchoolProfileDetails\\b[\\s\\S]*?\\/>/)?.[0];
+    const workflow = source.match(/<SchoolProposalWorkflowDetails\\b[\\s\\S]*?\\/>/)?.[0];
     assert.ok(profile, path + ': shared profile present');
+    assert.ok(workflow, path + ': shared workflow card present');
     assert.match(profile, /statusLabel=/);
     assert.match(profile, /schoolCode=/);
     assert.match(profile, /displayName=/);
-    assert.match(source, /Thông tin xử lý đề xuất/);
-    assert.match(source, /Người đề xuất/);
-    assert.match(source, /Hạn xử lý/);
+    assert.match(workflow, /submittedBy=/);
+    assert.match(workflow, /managerName=/);
+    assert.match(workflow, /formatReviewDueAt=/);
+    assert.match(source, /compactHeader/);
+    assert.match(source, /bodyClassName="space-y-4 bg-muted\\/10"/);
+    assert.doesNotMatch(source, /wide(?:=\\{selectedProposal !== null\\})?/);
   }
+  const workflow = read('components/crm/schools/school-proposal-workflow-details.tsx');
+  assert.match(workflow, /Thông tin xử lý đề xuất/);
+  assert.match(workflow, /Người đề xuất/);
+  assert.match(workflow, /Hạn xử lý/);
+  assert.doesNotMatch(workflow, /label="Trạng thái"/);
 });

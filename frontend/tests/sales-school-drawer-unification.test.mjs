@@ -24,13 +24,13 @@ test('My Schools drawer has one shared profile and no legacy duplicate cards', (
 
 test('proposal drawers reuse the same summary and preserve workflow metadata', () => {
   const entries = [
-    ['components/crm/school-operations.tsx', 'selectedProposal'],
-    ['components/roles/ManagerWorklists.tsx', 'selectedProposal'],
-    ['screens/Admin/Proposals/ProposalsPage.tsx', 'detail'],
+    'components/crm/school-operations.tsx',
+    'components/roles/ManagerWorklists.tsx',
+    'screens/Admin/Proposals/ProposalsPage.tsx',
   ];
-  for (const [path, record] of entries) {
+  for (const path of entries) {
     const source = read(path);
-    const profile = source.match(/<SchoolProfileDetails\b[^>]*\/>/s)?.[0];
+    const profile = source.match(/<SchoolProfileDetails\b[\s\S]*?\/>/)?.[0];
     assert.ok(profile, path + ': shared profile present');
     assert.match(profile, /statusLabel=/);
     assert.match(profile, /schoolCode=/);

@@ -31,7 +31,8 @@ export const formatSchoolAddress = (unit: SchoolProfileUnit) => {
   // Match complete comma/semicolon-delimited address components. Substring
   // matching can silently drop a ward whose name occurs inside a street name.
   const parts: string[] = [];
-  const normalize = (value: string) => value.trim().replace(/\\s+/g, ' ').toLocaleLowerCase('vi-VN');
+  const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi-VN')
+    .replace(/^(?:phường|xã|thị trấn|quận|huyện|tỉnh|thành phố|tp\.?)\s+/u, '');
   for (const value of [unit.address, unit.ward, unit.province]) {
     const text = value?.trim();
     if (!text) continue;

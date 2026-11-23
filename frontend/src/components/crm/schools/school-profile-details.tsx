@@ -31,19 +31,13 @@ type Props = {
 };
 
 const missing = (value?: string | null) => value?.trim() || 'Chưa cập nhật';
+/** Preserve an entered address verbatim; ward/province are only a fallback. */
 export const formatSchoolAddress = (unit: SchoolProfileUnit) => {
-  // Match complete comma/semicolon-delimited address components. Substring
-  // matching can silently drop a ward whose name occurs inside a street name.
-  const parts: string[] = [];
-  const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi-VN')
-    .replace(/^(?:phường|xã|thị trấn|quận|huyện|tỉnh|thành phố|tp\.?)\s+/u, '');
-  for (const value of [unit.address, unit.ward, unit.province]) {
-    const text = value?.trim();
-    if (!text) continue;
-    const present = parts.some(part => part.split(/[,;]/).some(segment => normalize(segment) === normalize(text)));
-    if (!present) parts.push(text);
-  }
-  return missing(parts.join(', '));
+  const address = unit.address?.trim();
+  if (address) return address;
+  const location = [unit.ward?.trim(), unit.province?.trim()]
+    .filter((part): part is string => !!part);
+  return missing(location.join(', '));
 };
 
 function SchoolField({label, value}: {label: string; value?: string | null}) {

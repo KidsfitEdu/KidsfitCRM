@@ -636,7 +636,8 @@ export function SchoolDirectory({
             </>
           )}
         </AppDialog>
-      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}} title={detail.data?.display_name ?? 'Hồ sơ trường học'} description={adminMode ? 'Thông tin trường chính và các phân hiệu' : (detail.data?.school_code ?? '')} wide>
+      <AppDrawer open={selected !== null} onOpenChange={(open) => {if (!open) setSelected(null);}}
+        title="Thông tin trường học" description={detail.data?.display_name ?? 'Thông tin trường chính và phân hiệu'}>
           {detail.error && <ErrorText>{detail.error.message}</ErrorText>}
           {detail.isPending ? (
             <p>Đang tải hồ sơ…</p>
@@ -723,7 +724,7 @@ export function SchoolDirectory({
 
 /** Read-only profile used by the school directory. */
 function SchoolDetail({ data }: { data: Detail }) {
-  return <SchoolProfileDetails units={data.units} />;
+  return <SchoolProfileDetails units={data.units} schoolCode={data.school_code} />;
 }
 
 const capacitySchema = z.object({

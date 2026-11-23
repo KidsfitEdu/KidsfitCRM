@@ -1578,7 +1578,7 @@ export function SchoolOperations({
       <AppDrawer
         open={selectedProposal !== null}
         onOpenChange={open => !open && setSelectedProposal(null)}
-        title={selectedProposal?.name || 'Chi tiết đề xuất trường'}
+        title="Chi tiết đề xuất trường"
         description={selectedProposal?.school_code?.startsWith('DRAFT-')
           ? 'Hồ sơ đề xuất trường học'
           : selectedProposal?.school_code || 'Hồ sơ đề xuất trường học'}

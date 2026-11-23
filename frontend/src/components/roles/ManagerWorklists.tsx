@@ -480,7 +480,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       }:field),
     }:action} onClose={() => setAction(null)} save={save} />
     <AppDrawer open={selection!==null} onOpenChange={v=>{if(!v)setSelection(null);}}
-      title={selectedProposal?.name ?? (selection?.kind==='invitation'?'Chi tiết phân bổ trường':selection?.kind==='extension'?'Chi tiết yêu cầu gia hạn':'Chi tiết hồ sơ')}
+      title={selectedProposal ? 'Chi tiết đề xuất trường' : (selection?.kind==='invitation'?'Chi tiết phân bổ trường':selection?.kind==='extension'?'Chi tiết yêu cầu gia hạn':'Chi tiết hồ sơ')}
       description={selectedProposal ? selectedProposal.school_code : 'Thông tin trong phạm vi quản lý được Backend cho phép truy cập.'}
       wide={selectedProposal !== null} bodyClassName="bg-muted/10">
         {selectedProposal && <div className="space-y-4 text-sm">
@@ -504,8 +504,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
             {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && targetSchoolQuery.error &&
               <p role="alert" className="text-amber-700">Không thể tải đầy đủ trường chính trong phạm vi quyền truy cập. Chỉ hiển thị thông tin được phép xem.</p>}
             <SchoolProfileDetails units={proposalUnits}/>
-            {proposalDetail?.proposal_mode === 'ADD_BRANCHES' && !proposalDetail.target && proposalUnits.every(x => x.unit_type !== 'MAIN') &&
-              <p className="text-muted-foreground">Chưa có thông tin trường chính liên kết.</p>}
           </>}
           <section className="space-y-2 border-t pt-3">
             <p className="font-semibold text-base">Thông tin xử lý đề xuất</p>

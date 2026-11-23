@@ -141,7 +141,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
   </AdminListPanel>
 </div>
     <AppDrawer open={detailId!==null} onOpenChange={open=>{if(!open){setDetailId(null);setDetail(null);}}}
-      wide title={detail?.name??'Chi tiết đề xuất trường'} description="Thông tin trường chính, phân hiệu và người đề xuất.">
+      wide title="Chi tiết đề xuất trường" description={detail?.name??'Thông tin trường chính và phân hiệu'}>
       {detailLoading?<p className="text-sm text-muted-foreground">Đang tải chi tiết…</p>:
         detail?<div className="space-y-5">
           <div className="grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2">
@@ -152,7 +152,6 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
             <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Loại đề xuất</p>
               <p>{detail.proposal_mode==='ADD_BRANCHES'?'Bổ sung phân hiệu vào trường hiện hữu':'Đề xuất trường chính mới'}</p></div>
           </div>
-          {detail.proposal_mode==='ADD_BRANCHES'&&<p className="text-xs text-muted-foreground">Trường chính hiện hữu và các phân hiệu đề xuất được hiển thị cùng hồ sơ.</p>}
           <SchoolProfileDetails units={profileUnits(detail)}/>
         </div>:<p className="text-sm text-muted-foreground">Không tải được thông tin đề xuất.</p>}
     </AppDrawer>

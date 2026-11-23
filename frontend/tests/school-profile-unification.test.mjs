@@ -24,7 +24,7 @@ test('Admin directory reuses the same detail body and does not repeat main campu
   const directory = read('components/crm/school-directory.tsx');
   assert.match(directory, /title="Thông tin trường học"/);
   assert.match(directory, /<SchoolDetail data=\{detail\.data\}/);
-  assert.match(directory, /<SchoolProfileDetails units=\{data\.units\} schoolCode=\{data\.school_code\} statusLabel=\{statusLabel\} displayName=\{data\.display_name\}\/>/);
+  assert.match(directory, /<SchoolProfileDetails units=\{data\.units\} schoolCode=\{data\.school_code\} statusLabel=\{statusLabel\} displayName=\{data\.display_name\}\s*\/>/);
   assert.match(directory, /title="Chỉnh sửa trường chính hoặc phân hiệu"/);
   assert.doesNotMatch(directory, /Sửa thông tin trường\/phân hiệu/);
 });

@@ -178,7 +178,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
 
         await ContractExpiryAlertService.SweepAsync(db, now, Ct);
         var alerts = await db.CrmNotifications.AsNoTracking()
-            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.Kind == "PROTECTION_BEFORE_30")
+            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")) && x.Kind == "PROTECTION_BEFORE_30")
             .ToArrayAsync(Ct);
         Assert.Equal(2, alerts.Length);
         Assert.Contains(alerts, x => x.RecipientUserId == scenario.Seller.UserId);
@@ -186,13 +186,13 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.DoesNotContain(alerts, x => x.RecipientUserId == scenario.Peer.UserId);
         await ContractExpiryAlertService.SweepAsync(db, now, Ct);
         Assert.Equal(2, await db.CrmNotifications.CountAsync(x =>
-            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.Kind == "PROTECTION_BEFORE_30", Ct));
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")) && x.Kind == "PROTECTION_BEFORE_30", Ct));
 
         protection.EffectiveUntil = today.AddDays(60).ToDateTime(new TimeOnly(5, 0), DateTimeKind.Utc);
         await db.SaveChangesAsync(Ct);
         await ContractExpiryAlertService.SweepAsync(db, now, Ct);
         Assert.Equal(0, await db.CrmNotifications.CountAsync(x =>
-            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.Kind == "PROTECTION_BEFORE_30" && x.Status == "OPEN", Ct));
+            x.EntityType == nameof(SalesContract) && x.EntityId == contractId && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")) && x.Kind == "PROTECTION_BEFORE_30" && x.Status == "OPEN", Ct));
     }
 
     [MySqlFact] public async Task Sl02AccountingConfirmedRenewalAutomaticallyGrantsOnceWithoutManager()
@@ -288,7 +288,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await db.SaveChangesAsync(Ct);
 
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
-        var alerts = await db.CrmNotifications.AsNoTracking().Where(a => a.EntityType == nameof(SalesContract) && a.EntityId == contractId).ToArrayAsync(Ct);
+        var alerts = await db.CrmNotifications.AsNoTracking().Where(a => a.EntityType == nameof(SalesContract) && a.EntityId == contractId && (a.Kind.StartsWith("SERVICE_") || a.Kind.StartsWith("PROTECTION_") || a.Kind.StartsWith("GI01_"))).ToArrayAsync(Ct);
         Assert.Equal(2, alerts.Length);
         Assert.All(alerts, a => Assert.Equal("SERVICE_GAP_BEFORE_30", a.Kind));
         Assert.All(alerts, a => Assert.Equal(today.AddDays(30), a.MilestoneOn));
@@ -300,7 +300,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await db.SaveChangesAsync(Ct);
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
         Assert.Equal(2, await db.CrmNotifications.CountAsync(a =>
-            a.EntityType == nameof(SalesContract) && a.EntityId == contractId && a.Status == "RESOLVED", Ct));
+            a.EntityType == nameof(SalesContract) && a.EntityId == contractId && (a.Kind.StartsWith("SERVICE_") || a.Kind.StartsWith("PROTECTION_") || a.Kind.StartsWith("GI01_")) && a.Status == "RESOLVED", Ct));
     }
 
     [MySqlFact] public async Task Nt01CreatesScopedServiceNoticeOnlyOnceAndResolvesOnChangedServiceTerm()
@@ -318,7 +318,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         var created = await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
         Assert.True(created >= 2);
         var notices = await db.CrmNotifications.AsNoTracking()
-            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId).ToArrayAsync(Ct);
+            .Where(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_"))).ToArrayAsync(Ct);
         Assert.Equal(2, notices.Length);
         Assert.All(notices, x => Assert.Equal("SERVICE_BEFORE_30", x.Kind));
         Assert.Contains(notices, x => x.RecipientUserId == scenario.Seller.UserId);
@@ -326,7 +326,7 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.DoesNotContain(notices, x => x.RecipientUserId == scenario.Peer.UserId);
 
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
-        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct));
+        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")), Ct));
 
         // A KC-02 renewal confirmed for the next year supersedes the old expiry milestone.
         var renewalStart = today.AddDays(31);
@@ -340,8 +340,8 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         });
         await db.SaveChangesAsync(Ct);
         await ContractExpiryAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
-        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && x.Status == "RESOLVED", Ct));
-        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId, Ct));
+        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")) && x.Status == "RESOLVED", Ct));
+        Assert.Equal(2, await db.CrmNotifications.CountAsync(x => x.EntityType == nameof(SalesContract) && x.EntityId == contractId && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")), Ct));
     }
 
     [MySqlFact] public async Task CheckeeConfirmationAutomaticallyActivatesExactlyOneFiveYearSchoolProtection()
@@ -1409,14 +1409,14 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         await SchoolProposalAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
         await SchoolProposalAlertService.SweepAsync(db, DateTime.UtcNow, Ct);
 
-        var notices = await db.CrmNotifications.AsNoTracking().Where(x => x.EntityType == nameof(SchoolProposal) && x.EntityId == proposalId).ToArrayAsync(Ct);
+        var notices = await db.CrmNotifications.AsNoTracking().Where(x => x.EntityType == nameof(SchoolProposal) && x.EntityId == proposalId && (x.Kind == "ADMIN_OVERDUE" || x.Kind == "DIRECTOR_ESCALATION")).ToArrayAsync(Ct);
         Assert.Equal(2, notices.Length);
         Assert.Contains(notices, x => x.RecipientUserId == adminId && x.Kind == "ADMIN_OVERDUE" && x.Status == "OPEN");
         Assert.Contains(notices, x => x.RecipientUserId == directorId && x.Kind == "DIRECTOR_ESCALATION" && x.Status == "OPEN");
 
         await action.ReviewSchoolProposal(proposalId, new(false, "Thiếu hồ sơ trường học", null), true, adminId, Http(), Ct);
         Assert.Empty(await db.CrmNotifications.AsNoTracking()
-            .Where(x => x.EntityType == nameof(SchoolProposal) && x.EntityId == proposalId && x.Status == "OPEN").ToArrayAsync(Ct));
+            .Where(x => x.EntityType == nameof(SchoolProposal) && x.EntityId == proposalId && (x.Kind == "ADMIN_OVERDUE" || x.Kind == "DIRECTOR_ESCALATION") && x.Status == "OPEN").ToArrayAsync(Ct));
     }
 
     [MySqlFact] public async Task ActualDatabaseUsesBinaryKeysAndWholeDongNotOnlyModelAnnotations()

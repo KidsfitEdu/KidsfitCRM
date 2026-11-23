@@ -1,6 +1,6 @@
 # KIDSFIT CRM — source map
 
-**Source inspection:** `develop` at `4e9c99db374c082289608c60573a7894ee375834` (2026-11-21). This is a **path and static-code snapshot**, not a claim that all features passed runtime tests. Check latest HEAD before implementation.
+**Source inspection / skill-guidance review:** `develop` at `780ed155f4872e2f61dacd267bd2c340782282ca` (2026-11-23). This is a **path and static-code snapshot**, not a claim that all features passed runtime tests. Check latest HEAD before implementation.
 
 | Area | Current source | Notes |
 | --- | --- | --- |
@@ -19,7 +19,12 @@
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |
 | Backend tests | `backend/tests/KidsfitCRM.Api.Tests/` | xUnit and isolated MySQL tests/fixtures |
+| Notifications | `Features/WorkflowNotificationEndpoints.cs`, `Infrastructure/{CrmNotificationWriter,SchoolProposalAlertService,ContractExpiryAlertService}.cs` | Unified `crm_notifications` inbox, event writers and scheduled notices; inspect current route and schema before edits |
 | CI | `.github/workflows/` | Frontend, isolated MySQL, password recovery, commission, escalation workflows |
+
+## Agent and skill routing
+- [AGENTS.md](../../AGENTS.md) selects the [primary engineering skill](../../.agents/skills/kidsfit-crm-dev/SKILL.md), its [notification](../../.agents/skills/kidsfit-crm-dev/references/notifications-and-events.md) and [testing](../../.agents/skills/kidsfit-crm-dev/references/testing-and-regression.md) references, and optional specialist UI/UX/domain skills. `kidsfit-crm-development/SKILL.md` is kept for compatibility, with its original domain references retained.
+- This file is a dated **static source map**, not an assertion that every feature passed runtime or production tests.
 
 ## Important current contracts
 - `Program.cs` configures `JsonNamingPolicy.SnakeCaseLower`. Password-change JSON must use `current_password`, `new_password`, `confirm_password`; a direct call to `AuthFeatures.ChangeOwnPassword` is not equivalent to an HTTP-binding test.

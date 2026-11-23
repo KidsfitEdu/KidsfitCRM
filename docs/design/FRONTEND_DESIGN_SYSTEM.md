@@ -103,3 +103,10 @@ Business source: [roles](../requirements/ROLES_AND_PERMISSIONS.md), [workflows](
 ## Skill and checks
 
 Load [frontend design skill](../../.agents/skills/kidsfit-crm-frontend-design/SKILL.md) for visual tokens and component reuse and [Web App UX skill](../../.agents/skills/kidsfit-crm-webapp-ux/SKILL.md) for app-like experiences. From `frontend/`, run `npm run lint`, `npx tsc --noEmit`, `npm run test:unit`, `npm run test:pages`, `npm run build` when UI code changes; this Real API Only frontend has no `test:demo` script. Browser testing must be performed before reporting visual fidelity.
+
+## Compact workflow notification UI (2026-11-23 reference)
+
+- The shared bell in `frontend/src/components/layout/Header.tsx` uses the unified `/api/notifications` inbox and its existing paginated query. For UI work, read [Notifications & Events](../../.agents/skills/kidsfit-crm-dev/references/notifications-and-events.md) for event semantics; visual design must not create or alter server approval states.
+- Approved compact pattern: popover about 320px wide (constrained by viewport), concise heading and unread count, three filters (`Tất cả`, `Chưa đọc`, `Cần xử lý`), simple divided rows rather than nested bordered cards, unread dot, one-line title with small timestamp, short two-line preview and meaningful action state when appropriate.
+- Keep the list scrollable independently with a bounded height; the `Tải thêm` action must fetch actual backend pages through TanStack Query. Do not fabricate pagination or claim filter coverage beyond loaded pages.
+- Respect semantic theme tokens, readable Vietnamese, keyboard/focus/touch access, no off-screen popovers and safe 320/375/390px layouts. The screenshot is user-supplied design reference; static source checks are **not** rendered visual QA.

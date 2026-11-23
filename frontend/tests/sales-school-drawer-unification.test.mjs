@@ -30,8 +30,8 @@ test('proposal drawers match the school detail panel dimensions and share workfl
   ];
   for (const path of entries) {
     const source = read(path);
-    const profile = source.match(/<SchoolProfileDetails\\b[\\s\\S]*?\\/>/)?.[0];
-    const workflow = source.match(/<SchoolProposalWorkflowDetails\\b[\\s\\S]*?\\/>/)?.[0];
+    const profile = source.match(/<SchoolProfileDetails\b[\s\S]*?\/>/)?.[0];
+    const workflow = source.match(/<SchoolProposalWorkflowDetails\b[\s\S]*?\/>/)?.[0];
     assert.ok(profile, path + ': shared profile present');
     assert.ok(workflow, path + ': shared workflow card present');
     assert.match(profile, /statusLabel=/);
@@ -41,8 +41,10 @@ test('proposal drawers match the school detail panel dimensions and share workfl
     assert.match(workflow, /managerName=/);
     assert.match(workflow, /formatReviewDueAt=/);
     assert.match(source, /compactHeader/);
-    assert.match(source, /bodyClassName="space-y-4 bg-muted\\/10"/);
-    assert.doesNotMatch(source, /wide(?:=\\{selectedProposal !== null\\})?/);
+    assert.match(source, /bodyClassName="space-y-4 bg-muted\/10"/);
+    const drawerStart = path.includes('school-operations') ? source.indexOf('open={selectedProposal !== null}') : path.includes('ManagerWorklists') ? source.indexOf('open={selection!==null}') : source.indexOf('open={detailId!==null}');
+    assert.ok(drawerStart >= 0);
+    assert.doesNotMatch(source.slice(drawerStart, source.indexOf('>', drawerStart)), /\bwide\b/);
   }
   const workflow = read('components/crm/schools/school-proposal-workflow-details.tsx');
   assert.match(workflow, /Thông tin xử lý đề xuất/);

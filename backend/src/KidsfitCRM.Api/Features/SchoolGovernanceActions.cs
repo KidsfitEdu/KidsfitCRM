@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
+using KidsfitCRM.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
@@ -80,6 +81,13 @@ public sealed partial class ChannelSalesActions
             await db.CustomerProtections.Where(x => x.ApproachRegistrationId == registration.Id && x.SourceType == "APPROACH" && x.Status == "ACTIVE")
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "REVOKED").SetProperty(x => x.UpdatedAt, now), ct);
             Audit.Add(db, actorId, "REVOKE_APPROACH_ON_HANDOVER", nameof(ApproachRegistration), registration.Id, new { status = "ACTIVE" }, new { registration.Status, member.Id }, http);
+            // The account is about to be suspended and cannot open its own inbox.
+            // Notify the authorized manager responsible for reassignment instead.
+            if (member.ManagerUserId.HasValue && member.ManagerUserId.Value != actorId)
+                CrmNotificationWriter.Add(db, member.OrganizationId, member.ManagerUserId.Value,
+                    "APPROACH_REVOKED_HANDOVER", nameof(ApproachRegistration), registration.Id,
+                    "Quyền tiếp cận đã thu hồi", "Hồ sơ trường đã bị thu hồi khi bàn giao nhân sự; cần phân bổ lại.",
+                    "manager-allocations");
         }
         await db.SchoolInvitations.Where(x => x.AssigneeUserId == member.UserId && x.OrganizationId == member.OrganizationId && x.Status == "PENDING")
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "CANCELLED").SetProperty(x => x.ResponseReason, "Nhân sự ngưng hoạt động; cần phân bổ lại.").SetProperty(x => x.RespondedAt, now).SetProperty(x => x.UpdatedAt, now), ct);

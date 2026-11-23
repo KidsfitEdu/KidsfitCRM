@@ -12,9 +12,12 @@ public static class SchoolProposalAlertService
     public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now, CancellationToken ct = default)
     {
         // Close stale alerts even when a proposal was resolved by an administrative path.
-        await db.SchoolProposalAlerts
-            .Where(a => a.Status == "OPEN" && db.SchoolProposals.Any(p => p.Id == a.SchoolProposalId && p.Status != "PENDING_ADMIN"))
-            .ExecuteUpdateAsync(set => set.SetProperty(a => a.Status, "RESOLVED").SetProperty(a => a.ResolvedAt, now), ct);
+        await db.CrmNotifications
+            .Where(a => a.EntityType == nameof(SchoolProposal) && a.Status == "OPEN"
+                && (a.Kind == "ADMIN_OVERDUE" || a.Kind == "DIRECTOR_ESCALATION")
+                && db.SchoolProposals.Any(p => p.Id == a.EntityId && p.Status != "PENDING_ADMIN"))
+            .ExecuteUpdateAsync(set => set.SetProperty(a => a.Status, "RESOLVED")
+                .SetProperty(a => a.ResolvedAt, now).SetProperty(a => a.UpdatedAt, now), ct);
 
         // Only active central KIDSFIT Admins and Directors may see the escalation.
         // Do NOT notify partner managers or every account carrying a similar membership.
@@ -27,7 +30,7 @@ public static class SchoolProposalAlertService
              where (role.Code == "ADMIN" || role.Code == "DIRECTOR")
                    && user.Status == "ACTIVE" && membership.Status == "ACTIVE"
                    && org.Status == "ACTIVE" && org.Code == "KIDSFIT"
-             select new { UserId = user.Id, RoleCode = role.Code }).Distinct().ToArrayAsync(ct);
+             select new { UserId = user.Id, OrganizationId = org.Id, RoleCode = role.Code }).Distinct().ToArrayAsync(ct);
         if (recipients.Length == 0) return 0;
 
         var added = 0;
@@ -50,11 +53,15 @@ public static class SchoolProposalAlertService
                 var key = $"proposal:{proposal.Id}:{proposal.ReviewDueAt.Ticks}:{recipient.UserId}:{kind}";
                 // INSERT IGNORE + unique binary key is concurrency-safe even with several API workers.
                 added += await db.Database.ExecuteSqlInterpolatedAsync($@"
-                    INSERT IGNORE INTO school_proposal_alerts
-                      (school_proposal_id, recipient_user_id, kind, status, deduplication_key,
+                    INSERT IGNORE INTO crm_notifications
+                      (organization_id, recipient_user_id, kind, entity_type, entity_id,
+                       title, message, target_view, deduplication_key, status,
                        due_at, created_at, updated_at)
-                    VALUES ({proposal.Id}, {recipient.UserId}, {kind}, {"OPEN"}, {key},
-                            {proposal.ReviewDueAt}, {now}, {now})", ct);
+                    VALUES ({recipient.OrganizationId}, {recipient.UserId}, {kind}, {nameof(SchoolProposal)}, {proposal.Id},
+                            {kind == "ADMIN_OVERDUE" ? "Đề xuất trường quá hạn" : "Đề xuất trường cần BGĐ giám sát"},
+                            {kind == "ADMIN_OVERDUE" ? "Đề xuất trường quá hạn chờ Admin xem xét." : "Đề xuất trường quá hạn Admin, cần BGĐ giám sát."},
+                            {kind == "ADMIN_OVERDUE" ? "admin-proposals" : "role-board-overdue"},
+                            {key}, {"OPEN"}, {proposal.ReviewDueAt}, {now}, {now})", ct);
             }
         }
         return added;

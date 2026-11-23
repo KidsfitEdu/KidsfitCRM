@@ -36,8 +36,9 @@ public static class ContractExpiryAlertService
         var today = BusinessDate(now);
         // Canceled or no-longer-verified contracts may fall out of the candidate query;
         // resolve their older notices before scanning ACTIVE contracts.
-        await db.ContractExpiryAlerts.Where(a => a.Status == "OPEN"
-            && !db.SalesContracts.Any(c => c.Id == a.ContractId
+        await db.CrmNotifications.Where(a => a.EntityType == nameof(SalesContract)
+            && a.Status == "OPEN" && (a.Kind.StartsWith("SERVICE_") || a.Kind.StartsWith("PROTECTION_") || a.Kind.StartsWith("GI01_"))
+            && !db.SalesContracts.Any(c => c.Id == a.EntityId
                 && c.Status == "ACTIVE" && c.VerifiedAt != null && c.RequiresSchoolVerification
                 && !db.ContractCancellations.Any(x => x.ContractId == c.Id)))
             .ExecuteUpdateAsync(x => x.SetProperty(a => a.Status, "RESOLVED")
@@ -205,13 +206,15 @@ public static class ContractExpiryAlertService
 
             // Only expire obsolete OPEN alerts if a later confirmed term supplants their deadline,
             // or if the user has lost their active assignment. Read alerts remain audit history.
-            var open = await db.ContractExpiryAlerts.Where(x => x.ContractId == contract.Id
-                && x.Status == "OPEN").ToArrayAsync(ct);
+            var open = await db.CrmNotifications.Where(x => x.EntityType == nameof(SalesContract)
+                && x.EntityId == contract.Id && x.Status == "OPEN"
+                && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")))
+                .ToArrayAsync(ct);
             foreach (var item in open)
             {
                 var isGap = item.Kind.StartsWith("SERVICE_GAP_", StringComparison.Ordinal)
                     || item.Kind == "SERVICE_INTERRUPTED";
-                var obsoleteGap = isGap && (!validGapStarts.Contains(item.MilestoneOn)
+                var obsoleteGap = isGap && (!item.MilestoneOn.HasValue && validGapStarts.Contains(item.MilestoneOn.Value)
                     || !recipients.Contains(item.RecipientUserId));
                 var obsoleteService = !isGap && item.Kind.StartsWith("SERVICE_", StringComparison.Ordinal)
                     && (!serviceEnd.HasValue || item.MilestoneOn != serviceEnd.Value
@@ -245,19 +248,41 @@ public static class ContractExpiryAlertService
     private static async Task ResolveAsync(KidsfitDbContext db, long contractId,
         IReadOnlyCollection<string> _keys, DateTime now, CancellationToken ct)
     {
-        await db.ContractExpiryAlerts.Where(x => x.ContractId == contractId && x.Status == "OPEN")
+        await db.CrmNotifications.Where(x => x.EntityType == nameof(SalesContract)
+            && x.EntityId == contractId && x.Status == "OPEN"
+            && (x.Kind.StartsWith("SERVICE_") || x.Kind.StartsWith("PROTECTION_") || x.Kind.StartsWith("GI01_")))
             .ExecuteUpdateAsync(x => x.SetProperty(a => a.Status, "RESOLVED")
                 .SetProperty(a => a.ResolvedAt, now).SetProperty(a => a.UpdatedAt, now), ct);
     }
 
-    private static Task<int> InsertAsync(KidsfitDbContext db, long contractId, long recipient,
-        string kind, DateOnly milestone, DateOnly due, string key, DateTime now, CancellationToken ct) =>
-        db.Database.ExecuteSqlInterpolatedAsync($@"
-            INSERT IGNORE INTO contract_expiry_alerts
-                (contract_id, recipient_user_id, kind, deduplication_key, status,
+    private static async Task<int> InsertAsync(KidsfitDbContext db, long contractId, long recipient,
+        string kind, DateOnly milestone, DateOnly due, string key, DateTime now, CancellationToken ct)
+    {
+        var contract = await db.SalesContracts.AsNoTracking().Where(x => x.Id == contractId)
+            .Select(x => new { x.OwnerOrganizationId, x.CareOrganizationId, x.OwnerUserId, x.CareUserId, x.CustomerId })
+            .SingleAsync(ct);
+        var preferred = contract.CareUserId == recipient && contract.CareOrganizationId.HasValue
+            ? contract.CareOrganizationId.Value : contract.OwnerOrganizationId;
+        var organizationId = await CrmNotificationWriter.RecipientOrganization(db, recipient, preferred, ct);
+        if (!organizationId.HasValue) return 0;
+        var name = await db.ChannelCustomers.AsNoTracking().Where(x => x.Id == contract.CustomerId)
+            .Select(x => x.DisplayName).SingleAsync(ct);
+        var title = kind.StartsWith("PROTECTION_", StringComparison.Ordinal) ? "Nhắc hạn quyền bảo vệ trường"
+            : kind.StartsWith("GI01_", StringComparison.Ordinal) ? "Cảnh báo gián đoạn sử dụng"
+            : "Nhắc hạn kỳ sử dụng phần mềm";
+        var message = $"Trường {name}: {kind} — mốc {milestone:dd/MM/yyyy}. Xem hợp đồng để biết chi tiết.";
+        var target = recipient == contract.CareUserId ? "role-customer-care-customers"
+            : recipient == contract.OwnerUserId ? "role-sales-staff-customers" : "manager-contracts";
+        return await db.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT IGNORE INTO crm_notifications
+                (organization_id, recipient_user_id, kind, entity_type, entity_id,
+                 title, message, target_view, deduplication_key, status,
                  due_on, milestone_on, created_at, updated_at)
-            VALUES ({contractId}, {recipient}, {kind}, {key}, {"OPEN"},
+            VALUES ({organizationId.Value}, {recipient}, {kind}, {nameof(SalesContract)}, {contractId},
+                    {title}, {message}, {target}, {key}, {"OPEN"},
                     {due}, {milestone}, {now}, {now})", ct);
+    }
+
 }
 
 public sealed class ContractExpiryAlertWorker(IServiceScopeFactory scopes,

@@ -257,7 +257,8 @@ public sealed partial class ChannelSalesActions
         Audit.Add(db, actorId, "REVIEW_SCHOOL_EXTENSION", nameof(SchoolExtensionRequest), id, new { status = "PENDING" },
             new { extension.Status, extension.ApprovedUntil, extension.NextReviewAt, extension.PolicyVersionId, reason }, http);
         await db.CrmNotifications.Where(x => x.EntityType == nameof(SchoolExtensionRequest)
-            && x.EntityId == id && x.Kind == "SCHOOL_EXTENSION_REQUESTED" && x.Status == "OPEN")
+            && x.EntityId == id && (x.Kind == "SCHOOL_EXTENSION_REQUESTED" || x.Kind == "SCHOOL_EXTENSION_REVIEW_OVERDUE")
+            && x.Status == "OPEN")
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
                 .SetProperty(x => x.ResolvedAt, now), ct);
         var salesIsCollaborator = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>

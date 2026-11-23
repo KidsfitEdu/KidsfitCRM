@@ -71,6 +71,50 @@ public static class SchoolProposalAlertService
     }
 }
 
+/// <summary>Existing review-due threshold only; no invented early-warning SLA or auto-approval.</summary>
+public static class SchoolExtensionOverdueNoticeService
+{
+    public static async Task<int> SweepAsync(KidsfitDbContext db, DateTime now, CancellationToken ct = default)
+    {
+        await db.CrmNotifications.Where(n => n.EntityType == nameof(SchoolExtensionRequest)
+            && n.Kind == "SCHOOL_EXTENSION_REVIEW_OVERDUE" && n.Status == "OPEN"
+            && db.SchoolExtensionRequests.Any(e => e.Id == n.EntityId && e.Status != "PENDING"))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, "RESOLVED")
+                .SetProperty(x => x.ResolvedAt, now).SetProperty(x => x.UpdatedAt, now), ct);
+        long lastId = 0;
+        var created = 0;
+        while (true)
+        {
+            var overdue = await db.SchoolExtensionRequests.AsNoTracking()
+                .Where(e => e.Id > lastId && e.Status == "PENDING" && e.ReviewDueAt <= now)
+                .OrderBy(e => e.Id)
+                .Select(e => new { e.Id, e.OrganizationId, e.ManagerUserId, e.ReviewDueAt })
+                .Take(200).ToArrayAsync(ct);
+            if (overdue.Length == 0) break;
+            lastId = overdue[^1].Id;
+            foreach (var e in overdue)
+            {
+                var valid = await db.OrganizationMemberships.AsNoTracking().AnyAsync(m =>
+                    m.UserId == e.ManagerUserId && m.OrganizationId == e.OrganizationId
+                    && m.Status == "ACTIVE" && db.Users.Any(u => u.Id == m.UserId && u.Status == "ACTIVE")
+                    && db.Organizations.Any(o => o.Id == m.OrganizationId && o.Status == "ACTIVE"), ct);
+                if (!valid) continue;
+                var key = $"extension-review-overdue:{e.Id}:{e.ReviewDueAt.Ticks}:{e.ManagerUserId}";
+                created += await db.Database.ExecuteSqlInterpolatedAsync($@"
+                    INSERT IGNORE INTO crm_notifications
+                        (organization_id, recipient_user_id, kind, entity_type, entity_id,
+                         title, message, target_view, deduplication_key, status,
+                         due_at, created_at, updated_at)
+                    VALUES ({e.OrganizationId}, {e.ManagerUserId}, {"SCHOOL_EXTENSION_REVIEW_OVERDUE"},
+                            {nameof(SchoolExtensionRequest)}, {e.Id}, {"Yêu cầu gia hạn đã quá hạn xét duyệt"},
+                            {"Yêu cầu gia hạn đang chờ Quản lý và đã vượt thời gian xét duyệt."},
+                            {"manager-extensions"}, {key}, {"OPEN"}, {e.ReviewDueAt}, {now}, {now})", ct);
+            }
+        }
+        return created;
+    }
+}
+
 /// <summary>Checks overdue Admin proposals on startup and on a bounded periodic interval.</summary>
 public sealed class SchoolProposalAlertWorker(
     IServiceScopeFactory scopes,
@@ -90,8 +134,12 @@ public sealed class SchoolProposalAlertWorker(
         {
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<KidsfitDbContext>();
-            var count = await SchoolProposalAlertService.SweepAsync(db, DateTime.UtcNow, ct);
-            if (count > 0) logger.LogInformation("Created {Count} school proposal overdue alerts.", count);
+            var now = DateTime.UtcNow;
+            var proposalCount = await SchoolProposalAlertService.SweepAsync(db, now, ct);
+            var extensionCount = await SchoolExtensionOverdueNoticeService.SweepAsync(db, now, ct);
+            if (proposalCount + extensionCount > 0)
+                logger.LogInformation("Created {Proposals} overdue proposals and {Extensions} overdue extension notices.",
+                    proposalCount, extensionCount);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception error)

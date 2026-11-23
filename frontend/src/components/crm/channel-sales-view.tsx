@@ -52,6 +52,7 @@ import type {
 } from '@/lib/channel-sales';
 
 type SalesSchoolProfile = {
+  can_view_school_contacts?: boolean;
   data: { id:number; display_name:string; tax_code:string|null; address:string|null;
     province:string|null; district:string|null; phone:string|null; email:string|null;
     contact_name:string|null; contact_position:string|null; lifecycle_status:string };
@@ -498,14 +499,17 @@ export function ChannelSalesView({
         bodyClassName="space-y-4 bg-muted/10">
         {profileError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileError}</p>}
         {!schoolProfile && !profileError && <output className="block text-sm text-muted-foreground">Đang tải thông tin trường…</output>}
-        {schoolProfile && (
+        {schoolProfile && <>
+          {schoolProfile.can_view_school_contacts === false && <p role="status" className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+            Thông tin liên hệ của trường chưa được cấp quyền xem trong phạm vi tài khoản hiện tại.
+          </p>}
           <SchoolProfileDetails
             units={schoolProfile.school_units}
             displayName={schoolProfile.data.display_name}
             schoolCode={detailCustomer?.code}
             statusLabel={detailCustomer ? contractBadge(detailCustomer).label : undefined}
             taxCode={schoolProfile.data.tax_code}
-            customerContact={{
+            customerContact={schoolProfile.can_view_school_contacts === false ? undefined : {
               address: schoolProfile.data.address,
               province: schoolProfile.data.province,
               contact_phone: schoolProfile.data.phone,
@@ -514,7 +518,7 @@ export function ChannelSalesView({
               email: schoolProfile.data.email,
             }}
           />
-        )}
+        </>}
       </AppDrawer>
       {historyCustomer && apiBase && token && <SchoolWorkLogDrawer open={true}
         onOpenChange={open=>{if(!open)setHistoryCustomer(null);}}

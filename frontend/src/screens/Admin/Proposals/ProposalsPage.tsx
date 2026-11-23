@@ -144,17 +144,22 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
       wide title="Chi tiết đề xuất trường" description={detail?.name??'Thông tin trường chính và phân hiệu'}>
       {detailLoading?<p className="text-sm text-muted-foreground">Đang tải chi tiết…</p>:
         detail?<div className="space-y-5">
-          <div className="grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2">
+          <SchoolProfileDetails units={profileUnits(detail)} displayName={detail.name}
+            schoolCode={operations?.proposals.find(item=>item.id===detailId)?.school_code}
+            statusLabel={workflowLabels[detail.status] ?? detail.status}/>
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4 text-sm">
+            <h3 className="text-sm font-bold">Thông tin xử lý đề xuất</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
             <div><p className="text-xs text-muted-foreground">Người đề xuất</p><p>{detail.submitted_by}</p></div>
             <div><p className="text-xs text-muted-foreground">Quản lý bán hàng</p><p>{detail.manager_name}</p></div>
             <div><p className="text-xs text-muted-foreground">Trạng thái</p><p>{workflowLabels[detail.status]??detail.status}</p></div>
             <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{workflowDate(detail.review_due_at)}</p></div>
             <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Loại đề xuất</p>
               <p>{detail.proposal_mode==='ADD_BRANCHES'?'Bổ sung phân hiệu vào trường hiện hữu':'Đề xuất trường chính mới'}</p></div>
-          </div>
-          <SchoolProfileDetails units={profileUnits(detail)} displayName={detail.name}
-            schoolCode={operations?.proposals.find(item=>item.id===detailId)?.school_code}
-            statusLabel={workflowLabels[detail.status] ?? detail.status}/>
+            </div>
+            {detail.decision_reason && <p className="text-sm">Phản hồi phê duyệt: {detail.decision_reason}</p>}
+          </section>
+
         </div>:<p className="text-sm text-muted-foreground">Không tải được thông tin đề xuất.</p>}
     </AppDrawer>
     <ConfirmDialog open={reviewMode==='approve'&&selected!==null}

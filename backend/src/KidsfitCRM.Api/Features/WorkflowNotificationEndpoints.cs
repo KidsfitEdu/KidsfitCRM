@@ -10,7 +10,7 @@ public static class WorkflowNotificationEndpoints
 {
     public static RouteGroupBuilder MapWorkflowNotifications(this RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/notifications/workflow");
+        var group = secured.MapGroup("/notifications");
         group.MapGet("", async (HttpContext http, KidsfitDbContext db, bool? unreadOnly, int? page, CancellationToken ct) =>
         {
             var userId = http.UserId();

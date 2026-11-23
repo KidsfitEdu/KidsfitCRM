@@ -10,31 +10,6 @@ import { createApiClient } from '@/services/api.client';
 import { UserProfileMenu, type CurrentUserProfile } from '@/components/layout/UserProfileMenu';
 import type { View } from '@/config/navigation';
 
-type Notice = {
-  id: number;
-  kind: 'ADMIN_OVERDUE' | 'DIRECTOR_ESCALATION';
-  created_at: string;
-  due_at: string;
-  read_at: string | null;
-  school_proposal_id: number;
-  school_name: string;
-  school_code: string;
-  message: string;
-};
-type NotificationsResponse = { unread_count: number; data: Notice[] };
-type ExpiryNotice = {
-  id: number;
-  kind: string;
-  read_at: string | null;
-  created_at: string;
-  contract_id: number;
-  contract_code: string;
-  school_name: string;
-  message: string;
-  due_at: string;
-  target: 'role-sales-staff-customers' | 'role-collaborator-approaches' | 'role-customer-care-customers' | 'manager-contracts';
-};
-type ExpiryNotificationsResponse = { unread_count: number; data: ExpiryNotice[] };
 type WorkflowNotice = {
   id: number;
   kind: string;
@@ -90,40 +65,21 @@ export function Header({
   const [actionError, setActionError] = useState('');
   const client = useQueryClient();
   const request = createApiClient(apiBase);
-  const queryKey = ['crm-notifications', apiBase, token];
-  const notifications = useQuery({
-    queryKey,
-    queryFn: () => request<NotificationsResponse>('/notifications', token),
-    enabled: !!apiBase && !!token,
-    refetchInterval: 60_000,
-    refetchOnWindowFocus: true,
-  });
-
-  const expiryQueryKey = ['crm-contract-expiry-notifications', apiBase, token];
-  const expiryNotifications = useQuery({
-    queryKey: expiryQueryKey,
-    queryFn: () => request<ExpiryNotificationsResponse>('/notifications/contract-expiry', token),
-    enabled: !!apiBase && !!token,
-    refetchInterval: 60_000,
-    refetchOnWindowFocus: true,
-  });
   const workflowQueryKey = ['crm-workflow-notifications', apiBase, token];
   const workflowNotifications = useQuery({
     queryKey: workflowQueryKey,
-    queryFn: () => request<WorkflowNotificationsResponse>('/notifications/workflow', token),
+    queryFn: () => request<WorkflowNotificationsResponse>('/notifications', token),
     enabled: !!apiBase && !!token,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
-  const unreadTotal = (notifications.data?.unread_count ?? 0)
-    + (expiryNotifications.data?.unread_count ?? 0)
-    + (workflowNotifications.data?.unread_count ?? 0);
+  const unreadTotal = workflowNotifications.data?.unread_count ?? 0;
 
   const openWorkflowNotice = async (notice: WorkflowNotice) => {
     setActionError('');
     try {
       if (!notice.read_at) {
-        await request('/notifications/workflow/' + notice.id + '/read', token, { method: 'POST' });
+        await request('/notifications/' + notice.id + '/read', token, { method: 'POST' });
         await client.invalidateQueries({ queryKey: workflowQueryKey });
       }
       // Deliver the selected entity ID to the destination page without encoding sensitive data in the URL.
@@ -137,35 +93,7 @@ export function Header({
       setActionError(err instanceof Error ? err.message : 'Không thể mở thông báo.');
     }
   };
-  const openExpiryNotice = async (notice: ExpiryNotice) => {
-    setActionError('');
-    try {
-      if (!notice.read_at) {
-        await request('/notifications/contract-expiry/' + notice.id + '/read', token, { method: 'POST' });
-        await client.invalidateQueries({ queryKey: expiryQueryKey });
-      }
-      setOpen(false);
-      onNavigate?.(notice.target);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Không thể đánh dấu thông báo đã đọc.');
-    }
-  };
-
-  const openNotice = async (notice: Notice) => {
-    setActionError('');
-    try {
-      if (!notice.read_at) {
-        await request('/notifications/' + notice.id + '/read', token, { method: 'POST' });
-        await client.invalidateQueries({ queryKey });
-      }
-      setOpen(false);
-      onNavigate?.(notice.kind === 'ADMIN_OVERDUE' ? 'admin-proposals' : 'role-board-overdue');
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Không thể đánh dấu thông báo đã đọc.');
-    }
-  };
-
-  // One chronological visual inbox. Legacy NT-01 and proposal alerts remain owned by their APIs.
+  // All workflow, overdue school-proposal and contract milestone notices come from one inbox.
   const noticeItems = [
     ...(workflowNotifications.data?.data.map(notice => ({
       key: 'workflow-' + notice.id,
@@ -180,26 +108,6 @@ export function Header({
       ].includes(notice.kind) && notice.status === 'OPEN',
       resolved: notice.status !== 'OPEN',
       onOpen: () => openWorkflowNotice(notice),
-    })) ?? []),
-    ...(expiryNotifications.data?.data.map(notice => ({
-      key: 'expiry-' + notice.id,
-      createdAt: notice.created_at,
-      readAt: notice.read_at,
-      title: notice.school_name,
-      message: notice.message,
-      actionable: true,
-      resolved: false,
-      onOpen: () => openExpiryNotice(notice),
-    })) ?? []),
-    ...(notifications.data?.data.map(notice => ({
-      key: 'proposal-' + notice.id,
-      createdAt: notice.created_at,
-      readAt: notice.read_at,
-      title: notice.school_name,
-      message: notice.message,
-      actionable: true,
-      resolved: false,
-      onOpen: () => openNotice(notice),
     })) ?? []),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const visibleNotices = noticeItems.filter(notice => noticeFilter === 'ALL'
@@ -246,9 +154,7 @@ export function Header({
         <PopoverContent align="end" className="max-h-[430px] w-[min(90vw,360px)] overflow-y-auto p-3">
           <p className="mb-2 font-semibold">Thông báo công việc</p>
           {!apiBase && <p className="text-sm text-muted-foreground">Chế độ xem trước không có thông báo thật.</p>}
-          {notifications.isPending && !!apiBase && <p className="text-sm text-muted-foreground">Đang tải thông báo…</p>}
-          {notifications.error && <p role="alert" className="text-sm text-red-600">{notifications.error.message}</p>}
-          {expiryNotifications.error && <p role="alert" className="text-sm text-red-600">{expiryNotifications.error.message}</p>}
+          {workflowNotifications.isPending && !!apiBase && <p className="text-sm text-muted-foreground">Đang tải thông báo…</p>}
           {workflowNotifications.error && <p role="alert" className="text-sm text-red-600">{workflowNotifications.error.message}</p>}
           {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
           <fieldset aria-label="Lọc thông báo" className="mb-2 flex gap-1 rounded-lg bg-muted/40 p-1">
@@ -259,7 +165,7 @@ export function Header({
               {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
             </button>)}
           </fieldset>
-          {visibleNotices.length === 0 && !notifications.isPending && !expiryNotifications.isPending && !workflowNotifications.isPending &&
+          {visibleNotices.length === 0 && !workflowNotifications.isPending && !workflowNotifications.isPending && !workflowNotifications.isPending &&
             <p className="py-5 text-center text-sm text-muted-foreground">Không có thông báo phù hợp.</p>}
           {visibleNotices.map(notice => <button type="button" key={notice.key} aria-label={`Mở thông báo: ${notice.title}`}
             onClick={() => void notice.onOpen()}

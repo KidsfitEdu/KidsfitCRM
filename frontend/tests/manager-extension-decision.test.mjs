@@ -21,3 +21,11 @@ test('Manager rejection uses only reason label and contextual validation', () =>
   assert.match(source, /onClick=\{\(\) => decide\('extension',e\.id,false\)\}/);
   assert.match(field, /field\.requiredMessage \?\?/);
 });
+
+test('manager workflow notice opens authorized request detail when loaded', () => {
+  const source = read('components/roles/ManagerWorklists.tsx');
+  assert.match(source, /crm-notification-target/);
+  assert.match(source, /records\.extensions\.find\(x => x\.id === target\.entityId\)/);
+  assert.match(source, /records\.proposals\.find\(x => x\.id === target\.entityId\)/);
+  assert.match(source, /setSelection\(\{ kind: 'extension', item \}\)/);
+});

@@ -82,6 +82,7 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [notificationOpenTick, setNotificationOpenTick] = useState(0);
   const [history, setHistory] = useState<{ kind: string; id: number; name: string } | null>(null);
   const [workLog, setWorkLog] = useState<{ customerId: number; schoolName: string } | null>(null);
   const [action, setAction] = useState<SchoolAction | null>(null);
@@ -252,6 +253,38 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
     });
   };
   const records = operations.data;
+  // A workflow notice opens the matching record within the currently authorized server window.
+  useEffect(() => {
+    const handle = () => setNotificationOpenTick(value => value + 1);
+    window.addEventListener('crm-notification-open', handle);
+    return () => window.removeEventListener('crm-notification-open', handle);
+  }, []);
+  useEffect(() => {
+    if (!records || !token) return;
+    const raw = window.sessionStorage.getItem('crm-notification-target');
+    if (!raw) return;
+    let target: { view?: string; entityType?: string; entityId?: number };
+    try { target = JSON.parse(raw) as typeof target; } catch {
+      window.sessionStorage.removeItem('crm-notification-target'); return;
+    }
+    const matchedSection = target.view === 'manager-extensions' && section === 'extensions'
+      && target.entityType === 'SchoolExtensionRequest' ? 'extension'
+      : target.view === 'manager-proposals' && section === 'proposals'
+        && target.entityType === 'SchoolProposal' ? 'proposal'
+      : target.view === 'manager-allocations' && section === 'allocations'
+        && target.entityType === 'SchoolInvitation' ? 'invitation' : null;
+    if (!matchedSection || !Number.isSafeInteger(target.entityId)) return;
+    if (matchedSection === 'extension') {
+      const item = records.extensions.find(x => x.id === target.entityId);
+      if (item) { setSelection({ kind: 'extension', item }); window.sessionStorage.removeItem('crm-notification-target'); }
+    } else if (matchedSection === 'proposal') {
+      const item = records.proposals.find(x => x.id === target.entityId);
+      if (item) { setSelection({ kind: 'proposal', item }); window.sessionStorage.removeItem('crm-notification-target'); }
+    } else {
+      const item = records.invitations.find(x => x.id === target.entityId);
+      if (item) { setSelection({ kind: 'invitation', item }); window.sessionStorage.removeItem('crm-notification-target'); }
+    }
+  }, [records, section, token, notificationOpenTick]);
   const proposalRows = records?.proposals.filter(p => filter === 'ALL' || p.status === filter) ?? [];
   const invitationRows = records?.invitations.filter(i => filter === 'ALL' || (i.is_expired ? 'EXPIRED' : i.status) === filter) ?? [];
   const extensionRows = records?.extensions.filter(e => filter === 'ALL' || (e.is_expired ? 'EXPIRED' : e.status) === filter) ?? [];

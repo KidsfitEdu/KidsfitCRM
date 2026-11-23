@@ -484,15 +484,6 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
       description={selectedProposal ? selectedProposal.school_code : 'Thông tin trong phạm vi quản lý được Backend cho phép truy cập.'}
       wide={selectedProposal !== null} bodyClassName="bg-muted/10">
         {selectedProposal && <div className="space-y-4 text-sm">
-          <section className="space-y-2">
-            <p className="font-semibold text-base">Thông tin đề xuất</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Người đề xuất</p><p>{selectedProposal.submitted_by}</p></div>
-              <div><p className="text-xs text-muted-foreground">Quản lý phụ trách</p><p>{selectedProposal.manager_name}</p></div>
-              <div><p className="text-xs text-muted-foreground">Trạng thái</p><p>{statusLabel(selectedProposal.status)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{nice(selectedProposal.review_due_at)}</p></div>
-            </div>
-          </section>
           {proposalDetailQuery.isPending && <output>Đang tải thông tin trường chính và phân hiệu…</output>}
           {proposalDetailQuery.error && <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 p-3">
             <p>Không thể tải chi tiết trường: {proposalDetailQuery.error.message}</p>
@@ -506,12 +497,19 @@ export function ManagerWorklists({ section, apiBase, token, abilities, onChanged
             <SchoolProfileDetails units={proposalUnits} displayName={selectedProposal.name}
               schoolCode={selectedProposal.school_code} statusLabel={statusLabel(selectedProposal.status)}/>
           </>}
-          <section className="space-y-2 border-t pt-3">
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
             <p className="font-semibold text-base">Thông tin xử lý đề xuất</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Người đề xuất</p><p>{selectedProposal.submitted_by}</p></div>
+              <div><p className="text-xs text-muted-foreground">Quản lý phụ trách</p><p>{selectedProposal.manager_name}</p></div>
+              <div><p className="text-xs text-muted-foreground">Trạng thái</p><p>{statusLabel(selectedProposal.status)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Hạn xử lý</p><p>{nice(selectedProposal.review_due_at)}</p></div>
+            </div>
             <p>Lý do đề xuất: {selectedProposal.reason || 'Chưa cập nhật'}</p>
-            {selectedProposal.possible_duplicate && <p className="rounded-xl bg-amber-50 p-3 text-amber-800">Có khả năng trùng tên/khu vực. Admin cần đối chiếu mã định danh.</p>}
+            {selectedProposal.possible_duplicate && <p className="rounded-xl bg-amber-50 p-3 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">Có khả năng trùng tên/khu vực. Admin cần đối chiếu mã định danh.</p>}
             {selectedProposal.decision_reason && <p>Phản hồi: {selectedProposal.decision_reason}</p>}
           </section>
+
         </div>}
         {selection?.kind==='invitation' && <AllocationDetail item={selection.item}/>}
         {selection?.kind==='extension' && <ExtensionDetail item={selection.item}/>}

@@ -739,6 +739,11 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 .SetProperty(x => x.ResolvedAt, now), cancellationToken);
         if (schoolContract.RequiresSchoolVerification)
         {
+            // An already completed reconciliation may later be re-opened by an authorized business path.
+            // The Nth real transition gets a new notice; replay of the same state returns earlier.
+            var occurrence = await db.ReconciliationEvents.AsNoTracking()
+                .CountAsync(x => x.ReconciliationCaseId == reconciliation.Id
+                    && x.EventType == (confirm ? "CONFIRMED" : "DISPUTED"), cancellationToken);
             var kind = confirm ? "CHECKEE_CONTRACT_VERIFIED" : "CHECKEE_CONTRACT_DISPUTED";
             var title = confirm ? "CHECKEE đã xác minh hợp đồng" : "CHECKEE yêu cầu xử lý hợp đồng";
             var message = confirm ? "Hợp đồng đã được CHECKEE xác minh. Xem trạng thái và quyền bảo vệ theo hồ sơ."
@@ -748,13 +753,13 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                 && m.Status == "ACTIVE" && (m.MembershipType == "COLLABORATOR" || m.MembershipType == "PARTNER_COLLABORATOR"), cancellationToken);
             CrmNotificationWriter.Add(db, schoolContract.OwnerOrganizationId, schoolContract.OwnerUserId,
                 kind, nameof(ReconciliationCase), reconciliation.Id, title, message,
-                isCollaborator ? "role-collaborator-approaches" : "role-sales-staff-customers");
+                isCollaborator ? "role-collaborator-approaches" : "role-sales-staff-customers", occurrence);
             var managerId = await db.OrganizationMemberships.AsNoTracking()
                 .Where(m => m.UserId == schoolContract.OwnerUserId && m.OrganizationId == schoolContract.OwnerOrganizationId
                     && m.Status == "ACTIVE").Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);
             if (managerId.HasValue)
                 CrmNotificationWriter.Add(db, schoolContract.OwnerOrganizationId, managerId.Value,
-                    kind, nameof(ReconciliationCase), reconciliation.Id, title, message, "manager-contracts");
+                    kind, nameof(ReconciliationCase), reconciliation.Id, title, message, "manager-contracts", occurrence);
         }
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

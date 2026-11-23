@@ -18,6 +18,9 @@ test('My Schools drawer has one shared profile and no legacy duplicate cards', (
   assert.match(drawer, /displayName=\{schoolProfile\.data\.display_name\}/);
   assert.match(drawer, /statusLabel=\{detailCustomer \? contractBadge\(detailCustomer\)\.label : undefined\}/);
   assert.match(drawer, /taxCode=\{schoolProfile\.data\.tax_code\}/);
+  assert.match(drawer, /can_view_school_contacts === false/);
+  assert.match(drawer, /chưa được cấp quyền xem/);
+  assert.match(drawer, /customerContact=\\{schoolProfile\\.can_view_school_contacts === false/);
   assert.match(drawer, /profileError/);
   assert.match(drawer, /Đang tải thông tin trường/);
 });

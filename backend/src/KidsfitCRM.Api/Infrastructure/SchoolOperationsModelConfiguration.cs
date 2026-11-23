@@ -8,9 +8,7 @@ public sealed partial class KidsfitDbContext
     public DbSet<SchoolWorkflowPolicyVersion> SchoolWorkflowPolicies => Set<SchoolWorkflowPolicyVersion>();
     public DbSet<SchoolProposal> SchoolProposals => Set<SchoolProposal>();
     public DbSet<SchoolProposalUnit> SchoolProposalUnits => Set<SchoolProposalUnit>();
-    public DbSet<SchoolProposalAlert> SchoolProposalAlerts => Set<SchoolProposalAlert>();
     public DbSet<CrmNotification> CrmNotifications => Set<CrmNotification>();
-    public DbSet<ContractExpiryAlert> ContractExpiryAlerts => Set<ContractExpiryAlert>();
     public DbSet<SchoolProposalRevision> SchoolProposalRevisions => Set<SchoolProposalRevision>();
     public DbSet<SchoolInvitation> SchoolInvitations => Set<SchoolInvitation>();
     public DbSet<SchoolExtensionRequest> SchoolExtensionRequests => Set<SchoolExtensionRequest>();
@@ -60,34 +58,14 @@ public sealed partial class KidsfitDbContext
         notification.Property(x => x.Message).HasMaxLength(1000);
         notification.Property(x => x.TargetView).HasMaxLength(96);
         notification.Property(x => x.Status).HasMaxLength(24);
+        DateOnlyProperty(notification.Property(x => x.DueOn));
+        DateOnlyProperty(notification.Property(x => x.MilestoneOn));
         notification.Property(x => x.DeduplicationKey).HasMaxLength(180).UseCollation("utf8mb4_bin");
         notification.HasIndex(x => x.DeduplicationKey).IsUnique();
         notification.HasIndex(x => new { x.RecipientUserId, x.Status, x.CreatedAt });
         notification.HasIndex(x => new { x.EntityType, x.EntityId });
         Restrict<CrmNotification, User>(b, x => x.RecipientUserId);
         Restrict<CrmNotification, Organization>(b, x => x.OrganizationId);
-        // Each recipient is notified once per proposal deadline and alert kind.
-        // This unique key protects against duplicate delivery from concurrent app instances.
-        b.Entity<SchoolProposalAlert>().Property(x => x.Kind).HasMaxLength(32);
-        b.Entity<SchoolProposalAlert>().Property(x => x.Status).HasMaxLength(24);
-        b.Entity<SchoolProposalAlert>().Property(x => x.DeduplicationKey).HasMaxLength(120).UseCollation("utf8mb4_bin");
-        b.Entity<SchoolProposalAlert>().HasIndex(x => x.DeduplicationKey).IsUnique();
-        b.Entity<SchoolProposalAlert>().HasIndex(x => new { x.RecipientUserId, x.Status, x.CreatedAt });
-        b.Entity<SchoolProposalAlert>().HasIndex(x => new { x.SchoolProposalId, x.Status });
-        Restrict<SchoolProposalAlert, SchoolProposal>(b, x => x.SchoolProposalId);
-        Restrict<SchoolProposalAlert, User>(b, x => x.RecipientUserId);
-        var nt01 = b.Entity<ContractExpiryAlert>();
-        nt01.ToTable("contract_expiry_alerts");
-        nt01.Property(x => x.Kind).HasMaxLength(40);
-        nt01.Property(x => x.Status).HasMaxLength(24);
-        nt01.Property(x => x.DeduplicationKey).HasMaxLength(180).UseCollation("utf8mb4_bin");
-        DateOnlyProperty(nt01.Property(x => x.DueOn));
-        DateOnlyProperty(nt01.Property(x => x.MilestoneOn));
-        nt01.HasIndex(x => x.DeduplicationKey).IsUnique();
-        nt01.HasIndex(x => new { x.RecipientUserId, x.Status, x.CreatedAt });
-        nt01.HasIndex(x => new { x.ContractId, x.Status });
-        Restrict<ContractExpiryAlert, SalesContract>(b, x => x.ContractId);
-        Restrict<ContractExpiryAlert, User>(b, x => x.RecipientUserId);
         b.Entity<SchoolProposal>().Property(x => x.Version).IsConcurrencyToken();
         b.Entity<SchoolProposal>().Property(x => x.ProposalMode).HasMaxLength(32).HasDefaultValue("LEGACY");
         b.Entity<SchoolProposal>().Property(x => x.IsDeleted).HasDefaultValue(false);

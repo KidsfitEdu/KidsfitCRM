@@ -13,6 +13,9 @@ public sealed class CrmNotification : EntityBase
     public string TargetView { get; set; } = "";
     public string DeduplicationKey { get; set; } = "";
     public string Status { get; set; } = "OPEN";
+    public DateTime? DueAt { get; set; }
+    public DateOnly? DueOn { get; set; }
+    public DateOnly? MilestoneOn { get; set; }
     public DateTime? ReadAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
 }

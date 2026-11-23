@@ -251,17 +251,17 @@ export function Header({
           {expiryNotifications.error && <p role="alert" className="text-sm text-red-600">{expiryNotifications.error.message}</p>}
           {workflowNotifications.error && <p role="alert" className="text-sm text-red-600">{workflowNotifications.error.message}</p>}
           {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
-          <div role="group" aria-label="Lọc thông báo" className="mb-2 flex gap-1 rounded-lg bg-muted/40 p-1">
+          <fieldset aria-label="Lọc thông báo" className="mb-2 flex gap-1 rounded-lg bg-muted/40 p-1">
             {(['ALL', 'UNREAD', 'ACTION'] as const).map(filter => <button type="button" key={filter}
               aria-pressed={noticeFilter === filter}
               onClick={() => setNoticeFilter(filter)}
               className={`min-h-10 flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${noticeFilter === filter ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>
               {filter === 'ALL' ? 'Tất cả' : filter === 'UNREAD' ? 'Chưa đọc' : 'Cần xử lý'}
             </button>)}
-          </div>
+          </fieldset>
           {visibleNotices.length === 0 && !notifications.isPending && !expiryNotifications.isPending && !workflowNotifications.isPending &&
             <p className="py-5 text-center text-sm text-muted-foreground">Không có thông báo phù hợp.</p>}
-          {visibleNotices.map(notice => <button type="button" key={notice.key}
+          {visibleNotices.map(notice => <button type="button" key={notice.key} aria-label={`Mở thông báo: ${notice.title}`}
             onClick={() => void notice.onOpen()}
             className="my-1 flex w-full gap-2 rounded-xl border p-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-green-700">
             <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${!notice.readAt && !notice.resolved ? 'bg-green-600' : 'bg-muted-foreground/20'}`}/>

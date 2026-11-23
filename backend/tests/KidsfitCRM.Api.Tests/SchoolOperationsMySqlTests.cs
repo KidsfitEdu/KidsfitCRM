@@ -2599,8 +2599,19 @@ public sealed class SchoolOperationsMySqlTests(ChannelMySqlFixture fixture) : IC
         Assert.Equal(s.OrgId, incoming[0].OrganizationId);
         Assert.DoesNotContain(incoming, x => x.RecipientUserId == s.Peer.UserId);
 
+        await db.SchoolExtensionRequests.Where(x => x.Id == extensionId)
+            .ExecuteUpdateAsync(q => q.SetProperty(x => x.ReviewDueAt, DateTime.UtcNow.AddMinutes(-2)), Ct);
+        await SchoolExtensionOverdueNoticeService.SweepAsync(db, DateTime.UtcNow, Ct);
+        await SchoolExtensionOverdueNoticeService.SweepAsync(db, DateTime.UtcNow, Ct);
+        Assert.Single(await db.CrmNotifications.AsNoTracking().Where(x =>
+            x.EntityType == nameof(SchoolExtensionRequest) && x.EntityId == extensionId
+            && x.Kind == "SCHOOL_EXTENSION_REVIEW_OVERDUE" && x.RecipientUserId == s.Manager.UserId).ToArrayAsync(Ct));
         var decision = new ReviewSchoolExtensionRequest(true, null, null, null);
         await actions.ReviewSchoolExtension(extensionId, decision, s.Manager.UserId, Http(s.Manager.UserId), Ct);
+        Assert.True(await db.CrmNotifications.AsNoTracking().Where(x =>
+            x.EntityType == nameof(SchoolExtensionRequest) && x.EntityId == extensionId
+            && x.Kind == "SCHOOL_EXTENSION_REVIEW_OVERDUE")
+            .AllAsync(x => x.Status == "RESOLVED", Ct));
         await actions.ReviewSchoolExtension(extensionId, decision, s.Manager.UserId, Http(s.Manager.UserId), Ct);
         var result = await db.CrmNotifications.AsNoTracking().Where(x => x.EntityType == nameof(SchoolExtensionRequest)
             && x.EntityId == extensionId && x.Kind == "SCHOOL_EXTENSION_APPROVED").ToArrayAsync(Ct);

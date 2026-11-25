@@ -9,11 +9,13 @@ public static class IncomePayoutAllocation
 {
     public sealed record Item(long PayoutId, long ItemId, long EntryId, long ContractId,
         long BeneficiaryUserId, string BeneficiaryRole, string Period, decimal Weight,
-        decimal GrossAmount, decimal WithholdingAmount, string? WithholdingReason);
+        decimal GrossAmount, decimal WithholdingAmount, string? WithholdingReason,
+        string? AdjustmentReason = null);
 
     public sealed record Share(long PayoutId, long EntryId, long ContractId,
         long BeneficiaryUserId, string BeneficiaryRole, string Period,
-        decimal Gross, decimal Withholding, decimal Net, string? WithholdingReason);
+        decimal CoveredAmount, decimal Gross, decimal Withholding, decimal Net,
+        string? WithholdingReason, string? AdjustmentReason);
 
     private static decimal[] Distribute(decimal amount, IReadOnlyList<Item> items)
     {
@@ -59,7 +61,8 @@ public static class IncomePayoutAllocation
             {
                 output.Add(new Share(items[i].PayoutId, items[i].EntryId, items[i].ContractId,
                     items[i].BeneficiaryUserId, items[i].BeneficiaryRole, items[i].Period,
-                    gross[i], withheld[i], gross[i] - withheld[i], first.WithholdingReason));
+                    items[i].Weight, gross[i], withheld[i], gross[i] - withheld[i],
+                    first.WithholdingReason, first.AdjustmentReason));
             }
         }
         return output.ToArray();

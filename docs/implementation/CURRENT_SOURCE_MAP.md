@@ -16,7 +16,7 @@
 | Auth / profile | `Features/{ApiEndpoints,AuthFeatures,PasswordResetFeatures}.cs` | `/api/me/change-password`, password recovery, snake_case JSON |
 | School / Sales | `Features/SchoolActions.cs`, `Features/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
 | Commissions | `Features/Commissions/Policies/`, `Features/Commissions/Accruals/`, `Features/Commissions/Income/` | Versioned BGĐ policy, receipt-based accruals and backfill, Sales/Manager income read model |
-| Finance / payout | `Features/AccountingPayoutEndpoints.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Accounting workflow and contract-scoped read model |
+| Finance / payout | `Features/Accounting/Payouts/AccountingPayoutEndpoints.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Accounting workflow and contract-scoped read model |
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |
 | Backend tests | `backend/tests/KidsfitCRM.Api.Tests/` | xUnit and isolated MySQL tests/fixtures |

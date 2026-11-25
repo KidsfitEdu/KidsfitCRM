@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=p=>readFileSync(resolve(import.meta.dirname,'..',p),'utf8');
 const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const picker=read('src/screens/Accounting/Contracts/AccountingReceivablePicker.tsx');
-const api=read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
+const api=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Receipts/AccountingReceiptQueries.cs');
 
 test('Receipt entry displays every form field from the start and keeps search inline',()=>{
   assert.ok(page.includes('<AccountingReceivablePicker'));

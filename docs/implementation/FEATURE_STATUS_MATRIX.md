@@ -10,7 +10,7 @@
 | Contract verification | Sales, Manager, CHECKEE | `screens/Checkee/` and sales/manager screens | `ManagerContractEndpoints.cs`, `ChannelSalesContracts.cs` | IMPLEMENTED (source) | Authorization/transition tests; D-12 grant actor OPEN |
 | Renewals and service interruption | Sales, CSKH, Kế toán | `screens/Accounting/`, `screens/CustomerCare/` | `ContractRenewalEndpoints.cs`, associated policies/workers | IMPLEMENTED (source) | Yearly renewal, 12-month interruption, 5-year protection boundary |
 | BGĐ commission policy | BGĐ, Sales, Manager | `screens/Board/`, income views | `BoardCommissionPolicyEndpoints.cs` | IMPLEMENTED (source) | D-17 version, 25%/5% defaults, scope overrides, frozen accrual |
-| Payout approval and accounting | Kế toán, BGĐ | `screens/Accounting/`, `screens/Board/` | `AccountingPayoutEndpoints.cs`, `AccountingContractEndpoints.cs` | IMPLEMENTED (source) | D-18 permission, dual-approval, receipts/refunds/reconciliation |
+| Payout approval and accounting | Kế toán, BGĐ | `screens/Accounting/`, `screens/Board/` | `Features/Accounting/{Payouts,Receipts,Workspace}/`, `AccountingContractEndpoints.cs` | IMPLEMENTED (source) | D-18 permission, dual-approval, receipts/refunds/reconciliation |
 | Customer service and support | CSKH, CHECKEE | `screens/CustomerCare/`, `screens/Checkee/` | `CustomerCareEndpoints.cs`, school care/support features | IMPLEMENTED (source) | Scoped cases, audit, notifications, assignment |
 
 ## Distinct states

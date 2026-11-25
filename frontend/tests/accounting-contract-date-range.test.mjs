@@ -6,7 +6,7 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const picker=read('src/components/common/forms/app-date-picker.tsx');
 const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
-const api=read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
+const api=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Workspace/AccountingWorkspaceEndpoints.cs');
 
 test('Contract toolbar reuses compact shared month picker',()=>{
   assert.match(page,/AppMonthPicker label="Tháng sử dụng hợp đồng"/);

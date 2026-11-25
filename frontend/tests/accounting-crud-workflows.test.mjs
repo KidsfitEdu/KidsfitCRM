@@ -6,7 +6,7 @@ import {resolve} from 'node:path';
 const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const renewal=read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
-const payoutApi=read('../backend/src/KidsfitCRM.Api/Features/AccountingPayoutEndpoints.cs');
+const payoutApi=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutEndpoints.cs');
 
 test('Payout list and eligible chooser use authorized server pagination and row permissions',()=>{
   assert.match(page,/\/accounting\/payouts\?/);

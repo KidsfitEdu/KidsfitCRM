@@ -5,10 +5,11 @@ import test from 'node:test';
 
 const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-const workspace=read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
+const workspace=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Workspace/AccountingWorkspaceEndpoints.cs');
 const renewal=read('../backend/src/KidsfitCRM.Api/Features/Contracts/Renewals/ContractRenewalEndpoints.cs');
 const revenue=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
 const model=read('../backend/src/KidsfitCRM.Api/Domain/ChannelSalesEntities.cs');
+const receipts=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Receipts/AccountingReceiptQueries.cs');
 
 test('Accounting has three workflows with one receipt register and one payout register',()=>{
   for(const item of ["label:'Hợp đồng'","label:'Khoản thu nhà trường'","label:'Phiếu chi hoa hồng'"])
@@ -32,8 +33,8 @@ test('Receipt recording requires an authorized contract, installment and private
   assert.match(page,/attachment\.set\('kind',entryMode==='receipt'\?'RECEIPT':'PAYOUT'\)/);
   assert.match(page,/idempotency_key:attempt\.key/);
   assert.match(workspace,/MapGet\("\/accounting\/receipts", Receipts\)/);
-  assert.match(workspace,/access\.Contracts\(db\)\.AsNoTracking\(\)/);
-  assert.match(workspace,/receipt\.Status == "COMPLETED"/);
+  assert.match(receipts,/access\.Contracts\(db\)\.AsNoTracking\(\)/);
+  assert.match(receipts,/receipt\.Status == "COMPLETED"/);
   assert.doesNotMatch(page,/method:'DELETE'.*revenue-receipts/);
   assert.doesNotMatch(page,/receipt-drafts|ReceiptDraft|saveReceiptDraft/);
 });
@@ -65,5 +66,5 @@ test('Receipt register reuses compact shared month picker and applies business r
   assert.match(page,/params\.set\('month',String\(Number\(receiptAppliedPeriod\.slice\(5,7\)\)\)\)/);
   assert.match(page,/setReceiptPeriod\(''\);setReceiptAppliedPeriod\(''\)/);
   assert.doesNotMatch(page,/receiptYearOptions|receiptMonthOptions|receiptAppliedYear|receiptAppliedMonth/);
-  assert.match(workspace,/x\.receipt\.ReceivedAt >= from/);
+  assert.match(receipts,/x\.receipt\.ReceivedAt >= from/);
 });

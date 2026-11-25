@@ -8,7 +8,7 @@ const menu = read('src/components/layout/UserProfileMenu.tsx');
 const app = read('src/components/crm/crm-app.tsx');
 const header = read('src/components/layout/Header.tsx');
 const auth = read('../backend/src/KidsfitCRM.Api/Features/Auth/AuthFeatures.cs');
-const routes = read('../backend/src/KidsfitCRM.Api/Features/ApiEndpoints.cs');
+const routes = read('../backend/src/KidsfitCRM.Api/Routing/ApiEndpoints.cs');
 
 test('self-service endpoint updates only authenticated name/phone and records changes', () => {
   assert.match(routes, /secured\.MapPatch\("\/me", AuthFeatures.UpdateOwnProfile\)/);

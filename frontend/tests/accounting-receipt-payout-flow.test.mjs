@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import test from 'node:test';
 const read = path => readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-const actions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
+const actions = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Receipts/RevenueReceiptActions.cs');
 const finance = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutActions.cs');
 const endpoint = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
 const evidence = read('../backend/src/KidsfitCRM.Api/Features/Evidence/FinancialEvidenceEndpoints.cs');

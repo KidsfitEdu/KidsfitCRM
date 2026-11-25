@@ -13,9 +13,11 @@
 | Frontend tests | `frontend/tests/`; `frontend/package.json` | `lint`, `test:unit`, `test:pages`, `build` |
 | Backend app | `backend/src/KidsfitCRM.Api/Program.cs` | .NET 10, JWT security_stamp validation, MySQL, configuration, migrations |
 | Backend routes and use cases | `backend/src/KidsfitCRM.Api/Features/` | Thin endpoints and feature actions; verify every specific permission |
-| Auth / profile | `Features/ApiEndpoints.cs`, `Features/Auth/` | `/api/me/change-password`, password recovery, snake_case JSON |
+| Access and validation | `Authorization/ChannelSalesAccess.cs`, `Common/ChannelSalesValidation.cs` | Organization and record scope, request fingerprints and shared validation |
+| Auth / profile | `Routing/ApiEndpoints.cs`, `Features/Auth/` | `/api/me/change-password`, password recovery, snake_case JSON |
 | School / Sales | `Features/SchoolActions.cs`, `Features/Schools/Directory/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
 | Commissions | `Features/Commissions/Policies/`, `Features/Commissions/Accruals/`, `Features/Commissions/Income/` | Versioned BGĐ policy, receipt-based accruals and backfill, Sales/Manager income read model |
+| Receipts | `Features/Accounting/Receipts/` | Receipt queries, recording and request contract |
 | Finance / payout | `Features/Accounting/Payouts/AccountingPayoutEndpoints.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Accounting workflow and contract-scoped read model |
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |

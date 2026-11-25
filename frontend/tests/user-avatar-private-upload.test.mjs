@@ -9,7 +9,7 @@ const header = read('src/components/layout/Header.tsx');
 const sidebar = read('src/components/layout/Sidebar.tsx');
 const app = read('src/components/crm/crm-app.tsx');
 const endpoint = read('../backend/src/KidsfitCRM.Api/Features/Auth/UserAvatarFeatures.cs');
-const routes = read('../backend/src/KidsfitCRM.Api/Features/ApiEndpoints.cs');
+const routes = read('../backend/src/KidsfitCRM.Api/Routing/ApiEndpoints.cs');
 const storage = read('../backend/src/KidsfitCRM.Api/Infrastructure/LocalFileStorageService.cs');
 
 test('avatar API is authenticated, self-owned and never accepts caller-chosen identity/storage keys',()=>{

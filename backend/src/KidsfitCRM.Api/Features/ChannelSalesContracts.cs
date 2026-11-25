@@ -46,15 +46,6 @@ public sealed record ReportSalesContractRequest(
 
 public sealed record ContractPaymentInstallment(DateOnly DueOn, decimal Amount);
 
-public sealed record RecordRevenueReceiptRequest(
-    string? IdempotencyKey,
-    long? RevenueScheduleId,
-    decimal Amount,
-    DateTime? ReceivedAt,
-    string? ReferenceCode,
-    string? PaymentMethod,
-    long? EvidenceId = null);
-
 public sealed record ReconcileContractRequest(string? Reason);
 /// <summary>Explicit, individually approved financial reconciliation for a legacy receipt.</summary>
 public sealed record ConfirmReceiptCommissionBackfillRequest(bool Confirm, string? Reason, bool ManagerVerified = false);

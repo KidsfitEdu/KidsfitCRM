@@ -7,7 +7,7 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const workspace=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Workspace/AccountingWorkspaceEndpoints.cs');
 const renewal=read('../backend/src/KidsfitCRM.Api/Features/Contracts/Renewals/ContractRenewalEndpoints.cs');
-const revenue=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
+const revenue=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Receipts/RevenueReceiptActions.cs');
 const model=read('../backend/src/KidsfitCRM.Api/Domain/ChannelSalesEntities.cs');
 const receipts=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Receipts/AccountingReceiptQueries.cs');
 

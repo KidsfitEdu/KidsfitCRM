@@ -48,6 +48,10 @@ test('Sales and Manager income overview explains withholding, net paid and outst
   assert.match(source, /Hoa hồng đã quyết toán/);
   assert.match(source, /Lịch sử chi trả và khấu trừ/);
   assert.match(source, /withholding_reason/);
+  assert.match(source, /selected\\.adjustment/);
+  assert.match(source, /payment\\.allocated_adjustment/);
+  assert.match(source, /md:hidden/);
+  assert.match(source, /AppPagination/);
   assert.match(source, /compactHeader/);
   assert.match(source, /<details className=/);
   const manager = read('src/screens/SalesManager/Income/IncomePage.tsx');

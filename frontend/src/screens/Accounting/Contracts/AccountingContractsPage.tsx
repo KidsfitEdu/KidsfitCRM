@@ -1567,16 +1567,20 @@ export function AccountingContractsPage({ apiBase, token, abilities, onChanged }
       onConfirm={()=>{if(pendingPayoutSubmit&&!saving)void submitPayout(pendingPayoutSubmit.id);}}/>
     <AppDialog open={Boolean(returningPayoutId)}
       onOpenChange={open=>{if(!open&&!saving){setReturningPayoutId(null);setPayoutReturnReason('');}}}
-      busy={saving} title="BGĐ yêu cầu bổ sung" description="Nêu lý do và trả phiếu về Kế toán chỉnh sửa.">
+      busy={saving} compact footerAlign="center"
+      title="BGĐ yêu cầu bổ sung" description="Nêu lý do và trả phiếu về Kế toán chỉnh sửa."
+      footer={<>
+        <AppButton type="button" tone="neutral" disabled={saving} className="h-11 w-full sm:w-36"
+          onClick={()=>{setReturningPayoutId(null);setPayoutReturnReason('');}}>Hủy</AppButton>
+        <AppButton type="button" tone="green" busy={saving} disabled={saving||!payoutReturnReason.trim()}
+          className="h-11 w-full sm:w-44"
+          onClick={()=>void returnPayout()}>Trả về Kế toán</AppButton>
+      </>}>
       <div className="space-y-3">
         <label htmlFor="payout-return-reason" className="text-sm font-medium">Lý do yêu cầu bổ sung *</label>
-        <textarea id="payout-return-reason" className="min-h-24 w-full rounded-lg border border-input bg-background p-3 text-sm"
+        <textarea id="payout-return-reason" className="min-h-24 w-full rounded-xl border border-input bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
           value={payoutReturnReason} onChange={event=>setPayoutReturnReason(event.target.value)} maxLength={1000}/>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={()=>setReturningPayoutId(null)}>Hủy</Button>
-          <Button type="button" disabled={saving||!payoutReturnReason.trim()}
-            onClick={()=>void returnPayout()}>Trả về Kế toán</Button>
-        </div>
+
       </div>
     </AppDialog>
     <AppDialog

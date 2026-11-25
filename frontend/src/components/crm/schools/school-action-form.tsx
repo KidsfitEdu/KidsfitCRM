@@ -32,6 +32,8 @@ export type SchoolActionField = {
 };
 export type SchoolAction = {
   title: string;
+  /** Display-only entity name for confirmation dialogs. Not included in API payloads. */
+  subject?: string;
   description: string;
   path: string;
   method?: string;

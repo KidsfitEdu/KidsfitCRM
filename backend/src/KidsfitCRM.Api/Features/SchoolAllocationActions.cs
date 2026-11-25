@@ -3,6 +3,7 @@ using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Infrastructure;
 using KidsfitCRM.Api.Features.Schools.Allocations;
+using KidsfitCRM.Api.Features.Schools.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
@@ -172,16 +173,13 @@ public sealed partial class ChannelSalesActions
             throw new ApiConflictException("Đã đạt số lần gia hạn tối đa theo chính sách.");
         // The CRM proposes the maximum valid period from the active organization's policy.
         // Explicit dates from older clients remain accepted, subject to the same constraints.
-        var maxPerRequest = registration.ProtectedUntil.AddDays(policy.MaxExtensionDays);
-        var maxCumulative = registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays);
-        var maximumUntil = maxPerRequest < maxCumulative ? maxPerRequest : maxCumulative;
-        if (maximumUntil <= registration.ProtectedUntil)
-            throw new ApiConflictException("Đã hết thời gian gia hạn theo chính sách.");
+        var maximumUntil = SchoolExtensionLimitPolicy.MaximumUntil(
+            registration.RegisteredAt, registration.ProtectedUntil, policy.MaxExtensionDays, policy.MaxTotalExtensionDays);
+        SchoolExtensionLimitPolicy.EnsureRequestWindow(registration.ProtectedUntil, maximumUntil);
         var requestedUntil = request.RequestedUntil.HasValue
             ? SchoolFuture(request.RequestedUntil, "requested_until", registration.ProtectedUntil)
             : maximumUntil;
-        if (requestedUntil > maximumUntil)
-            throw ApiValidationException.For("requested_until", "Thời gian xin gia hạn vượt giới hạn chính sách.");
+        SchoolExtensionLimitPolicy.EnsureRequestedUntil(requestedUntil, maximumUntil);
         var due = SchoolDeadline(now, policy.ManagerReviewHours, request.ReviewDueAt);
         var extension = new SchoolExtensionRequest
         {
@@ -245,10 +243,10 @@ public sealed partial class ChannelSalesActions
             var until = SchoolFuture(request.ApprovedUntil ?? extension.RequestedUntil, "approved_until", registration.ProtectedUntil);
             var nextReview = SchoolFuture(request.NextReviewAt ?? until, "next_review_at", now);
             var count = await db.SchoolExtensionRequests.CountAsync(x => x.ApproachRegistrationId == registration.Id && x.Status == "APPROVED", ct);
-            if (until > extension.RequestedUntil || until > registration.ProtectedUntil.AddDays(policy.MaxExtensionDays)
-                || until > registration.RegisteredAt.AddHours(120).AddDays(policy.MaxTotalExtensionDays) || count >= policy.MaxExtensionCount)
-                throw ApiValidationException.For("approved_until", "Gia hạn vượt thời gian xin hoặc giới hạn của chính sách đang áp dụng.");
-            if (nextReview > until) throw ApiValidationException.For("next_review_at", "Ngày rà soát phải nằm trong hạn mới.");
+            SchoolExtensionLimitPolicy.EnsureApprovedWithinLimits(
+                extension.RequestedUntil, registration.ProtectedUntil, registration.RegisteredAt,
+                until, nextReview, policy.MaxExtensionDays, policy.MaxTotalExtensionDays,
+                count, policy.MaxExtensionCount);
             registration.ProtectedUntil = until; registration.UpdatedAt = now;
             await db.CustomerProtections.Where(x => x.ApproachRegistrationId == registration.Id && x.SourceType == "APPROACH" && x.Status == "ACTIVE")
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.EffectiveUntil, until).SetProperty(x => x.UpdatedAt, now), ct);

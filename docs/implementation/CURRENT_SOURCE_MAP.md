@@ -15,7 +15,7 @@
 | Backend routes and use cases | `backend/src/KidsfitCRM.Api/Features/` | Thin endpoints and feature actions; verify every specific permission |
 | Auth / profile | `Features/{ApiEndpoints,AuthFeatures,PasswordResetFeatures}.cs` | `/api/me/change-password`, password recovery, snake_case JSON |
 | School / Sales | `Features/{SchoolActions,SchoolAllocationActions,SchoolProposalActions,SchoolEndpoints}.cs` | Ownership, proposals, allocations, capacity, contract steps |
-| Finance / payout | `Features/{BoardCommissionPolicyEndpoints,AccountingPayoutEndpoints,AccountingContractEndpoints}.cs` | Board policy versioning, accounting workflow |
+| Finance / payout | `Features/{BoardCommissionPolicyEndpoints,AccountingPayoutEndpoints}.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Board policy versioning, accounting workflow and contract-scoped read model |
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |
 | Backend tests | `backend/tests/KidsfitCRM.Api.Tests/` | xUnit and isolated MySQL tests/fixtures |
@@ -37,3 +37,23 @@
 - Never run migrations/seed/test DB scripts without confirming database ownership and disposable isolation.
 - Preserve financial/audit records, contract ownership, school contact PII and historical migrations.
 - See [feature status](FEATURE_STATUS_MATRIX.md), [API contracts](../architecture/API_CONTRACTS.md), and [gap analysis](../requirements/CODEBASE_GAP_ANALYSIS.md).
+
+
+## Contract endpoint module layout (pending PR review, 2026-11-25)
+
+The first non-school module slice groups existing endpoint source files by business responsibility **without changing code, namespace, public types, routes, authorization, DTOs, DI, EF Core, MySQL, migrations or stored data**.
+
+```text
+Features/
+  Contracts/
+    Renewals/
+      ContractRenewalEndpoints.cs
+    Accounting/
+      AccountingContractEndpoints.cs
+    Management/
+      ManagerContractEndpoints.cs
+```
+
+These relocated files intentionally retain `namespace KidsfitCRM.Api.Features;` so existing route registration and callers remain source-compatible. The SDK automatically compiles nested `.cs` files. No Controller/Repository layer is introduced. Existing school and financial modules remain untouched in this slice.
+
+Before merge, update only tests or tooling that explicitly read former file locations; verify exact-HEAD frontend source tests, Backend build/.NET tests, and isolated MySQL 8.4 integration regression. UI/session/routing refactor must occur separately.

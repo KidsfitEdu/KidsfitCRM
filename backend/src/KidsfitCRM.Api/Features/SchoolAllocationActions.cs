@@ -2,6 +2,7 @@ using System.Data;
 using KidsfitCRM.Api.Common;
 using KidsfitCRM.Api.Domain;
 using KidsfitCRM.Api.Infrastructure;
+using KidsfitCRM.Api.Features.Schools.Allocations;
 using Microsoft.EntityFrameworkCore;
 
 namespace KidsfitCRM.Api.Features;
@@ -73,8 +74,8 @@ public sealed partial class ChannelSalesActions
         var reason = CleanOptional(request.Reason, 2000);
         var target = request.Accept ? "ACCEPTED" : "DECLINED";
         if (invitation.Status == target && invitation.ResponseReason == reason) return invitation.ApproachRegistrationId ?? invitation.Id;
-        if (invitation.Status != "PENDING" || invitation.RespondBy <= DateTime.UtcNow) throw new ApiConflictException("Lời mời đã kết thúc hoặc hết hạn.");
-        if (!request.Accept && reason is null) throw ApiValidationException.For("reason", "Cần lý do từ chối như ở xa hoặc quá tải.");
+        SchoolInvitationResponsePolicy.EnsurePending(
+            invitation.Status, invitation.RespondBy, DateTime.UtcNow, request.Accept, reason);
         var now = DateTime.UtcNow;
         if (request.Accept)
         {

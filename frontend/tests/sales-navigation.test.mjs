@@ -381,22 +381,22 @@ test('Sales extension form asks only for reason and lets the CRM calculate expir
 test('Sales income detail prioritizes personal income without exposing administrative controls', () => {
   const source = read('src/components/roles/SalesIncomePage.tsx');
   const drawer = source.slice(source.indexOf('<AppDrawer open={!!selected}'));
-  assert.match(drawer, /Tổng quan thu nhập/);
+  assert.match(drawer, /Tổng quan hoa hồng/);
   assert.match(drawer, /Hoa hồng phát sinh/);
-  assert.match(drawer, /Đã nhận \(phân bổ\)/);
-  assert.match(drawer, /Chưa nhận/);
+  assert.match(drawer, /Thực nhận/);
+  assert.match(drawer, /Chưa thanh toán/);
   assert.match(drawer, /channelMoney\(selected\.commission\)/);
   assert.match(drawer, /channelMoney\(selected\.paid\)/);
   assert.match(drawer, /channelMoney\(selected\.unpaid\)/);
-  assert.ok(drawer.indexOf('Tổng quan thu nhập') < drawer.indexOf('Thông tin hợp đồng'));
+  assert.ok(drawer.indexOf('Tổng quan hoa hồng') < drawer.indexOf('Thông tin hợp đồng'));
   assert.ok(drawer.indexOf('Thông tin hợp đồng') < drawer.indexOf('Chi tiết cách tính hoa hồng'));
-  assert.ok(drawer.indexOf('Chi tiết cách tính hoa hồng') < drawer.indexOf('Các khoản trường đã thanh toán'));
-  assert.ok(drawer.indexOf('Các khoản trường đã thanh toán') < drawer.indexOf('Lịch sử nhận hoa hồng'));
+  assert.ok(drawer.indexOf('Chi tiết cách tính hoa hồng') < drawer.indexOf('Lịch sử chi trả và khấu trừ'));
+  assert.doesNotMatch(drawer, /Các khoản trường đã thanh toán|detail\.receipts\.map/);
   assert.doesNotMatch(drawer, /1\. Thông tin hợp đồng|2\. Cơ sở và chính sách hoa hồng|3\. Các khoản trường|4\. Lịch sử phiếu chi/);
   assert.doesNotMatch(drawer, /Phê duyệt phiếu chi|Ghi nhận thanh toán/);
 });
 
-test('Sales income detail keeps genuine contract, ledger, receipts and payout allocation evidence', () => {
+test('Sales income detail keeps contract, ledger and payout allocation evidence', () => {
   const source = read('src/components/roles/SalesIncomePage.tsx');
   assert.match(source, /detail\.contract\.contract_value/);
   assert.match(source, /detail\.contract\.contract_code/);
@@ -405,7 +405,6 @@ test('Sales income detail keeps genuine contract, ledger, receipts and payout al
   assert.match(source, /entry\.rate_percent/);
   assert.match(source, /entry\.policy_code==='SYSTEM_DEFAULT'/);
   assert.match(source, /detail\.ledger\.map/);
-  assert.match(source, /detail\.receipts\.map/);
   assert.match(source, /detail\.payments\.map/);
   assert.match(source, /payment\.allocated_amount/);
   assert.match(source, /payment\.status==='PAID'/);
@@ -424,7 +423,7 @@ test('Sales commission detail endpoint remains tied to the authenticated benefic
   assert.match(detail, /var actor = http\.UserId\(\)/);
   assert.match(detail, /x\.BeneficiaryUserId == actor && x\.ContractId == contractId/);
   assert.match(detail, /payout\.BeneficiaryUserId == actor/);
-  assert.match(detail, /allocated_amount = allocation/);
+  assert.match(detail, /allocated_amount = shares\.Sum\(x => x\.Net\)/);
 });
 
 
@@ -441,7 +440,7 @@ test('Sales and Manager use one personal income screen with actual historical co
   assert.match(app, /isManager \? item\.id\.startsWith\('manager-'\)/);
   assert.match(sections, /income: \{label:"Thu nhập",panel:"income"/);
   assert.match(component, /beneficiaryRole='SALES'/);
-  assert.match(component, /columns=\{\['Trường học','Tỷ lệ HH','Hoa hồng','Đã nhận','Thao tác'\]\}/);
+  assert.match(component, /columns=\{\['Trường học','Tỷ lệ HH','Hoa hồng','Khấu trừ','Thực nhận','Chưa thanh toán','Thao tác'\]\}/);
   assert.match(component, /row\.rate_is_mixed/);
   assert.match(component, /Nhiều mức/);
   assert.match(component, /row\.rate_percent==null/);
@@ -455,14 +454,14 @@ test('Personal income endpoint distinguishes Sales and Manager ledger roles with
   const endpoint = read('../backend/src/KidsfitCRM.Api/Features/SalesIncomeEndpoints.cs');
   assert.match(endpoint, /x\.BeneficiaryUserId == actor/);
   assert.match(endpoint, /x\.ContractId == contractId/);
-  assert.match(endpoint, /entry\.BeneficiaryUserId == actor/);
+  assert.match(endpoint, /x\.BeneficiaryUserId == actor/);
   assert.match(endpoint, /payout\.BeneficiaryUserId == actor/);
   assert.match(endpoint, /selectedRole != "SALES" && selectedRole != "MANAGER"/);
   assert.match(endpoint, /x\.BeneficiaryRole == selectedRole/);
-  assert.match(endpoint, /entry\.BeneficiaryRole == selectedRole/);
+  assert.match(endpoint, /x\.BeneficiaryRole == selectedRole/);
   assert.match(endpoint, /rate_is_mixed = g\.Min\(x => x\.RatePercent\) != g\.Max\(x => x\.RatePercent\)/);
   assert.match(endpoint, /rate_percent = g\.Min\(x => x\.RatePercent\) == g\.Max\(x => x\.RatePercent\)/);
   assert.match(endpoint, /x\.rate_percent, x\.rate_is_mixed/);
   assert.match(endpoint, /payout\.Status == "PAID"/);
-  assert.match(endpoint, /x\.Amount \* x\.NetAmount \/ x\.GrossAmount/);
+  assert.match(endpoint, /IncomePayoutAllocation\.Allocate\(source\)/);
 });

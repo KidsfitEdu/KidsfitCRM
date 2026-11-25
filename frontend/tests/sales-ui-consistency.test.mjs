@@ -37,15 +37,25 @@ test('Sales invitation list represents actionable states with semantic badges', 
   assert.match(source, /onReject\(x\)/);
 });
 
-test('Sales income overview uses shared stat cards without changing API values', () => {
+test('Sales and Manager income overview explains withholding, net paid and outstanding separately', () => {
   const source = read('src/components/roles/SalesIncomePage.tsx');
   assert.match(source, /<AppStatCard icon=\{Wallet\}/);
   assert.match(source, /data\.summary\.accrued/);
+  assert.match(source, /data\.summary\.withholding/);
   assert.match(source, /data\.summary\.paid/);
   assert.match(source, /data\.summary\.unpaid/);
-  assert.match(source, /data\.summary\.contracts/);
-  assert.match(source, /data \? channelMoney\(data\.summary\.accrued\) : '—'/);
-  assert.match(source, /data \? data\.summary\.contracts : '—'/);
+  assert.match(source, /data\?\.summary\.contracts/);
+  assert.match(source, /Hoa hồng đã quyết toán/);
+  assert.match(source, /Lịch sử chi trả và khấu trừ/);
+  assert.match(source, /withholding_reason/);
+  assert.match(source, /selected\.adjustment/);
+  assert.match(source, /payment\.allocated_adjustment/);
+  assert.match(source, /md:hidden/);
+  assert.match(source, /AppPagination/);
+  assert.match(source, /compactHeader/);
+  assert.match(source, /<details className=/);
+  const manager = read('src/screens/SalesManager/Income/IncomePage.tsx');
+  assert.match(manager, /beneficiaryRole="MANAGER"/);
 });
 
 test('Sales customer state colors distinguish approach, pending review, and verification', () => {

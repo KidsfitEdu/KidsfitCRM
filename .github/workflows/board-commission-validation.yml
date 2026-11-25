@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [develop]
     paths:
-      - 'backend/src/KidsfitCRM.Api/Features/BoardCommissionPolicyEndpoints.cs'
+      - 'backend/src/KidsfitCRM.Api/Features/Commissions/**'
       - 'backend/src/KidsfitCRM.Api/Domain/BoardCommissionPolicyVersion.cs'
       - 'backend/src/KidsfitCRM.Api/Infrastructure/**'
       - 'backend/tests/KidsfitCRM.Api.Tests/BoardCommissionPolicyTests.cs'

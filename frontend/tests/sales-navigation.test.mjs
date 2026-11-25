@@ -418,7 +418,7 @@ test('Sales income detail keeps contract, ledger and payout allocation evidence'
 });
 
 test('Sales commission detail endpoint remains tied to the authenticated beneficiary', () => {
-  const source = read('../backend/src/KidsfitCRM.Api/Features/SalesIncomeEndpoints.cs');
+  const source = read('../backend/src/KidsfitCRM.Api/Features/Commissions/Income/SalesIncomeEndpoints.cs');
   const detail = source.slice(source.indexOf('public static async Task<IResult> Detail('));
   assert.match(detail, /var actor = http\.UserId\(\)/);
   assert.match(detail, /x\.BeneficiaryUserId == actor && x\.ContractId == contractId/);
@@ -451,7 +451,7 @@ test('Sales and Manager use one personal income screen with actual historical co
 });
 
 test('Personal income endpoint distinguishes Sales and Manager ledger roles without leaking team income', () => {
-  const endpoint = read('../backend/src/KidsfitCRM.Api/Features/SalesIncomeEndpoints.cs');
+  const endpoint = read('../backend/src/KidsfitCRM.Api/Features/Commissions/Income/SalesIncomeEndpoints.cs');
   assert.match(endpoint, /x\.BeneficiaryUserId == actor/);
   assert.match(endpoint, /x\.ContractId == contractId/);
   assert.match(endpoint, /x\.BeneficiaryUserId == actor/);

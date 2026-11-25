@@ -45,6 +45,7 @@ import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-e
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
 import { SchoolProposalWorkflowDetails } from '@/components/crm/schools/school-proposal-workflow-details';
 import { AppDialog } from '@/components/common/dialogs/app-dialog';
+import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { appNotice } from '@/components/common/app-toast-provider';
 
 type Props = {
@@ -1613,18 +1614,14 @@ export function SchoolOperations({
           appNotice.success(proposalEditorId === null ? 'Đã lưu bản nháp trường học.' : 'Đã cập nhật bản nháp trường học.');
           await Promise.allSettled([client.invalidateQueries({queryKey:channelQueryKeys.all}),onChanged()]);
         }}/>
-      <AppDialog open={draftDecision !== null} busy={draftBusy}
-        onOpenChange={next=>{if(!next){setDraftDecision(null);setDraftError('');}}}
+      <ConfirmDialog open={draftDecision !== null} busy={draftBusy}
+        onOpenChange={next=>{if(!next&&!draftBusy){setDraftDecision(null);setDraftError('');}}}
         title={draftDecision?.kind==='delete'?'Xác nhận xóa bản nháp':'Gửi đề xuất phê duyệt'}
-        description={draftDecision?.kind==='delete'?'Hồ sơ được xóa mềm, lịch sử vẫn lưu.':'Đề xuất sẽ chuyển đến Quản lý bán hàng trực tiếp.'}
-        footer={<>
-          <AppButton tone="neutral" disabled={draftBusy} onClick={()=>setDraftDecision(null)}>Hủy</AppButton>
-          <AppButton busy={draftBusy} tone={draftDecision?.kind==='delete'?'danger':'green'}
-            onClick={()=>void confirmDraftAction()}>Xác nhận</AppButton>
-        </>}>
-        <p className="text-sm">Bạn có chắc chắn muốn {draftDecision?.kind==='delete'?'xóa bản nháp':'gửi phê duyệt'} trường <strong>{draftDecision?.proposal.name}</strong> không?</p>
-        {draftError&&<p role="alert" className="mt-3 text-sm text-destructive">{draftError}</p>}
-      </AppDialog>
+        description={<>Bạn có chắc chắn muốn {draftDecision?.kind==='delete'?'xóa bản nháp':'gửi phê duyệt'} trường <strong>{draftDecision?.proposal.name}</strong> không?</>}
+        confirmLabel="Xác nhận" destructive={draftDecision?.kind==='delete'}
+        onConfirm={()=>void confirmDraftAction()}>
+        {draftError&&<p role="alert" className="text-sm text-destructive">{draftError}</p>}
+      </ConfirmDialog>
       <SchoolActionDialog action={action} onClose={() => setAction(null)} save={save} />
       <AppDrawer
         open={history !== null}

@@ -381,17 +381,17 @@ test('Sales extension form asks only for reason and lets the CRM calculate expir
 test('Sales income detail prioritizes personal income without exposing administrative controls', () => {
   const source = read('src/components/roles/SalesIncomePage.tsx');
   const drawer = source.slice(source.indexOf('<AppDrawer open={!!selected}'));
-  assert.match(drawer, /Tổng quan thu nhập/);
+  assert.match(drawer, /Tổng quan hoa hồng/);
   assert.match(drawer, /Hoa hồng phát sinh/);
   assert.match(drawer, /Đã nhận \(phân bổ\)/);
-  assert.match(drawer, /Chưa nhận/);
+  assert.match(drawer, /Chưa thanh toán/);
   assert.match(drawer, /channelMoney\(selected\.commission\)/);
   assert.match(drawer, /channelMoney\(selected\.paid\)/);
   assert.match(drawer, /channelMoney\(selected\.unpaid\)/);
-  assert.ok(drawer.indexOf('Tổng quan thu nhập') < drawer.indexOf('Thông tin hợp đồng'));
+  assert.ok(drawer.indexOf('Tổng quan hoa hồng') < drawer.indexOf('Thông tin hợp đồng'));
   assert.ok(drawer.indexOf('Thông tin hợp đồng') < drawer.indexOf('Chi tiết cách tính hoa hồng'));
   assert.ok(drawer.indexOf('Chi tiết cách tính hoa hồng') < drawer.indexOf('Các khoản trường đã thanh toán'));
-  assert.ok(drawer.indexOf('Các khoản trường đã thanh toán') < drawer.indexOf('Lịch sử nhận hoa hồng'));
+  assert.ok(drawer.indexOf('Các khoản trường đã thanh toán') < drawer.indexOf('Lịch sử chi trả và khấu trừ'));
   assert.doesNotMatch(drawer, /1\. Thông tin hợp đồng|2\. Cơ sở và chính sách hoa hồng|3\. Các khoản trường|4\. Lịch sử phiếu chi/);
   assert.doesNotMatch(drawer, /Phê duyệt phiếu chi|Ghi nhận thanh toán/);
 });
@@ -424,7 +424,7 @@ test('Sales commission detail endpoint remains tied to the authenticated benefic
   assert.match(detail, /var actor = http\.UserId\(\)/);
   assert.match(detail, /x\.BeneficiaryUserId == actor && x\.ContractId == contractId/);
   assert.match(detail, /payout\.BeneficiaryUserId == actor/);
-  assert.match(detail, /allocated_amount = allocation/);
+  assert.match(detail, /allocated_amount = shares.Sum\\(x => x.Net\\)/);
 });
 
 

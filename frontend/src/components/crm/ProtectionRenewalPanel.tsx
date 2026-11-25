@@ -11,6 +11,7 @@ import { AppSelect } from '@/components/common/app-select';
 import { AppPagination } from '@/components/common/app-pagination';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
+import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
 
 type RenewalCase = {
@@ -315,11 +316,11 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
       confirmLabel="Xác nhận cấp 5 năm" busy={busy}
       onConfirm={()=>{if(activeDecision)void send(activeDecision.row,'approve');}}/>
 
-    <AppDrawer open={activeDecision?.action==='reject'||activeDecision?.action==='request'}
-      onOpenChange={open=>{if(!open){setDecision(null);setReason('');}}}
+    <AppDialog open={activeDecision?.action==='reject'||activeDecision?.action==='request'}
+      onOpenChange={open=>{if(!open&&!busy){setDecision(null);setReason('');}}}
       title={activeDecision?.action==='reject'?'Từ chối hồ sơ bảo vệ':'Yêu cầu xem xét bảo vệ'}
       description={activeDecision?.row.school??''}
-      busy={busy}
+      compact footerAlign="center" busy={busy}
       footer={<>
         <AppButton type="button" tone="neutral" disabled={busy} onClick={()=>{setDecision(null);setReason('');}}>Hủy</AppButton>
         <AppButton type="button" tone={activeDecision?.action==='reject'?'danger':'green'} busy={busy}
@@ -332,10 +333,10 @@ export function ProtectionRenewalPanel({apiBase,token,mode}:{apiBase:string;toke
         {activeDecision?.action==='reject'?'Lý do từ chối (bắt buộc)':'Lý do cần xem xét (không bắt buộc)'}
       </label>
       <textarea id="protection-renewal-reason" value={reason} maxLength={1000}
-        onChange={e=>setReason(e.target.value)} rows={5}
+        onChange={e=>setReason(e.target.value)} rows={3}
         placeholder="Nhập nội dung để Quản lý xem xét..."
         className="mt-2 w-full rounded-xl border border-input bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"/>
       <p className="mt-1 text-right text-xs text-muted-foreground">{reason.length}/1000</p>
-    </AppDrawer>
+    </AppDialog>
   </div>;
 }

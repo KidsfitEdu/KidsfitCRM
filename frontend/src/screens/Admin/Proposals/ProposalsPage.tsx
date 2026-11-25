@@ -173,7 +173,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
     </ConfirmDialog>
     <AppDialog open={reviewMode==='reject'&&selected!==null}
       onOpenChange={open=>{if(!open&&!decisionBusy)closeDecision();}}
-      busy={decisionBusy} contentClassName="sm:max-w-[520px]"
+      busy={decisionBusy} compact
       title="Từ chối đề xuất trường"
       description="Vui lòng nhập lý do từ chối để Quản lý và Sales/CTV biết nội dung cần bổ sung."
       footer={<>
@@ -189,7 +189,7 @@ export function ProposalsPage({apiBase,token,abilities,onChanged}:AdminPageProps
           aria-required="true" aria-invalid={!!reasonError}
           aria-describedby={reasonError?'admin-proposal-rejection-error':undefined}
           placeholder="Nhập lý do từ chối đề xuất..."
-          className="min-h-[92px] resize-y rounded-xl bg-muted/25"
+          className="min-h-[88px] resize-y rounded-xl bg-muted/25"
           value={reason} onChange={e=>{setReason(e.target.value);setReasonError('');}} disabled={decisionBusy}/>
         {reasonError&&<div id="admin-proposal-rejection-error"><FormError>{reasonError}</FormError></div>}
       </div>

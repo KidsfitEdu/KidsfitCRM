@@ -240,7 +240,7 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
               </div>}
             </div>
           </details>
-          <section aria-labelledby="sales-income-payments" className="space-y-3 rounded-2xl border border-border bg-card p-4"
+          <section aria-labelledby="sales-income-payments" className="space-y-3 rounded-2xl border border-border bg-card p-4">
             <h3 id="sales-income-payments" className="flex items-center gap-2 font-semibold text-foreground"><History aria-hidden="true" className="size-4 text-primary"/>Lịch sử chi trả và khấu trừ</h3>
             {detail.payments.length===0?<p className="rounded-xl border border-border p-4 text-muted-foreground">Chưa có phiếu chi cho các bút toán này.</p>
               :detail.payments.map(payment=><div key={payment.id} className="space-y-3 rounded-xl border border-border p-4">

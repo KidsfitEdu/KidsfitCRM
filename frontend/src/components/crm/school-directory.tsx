@@ -700,17 +700,16 @@ export function SchoolDirectory({
           </div>
         </div>
       </AppDialog>
-      <AppDialog open={archiveTarget !== null}
-        onOpenChange={open => { if (!open && !adminBusy) { setArchiveTarget(null); setAdminError(''); } }}
-        busy={adminBusy} title={archiveTarget?.is_deleted ? 'Khôi phục trường học' : 'Xác nhận xóa trường học'}>
-        <div className="space-y-3">
-          <p className="text-sm">Bạn có chắc chắn muốn {archiveTarget?.is_deleted ? 'khôi phục' : 'xóa'} trường <strong>{archiveTarget?.display_name}</strong> không?</p>
-          <div className="flex justify-end gap-2">
-            <AppButton tone="outline" disabled={adminBusy} onClick={() => setArchiveTarget(null)}>Hủy</AppButton>
-            <AppButton disabled={adminBusy} onClick={() => void changeArchive()}>Xác nhận</AppButton>
-          </div>
-        </div>
-      </AppDialog>
+      <ConfirmDialog open={archiveTarget !== null}
+        onOpenChange={open=>{if(!open&&!adminBusy){setArchiveTarget(null);setAdminError('');}}}
+        busy={adminBusy}
+        title={archiveTarget?.is_deleted?'Khôi phục trường học':'Xác nhận xóa trường học'}
+        description={<>Bạn có chắc chắn muốn {archiveTarget?.is_deleted?'khôi phục':'xóa'} trường <strong>{archiveTarget?.display_name}</strong> không?</>}
+        confirmLabel={archiveTarget?.is_deleted?'Xác nhận khôi phục':'Xác nhận xóa'}
+        destructive={!archiveTarget?.is_deleted}
+        onConfirm={()=>void changeArchive()}>
+        {adminError&&<p role="alert" className="text-sm text-destructive">{adminError}</p>}
+      </ConfirmDialog>
       <AppDialog open={!!capacity} onOpenChange={(open) => {if (!open) setCapacity(null);}} title={`Hạn mức trường của ${capacity?.name ?? ''}`} description="Giảm hạn mức không thu hồi quyền bảo vệ hiện tại. CTV chỉ nhận thêm khi còn suất.">
           {capacity && (
             <CapacityForm

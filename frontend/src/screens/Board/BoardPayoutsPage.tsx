@@ -10,7 +10,7 @@ import { AppPagination } from '@/components/common/app-pagination';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { AppButton } from '@/components/common/buttons/app-button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { appNotice } from '@/components/common/app-toast-provider';
 import { channelRequest, channelMoney, channelDate } from '@/lib/channel-operations';
 import type { RolePageProps } from '@/types/role-pages';
@@ -298,9 +298,10 @@ export function BoardPayoutsPage({apiBase,token,abilities,onChanged}:RolePagePro
       description={returning?'Trả phiếu '+returning.code+' về cho Kế toán chỉnh sửa. Lý do được ghi vào lịch sử.':undefined}
       onConfirm={()=>{if(returnId!==null)void perform(returnId,'return');}}>
       <label htmlFor="board-payout-return-reason" className="block text-sm font-medium">Lý do yêu cầu bổ sung *</label>
-      <Input id="board-payout-return-reason" value={reason} maxLength={1000}
+      <Textarea id="board-payout-return-reason" value={reason} maxLength={1000} rows={3}
         onChange={event=>setReason(event.target.value)}
-        placeholder="Nhập nội dung cần Kế toán bổ sung..."/>
+        placeholder="Nhập nội dung cần Kế toán bổ sung..."
+        className="mt-2 min-h-[88px] resize-y rounded-xl bg-muted/25"/>
       {!reason.trim()&&<p className="text-xs text-muted-foreground">Bắt buộc nhập lý do trước khi trả phiếu.</p>}
     </ConfirmDialog>
   </div>;

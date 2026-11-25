@@ -12,11 +12,11 @@ import { AppButton } from '@/components/common/buttons/app-button';
 import { channelDate, channelMoney, channelRequest } from '@/lib/channel-operations';
 
 type Row = { contract_id:number; contract_code:string; school_name:string;
-  commission:number; settled_gross:number; withholding:number; paid:number; unpaid:number; entries:number;
+  commission:number; settled_gross:number; adjustment:number; withholding:number; paid:number; unpaid:number; entries:number;
   rate_percent:number|null; rate_is_mixed:boolean };
 type Payout = {id:number;code:string;period:string;amount:number;status:string;paid_at:string|null;payment_reference:string|null};
 type Income = {period:string;page:number;page_size:number;total:number;
-  summary:{accrued:number;settled_gross:number;withholding:number;paid:number;unpaid:number;contracts:number};
+  summary:{accrued:number;settled_gross:number;adjustment:number;withholding:number;paid:number;unpaid:number;contracts:number};
   data:Row[];payouts:Payout[]};
 type IncomeDetail = {
   contract:{contract_code:string;school_name:string;contract_value:number;contract_status:string};
@@ -25,7 +25,7 @@ type IncomeDetail = {
     rate_percent:number;policy_code:string;period:string;occurred_at:string;reason:string|null}[];
   receipts:{id:number;amount:number;received_at:string;reference_code:string}[];
   payments:{id:number;code:string;period:string;status:string;paid_at:string|null;
-    payment_reference:string|null;allocated_gross:number;allocated_withholding:number;
+    payment_reference:string|null;allocated_gross:number;allocated_adjustment:number;adjustment_reason:string|null;allocated_withholding:number;
     allocated_amount:number;withholding_reason:string|null;evidence_id:number|null;evidence_name:string|null}[];
 };
 const statusLabel: Record<string,string> = {
@@ -177,7 +177,7 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
               <p className="mt-1 text-2xl font-bold tabular-nums">{channelMoney(selected.commission)}</p>
             </div>
             <span className="rounded-full border border-border bg-muted px-2 py-1 text-xs text-muted-foreground">
-              {selected.unpaid===0 ? 'Đã quyết toán' : 'Còn chờ quyết toán'}
+              {selected.unpaid<0?'Cần đối soát':selected.unpaid===0 ? 'Đã quyết toán' : 'Còn chờ quyết toán'}
             </span>
           </div>
           <dl className="divide-y divide-border border-t border-border">
@@ -185,6 +185,10 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
               <dt className="text-muted-foreground">Hoa hồng đã quyết toán</dt>
               <dd className="font-semibold tabular-nums">{channelMoney(selected.settled_gross)}</dd>
             </div>
+            {selected.adjustment!==0 && <div className="flex items-center justify-between gap-2 py-2">
+              <dt className="text-muted-foreground">Điều chỉnh khi lập phiếu chi</dt>
+              <dd className="font-semibold tabular-nums">{channelMoney(selected.adjustment)}</dd>
+            </div>}
             <div className="flex items-center justify-between gap-2 py-2">
               <dt className="text-muted-foreground">Khấu trừ</dt>
               <dd className="font-semibold tabular-nums text-amber-700 dark:text-amber-300">−{channelMoney(selected.withholding)}</dd>
@@ -286,9 +290,11 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
                 </div>
                 <dl className="space-y-1 border-t border-border pt-2 text-sm">
                   <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Giá trị quyết toán (gross)</dt><dd className="tabular-nums">{channelMoney(payment.allocated_gross)}</dd></div>
+                  {payment.allocated_adjustment!==0&&<div className="flex justify-between gap-2"><dt className="text-muted-foreground">Điều chỉnh giá trị chi</dt><dd className="tabular-nums">{channelMoney(payment.allocated_adjustment)}</dd></div>}
                   <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Khấu trừ</dt><dd className="tabular-nums text-amber-700 dark:text-amber-300">−{channelMoney(payment.allocated_withholding)}</dd></div>
                   <div className="flex justify-between gap-2 font-semibold"><dt>{payment.status==='PAID'?'Đã thực nhận':'Dự kiến thực nhận'}</dt><dd className="tabular-nums">{channelMoney(payment.allocated_amount)}</dd></div>
                 </dl>
+                {payment.allocated_adjustment!==0&&payment.adjustment_reason&&<p className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">Lý do điều chỉnh: {payment.adjustment_reason}</p>}
                 {payment.allocated_withholding>0&&<p className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">Lý do khấu trừ: {payment.withholding_reason||'Chưa cập nhật'}</p>}
                 <p className="text-xs text-muted-foreground">{payment.paid_at?channelDate(payment.paid_at):'Chưa chuyển'} · {payment.payment_reference||'Chưa có mã giao dịch'}</p>
                 {payment.evidence_id && payment.evidence_name&&<AppButton type="button" tone="outline" className="h-9"

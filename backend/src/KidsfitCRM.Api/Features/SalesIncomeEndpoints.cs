@@ -51,10 +51,8 @@ public static class SalesIncomeEndpoints
         var total = await groups.CountAsync(ct);
         var selectedRows = await groups.OrderBy(x => x.school_name).ThenBy(x => x.contract_id)
             .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
-        var ids = selectedRows.Select(x => x.contract_id).ToArray();
-
         // Allocate the full payout before narrowing by contract/role/period.
-        // Net paid and tax withholding are separate from gross settled amounts.
+        // Net paid and withholding are separate from gross settled amounts.
         var paidShares = (await LoadShares(db, actor, true, ct))
             .Where(x => x.BeneficiaryUserId == actor
                 && (selected == null || x.Period == selected)

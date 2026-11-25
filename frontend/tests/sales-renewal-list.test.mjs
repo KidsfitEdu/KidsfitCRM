@@ -26,7 +26,7 @@ test('Contract renewal creation still requires exact source contract',()=>{
 });
 
 test('Sales history API enforces scoped ownership and server pagination',()=>{
-  const api=read('../backend/src/KidsfitCRM.Api/Features/ContractRenewalEndpoints.cs');
+  const api=read('../backend/src/KidsfitCRM.Api/Features/Contracts/Renewals/ContractRenewalEndpoints.cs');
   assert.match(api,/MapGet\("\/renewals\/mine", MineList\)/);
   assert.match(api,/MapGet\("\/renewals\/mine\/schools", MineSchools\)/);
   assert.match(api,/renewal.SubmittedByUserId == access.UserId/);

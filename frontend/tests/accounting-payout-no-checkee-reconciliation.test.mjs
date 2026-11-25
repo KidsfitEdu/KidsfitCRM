@@ -6,7 +6,7 @@ import test from 'node:test';
 const read = path => readFileSync(resolve(import.meta.dirname, '..', path), 'utf8');
 const payoutActions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
 const receiptActions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
-const detailApi = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
+const detailApi = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
 const accounting = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 
 test('Payout creation requires accrued ledger entries, period and beneficiary but not CHECKEE reconciliation', () => {

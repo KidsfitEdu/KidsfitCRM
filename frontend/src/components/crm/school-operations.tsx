@@ -575,6 +575,7 @@ export function SchoolOperations({
         onPendingChange={value => {setPendingOnly(value);setPage(1);}}
         onAccept={x => setAction({
           title: 'Nhận trường',
+          subject: x.school_name,
           description: 'Hệ thống kiểm tra lại quyền hiện tại và hạn mức. Bảo vệ 5 ngày bắt đầu khi nhận thành công.',
           path: '/school-invitations/' + x.id + '/respond',
           fields: [], preset: {accept: true},
@@ -582,7 +583,7 @@ export function SchoolOperations({
         onReject={x => setAction({
           title: 'Từ chối phân bổ', description: 'Phản hồi lý do để Quản lý sắp xếp lại.',
           path: '/school-invitations/' + x.id + '/respond',
-          fields: [reason], preset: {accept: false},
+          fields: [reason], preset: {accept: false}, danger: true,
         })}
         onHistory={x => setHistory({kind:'invitation',id:x.id,name:x.school_name})}
       />}
@@ -765,6 +766,7 @@ export function SchoolOperations({
                           onClick={() =>
                             setAction({
                               title: 'Nhận trường',
+                              subject: x.school_name,
                               description:
                                 'Hệ thống kiểm tra lại quyền hiện tại và hạn mức. Bảo vệ 5 ngày bắt đầu khi nhận thành công.',
                               path: '/school-invitations/' + x.id + '/respond',
@@ -788,7 +790,7 @@ export function SchoolOperations({
                                 'Phản hồi lý do để Quản lý sắp xếp lại.',
                               path: '/school-invitations/' + x.id + '/respond',
                               fields: [reason],
-                              preset: { accept: false },
+                              preset: {accept: false}, danger: true,
                             })
                           }
                         >

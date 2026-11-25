@@ -42,7 +42,9 @@ public sealed class IncomePayoutAllocationTests
         var shares = IncomePayoutAllocation.Allocate([
             Item(1, 1, 5, 1000000m, 950000m, 100000m)
         ]);
-        Assert.Equal(50000m, 1000000m - shares.Sum(x => x.Gross));
+        Assert.Equal(1000000m, shares.Sum(x => x.CoveredAmount));
+        Assert.Equal(-50000m, shares.Sum(x => x.Gross - x.CoveredAmount));
+        Assert.Equal(0m, 1000000m - shares.Sum(x => x.CoveredAmount));
         Assert.Equal(850000m, shares.Sum(x => x.Net));
     }
 
@@ -55,6 +57,21 @@ public sealed class IncomePayoutAllocationTests
         ]);
         Assert.Equal(900m, all.Where(x => x.BeneficiaryRole == "SALES").Sum(x => x.Net));
         Assert.Equal(1800m, all.Where(x => x.BeneficiaryRole == "MANAGER").Sum(x => x.Net));
+    }
+
+    [Fact]
+    public void Multiple_periods_have_isolated_sum_and_reconcile_globally()
+    {
+        var items = new[] {
+            Item(10, 1, 20, 600m, 600m, 60m, period: "2026-10"),
+            Item(11, 2, 21, 400m, 400m, 0m, period: "2026-11")
+        };
+        var all = IncomePayoutAllocation.Allocate(items);
+        Assert.Equal(540m, all.Where(x => x.Period == "2026-10").Sum(x => x.Net));
+        Assert.Equal(400m, all.Where(x => x.Period == "2026-11").Sum(x => x.Net));
+        Assert.Equal(1000m, all.Sum(x => x.CoveredAmount));
+        Assert.Equal(60m, all.Sum(x => x.Withholding));
+        Assert.Equal(940m, all.Sum(x => x.Net));
     }
 
     [Fact]

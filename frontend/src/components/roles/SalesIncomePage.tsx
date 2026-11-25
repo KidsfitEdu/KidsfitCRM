@@ -306,7 +306,6 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
               </div>)}
           </section>
           {proofError&&<p role="alert" className="rounded-xl border border-destructive/30 p-3 text-destructive">{proofError}</p>}
-          <p className="text-xs leading-5 text-muted-foreground">Với phiếu chi gộp nhiều hợp đồng, số tiền hiển thị là phần phân bổ theo tỷ trọng bút toán, không phải một giao dịch ngân hàng riêng cho từng trường.</p>
         </>}
       </div>}
     </AppDrawer>

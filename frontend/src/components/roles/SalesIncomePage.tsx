@@ -264,18 +264,6 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
             <p className="text-xs leading-5 text-muted-foreground">Hoa hồng được ghi nhận theo số tiền thực thu đủ điều kiện và chính sách của từng bút toán, không tự động tính trên toàn bộ giá trị hợp đồng.</p>
             </div>
           </details>
-          <details className="group rounded-2xl border border-border bg-card p-4">
-            <summary className="cursor-pointer font-semibold">Các khoản trường đã thanh toán</summary>
-            <div className="mt-3 space-y-3">
-            {detail.receipts.length===0?<p className="rounded-xl border border-border p-4 text-muted-foreground">Chưa có khoản thu liên kết với bút toán.</p>
-              :<div className="divide-y divide-border rounded-xl border border-border px-4">
-                {detail.receipts.map(receipt=><div key={receipt.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                  <span className="text-muted-foreground">{channelDate(receipt.received_at)} · {receipt.reference_code||'—'}</span>
-                  <span className="font-semibold tabular-nums">{channelMoney(receipt.amount)}</span>
-                </div>)}
-              </div>}
-            </div>
-          </details>
           <section aria-labelledby="sales-income-payments" className="space-y-3 rounded-2xl border border-border bg-card p-4">
             <h3 id="sales-income-payments" className="flex items-center gap-2 font-semibold text-foreground"><History aria-hidden="true" className="size-4 text-primary"/>Lịch sử chi trả và khấu trừ</h3>
             {detail.payments.length===0?<p className="rounded-xl border border-border p-4 text-muted-foreground">Chưa có phiếu chi cho các bút toán này.</p>

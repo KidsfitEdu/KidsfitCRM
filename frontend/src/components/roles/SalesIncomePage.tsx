@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, Clock3, Eye, FileImage, ExternalLink, Wallet, ReceiptText, Calculator, History } from 'lucide-react';
 import { AppPageHeader } from '@/components/common/app-page-header';
 import { AppStatCard } from '@/components/common/app-stat-card';
+import { AppPagination } from '@/components/common/app-pagination';
 import { AppDrawer } from '@/components/common/drawers/app-drawer';
 import { AdminIconAction } from '@/components/common/admin-list-ui';
 import { SalesListLayout, SalesListRow, SalesListToolbar } from '@/components/common/sales-list';
@@ -102,6 +103,36 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
           description="Hoa hồng chưa quyết toán"/>
       </div>
       <p className="text-xs text-muted-foreground">Có {data?.summary.contracts ?? 0} hợp đồng phát sinh hoa hồng. Khấu trừ chỉ tính trên phiếu đã chi.</p>
+      <section aria-label="Danh sách hoa hồng trên thiết bị nhỏ" className="space-y-3 overflow-hidden rounded-2xl border border-border bg-card md:hidden">
+        <SalesListToolbar search={search} onSearchChange={setSearch}
+          searchLabel="Tìm tên trường hoặc hợp đồng" placeholder="Tên trường, mã hợp đồng..."
+          onSearch={() => {setTerm(search.trim());setPage(1);}}
+          onReset={() => {setTerm('');setSearch('');setPage(1);}}/>
+        <div className="space-y-3 px-3 pb-2">
+          {loading && <output className="block p-4 text-sm text-muted-foreground">Đang tải dữ liệu…</output>}
+          {!loading && rows.length===0 && <p className="p-4 text-sm text-muted-foreground">Chưa có hoa hồng phù hợp.</p>}
+          {!loading && rows.map(row => <article key={row.contract_id} className="space-y-3 rounded-xl border border-border p-3">
+            <div className="min-w-0 space-y-1">
+              <p className="break-words font-semibold">{row.school_name}</p>
+              <p className="break-all text-xs text-muted-foreground">{row.contract_code}</p>
+              <p className="text-xs font-medium text-primary">{row.rate_is_mixed?'Nhiều mức hoa hồng':row.rate_percent==null?'Chưa có tỷ lệ':row.rate_percent+'% hoa hồng'}</p>
+            </div>
+            <dl className="grid grid-cols-2 gap-3 border-t border-border pt-3 text-xs">
+              <div><dt className="text-muted-foreground">Hoa hồng</dt><dd className="mt-1 font-semibold tabular-nums">{channelMoney(row.commission)}</dd></div>
+              <div><dt className="text-muted-foreground">Khấu trừ</dt><dd className="mt-1 font-semibold tabular-nums text-amber-700 dark:text-amber-300">{channelMoney(row.withholding)}</dd></div>
+              <div><dt className="text-muted-foreground">Thực nhận</dt><dd className="mt-1 font-semibold tabular-nums text-green-700 dark:text-green-300">{channelMoney(row.paid)}</dd></div>
+              <div><dt className="text-muted-foreground">Chưa thanh toán</dt><dd className="mt-1 font-semibold tabular-nums">{channelMoney(row.unpaid)}</dd></div>
+            </dl>
+            <AppButton type="button" tone="outline" className="w-full justify-center"
+              leadingIcon={<Eye className="size-4" aria-hidden="true"/>}
+              onClick={() => setSelected(row)}>Xem chi tiết</AppButton>
+          </article>)}
+        </div>
+        <AppPagination page={page} pageSize={pageSize} total={data?.total??0}
+          disabled={loading} showSummary={false} pageSizeOptions={[10,20,50,100]}
+          onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1);}}/>
+      </section>
+      <div className="hidden md:block">
       <SalesListLayout
         columns={['Trường học','Tỷ lệ HH','Hoa hồng','Khấu trừ','Thực nhận','Chưa thanh toán','Thao tác']}
         template="minmax(220px,1.8fr) minmax(85px,.55fr) repeat(4,minmax(115px,1fr)) minmax(75px,auto)"
@@ -134,6 +165,7 @@ export function SalesIncomePage({apiBase,token,abilities,beneficiaryRole='SALES'
           </div>
         </SalesListRow>)}
       </SalesListLayout>
+      </div>
     </>}
     <AppDrawer open={!!selected} onOpenChange={open=>{if(!open){setSelected(null);setProofError('');}}}
       title="Chi tiết hoa hồng" description={selected?.school_name??''} compactHeader bodyClassName="space-y-4 bg-muted/10">

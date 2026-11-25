@@ -8,7 +8,7 @@ const picker=load('src/components/crm/schools/allocation-school-picker.tsx');
 const manager=load('src/components/roles/ManagerWorklists.tsx');
 const form=load('src/components/crm/schools/school-action-form.tsx');
 const api=load('../backend/src/KidsfitCRM.Api/Features/SchoolEndpoints.cs');
-const actions=load('../backend/src/KidsfitCRM.Api/Features/SchoolAllocationActions.cs');
+const actions=load('../backend/src/KidsfitCRM.Api/Features/Schools/Allocations/SchoolAllocationActions.cs');
 const invite=manager.slice(manager.indexOf('const invite ='),manager.indexOf('const records = operations.data'));
 
 test('Allocation form opens without a school query or loading gate',()=>{

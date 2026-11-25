@@ -32,7 +32,7 @@ test('CSKH only logs guidance and retains scoped detail plus ticket routing',()=
 });
 
 test('backend groups assigned contracts by customer without GI-01 or Sales rights calculations',()=>{
-  const code=read('../backend/src/KidsfitCRM.Api/Features/CustomerCareEndpoints.cs');
+  const code=read('../backend/src/KidsfitCRM.Api/Features/CustomerCare/CustomerCareEndpoints.cs');
   const list=code.slice(code.indexOf('public static async Task<IResult> Schools('),code.indexOf('public static async Task<IResult> SchoolDetail('));
   assert.match(list,/Assigned\(db, access\)/);
   assert.match(list,/GroupBy\(c => c\.CustomerId\)/);

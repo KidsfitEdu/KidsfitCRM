@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 
 const component=readFileSync(resolve(import.meta.dirname,'../src/components/crm/SalesContractPeriodHistory.tsx'),'utf8');
 const overview=readFileSync(resolve(import.meta.dirname,'../src/components/crm/SalesProtectionOverview.tsx'),'utf8');
-const endpoint=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/SalesProtectionOverviewEndpoints.cs'),'utf8');
+const endpoint=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/Schools/Protection/SalesProtectionOverviewEndpoints.cs'),'utf8');
 
 test('period history belongs inside the current protection drawer, not a new tab',()=>{
   assert.match(overview,/<SalesContractPeriodHistory key=\{selected.customer_id\}/);

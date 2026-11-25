@@ -13,15 +13,22 @@
 | Frontend tests | `frontend/tests/`; `frontend/package.json` | `lint`, `test:unit`, `test:pages`, `build` |
 | Backend app | `backend/src/KidsfitCRM.Api/Program.cs` | .NET 10, JWT security_stamp validation, MySQL, configuration, migrations |
 | Backend routes and use cases | `backend/src/KidsfitCRM.Api/Features/` | Thin endpoints and feature actions; verify every specific permission |
-| Auth / profile | `Features/{ApiEndpoints,AuthFeatures,PasswordResetFeatures}.cs` | `/api/me/change-password`, password recovery, snake_case JSON |
-| School / Sales | `Features/SchoolActions.cs`, `Features/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
+| Auth / profile | `Features/ApiEndpoints.cs`, `Features/Auth/` | `/api/me/change-password`, password recovery, snake_case JSON |
+| School / Sales | `Features/SchoolActions.cs`, `Features/Schools/Directory/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
 | Commissions | `Features/Commissions/Policies/`, `Features/Commissions/Accruals/`, `Features/Commissions/Income/` | Versioned BGĐ policy, receipt-based accruals and backfill, Sales/Manager income read model |
 | Finance / payout | `Features/Accounting/Payouts/AccountingPayoutEndpoints.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Accounting workflow and contract-scoped read model |
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |
 | Backend tests | `backend/tests/KidsfitCRM.Api.Tests/` | xUnit and isolated MySQL tests/fixtures |
-| Notifications | `Features/WorkflowNotificationEndpoints.cs`, `Infrastructure/{CrmNotificationWriter,SchoolProposalAlertService,ContractExpiryAlertService}.cs` | Unified `crm_notifications` inbox, event writers and scheduled notices; inspect current route and schema before edits |
+| Notifications | `Features/Notifications/WorkflowNotificationEndpoints.cs`, `Infrastructure/{CrmNotificationWriter,SchoolProposalAlertService,ContractExpiryAlertService}.cs` | Unified `crm_notifications` inbox, event writers and scheduled notices; inspect current route and schema before edits |
 | CI | `.github/workflows/` | Frontend, isolated MySQL, password recovery, commission, escalation workflows |
+| Personnel | `Features/Personnel/` | Personnel administration and sales membership |
+| CHECKEE | `Features/Checkee/{Verification,Reconciliation,Support}/` | Contract verification, reconciliation and support |
+| Customer care | `Features/CustomerCare/` | Handover, support cases and care activity |
+| School directory, approaches and protection | `Features/Schools/{Directory,Approaches,Protection}/` | School records and import, contact history and protection renewal |
+| Service interruption | `Features/Contracts/ServiceInterruption/` | Contract interruption endpoints |
+| Financial evidence | `Features/Evidence/` | Shared evidence endpoints for contracts, renewals, receipts and payouts |
+| Reporting | `Features/Reports/` | Manager progress and sales dashboard |
 
 ## Agent and skill routing
 - [AGENTS.md](../../AGENTS.md) selects the [primary engineering skill](../../.agents/skills/kidsfit-crm-dev/SKILL.md), its [notification](../../.agents/skills/kidsfit-crm-dev/references/notifications-and-events.md) and [testing](../../.agents/skills/kidsfit-crm-dev/references/testing-and-regression.md) references, and optional specialist UI/UX/domain skills. `kidsfit-crm-development/SKILL.md` is kept for compatibility, with its original domain references retained.

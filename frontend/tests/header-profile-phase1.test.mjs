@@ -7,7 +7,7 @@ const read = file => readFileSync(resolve(import.meta.dirname, '..', file), 'utf
 const menu = read('src/components/layout/UserProfileMenu.tsx');
 const header = read('src/components/layout/Header.tsx');
 const app = read('src/components/crm/crm-app.tsx');
-const auth = read('../backend/src/KidsfitCRM.Api/Features/AuthFeatures.cs');
+const auth = read('../backend/src/KidsfitCRM.Api/Features/Auth/AuthFeatures.cs');
 
 test('header avatar opens a keyboard-accessible menu with read-only personal drawer', () => {
   assert.match(header, /<UserProfileMenu user=\{profile\} dark=\{dark\} setDark=\{setDark\} onLogout=\{onLogout\} isAdmin=\{isAdmin\}[\s\S]{0,160}apiBase=\{apiBase\} token=\{token\} avatarUrl=\{avatarUrl\} onAvatarChanged=\{onAvatarChanged\}/);

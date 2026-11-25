@@ -135,7 +135,7 @@ Tất cả đường dẫn dưới đây nằm dưới prefix `/api`, ngoại tr
 | Hợp đồng CHECKEE | `POST /api/channel-sales/school-contracts/{id}/review`, `POST /api/channel-sales/school-contracts/{id}/grant-protection` |
 | Báo cáo vận hành | `GET /api/channel-sales/school-operations` |
 
-Endpoint và DTO thực tế nằm trong `Features/ApiEndpoints.cs`, `ChannelSalesEndpoints.cs`, `SchoolEndpoints.cs` và `SchoolOperationsEndpoints.cs`. **Tên gọi endpoint không chứng minh mọi workflow được nghiệm thu**; cần test phân quyền, trạng thái và dữ liệu.
+Endpoint và DTO thực tế nằm trong `Features/ApiEndpoints.cs`, `ChannelSalesEndpoints.cs`, `Features/Schools/Directory/SchoolEndpoints.cs` và `SchoolOperationsEndpoints.cs`. **Tên gọi endpoint không chứng minh mọi workflow được nghiệm thu**; cần test phân quyền, trạng thái và dữ liệu.
 
 ### Cảnh báo đề xuất trường quá hạn (Admin và BGĐ)
 

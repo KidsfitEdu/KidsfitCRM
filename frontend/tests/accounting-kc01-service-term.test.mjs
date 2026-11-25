@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '..');
 const read = path => readFileSync(resolve(root, path), 'utf8');
 
 test('KC-01 accountant contract API keeps scoped verified-only records', () => {
-  const api = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
+  const api = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
   assert.match(api, /verified = access.Contracts\(db\)\.AsNoTracking\(\)\.Where\(x => x.VerifiedAt != null\)/);
   assert.match(api, /service_start_on = contract.ServiceStartOn/);
   assert.match(api, /service_end_on = contract.ServiceEndOn/);
@@ -64,7 +64,7 @@ test('KC-01 selects exactly one payment plan and derives its billing cycle in bo
 test('KC-01 backend validates the plan-cycle pairing without changing installment schedules', () => {
   const contracts = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesContracts.cs');
   const initial = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
-  const revision = read('../backend/src/KidsfitCRM.Api/Features/ManagerContractEndpoints.cs');
+  const revision = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Management/ManagerContractEndpoints.cs');
   assert.match(contracts, /ContractServicePlanPolicy/);
   assert.match(initial, /ContractServicePlanPolicy.RequireMatchingCycle\(request.ServicePlan, cycle\)/);
   assert.match(revision, /ContractServicePlanPolicy.RequireMatchingCycle\(contract.ServicePlan, contract.PaymentCycle\)/);
@@ -73,7 +73,7 @@ test('KC-01 backend validates the plan-cycle pairing without changing installmen
 
 test('KC-01 Accounting separates signed original term from the currently active period', () => {
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  const backend = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
+  const backend = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
   const contractDetail=read('src/screens/Accounting/Contracts/AccountingContractDetailContent.tsx');
   for (const key of ['source_service_start_on', 'source_service_end_on', 'source_payment_cycle']) {
     assert.ok(contractDetail.includes('detail.data.' + key), key);

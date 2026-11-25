@@ -35,7 +35,7 @@ export function SchoolActionDialog({
       onOpenChange={open => { if (!open && !busy) onClose(); }}
       title={action.title === 'Nhận trường' ? 'Xác nhận nhận trường' : action.title}
       description={<>
-        {action.subject && <>Bạn có chắc chắn muốn nhận phân bổ trường <strong>{action.subject}</strong>? </>}
+        {action.subject && action.preset?.accept === true && <>Bạn có chắc chắn muốn nhận phân bổ trường <strong>{action.subject}</strong>? </>}
         {action.description}
       </>}
       confirmLabel={action.submitLabel ?? (action.preset?.accept === true ? 'Xác nhận nhận' : 'Xác nhận')}

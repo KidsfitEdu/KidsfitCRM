@@ -6,7 +6,7 @@ import test from 'node:test';
 const root=resolve(import.meta.dirname,'..');
 const read=path=>readFileSync(resolve(root,path),'utf8');
 const ui=read('src/screens/Admin/Personnel/PersonnelPage.tsx');
-const create=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
+const create=read('../backend/src/KidsfitCRM.Api/Features/Personnel/SalesPersonnelActions.cs');
 const update=read('../backend/src/KidsfitCRM.Api/Features/AdminPersonnelEndpoints.cs');
 const management=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs');
 

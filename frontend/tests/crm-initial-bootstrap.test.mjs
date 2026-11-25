@@ -75,7 +75,7 @@ test('BGĐ workflow policy V1 is created once as inactive DRAFT without overwrit
 
 test('Admin may provision DIRECTOR and CHECKEE but never bootstrap ADMIN from personnel form', () => {
   const src=source('src/screens/Admin/Personnel/PersonnelPage.tsx');
-  const actions=source('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
+  const actions=source('../backend/src/KidsfitCRM.Api/Features/Personnel/SalesPersonnelActions.cs');
   assert.match(src,/const officialRoles = \['ADMIN','DIRECTOR','ACCOUNTANT','SALES_MANAGER','CUSTOMER_SERVICE','CHECKEE','SALES'\]/);
   assert.match(src,/org.code==='KIDSFIT'\)return \['DIRECTOR'/);
   assert.match(src,/org.code==='CHECKEE'\)return \['CHECKEE'\]/);

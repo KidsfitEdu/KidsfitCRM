@@ -33,6 +33,10 @@
 - Director commission policy defaults to **25% Sales + 5% Manager** in `BoardCommissionPolicyEndpoints.cs`; historical 30% is not the default for new accruals.
 - When identifying a live feature, trace route → DTO → permission → action → EF mapping → frontend consumer → tests. Naming a file is not implementation evidence.
 
+## Channel Sales action ownership
+
+The existing `ChannelSalesActions` entry points and shared scope checks are composed from domain-owned partials. Payout mutations live in `Features/Accounting/Payouts/`, commission adjustments in `Features/Commissions/Accruals/`, and CHECKEE case decisions in `Features/Checkee/Reconciliation/`. Personnel and support actions live in `Features/Personnel/` and `Features/CustomerCare/`. Each action still owns its original transaction.
+
 ## Safety
 - Never run migrations/seed/test DB scripts without confirming database ownership and disposable isolation.
 - Preserve financial/audit records, contract ownership, school contact PII and historical migrations.

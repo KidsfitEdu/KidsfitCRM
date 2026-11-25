@@ -27,5 +27,5 @@ test('migration removes only school dispute schema and retired permission',()=>{
  assert.match(migration,/channel_sales\.school\.dispute\.resolve/);
  assert.doesNotMatch(migration,/DropTable.*reconciliation/i);
  assert.doesNotMatch(snapshot,/SchoolDispute|school_disputes/);
- assert.match(back('Features/ChannelSalesActions.cs'),/DISPUTED/);
+ assert.match(back('Features/Checkee/Reconciliation/CheckeeReconciliationActions.cs'),/DISPUTED/);
 });

@@ -17,18 +17,16 @@ public static class SchoolExtensionLimitPolicy
         return maxPerRequest < maxCumulative ? maxPerRequest : maxCumulative;
     }
 
-    public static void ValidateRequest(DateTime protectedUntil, DateTime maximumUntil, DateTime requestedUntil)
-    {
-        if (maximumUntil <= protectedUntil)
-            throw new ApiConflictException("Đã hết thời gian gia hạn theo chính sách.");
-        if (requestedUntil > maximumUntil)
-            throw ApiValidationException.For("requested_until", "Thời gian xin gia hạn vượt giới hạn chính sách.");
-    }
-
     public static void EnsureRequestWindow(DateTime protectedUntil, DateTime maximumUntil)
     {
         if (maximumUntil <= protectedUntil)
             throw new ApiConflictException("Đã hết thời gian gia hạn theo chính sách.");
+    }
+
+    public static void EnsureRequestedUntil(DateTime requestedUntil, DateTime maximumUntil)
+    {
+        if (requestedUntil > maximumUntil)
+            throw ApiValidationException.For("requested_until", "Thời gian xin gia hạn vượt giới hạn chính sách.");
     }
 
     public static void EnsureApprovedWithinLimits(

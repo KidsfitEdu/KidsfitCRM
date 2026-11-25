@@ -50,7 +50,8 @@ test('Sales and Manager income overview explains withholding, net paid and outst
   assert.match(source, /withholding_reason/);
   assert.match(source, /compactHeader/);
   assert.match(source, /<details className=/);
-  assert.match(source, /beneficiaryRole='MANAGER'/);
+  const manager = read('src/screens/SalesManager/Income/IncomePage.tsx');
+  assert.match(manager, /beneficiaryRole="MANAGER"/);
 });
 
 test('Sales customer state colors distinguish approach, pending review, and verification', () => {

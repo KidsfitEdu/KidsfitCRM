@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 
 const read = path => readFileSync(resolve(import.meta.dirname, '..', path), 'utf8');
-const payoutActions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
+const payoutActions = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutActions.cs');
 const receiptActions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
 const detailApi = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
 const accounting = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
@@ -97,7 +97,7 @@ test('Payout actions distinguish draft, submission and adjustment without retire
 });
 
 test('One shared payout transitions through BGĐ approval with required adjustment rationale',()=>{
-  const actions=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
+  const actions=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutActions.cs');
   const endpoints=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs');
   const model=read('../backend/src/KidsfitCRM.Api/Domain/ChannelSalesEntities.cs');
   assert.match(endpoints,/\/payouts\/\{id:long\}\/draft/);

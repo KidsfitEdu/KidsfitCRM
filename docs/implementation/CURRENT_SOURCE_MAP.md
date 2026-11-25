@@ -34,13 +34,17 @@
 - Director commission policy defaults to **25% Sales + 5% Manager** in `Features/Commissions/Policies/BoardCommissionPolicy.cs`; historical 30% is not the default for new accruals.
 - When identifying a live feature, trace route → DTO → permission → action → EF mapping → frontend consumer → tests. Naming a file is not implementation evidence.
 
+## Channel Sales action ownership
+
+The existing `ChannelSalesActions` entry points and shared scope checks are composed from domain-owned partials. Payout mutations live in `Features/Accounting/Payouts/`, commission adjustments in `Features/Commissions/Accruals/`, and CHECKEE case decisions in `Features/Checkee/Reconciliation/`. Personnel and support actions live in `Features/Personnel/` and `Features/CustomerCare/`. Each action still owns its original transaction.
+
 ## Safety
 - Never run migrations/seed/test DB scripts without confirming database ownership and disposable isolation.
 - Preserve financial/audit records, contract ownership, school contact PII and historical migrations.
 - See [feature status](FEATURE_STATUS_MATRIX.md), [API contracts](../architecture/API_CONTRACTS.md), and [gap analysis](../requirements/CODEBASE_GAP_ANALYSIS.md).
 
 
-## Backend school feature module layout (PR #183; pending review)
+## Backend school feature module layout
 
 The `.NET 10` API remains a **single project** and continues using **Minimal API**. These file moves do not change EF Core, database migration paths, HTTP routes, public types, namespace, dependency injection registration, or business rules.
 
@@ -48,7 +52,7 @@ The `.NET 10` API remains a **single project** and continues using **Minimal API
 Features/
   SchoolOperationsEndpoints.cs         # existing HTTP route entrypoint (unchanged)
   SchoolActions.cs                     # existing school workflow partials (unchanged)
-  ChannelSalesActions.cs              # existing aggregate orchestration (unchanged)
+  ChannelSalesActions.cs              # existing aggregate orchestration
   Schools/
     Allocations/
       SchoolAllocationActions.cs       # partial ChannelSalesActions, original namespace
@@ -66,11 +70,9 @@ Features/
 
 **Compatibility rule:** Files moved under `Features/Schools/` intentionally retain `namespace KidsfitCRM.Api.Features;` for `ChannelSalesActions` partial declarations. C# default SDK glob compilation includes the new directories automatically; do **not** introduce a second `ChannelSalesActions` type, change endpoint routes, or modify database mappings merely to align directory and namespace names. The two stateless policies in `Schools/Allocations` and `Schools/Extensions` keep their dedicated namespaces.
 
-**Follow-up work:** Separate further module slices (contracts, finance, customer care) only after CI and MySQL integration regression pass on this PR. Do not move the full feature tree or combine with frontend routing migration.
+## Contract endpoint module layout
 
-## Contract endpoint module layout (pending PR review, 2026-11-25)
-
-The first non-school module slice groups existing endpoint source files by business responsibility **without changing code, namespace, public types, routes, authorization, DTOs, DI, EF Core, MySQL, migrations or stored data**.
+The Contracts module groups existing endpoint source files by business responsibility **without changing code, namespace, public types, routes, authorization, DTOs, DI, EF Core, MySQL, migrations or stored data**.
 
 ```text
 Features/
@@ -83,6 +85,6 @@ Features/
       ManagerContractEndpoints.cs
 ```
 
-These relocated files intentionally retain `namespace KidsfitCRM.Api.Features;` so existing route registration and callers remain source-compatible. The SDK automatically compiles nested `.cs` files. No Controller/Repository layer is introduced. Existing school and financial modules remain untouched in this slice.
+These relocated files intentionally retain `namespace KidsfitCRM.Api.Features;` so existing route registration and callers remain source-compatible. The SDK automatically compiles nested `.cs` files. No Controller/Repository layer is introduced.
 
 Before merge, update only tests or tooling that explicitly read former file locations; verify exact-HEAD frontend source tests, Backend build/.NET tests, and isolated MySQL 8.4 integration regression. UI/session/routing refactor must occur separately.

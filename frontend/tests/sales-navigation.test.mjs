@@ -383,7 +383,7 @@ test('Sales income detail prioritizes personal income without exposing administr
   const drawer = source.slice(source.indexOf('<AppDrawer open={!!selected}'));
   assert.match(drawer, /Tổng quan hoa hồng/);
   assert.match(drawer, /Hoa hồng phát sinh/);
-  assert.match(drawer, /Đã nhận \(phân bổ\)/);
+  assert.match(drawer, /Thực nhận/);
   assert.match(drawer, /Chưa thanh toán/);
   assert.match(drawer, /channelMoney\(selected\.commission\)/);
   assert.match(drawer, /channelMoney\(selected\.paid\)/);
@@ -441,7 +441,7 @@ test('Sales and Manager use one personal income screen with actual historical co
   assert.match(app, /isManager \? item\.id\.startsWith\('manager-'\)/);
   assert.match(sections, /income: \{label:"Thu nhập",panel:"income"/);
   assert.match(component, /beneficiaryRole='SALES'/);
-  assert.match(component, /columns=\{\['Trường học','Tỷ lệ HH','Hoa hồng','Đã nhận','Thao tác'\]\}/);
+  assert.match(component, /columns=\{\['Trường học','Tỷ lệ HH','Hoa hồng','Khấu trừ','Thực nhận','Chưa thanh toán','Thao tác'\]\}/);
   assert.match(component, /row\.rate_is_mixed/);
   assert.match(component, /Nhiều mức/);
   assert.match(component, /row\.rate_percent==null/);
@@ -455,14 +455,14 @@ test('Personal income endpoint distinguishes Sales and Manager ledger roles with
   const endpoint = read('../backend/src/KidsfitCRM.Api/Features/SalesIncomeEndpoints.cs');
   assert.match(endpoint, /x\.BeneficiaryUserId == actor/);
   assert.match(endpoint, /x\.ContractId == contractId/);
-  assert.match(endpoint, /entry\.BeneficiaryUserId == actor/);
+  assert.match(endpoint, /x\.BeneficiaryUserId == actor/);
   assert.match(endpoint, /payout\.BeneficiaryUserId == actor/);
   assert.match(endpoint, /selectedRole != "SALES" && selectedRole != "MANAGER"/);
   assert.match(endpoint, /x\.BeneficiaryRole == selectedRole/);
-  assert.match(endpoint, /entry\.BeneficiaryRole == selectedRole/);
+  assert.match(endpoint, /x\.BeneficiaryRole == selectedRole/);
   assert.match(endpoint, /rate_is_mixed = g\.Min\(x => x\.RatePercent\) != g\.Max\(x => x\.RatePercent\)/);
   assert.match(endpoint, /rate_percent = g\.Min\(x => x\.RatePercent\) == g\.Max\(x => x\.RatePercent\)/);
   assert.match(endpoint, /x\.rate_percent, x\.rate_is_mixed/);
   assert.match(endpoint, /payout\.Status == "PAID"/);
-  assert.match(endpoint, /x\.Amount \* x\.NetAmount \/ x\.GrossAmount/);
+  assert.match(endpoint, /IncomePayoutAllocation\.Allocate\(source\)/);
 });

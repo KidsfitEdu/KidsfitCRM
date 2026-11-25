@@ -86,7 +86,7 @@ public static class ContractExpiryAlertService
             ct.ThrowIfCancellationRequested();
             if (await db.ContractCancellations.AnyAsync(x => x.ContractId == contract.Id, ct))
             {
-                await ResolveAsync(db, contract.Id, [], now, ct);
+                await ResolveAsync(db, contract.Id, now, ct);
                 continue;
             }
             var serviceEnd = finalEnds.TryGetValue(contract.Id, out var confirmedEnd)
@@ -224,14 +224,9 @@ public static class ContractExpiryAlertService
                         && BusinessDate(p.EffectiveUntil) == item.MilestoneOn)
                         || !rightsRecipientsForContract.Contains(item.RecipientUserId));
                 var isGi01 = item.Kind.StartsWith("GI01_", StringComparison.Ordinal);
-                var stillApplicableGi01 = interruption?.Assessment.ThresholdOn == item.MilestoneOn
-                    && (item.Kind == "GI01_EXCEPTION_OVERDUE"
-                        ? interruption.Status == "EXCEPTION_OVERDUE"
-                        : item.Kind == "GI01_CONFIG_REQUIRED"
-                            ? interruption.Status == "EXCEPTION_CONFIG_REQUIRED"
-                            : interruption.Status != "CONTINUOUS"
-                                && interruption.Status != "MISSINGSERVICETERM"
-                                && recipients.Contains(item.RecipientUserId));
+                var stillApplicableGi01 = IsGi01NoticeApplicable(item.Kind, item.MilestoneOn,
+                    interruption?.Assessment.ThresholdOn, interruption?.Status,
+                    recipients.Contains(item.RecipientUserId));
                 var obsoleteGi01 = isGi01 && !stillApplicableGi01;
                 if (obsoleteGap || obsoleteService || obsoleteProtection || obsoleteGi01)
                 {
@@ -245,8 +240,30 @@ public static class ContractExpiryAlertService
         return created;
     }
 
+    /// <summary>
+    /// Check whether an existing GI-01 notice is still valid. A missing assessment
+    /// or threshold cannot justify keeping an alert OPEN. Director exceptions
+    /// depend on their dedicated status; recipient scoping of those alerts is
+    /// handled when they are created.
+    /// </summary>
+    public static bool IsGi01NoticeApplicable(string kind, DateOnly? milestoneOn,
+        DateOnly? thresholdOn, string? status, bool activeRecipient)
+    {
+        if (!milestoneOn.HasValue || !thresholdOn.HasValue
+            || milestoneOn.Value != thresholdOn.Value || status is null)
+            return false;
+
+        return kind switch
+        {
+            "GI01_EXCEPTION_OVERDUE" => status == "EXCEPTION_OVERDUE",
+            "GI01_CONFIG_REQUIRED" => status == "EXCEPTION_CONFIG_REQUIRED",
+            _ => status is not ("CONTINUOUS" or "MISSINGSERVICETERM")
+                && activeRecipient
+        };
+    }
+
     private static async Task ResolveAsync(KidsfitDbContext db, long contractId,
-        IReadOnlyCollection<string> _keys, DateTime now, CancellationToken ct)
+        DateTime now, CancellationToken ct)
     {
         await db.CrmNotifications.Where(x => x.EntityType == nameof(SalesContract)
             && x.EntityId == contractId && x.Status == "OPEN"

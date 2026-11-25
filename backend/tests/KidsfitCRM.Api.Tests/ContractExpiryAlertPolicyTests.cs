@@ -32,6 +32,29 @@ public sealed class ContractExpiryAlertPolicyTests
         Assert.Empty(ContractExpiryAlertService.Milestones("PROTECTION", expires, expires.AddDays(1)));
     }
 
+    [Theory]
+    [InlineData("GI01_THRESHOLD", null, null, "THRESHOLDREACHED", true, false)]
+    [InlineData("GI01_THRESHOLD", "2026-11-25", null, "THRESHOLDREACHED", true, false)]
+    [InlineData("GI01_THRESHOLD", "2026-11-25", "2026-11-26", "THRESHOLDREACHED", true, false)]
+    [InlineData("GI01_THRESHOLD", "2026-11-25", "2026-11-25", null, true, false)]
+    [InlineData("GI01_THRESHOLD", "2026-11-25", "2026-11-25", "CONTINUOUS", true, false)]
+    [InlineData("GI01_THRESHOLD", "2026-11-25", "2026-11-25", "MISSINGSERVICETERM", true, false)]
+    [InlineData("GI01_THRESHOLD", "2026-11-25", "2026-11-25", "THRESHOLDREACHED", false, false)]
+    [InlineData("GI01_THRESHOLD", "2026-11-25", "2026-11-25", "THRESHOLDREACHED", true, true)]
+    [InlineData("GI01_EXCEPTION_OVERDUE", "2026-11-25", "2026-11-25", "EXCEPTION_OVERDUE", false, true)]
+    [InlineData("GI01_EXCEPTION_OVERDUE", "2026-11-25", "2026-11-25", "EXCEPTION_CONFIG_REQUIRED", true, false)]
+    [InlineData("GI01_CONFIG_REQUIRED", "2026-11-25", "2026-11-25", "EXCEPTION_CONFIG_REQUIRED", false, true)]
+    [InlineData("GI01_CONFIG_REQUIRED", "2026-11-25", "2026-11-25", "EXCEPTION_OVERDUE", true, false)]
+    public void Gi01NoticeValidityRequiresMatchingThresholdAndStatus(
+        string kind, string? milestone, string? threshold, string? status,
+        bool activeRecipient, bool expected)
+    {
+        var milestoneOn = milestone is null ? (DateOnly?)null : DateOnly.Parse(milestone);
+        var thresholdOn = threshold is null ? (DateOnly?)null : DateOnly.Parse(threshold);
+        Assert.Equal(expected, ContractExpiryAlertService.IsGi01NoticeApplicable(
+            kind, milestoneOn, thresholdOn, status, activeRecipient));
+    }
+
     [Fact]
     public void VietnamBusinessDayUsesLocalDateRatherThanUtcDate()
     {

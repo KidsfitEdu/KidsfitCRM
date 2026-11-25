@@ -284,7 +284,7 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
     </ConfirmDialog>
     <AppDialog open={feedbackId !== null} busy={busy}
       onOpenChange={open => {if(!open && !busy){setFeedbackId(null);setReason('');setActionError('');}}}
-      title="Yêu cầu bổ sung hồ sơ" description="Ghi rõ lý do và tài liệu cần chỉnh sửa."
+      title="Yêu cầu bổ sung hồ sơ" description="Ghi rõ lý do và tài liệu cần chỉnh sửa." compact footerAlign="center"
       footer={<>
         <AppButton tone="neutral" disabled={busy} onClick={() => setFeedbackId(null)}>Hủy</AppButton>
         <AppButton busy={busy} disabled={!reason.trim()} onClick={() => {
@@ -294,7 +294,7 @@ export function VerificationPage({apiBase, token, abilities, onChanged}: RolePag
       <label htmlFor="checkee-feedback" className="text-sm font-semibold">Lý do yêu cầu bổ sung *</label>
       <textarea id="checkee-feedback" value={reason} maxLength={2000} required
         onChange={event => setReason(event.target.value)} placeholder="Ví dụ: Thiếu trang ký và đóng dấu..."
-        className="mt-2 min-h-28 w-full rounded-lg border bg-background p-3 text-sm"/>
+        className="mt-2 min-h-24 w-full rounded-xl border border-input bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"/>
       {actionError && <p role="alert" className="mt-2 text-sm text-red-700">{actionError}</p>}
     </AppDialog>
     {summary && <span className="sr-only" aria-live="polite">

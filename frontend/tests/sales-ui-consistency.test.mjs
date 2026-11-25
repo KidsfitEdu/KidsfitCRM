@@ -39,12 +39,12 @@ test('Sales invitation list represents actionable states with semantic badges', 
 
 test('Sales and Manager income overview explains withholding, net paid and outstanding separately', () => {
   const source = read('src/components/roles/SalesIncomePage.tsx');
-  assert.match(source, /<AppStatCard icon=\\{Wallet\\}/);
-  assert.match(source, /data\\.summary\\.accrued/);
-  assert.match(source, /data\\.summary\\.withholding/);
-  assert.match(source, /data\\.summary\\.paid/);
-  assert.match(source, /data\\.summary\\.unpaid/);
-  assert.match(source, /data\\?\\.summary\\.contracts/);
+  assert.match(source, /<AppStatCard icon=\{Wallet\}/);
+  assert.match(source, /data\.summary\.accrued/);
+  assert.match(source, /data\.summary\.withholding/);
+  assert.match(source, /data\.summary\.paid/);
+  assert.match(source, /data\.summary\.unpaid/);
+  assert.match(source, /data\?\.summary\.contracts/);
   assert.match(source, /Hoa hồng đã quyết toán/);
   assert.match(source, /Lịch sử chi trả và khấu trừ/);
   assert.match(source, /withholding_reason/);

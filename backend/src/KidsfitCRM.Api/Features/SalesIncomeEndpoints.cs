@@ -144,7 +144,7 @@ public static class SalesIncomeEndpoints
             .Where(x => x.PayoutId.HasValue && payoutIds.Contains(x.PayoutId.Value)
                 && x.Kind == "PAYOUT" && x.AttachedAt != null)
             .Select(x => new { x.Id, x.PayoutId, x.FileName }).ToArrayAsync(ct);
-        var allShares = await LoadShares(db, actor, false, ct);
+        var allShares = await LoadShares(db, actor, false, ct, payoutIds);
         var eligibleIds = entryIds.ToHashSet();
         var selectedShares = allShares.Where(x => eligibleIds.Contains(x.EntryId)
             && x.BeneficiaryUserId == actor).ToArray();
@@ -177,7 +177,7 @@ public static class SalesIncomeEndpoints
     }
 
     private static async Task<IncomePayoutAllocation.Share[]> LoadShares(
-        KidsfitDbContext db, long actor, bool paidOnly, CancellationToken ct)
+        KidsfitDbContext db, long actor, bool paidOnly, CancellationToken ct, long[]? payoutIds = null)
     {
         // Select every item of an actor's payout, including other contracts, to
         // preserve the full gross/withholding/net totals before scoped filtering.
@@ -187,6 +187,8 @@ public static class SalesIncomeEndpoints
                         on item.CommissionLedgerEntryId equals entry.Id
                     where payout.BeneficiaryUserId == actor
                     select new { payout, item, entry };
+        if (payoutIds is { Length: 0 }) return [];
+        if (payoutIds is not null) query = query.Where(x => payoutIds.Contains(x.payout.Id));
         if (paidOnly) query = query.Where(x => x.payout.Status == "PAID");
         var source = await query.Select(x => new IncomePayoutAllocation.Item(
             x.payout.Id, x.item.Id, x.entry.Id, x.entry.ContractId,

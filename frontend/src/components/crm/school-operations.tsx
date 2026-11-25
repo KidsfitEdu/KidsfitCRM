@@ -44,7 +44,6 @@ import { SchoolActionDialog } from '@/components/crm/schools/school-action-dialo
 import { SchoolProposalEditor } from '@/components/crm/schools/school-proposal-editor';
 import { SchoolProfileDetails, type SchoolProfileUnit } from '@/components/crm/schools/school-profile-details';
 import { SchoolProposalWorkflowDetails } from '@/components/crm/schools/school-proposal-workflow-details';
-import { AppDialog } from '@/components/common/dialogs/app-dialog';
 import { ConfirmDialog } from '@/components/common/dialogs/confirm-dialog';
 import { appNotice } from '@/components/common/app-toast-provider';
 

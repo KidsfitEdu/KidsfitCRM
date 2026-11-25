@@ -24,6 +24,7 @@ export function SchoolActionDialog({
     description={action?.description || undefined}
     formId={formId}
     busy={busy}
+    compact={action?.fields.length === 1 && action.fields[0]?.type === 'textarea'}
     destructive={action?.danger}
     submitLabel={action?.submitLabel ?? (action?.path === '/school-invitations' ? 'Xác nhận phân bổ' : 'Xác nhận lưu')}
   >

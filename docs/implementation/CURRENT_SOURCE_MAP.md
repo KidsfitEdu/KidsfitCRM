@@ -14,7 +14,7 @@
 | Backend app | `backend/src/KidsfitCRM.Api/Program.cs` | .NET 10, JWT security_stamp validation, MySQL, configuration, migrations |
 | Backend routes and use cases | `backend/src/KidsfitCRM.Api/Features/` | Thin endpoints and feature actions; verify every specific permission |
 | Auth / profile | `Features/{ApiEndpoints,AuthFeatures,PasswordResetFeatures}.cs` | `/api/me/change-password`, password recovery, snake_case JSON |
-| School / Sales | `Features/{SchoolActions,SchoolAllocationActions,SchoolProposalActions,SchoolEndpoints}.cs` | Ownership, proposals, allocations, capacity, contract steps |
+| School / Sales | `Features/SchoolActions.cs`, `Features/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
 | Finance / payout | `Features/{BoardCommissionPolicyEndpoints,AccountingPayoutEndpoints,AccountingContractEndpoints}.cs` | Board policy versioning, accounting workflow |
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |
@@ -37,3 +37,32 @@
 - Never run migrations/seed/test DB scripts without confirming database ownership and disposable isolation.
 - Preserve financial/audit records, contract ownership, school contact PII and historical migrations.
 - See [feature status](FEATURE_STATUS_MATRIX.md), [API contracts](../architecture/API_CONTRACTS.md), and [gap analysis](../requirements/CODEBASE_GAP_ANALYSIS.md).
+
+
+## Backend school feature module layout (PR #183; pending review)
+
+The `.NET 10` API remains a **single project** and continues using **Minimal API**. These file moves do not change EF Core, database migration paths, HTTP routes, public types, namespace, dependency injection registration, or business rules.
+
+```text
+Features/
+  SchoolOperationsEndpoints.cs         # existing HTTP route entrypoint (unchanged)
+  SchoolActions.cs                     # existing school workflow partials (unchanged)
+  ChannelSalesActions.cs              # existing aggregate orchestration (unchanged)
+  Schools/
+    Allocations/
+      SchoolAllocationActions.cs       # partial ChannelSalesActions, original namespace
+      SchoolApproachReleaseActions.cs  # partial ChannelSalesActions, original namespace
+      SchoolInvitationResponsePolicy.cs
+    Extensions/
+      SchoolExtensionLimitPolicy.cs
+    Policies/
+      SchoolPolicyManagementActions.cs # partial ChannelSalesActions, original namespace
+    Proposals/
+      SchoolProposalActions.cs         # partial ChannelSalesActions, original namespace
+      SchoolProposalDraftActions.cs    # partial ChannelSalesActions, original namespace
+      SchoolProposalAdminProfileActions.cs # partial ChannelSalesActions, original namespace
+```
+
+**Compatibility rule:** Files moved under `Features/Schools/` intentionally retain `namespace KidsfitCRM.Api.Features;` for `ChannelSalesActions` partial declarations. C# default SDK glob compilation includes the new directories automatically; do **not** introduce a second `ChannelSalesActions` type, change endpoint routes, or modify database mappings merely to align directory and namespace names. The two stateless policies in `Schools/Allocations` and `Schools/Extensions` keep their dedicated namespaces.
+
+**Follow-up work:** Separate further module slices (contracts, finance, customer care) only after CI and MySQL integration regression pass on this PR. Do not move the full feature tree or combine with frontend routing migration.

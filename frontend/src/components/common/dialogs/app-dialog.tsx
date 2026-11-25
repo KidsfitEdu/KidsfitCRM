@@ -23,12 +23,14 @@ type AppDialogProps = {
   returnFocusRef?: RefObject<HTMLElement | null>;
   footerAlign?: 'start' | 'center' | 'end';
   footerClassName?: string;
+  /** Compact, single-decision/reason dialog; full business forms keep their default width. */
+  compact?: boolean;
 };
 
 /** KIDSFIT CRM dialog shell: one consistent brand header, scrollable content and fixed footer. */
 export function AppDialog({
   open, onOpenChange, title, description, eyebrow = 'KIDSFIT CRM',
-  children, footer, busy = false, contentClassName, bodyClassName, headerClassName, footerAlign = 'end', footerClassName, returnFocusRef,
+  children, footer, busy = false, contentClassName, bodyClassName, headerClassName, footerAlign = 'end', footerClassName, returnFocusRef, compact = false,
 }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={next => { if (!busy) onOpenChange(next); }}>
@@ -40,6 +42,7 @@ export function AppDialog({
         showCloseButton={false}
         className={cn(
           'flex max-h-[min(92dvh,800px)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden rounded-[20px] border-border/60 bg-card !p-0 shadow-[0_28px_95px_rgba(14,42,26,.24)] sm:max-w-2xl',
+          compact && 'sm:max-w-[480px]',
           contentClassName,
         )}
       >
@@ -60,11 +63,11 @@ export function AppDialog({
           {/* Keep the description available to screen readers without adding a second header line. */}
           <DialogDescription className="sr-only">{description ?? title}</DialogDescription>
         </DialogHeader>
-        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-5', bodyClassName)}>
+        <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-5', compact && 'sm:py-4', bodyClassName)}>
           {children}
         </div>
         {footer && (
-          <div className={cn("flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-muted/30 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-4", footerAlign === "center" ? "justify-center" : footerAlign === "start" ? "justify-start" : "justify-end", footerClassName)}>
+          <div className={cn("flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-muted/30 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-4", footerAlign === "center" ? "justify-center" : footerAlign === "start" ? "justify-start" : "justify-end", compact && 'sm:py-3', footerClassName)}>
             {footer}
           </div>
         )}

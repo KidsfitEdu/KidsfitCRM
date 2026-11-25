@@ -7,7 +7,7 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const page=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 const tree=read('src/screens/Accounting/Contracts/AccountingContractTreeTable.tsx');
 const inline=read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
-const api=read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
+const api=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Workspace/AccountingWorkspaceEndpoints.cs');
 
 test('Accounting keeps three tabs and school-grouped seven-column contract tree',()=>{
   for(const tab of ["label:'Hợp đồng'","label:'Khoản thu nhà trường'","label:'Phiếu chi hoa hồng'"]) assert.ok(page.includes(tab));

@@ -8,7 +8,7 @@ const read = path => readFileSync(resolve(root, path), 'utf8');
 
 test('Accounting contract filters use server-scoped verified contracts and date-only range', () => {
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  const workspace = read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
+  const workspace = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Workspace/AccountingWorkspaceEndpoints.cs');
   assert.match(ui, /\/accounting\/workspace/);
   assert.match(ui, /params\.set\('service_from',appliedServiceFrom\)/);
   assert.match(ui, /params\.set\('service_to',appliedServiceTo\)/);
@@ -31,7 +31,7 @@ test('Accounting backend enforces verification in both listing and detail', () =
 
 test('Removing redundant Sales filter does not change backend record permissions', () => {
   const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-  const workspace = read('../backend/src/KidsfitCRM.Api/Features/AccountingWorkspaceEndpoints.cs');
+  const workspace = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Workspace/AccountingWorkspaceEndpoints.cs');
   assert.doesNotMatch(ui, /ownerUserId|owners\.map\(|setOwners/);
   assert.match(workspace, /access\.Has\(Permissions\.ChannelSalesCommissionView\)/);
   assert.match(workspace, /access\.Contracts\(db\)\.AsNoTracking\(\)/);

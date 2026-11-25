@@ -23,7 +23,7 @@ test('single-reason approvals and rejections reuse compact CRM dialogs', () => {
   const renewal=read('components/crm/ProtectionRenewalPanel.tsx');
   assert.match(proposal, /busy=\{decisionBusy\} compact/);
   assert.match(proposal, /maxLength=\{4000\}/);
-  assert.match(checkee, /title="Yêu cầu bổ sung hồ sơ".*\n.*compact footerAlign="center"/);
+  assert.match(checkee, /title="Yêu cầu bổ sung hồ sơ".*compact footerAlign="center"/);
   assert.match(accounting, /busy=\{saving\} compact footerAlign="center"/);
   assert.match(accounting, /maxLength=\{1000\}/);
   assert.match(action, /action\?\.fields\.length === 1/);

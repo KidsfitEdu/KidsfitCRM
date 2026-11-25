@@ -15,7 +15,8 @@
 | Backend routes and use cases | `backend/src/KidsfitCRM.Api/Features/` | Thin endpoints and feature actions; verify every specific permission |
 | Auth / profile | `Features/{ApiEndpoints,AuthFeatures,PasswordResetFeatures}.cs` | `/api/me/change-password`, password recovery, snake_case JSON |
 | School / Sales | `Features/SchoolActions.cs`, `Features/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
-| Finance / payout | `Features/{BoardCommissionPolicyEndpoints,AccountingPayoutEndpoints}.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Board policy versioning, accounting workflow and contract-scoped read model |
+| Commissions | `Features/Commissions/Policies/`, `Features/Commissions/Accruals/`, `Features/Commissions/Income/` | Versioned BGĐ policy, receipt-based accruals and backfill, Sales/Manager income read model |
+| Finance / payout | `Features/AccountingPayoutEndpoints.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Accounting workflow and contract-scoped read model |
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |
 | Backend tests | `backend/tests/KidsfitCRM.Api.Tests/` | xUnit and isolated MySQL tests/fixtures |
@@ -30,7 +31,7 @@
 - `Program.cs` configures `JsonNamingPolicy.SnakeCaseLower`. Password-change JSON must use `current_password`, `new_password`, `confirm_password`; a direct call to `AuthFeatures.ChangeOwnPassword` is not equivalent to an HTTP-binding test.
 - `--seed-demo` is **rejected** by the backend; old `DatabaseSeeder` and `CrmScenarioSeeder` references belong to test fixtures/historical notes, not live startup. Never recreate a static preview as a production API fallback.
 - The snapshot includes auth/password migrations `20261120100000_PasswordResetChallenges` and `20261120165000_PrivateUserAvatar`. `No migrations applied` does not resolve EF's separate pending-model-changes warning.
-- Director commission policy defaults to **25% Sales + 5% Manager** in `BoardCommissionPolicyEndpoints.cs`; historical 30% is not the default for new accruals.
+- Director commission policy defaults to **25% Sales + 5% Manager** in `Features/Commissions/Policies/BoardCommissionPolicy.cs`; historical 30% is not the default for new accruals.
 - When identifying a live feature, trace route → DTO → permission → action → EF mapping → frontend consumer → tests. Naming a file is not implementation evidence.
 
 ## Safety

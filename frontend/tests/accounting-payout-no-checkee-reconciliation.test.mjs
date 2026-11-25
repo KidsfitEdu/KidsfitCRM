@@ -43,10 +43,10 @@ test('Accounting can enable payout from unassigned positive commission independe
 });
 
 test('Receipt accrual uses board split on collected cash and does not automatically backfill old receipts', () => {
-  assert.match(receiptActions,/BoardCommissionPolicyEndpoints.ResolveAt/);
+  assert.match(receiptActions,/BoardCommissionPolicy\.ResolveAt/);
   assert.match(receiptActions,/if \(policy.Sales > 0m\)/);
   assert.match(receiptActions,/if \(policy.Manager > 0m && managerId.HasValue/);
-  assert.match(receiptActions,/NewCommissionAccrual/);
+  assert.match(receiptActions,/CommissionAccrual\.Create/);
   assert.match(receiptActions,/COMMISSION_MANAGER_REVIEW_REQUIRED/);
   assert.doesNotMatch(payoutActions,/Backfill|CreateMissingLedger|GenerateCommissionAutomatically/);
 });
@@ -63,7 +63,7 @@ test('Accounting separates contracts and role-specific payout overview',()=>{
 test('Legacy backfill remains safeguarded on the server but has no Accounting UI entry point',()=>{
   // No legacy receipt backfill/reconciliation UI: explicitly retired by product decision.
   // Keep assertions covering the dormant server-side verification safeguards.
-  const handler=read('../backend/src/KidsfitCRM.Api/Features/ReceiptCommissionBackfillActions.cs');
+  const handler=read('../backend/src/KidsfitCRM.Api/Features/Commissions/Accruals/ReceiptCommissionBackfillActions.cs');
   const dto=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesContracts.cs');
   assert.match(handler,/PreviewReceiptCommissionBackfill/);
   assert.match(handler,/BackfillReceiptCommission/);

@@ -595,12 +595,12 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                     && (m.Status == "ACTIVE" || m.Status == "SUSPENDED"))
                 .OrderByDescending(m => m.IsPrimary).ThenByDescending(m => m.CreatedAt)
                 .Select(m => m.ManagerUserId).FirstOrDefaultAsync(cancellationToken);
-            var policy = BoardCommissionPolicyEndpoints.ResolveAt(policies,
+            var policy = BoardCommissionPolicy.ResolveAt(policies,
                 contract.OwnerOrganizationId, managerId, contract.OwnerUserId, receivedAt);
             // One immutable entitlement per beneficiary role; both use this actual
             // completed cash amount, never the contract face value.
             if (policy.Sales > 0m)
-                db.CommissionLedgerEntries.Add(NewCommissionAccrual(
+                db.CommissionLedgerEntries.Add(CommissionAccrual.Create(
                     contract, receipt, actorId, receivedAt, now, amount,
                     "SALES", contract.OwnerUserId, policy.Sales, policy.Source, policy.VersionId));
             if (policy.Manager > 0m && managerId.HasValue && managerId != contract.OwnerUserId
@@ -609,7 +609,7 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
                     && m.Status == "ACTIVE" && db.Users.Any(u => u.Id == m.UserId && u.Status == "ACTIVE")
                     && db.UserRoles.Any(ur => ur.UserId == m.UserId && db.Roles.Any(r =>
                         r.Id == ur.RoleId && r.Code == "SALES_MANAGER")), cancellationToken))
-                db.CommissionLedgerEntries.Add(NewCommissionAccrual(
+                db.CommissionLedgerEntries.Add(CommissionAccrual.Create(
                     contract, receipt, actorId, receivedAt, now, amount,
                     "MANAGER", managerId.Value, policy.Manager, policy.Source, policy.VersionId));
             else if (policy.Manager > 0m)
@@ -636,21 +636,6 @@ public sealed partial class ChannelSalesActions(KidsfitDbContext db)
             throw new ApiConflictException("Không thể ghi nhận khoản thu do xung đột dữ liệu. Vui lòng tải lại hợp đồng và thử lại.");
         }
     }
-
-    private static CommissionLedgerEntry NewCommissionAccrual(
-        SalesContract contract, RevenueReceipt receipt, long actorId,
-        DateTime receivedAt, DateTime now, decimal amount, string role,
-        long beneficiaryId, decimal rate, string source, long? versionId) => new()
-    {
-        ContractId = contract.Id, RevenueReceiptId = receipt.Id,
-        BoardPolicyVersionId = versionId, PolicySource = source,
-        BeneficiaryRole = role, BeneficiaryUserId = beneficiaryId,
-        BeneficiaryOrganizationId = contract.OwnerOrganizationId, EntryType = "ACCRUAL",
-        CalculationBase = amount, RatePercent = rate,
-        Amount = decimal.Round(amount * rate / 100m, 0, MidpointRounding.AwayFromZero),
-        Status = "ACCRUED", Period = ChannelSalesValidation.BusinessPeriod(receivedAt),
-        OccurredAt = receivedAt, CreatedByUserId = actorId, CreatedAt = now, UpdatedAt = now
-    };
 
     public async Task Reconcile(long caseId, bool confirm, ReconcileContractRequest request, long actorId, HttpContext http, CancellationToken cancellationToken)
     {

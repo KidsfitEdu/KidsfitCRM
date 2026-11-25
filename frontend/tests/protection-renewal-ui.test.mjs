@@ -28,7 +28,7 @@ test('Backend removes Sales request and Manager approval routes',()=>{
  const api=read('../backend/src/KidsfitCRM.Api/Features/ProtectionRenewalEndpoints.cs');
  assert.doesNotMatch(api,/MapPost\("\/protection-renewals|MapPost\("\/contracts\/\{contractId:long\}\/protection-renewal\/request-review/);
  assert.match(api,/can_approve = false/);
- const renewal=read('../backend/src/KidsfitCRM.Api/Features/ContractRenewalEndpoints.cs');
+ const renewal=read('../backend/src/KidsfitCRM.Api/Features/Contracts/Renewals/ContractRenewalEndpoints.cs');
  assert.match(renewal,/AutomaticProtectionRenewal\.TryGrantAsync/);
  const worker=read('../backend/src/KidsfitCRM.Api/Infrastructure/ProtectionRenewalPolicy.cs');
  assert.match(worker,/AutomaticProtectionRenewal\.TryGrantAsync/);

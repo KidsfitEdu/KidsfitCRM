@@ -15,7 +15,7 @@
 | Backend routes and use cases | `backend/src/KidsfitCRM.Api/Features/` | Thin endpoints and feature actions; verify every specific permission |
 | Auth / profile | `Features/{ApiEndpoints,AuthFeatures,PasswordResetFeatures}.cs` | `/api/me/change-password`, password recovery, snake_case JSON |
 | School / Sales | `Features/SchoolActions.cs`, `Features/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
-| Finance / payout | `Features/{BoardCommissionPolicyEndpoints,AccountingPayoutEndpoints,AccountingContractEndpoints}.cs` | Board policy versioning, accounting workflow |
+| Finance / payout | `Features/{BoardCommissionPolicyEndpoints,AccountingPayoutEndpoints}.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Board policy versioning, accounting workflow and contract-scoped read model |
 | Database | `Infrastructure/KidsfitDbContext.cs`, `Infrastructure/Migrations/` | EF Core 10 + MySQL 8.4; migration history is immutable |
 | Bootstrap | `Infrastructure/InitialCrmSeeder.cs` | `--migrate --seed-initial` only in explicitly disposable Development context |
 | Backend tests | `backend/tests/KidsfitCRM.Api.Tests/` | xUnit and isolated MySQL tests/fixtures |
@@ -66,3 +66,22 @@ Features/
 **Compatibility rule:** Files moved under `Features/Schools/` intentionally retain `namespace KidsfitCRM.Api.Features;` for `ChannelSalesActions` partial declarations. C# default SDK glob compilation includes the new directories automatically; do **not** introduce a second `ChannelSalesActions` type, change endpoint routes, or modify database mappings merely to align directory and namespace names. The two stateless policies in `Schools/Allocations` and `Schools/Extensions` keep their dedicated namespaces.
 
 **Follow-up work:** Separate further module slices (contracts, finance, customer care) only after CI and MySQL integration regression pass on this PR. Do not move the full feature tree or combine with frontend routing migration.
+
+## Contract endpoint module layout (pending PR review, 2026-11-25)
+
+The first non-school module slice groups existing endpoint source files by business responsibility **without changing code, namespace, public types, routes, authorization, DTOs, DI, EF Core, MySQL, migrations or stored data**.
+
+```text
+Features/
+  Contracts/
+    Renewals/
+      ContractRenewalEndpoints.cs
+    Accounting/
+      AccountingContractEndpoints.cs
+    Management/
+      ManagerContractEndpoints.cs
+```
+
+These relocated files intentionally retain `namespace KidsfitCRM.Api.Features;` so existing route registration and callers remain source-compatible. The SDK automatically compiles nested `.cs` files. No Controller/Repository layer is introduced. Existing school and financial modules remain untouched in this slice.
+
+Before merge, update only tests or tooling that explicitly read former file locations; verify exact-HEAD frontend source tests, Backend build/.NET tests, and isolated MySQL 8.4 integration regression. UI/session/routing refactor must occur separately.

@@ -6,7 +6,7 @@ import {resolve} from 'node:path';
 const read=(path)=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const panel=read('src/components/roles/ContractRenewalSalesPanel.tsx');
 const detail=read('src/components/roles/SalesRenewalDetail.tsx');
-const api=read('../backend/src/KidsfitCRM.Api/Features/ContractRenewalEndpoints.cs');
+const api=read('../backend/src/KidsfitCRM.Api/Features/Contracts/Renewals/ContractRenewalEndpoints.cs');
 
 test('Sales detail keeps existing Drawer, uses scoped detail API and refreshes per selected record',()=>{
   assert.match(panel,/<AppDrawer open=\{drawer==='detail'\}/);

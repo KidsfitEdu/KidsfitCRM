@@ -22,7 +22,7 @@ test('Accounting contract filters use server-scoped verified contracts and date-
 });
 
 test('Accounting backend enforces verification in both listing and detail', () => {
-  const api = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
+  const api = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
   assert.match(api, /access\.Contracts\(db\)\.AsNoTracking\(\)\.Where\(x => x\.VerifiedAt != null\)/);
   assert.match(api, /Where\(x => x\.OwnerUserId == owner_user_id\.Value\)/);
   assert.match(api, /Where\(x => x\.Id == id && x\.VerifiedAt != null\)/);

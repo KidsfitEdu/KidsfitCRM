@@ -583,7 +583,8 @@ export function SchoolOperations({
         onReject={x => setAction({
           title: 'Từ chối phân bổ', description: 'Phản hồi lý do để Quản lý sắp xếp lại.',
           path: '/school-invitations/' + x.id + '/respond',
-          fields: [reason], preset: {accept: false}, danger: true,
+          fields: [{...reason, label: 'Lý do từ chối phân bổ'}], preset: {accept: false}, danger: true,
+          submitLabel: 'Xác nhận từ chối',
         })}
         onHistory={x => setHistory({kind:'invitation',id:x.id,name:x.school_name})}
       />}
@@ -789,8 +790,9 @@ export function SchoolOperations({
                               description:
                                 'Phản hồi lý do để Quản lý sắp xếp lại.',
                               path: '/school-invitations/' + x.id + '/respond',
-                              fields: [reason],
+                              fields: [{...reason, label: 'Lý do từ chối phân bổ'}],
                               preset: {accept: false}, danger: true,
+                              submitLabel: 'Xác nhận từ chối',
                             })
                           }
                         >
@@ -811,8 +813,9 @@ export function SchoolOperations({
                             description:
                               'Lưu lý do thay đổi trước khi phân bổ lại.',
                             path: '/school-invitations/' + x.id + '/cancel',
-                            fields: [reason],
+                            fields: [{...reason, label: 'Lý do hủy lời mời'}],
                             danger: true,
+                            submitLabel: 'Xác nhận hủy',
                           })
                         }
                       >

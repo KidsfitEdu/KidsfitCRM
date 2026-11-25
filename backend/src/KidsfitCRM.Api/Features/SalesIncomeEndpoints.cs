@@ -53,21 +53,19 @@ public static class SalesIncomeEndpoints
             .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
         var ids = selectedRows.Select(x => x.contract_id).ToArray();
 
-        // Payouts may include several contracts. Allocate a payout proportionally by ledger
-        // item amounts. This is a display allocation, not an additional payment record.
-        var allocated = await (
-            from item in db.PayoutItems.AsNoTracking()
-            join entry in db.CommissionLedgerEntries.AsNoTracking() on item.CommissionLedgerEntryId equals entry.Id
-            join payout in db.Payouts.AsNoTracking() on item.PayoutId equals payout.Id
-            where entry.BeneficiaryUserId == actor && ids.Contains(entry.ContractId)
-                && payout.BeneficiaryUserId == actor
-                && (selected == null || entry.Period == selected)
-                && (selectedRole == null || entry.BeneficiaryRole == selectedRole)
-                && payout.Status == "PAID" && payout.GrossAmount > 0
-            select new { entry.ContractId, item.Amount, payout.NetAmount, payout.GrossAmount }
-        ).ToArrayAsync(ct);
-        var paidPerContract = allocated.GroupBy(x => x.ContractId)
-            .ToDictionary(g => g.Key, g => Math.Round(g.Sum(x => x.Amount * x.NetAmount / x.GrossAmount), 0));
+        // Allocate the full payout before narrowing by contract/role/period.
+        // Net paid and tax withholding are separate from gross settled amounts.
+        var paidShares = (await LoadShares(db, actor, true, ct))
+            .Where(x => x.BeneficiaryUserId == actor
+                && (selected == null || x.Period == selected)
+                && (selectedRole == null || x.BeneficiaryRole == selectedRole))
+            .ToArray();
+        var paidPerContract = paidShares.GroupBy(x => x.ContractId)
+            .ToDictionary(g => g.Key, g => new {
+                settled_gross = g.Sum(x => x.Gross),
+                withholding = g.Sum(x => x.Withholding),
+                paid = g.Sum(x => x.Net)
+            });
 
         var payouts = await db.Payouts.AsNoTracking()
             .Where(x => x.BeneficiaryUserId == actor && (selected == null || x.Period == selected)
@@ -79,24 +77,24 @@ public static class SalesIncomeEndpoints
             .Take(100).ToArrayAsync(ct);
 
         var accrued = await ledger.SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
-        // Totals are computed independently of the current page and from actual paid items.
-        var allPaid = await (
-            from item in db.PayoutItems.AsNoTracking()
-            join entry in ledger on item.CommissionLedgerEntryId equals entry.Id
-            join payout in db.Payouts.AsNoTracking() on item.PayoutId equals payout.Id
-            where payout.BeneficiaryUserId == actor && payout.Status == "PAID" && payout.GrossAmount > 0
-            select new { item.Amount, payout.NetAmount, payout.GrossAmount }
-        ).ToArrayAsync(ct);
-        var paid = Math.Round(allPaid.Sum(x => x.Amount * x.NetAmount / x.GrossAmount), 0);
+        // All-page totals are derived from the same payout-item allocation as each row.
+        var settledGross = paidShares.Sum(x => x.Gross);
+        var withholding = paidShares.Sum(x => x.Withholding);
+        var paid = paidShares.Sum(x => x.Net);
         return Results.Ok(new {
             period = selected ?? "ALL", page, page_size = pageSize, total,
-            summary = new { accrued, paid, unpaid = accrued - paid, contracts = total },
-            data = selectedRows.Select(x => new {
-                x.contract_id, x.contract_code, x.school_name, x.commission,
-                x.rate_percent, x.rate_is_mixed,
-                paid = paidPerContract.GetValueOrDefault(x.contract_id, 0m),
-                unpaid = x.commission - paidPerContract.GetValueOrDefault(x.contract_id, 0m),
-                x.entries
+            summary = new { accrued, settled_gross = settledGross,
+                withholding, paid, unpaid = accrued - settledGross, contracts = total },
+            data = selectedRows.Select(x => {
+                paidPerContract.TryGetValue(x.contract_id, out var amounts);
+                var settled = amounts?.settled_gross ?? 0m;
+                return new {
+                    x.contract_id, x.contract_code, x.school_name, x.commission,
+                    x.rate_percent, x.rate_is_mixed,
+                    settled_gross = settled, withholding = amounts?.withholding ?? 0m,
+                    paid = amounts?.paid ?? 0m, unpaid = x.commission - settled,
+                    x.entries
+                };
             }),
             payouts
         });
@@ -139,24 +137,31 @@ public static class SalesIncomeEndpoints
             join payout in db.Payouts.AsNoTracking() on item.PayoutId equals payout.Id
             where entryIds.Contains(item.CommissionLedgerEntryId) && payout.BeneficiaryUserId == actor
             select new { payout.Id, payout.Code, payout.Period, payout.Status,
-                payout.PaidAt, payout.PaymentReference, payout.NetAmount, payout.GrossAmount,
-                item.Amount }
-        ).ToArrayAsync(ct);
+                payout.PaidAt, payout.PaymentReference }
+        ).Distinct().ToArrayAsync(ct);
         var payoutIds = paymentItems.Select(x => x.Id).Distinct().ToArray();
         var proofs = await db.FinancialEvidences.AsNoTracking()
             .Where(x => x.PayoutId.HasValue && payoutIds.Contains(x.PayoutId.Value)
                 && x.Kind == "PAYOUT" && x.AttachedAt != null)
             .Select(x => new { x.Id, x.PayoutId, x.FileName }).ToArrayAsync(ct);
-        var payments = paymentItems.GroupBy(x => x.Id).Select(g => {
-            var first = g.First();
-            var allocation = first.GrossAmount > 0
-                ? Math.Round(g.Sum(x => x.Amount * first.NetAmount / first.GrossAmount), 0)
-                : 0m;
-            return new { id = first.Id, code = first.Code, period = first.Period,
+        var allShares = await LoadShares(db, actor, false, ct);
+        var eligibleIds = entryIds.ToHashSet();
+        var selectedShares = allShares.Where(x => eligibleIds.Contains(x.EntryId)
+            && x.BeneficiaryUserId == actor).ToArray();
+        var payments = paymentItems.GroupBy(x => x.Id).Select(group => {
+            var first = group.First();
+            var shares = selectedShares.Where(x => x.PayoutId == first.Id).ToArray();
+            return new {
+                id = first.Id, code = first.Code, period = first.Period,
                 status = first.Status, paid_at = first.PaidAt,
-                payment_reference = first.PaymentReference, allocated_amount = allocation,
+                payment_reference = first.PaymentReference,
+                allocated_gross = shares.Sum(x => x.Gross),
+                allocated_withholding = shares.Sum(x => x.Withholding),
+                allocated_amount = shares.Sum(x => x.Net),
+                withholding_reason = shares.FirstOrDefault()?.WithholdingReason,
                 evidence_id = proofs.FirstOrDefault(x => x.PayoutId == first.Id)?.Id,
-                evidence_name = proofs.FirstOrDefault(x => x.PayoutId == first.Id)?.FileName };
+                evidence_name = proofs.FirstOrDefault(x => x.PayoutId == first.Id)?.FileName
+            };
         }).OrderByDescending(x => x.paid_at).ToArray();
         var receiptIds = entries.Where(x => x.receipt_id.HasValue)
             .Select(x => x.receipt_id!.Value).Distinct().ToArray();
@@ -169,6 +174,26 @@ public static class SalesIncomeEndpoints
             .Where(x => x.ContractId == contractId).Select(x => x.Status).FirstOrDefaultAsync(ct);
         return Results.Ok(new { contract, reconciliation_status = reconciliation,
             ledger = entries, receipts, payments });
+    }
+
+    private static async Task<IncomePayoutAllocation.Share[]> LoadShares(
+        KidsfitDbContext db, long actor, bool paidOnly, CancellationToken ct)
+    {
+        // Select every item of an actor's payout, including other contracts, to
+        // preserve the full gross/withholding/net totals before scoped filtering.
+        var query = from item in db.PayoutItems.AsNoTracking()
+                    join payout in db.Payouts.AsNoTracking() on item.PayoutId equals payout.Id
+                    join entry in db.CommissionLedgerEntries.AsNoTracking()
+                        on item.CommissionLedgerEntryId equals entry.Id
+                    where payout.BeneficiaryUserId == actor
+                    select new { payout, item, entry };
+        if (paidOnly) query = query.Where(x => x.payout.Status == "PAID");
+        var source = await query.Select(x => new IncomePayoutAllocation.Item(
+            x.payout.Id, x.item.Id, x.entry.Id, x.entry.ContractId,
+            x.entry.BeneficiaryUserId, x.entry.BeneficiaryRole, x.entry.Period,
+            x.item.Amount, x.payout.GrossAmount, x.payout.WithholdingAmount,
+            x.payout.WithholdingReason)).ToArrayAsync(ct);
+        return IncomePayoutAllocation.Allocate(source);
     }
 
 }

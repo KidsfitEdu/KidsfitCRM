@@ -59,7 +59,10 @@ test('Sales school invitations distinguish no-field acceptance from reason-requi
   assert.equal((operations.match(/title: 'Nhận trường'/g) || []).length, 2);
   assert.equal((operations.match(/subject: x\.school_name/g) || []).length, 2);
   assert.equal((operations.match(/title: 'Từ chối phân bổ'/g) || []).length, 2);
-  assert.match(operations, /fields: \[reason\], preset: \{accept: false\}, danger: true/);
+  assert.match(operations, /fields: \[\{\.\.\.reason, label: 'Lý do từ chối phân bổ'\}\]/);
+  assert.equal((operations.match(/submitLabel: 'Xác nhận từ chối'/g) || []).length, 2);
+  assert.match(operations, /fields: \[\{\.\.\.reason, label: 'Lý do hủy lời mời'\}\]/);
+  assert.match(operations, /submitLabel: 'Xác nhận hủy'/);
   assert.match(operations, /path: '\/school-invitations\/' \+ x\.id \+ '\/cancel'/);
   assert.match(operations, /danger: true/);
 });

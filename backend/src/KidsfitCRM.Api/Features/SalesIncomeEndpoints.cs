@@ -62,7 +62,9 @@ public static class SalesIncomeEndpoints
             .ToArray();
         var paidPerContract = paidShares.GroupBy(x => x.ContractId)
             .ToDictionary(g => g.Key, g => new {
+                covered = g.Sum(x => x.CoveredAmount),
                 settled_gross = g.Sum(x => x.Gross),
+                adjustment = g.Sum(x => x.Gross - x.CoveredAmount),
                 withholding = g.Sum(x => x.Withholding),
                 paid = g.Sum(x => x.Net)
             });
@@ -78,21 +80,25 @@ public static class SalesIncomeEndpoints
 
         var accrued = await ledger.SumAsync(x => (decimal?)x.Amount, ct) ?? 0;
         // All-page totals are derived from the same payout-item allocation as each row.
+        var covered = paidShares.Sum(x => x.CoveredAmount);
         var settledGross = paidShares.Sum(x => x.Gross);
+        var adjustment = settledGross - covered;
         var withholding = paidShares.Sum(x => x.Withholding);
         var paid = paidShares.Sum(x => x.Net);
         return Results.Ok(new {
             period = selected ?? "ALL", page, page_size = pageSize, total,
             summary = new { accrued, settled_gross = settledGross,
-                withholding, paid, unpaid = accrued - settledGross, contracts = total },
+                adjustment, withholding, paid, unpaid = accrued - covered, contracts = total },
             data = selectedRows.Select(x => {
                 paidPerContract.TryGetValue(x.contract_id, out var amounts);
                 var settled = amounts?.settled_gross ?? 0m;
                 return new {
                     x.contract_id, x.contract_code, x.school_name, x.commission,
                     x.rate_percent, x.rate_is_mixed,
-                    settled_gross = settled, withholding = amounts?.withholding ?? 0m,
-                    paid = amounts?.paid ?? 0m, unpaid = x.commission - settled,
+                    settled_gross = settled, adjustment = amounts?.adjustment ?? 0m,
+                    withholding = amounts?.withholding ?? 0m,
+                    paid = amounts?.paid ?? 0m,
+                    unpaid = x.commission - (amounts?.covered ?? 0m),
                     x.entries
                 };
             }),
@@ -156,6 +162,8 @@ public static class SalesIncomeEndpoints
                 status = first.Status, paid_at = first.PaidAt,
                 payment_reference = first.PaymentReference,
                 allocated_gross = shares.Sum(x => x.Gross),
+                allocated_adjustment = shares.Sum(x => x.Gross - x.CoveredAmount),
+                adjustment_reason = shares.FirstOrDefault()?.AdjustmentReason,
                 allocated_withholding = shares.Sum(x => x.Withholding),
                 allocated_amount = shares.Sum(x => x.Net),
                 withholding_reason = shares.FirstOrDefault()?.WithholdingReason,
@@ -194,7 +202,7 @@ public static class SalesIncomeEndpoints
             x.payout.Id, x.item.Id, x.entry.Id, x.entry.ContractId,
             x.entry.BeneficiaryUserId, x.entry.BeneficiaryRole, x.entry.Period,
             x.item.Amount, x.payout.GrossAmount, x.payout.WithholdingAmount,
-            x.payout.WithholdingReason)).ToArrayAsync(ct);
+            x.payout.WithholdingReason, x.payout.AdjustmentReason)).ToArrayAsync(ct);
         return IncomePayoutAllocation.Allocate(source);
     }
 

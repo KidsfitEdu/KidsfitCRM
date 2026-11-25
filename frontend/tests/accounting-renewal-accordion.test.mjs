@@ -6,7 +6,7 @@ import test from 'node:test';
 const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const ui=read('src/screens/Accounting/Contracts/AccountingRenewalInline.tsx');
 const sales=read('src/components/crm/SalesContractPeriodHistory.tsx');
-const api=read('../backend/src/KidsfitCRM.Api/Features/ContractRenewalEndpoints.cs');
+const api=read('../backend/src/KidsfitCRM.Api/Features/Contracts/Renewals/ContractRenewalEndpoints.cs');
 const source=api.slice(api.indexOf('public static async Task<IResult> AccountingPeriods('),
   api.indexOf('private static IQueryable<ContractRenewal> ScopedAccounting('));
 

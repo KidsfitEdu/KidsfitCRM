@@ -424,7 +424,7 @@ test('Sales commission detail endpoint remains tied to the authenticated benefic
   assert.match(detail, /var actor = http\.UserId\(\)/);
   assert.match(detail, /x\.BeneficiaryUserId == actor && x\.ContractId == contractId/);
   assert.match(detail, /payout\.BeneficiaryUserId == actor/);
-  assert.match(detail, /allocated_amount = shares.Sum\\(x => x.Net\\)/);
+  assert.match(detail, /allocated_amount = shares\.Sum\(x => x\.Net\)/);
 });
 
 

@@ -40,3 +40,26 @@ test('simple school decisions use standard confirmations while preserving busy a
   assert.match(directory, /destructive=\{!archiveTarget\?\.is_deleted\}/);
   assert.match(directory, /adminError&&<p role="alert"/);
 });
+
+test('Sales school invitations distinguish no-field acceptance from reason-required refusal', () => {
+  const actions=read('components/crm/schools/school-action-dialog.tsx');
+  const form=read('components/crm/schools/school-action-form.tsx');
+  const operations=read('components/crm/school-operations.tsx');
+  assert.match(actions, /action\.fields\.length === 0/);
+  assert.match(actions, /<ConfirmDialog/);
+  assert.match(actions, /<AppFormDialog/);
+  assert.match(actions, /requestSubmit\(\)/);
+  assert.match(actions, /form instanceof HTMLFormElement/);
+  assert.match(actions, /busy=\{busy\}/);
+  assert.match(actions, /action\.subject/);
+  assert.match(actions, /'Xác nhận nhận'/);
+  assert.match(form, /subject\?: string/);
+  assert.match(form, /idempotency_key: key/);
+  assert.match(form, /\.min\(1,/);
+  assert.equal((operations.match(/title: 'Nhận trường'/g) || []).length, 2);
+  assert.equal((operations.match(/subject: x\.school_name/g) || []).length, 2);
+  assert.equal((operations.match(/title: 'Từ chối phân bổ'/g) || []).length, 2);
+  assert.match(operations, /fields: \[reason\], preset: \{accept: false\}, danger: true/);
+  assert.match(operations, /path: '\/school-invitations\/' \+ x\.id \+ '\/cancel'/);
+  assert.match(operations, /danger: true/);
+});

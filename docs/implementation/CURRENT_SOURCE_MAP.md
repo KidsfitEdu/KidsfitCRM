@@ -16,6 +16,7 @@
 | Access and validation | `Authorization/ChannelSalesAccess.cs`, `Common/ChannelSalesValidation.cs` | Organization and record scope, request fingerprints and shared validation |
 | Auth / profile | `Routing/ApiEndpoints.cs`, `Features/Auth/` | `/api/me/change-password`, password recovery, snake_case JSON |
 | School / Sales | `Features/SchoolActions.cs`, `Features/Schools/Directory/SchoolEndpoints.cs`, `Features/Schools/{Allocations,Extensions,Proposals,Policies}/` | School action partials are grouped by domain; public types keep `KidsfitCRM.Api.Features` namespace and original routes |
+| Signed contract reporting | `Features/Contracts/SignedContractReportingActions.cs`, `Features/Contracts/ReportSalesContractRequest.cs` | Contract reporting use case and request |
 | Commissions | `Features/Commissions/Policies/`, `Features/Commissions/Accruals/`, `Features/Commissions/Income/` | Versioned BGĐ policy, receipt-based accruals and backfill, Sales/Manager income read model |
 | Receipts | `Features/Accounting/Receipts/` | Receipt queries, recording and request contract |
 | Finance / payout | `Features/Accounting/Payouts/AccountingPayoutEndpoints.cs`, `Features/Contracts/Accounting/AccountingContractEndpoints.cs` | Accounting workflow and contract-scoped read model |
@@ -27,7 +28,7 @@
 | Personnel | `Features/Personnel/` | Personnel administration and sales membership |
 | CHECKEE | `Features/Checkee/{Verification,Reconciliation,Support}/` | Contract verification, reconciliation and support |
 | Customer care | `Features/CustomerCare/` | Handover, support cases and care activity |
-| School directory, approaches and protection | `Features/Schools/{Directory,Approaches,Protection}/` | School records and import, contact history and protection renewal |
+| School directory, approaches and protection | `Features/Schools/{Directory,Approaches,Protection}/` | School records and import, approach registration and activity history, protection renewal |
 | Service interruption | `Features/Contracts/ServiceInterruption/` | Contract interruption endpoints |
 | Financial evidence | `Features/Evidence/` | Shared evidence endpoints for contracts, renewals, receipts and payouts |
 | Reporting | `Features/Reports/` | Manager progress and sales dashboard |

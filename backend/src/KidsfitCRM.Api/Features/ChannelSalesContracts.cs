@@ -2,50 +2,6 @@ using KidsfitCRM.Api.Common;
 
 namespace KidsfitCRM.Api.Features;
 
-public sealed record RegisterApproachRequest(
-    string? IdempotencyKey,
-    long? CustomerId,
-    string? CustomerType,
-    string? DisplayName,
-    string? LegalName,
-    string? TaxCode,
-    string? Phone,
-    string? Email,
-    string? Website,
-    string? Province,
-    string? District,
-    string? Address,
-    string? ContactName,
-    string? ContactPosition,
-    string? Source,
-    string? Note);
-
-public sealed record AddCustomerActivityRequest(string? ActivityType, string? Content, DateTime? NextFollowUpAt,
-    DateTime? OccurredAt = null, string? ContactName = null, string? ContactPosition = null, string? Feedback = null, string? Commitment = null, string? Outcome = null, string? EvidenceReference = null);
-
-public sealed record ReportSalesContractRequest(
-    string? IdempotencyKey,
-    string? ContractCode,
-    DateOnly? SignedOn,
-    DateOnly? EffectiveOn,
-    decimal TotalValue,
-    DateOnly? FirstPaymentDueOn,
-    string? EvidenceReference,
-    long? EvidenceId = null,
-    ContractPaymentInstallment[]? Installments = null,
-    string? ServicePlan = null,
-    int? StudentCount = null,
-    long[]? SchoolUnitIds = null,
-    decimal? MaintenanceFee = null,
-    decimal? SetupFee = null,
-    string? ContractNote = null,
-    int? BranchCount = null,
-    DateOnly? ServiceStartOn = null,
-    DateOnly? ServiceEndOn = null,
-    string? PaymentCycle = null);
-
-public sealed record ContractPaymentInstallment(DateOnly DueOn, decimal Amount);
-
 public sealed record ReconcileContractRequest(string? Reason);
 /// <summary>Explicit, individually approved financial reconciliation for a legacy receipt.</summary>
 public sealed record ConfirmReceiptCommissionBackfillRequest(bool Confirm, string? Reason, bool ManagerVerified = false);

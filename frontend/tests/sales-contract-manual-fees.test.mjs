@@ -9,7 +9,7 @@ const frontend = file => readFileSync(resolve(import.meta.dirname, '../src', fil
 test('Sales fee-based signed-contract report does not require a CHECKEE catalog package', () => {
   const ui = frontend('components/crm/channel-sales-view.tsx');
   const types = frontend('lib/channel-sales.ts');
-  const dto = backend('Features/ChannelSalesContracts.cs');
+  const dto = backend('Features/Contracts/ReportSalesContractRequest.cs');
   assert.doesNotMatch(ui, /if \(!packages\.length\) throw/);
   assert.doesNotMatch(ui, /product_package_id: packages\[0\]\.id/);
   assert.doesNotMatch(ui, /packages=\{workspace\.packages\}/);
@@ -21,7 +21,7 @@ test('Sales fee-based signed-contract report does not require a CHECKEE catalog 
 });
 
 test('Backend requires manual fee components and validates totals', () => {
-  const code = backend('Features/ChannelSalesActions.cs');
+  const code = backend('Features/Contracts/SignedContractReportingActions.cs');
   assert.match(code, /if \(calculatedTotal <= 0 \|\| calculatedTotal != request\.TotalValue\)/);
   assert.match(code, /if \(!hasContractFees\)/);
   assert.doesNotMatch(code, /CheckeeProductPackage|ProductPackageId|product_package_id/);

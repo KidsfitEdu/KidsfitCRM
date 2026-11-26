@@ -63,7 +63,7 @@ test('KC-01 selects exactly one payment plan and derives its billing cycle in bo
 
 test('KC-01 backend validates the plan-cycle pairing without changing installment schedules', () => {
   const contracts = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesContracts.cs');
-  const initial = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
+  const initial = read('../backend/src/KidsfitCRM.Api/Features/Contracts/SignedContractReportingActions.cs');
   const revision = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Management/ManagerContractEndpoints.cs');
   assert.match(contracts, /ContractServicePlanPolicy/);
   assert.match(initial, /ContractServicePlanPolicy.RequireMatchingCycle\(request.ServicePlan, cycle\)/);

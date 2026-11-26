@@ -5,8 +5,8 @@ import test from 'node:test';
 
 const read = file => readFileSync(resolve(import.meta.dirname, '..', file), 'utf8');
 const menu = read('src/components/layout/UserProfileMenu.tsx');
-const endpoints = read('../backend/src/KidsfitCRM.Api/Features/ApiEndpoints.cs');
-const auth = read('../backend/src/KidsfitCRM.Api/Features/AuthFeatures.cs');
+const endpoints = read('../backend/src/KidsfitCRM.Api/Routing/ApiEndpoints.cs');
+const auth = read('../backend/src/KidsfitCRM.Api/Features/Auth/AuthFeatures.cs');
 const program = read('../backend/src/KidsfitCRM.Api/Program.cs');
 
 test('authenticated password change has user-only route and throttling',()=>{

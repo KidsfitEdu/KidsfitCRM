@@ -64,7 +64,7 @@ public sealed partial class ChannelSalesActions
                 .Select(x => x.Name).SingleOrDefaultAsync(ct) : null;
         var versions = await db.BoardCommissionPolicyVersions.AsNoTracking()
             .Where(x => x.CreatedAt <= receipt.ReceivedAt).ToArrayAsync(ct);
-        var p = BoardCommissionPolicyEndpoints.ResolveAt(versions,
+        var p = BoardCommissionPolicy.ResolveAt(versions,
             contract.OwnerOrganizationId, managerId, contract.OwnerUserId, receipt.ReceivedAt);
         var existing = await db.CommissionLedgerEntries.AsNoTracking()
             .CountAsync(x => x.RevenueReceiptId == receiptId, ct);
@@ -105,14 +105,14 @@ public sealed partial class ChannelSalesActions
             throw new ApiConflictException("Chưa có người hưởng và tỷ lệ dương đã được xác minh để tạo bút toán.");
         var now = DateTime.UtcNow;
         if (assessment.SalesRate > 0)
-            db.CommissionLedgerEntries.Add(NewCommissionAccrual(
+            db.CommissionLedgerEntries.Add(CommissionAccrual.Create(
                 assessment.Contract, assessment.Receipt, actorId,
                 assessment.Receipt.ReceivedAt, now, assessment.EligibleCash,
                 "SALES", assessment.Contract.OwnerUserId, assessment.SalesRate,
                 assessment.PolicySource, assessment.PolicyVersionId));
         if (assessment.ManagerRate > 0 && assessment.ManagerValid && assessment.ManagerId.HasValue
             && request.ManagerVerified)
-            db.CommissionLedgerEntries.Add(NewCommissionAccrual(
+            db.CommissionLedgerEntries.Add(CommissionAccrual.Create(
                 assessment.Contract, assessment.Receipt, actorId,
                 assessment.Receipt.ReceivedAt, now, assessment.EligibleCash,
                 "MANAGER", assessment.ManagerId.Value, assessment.ManagerRate,

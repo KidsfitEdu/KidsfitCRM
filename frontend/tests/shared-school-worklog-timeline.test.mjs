@@ -7,7 +7,7 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const timeline=read('src/components/crm/schools/school-work-log-drawer.tsx');
 const manager=read('src/components/roles/ManagerWorklists.tsx');
 const sales=read('src/components/crm/channel-sales-view.tsx');
-const backend=read('../backend/src/KidsfitCRM.Api/Features/CustomerWorkLogEndpoints.cs');
+const backend=read('../backend/src/KidsfitCRM.Api/Features/Schools/Approaches/CustomerWorkLogEndpoints.cs');
 
 test('manager progress opens the school journal through real API',()=>{
   assert.match(manager,/onJournal=\{c=>setWorkLog\(\{customerId:c.id,schoolName:c.display_name\}\)\}/);

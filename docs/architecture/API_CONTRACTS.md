@@ -3,14 +3,14 @@
 **Code snapshot:** `develop` at `4e9c99db374c082289608c60573a7894ee375834`, 2026-11-21. This documents known contracts from static source inspection, **not a complete OpenAPI specification or an executed integration result**. Always inspect actual endpoint code before implementing a consumer.
 
 ## Source and conventions
-- Backend entry: `backend/src/KidsfitCRM.Api/Program.cs`; route mapping: `Features/ApiEndpoints.cs` and feature-specific endpoint files.
+- Backend entry: `backend/src/KidsfitCRM.Api/Program.cs`; route mapping: `Routing/ApiEndpoints.cs` and feature-specific endpoint files.
 - Frontend API transport: `frontend/src/services/api.client.ts`, base URL provided by `NEXT_PUBLIC_API_URL` (normally ending `/api`), with JWT Bearer token.
 - Backend `ConfigureHttpJsonOptions` sets `JsonNamingPolicy.SnakeCaseLower` and `DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower`. Therefore **JSON names are snake_case** even when C# records use PascalCase. Prefer explicit contract tests for actual HTTP binding; a direct C# action invocation does not verify the JSON layer.
 - `ApiValidationException` is mapped to HTTP **422** with `{ message, errors }`; `ApiConflictException` to **409**; missing record to **404**. Authentication/authorization, rate limiting, network failures and unexpected 5xx need distinct client feedback.
 - `createApiClient` reads response JSON `message` or the first `errors` entry, wraps errors in `ApiRequestError`, and does not expose raw server exceptions to end users.
 
 ## Authentication and current-user account endpoints
-Mapped in `Features/ApiEndpoints.cs`. Confirm bearer protection and per-route rate limits in source.
+Mapped in `Routing/ApiEndpoints.cs`. Confirm bearer protection and per-route rate limits in source.
 
 | Method/path relative to `/api` | Request contract | Runtime responsibility |
 | --- | --- | --- |

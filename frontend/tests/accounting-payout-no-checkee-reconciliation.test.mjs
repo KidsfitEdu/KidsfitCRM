@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 
 const read = path => readFileSync(resolve(import.meta.dirname, '..', path), 'utf8');
-const payoutActions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
-const receiptActions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
-const detailApi = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
+const payoutActions = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutActions.cs');
+const receiptActions = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Receipts/RevenueReceiptActions.cs');
+const detailApi = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
 const accounting = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
 
 test('Payout creation requires accrued ledger entries, period and beneficiary but not CHECKEE reconciliation', () => {
@@ -43,10 +43,10 @@ test('Accounting can enable payout from unassigned positive commission independe
 });
 
 test('Receipt accrual uses board split on collected cash and does not automatically backfill old receipts', () => {
-  assert.match(receiptActions,/BoardCommissionPolicyEndpoints.ResolveAt/);
+  assert.match(receiptActions,/BoardCommissionPolicy\.ResolveAt/);
   assert.match(receiptActions,/if \(policy.Sales > 0m\)/);
   assert.match(receiptActions,/if \(policy.Manager > 0m && managerId.HasValue/);
-  assert.match(receiptActions,/NewCommissionAccrual/);
+  assert.match(receiptActions,/CommissionAccrual\.Create/);
   assert.match(receiptActions,/COMMISSION_MANAGER_REVIEW_REQUIRED/);
   assert.doesNotMatch(payoutActions,/Backfill|CreateMissingLedger|GenerateCommissionAutomatically/);
 });
@@ -63,7 +63,7 @@ test('Accounting separates contracts and role-specific payout overview',()=>{
 test('Legacy backfill remains safeguarded on the server but has no Accounting UI entry point',()=>{
   // No legacy receipt backfill/reconciliation UI: explicitly retired by product decision.
   // Keep assertions covering the dormant server-side verification safeguards.
-  const handler=read('../backend/src/KidsfitCRM.Api/Features/ReceiptCommissionBackfillActions.cs');
+  const handler=read('../backend/src/KidsfitCRM.Api/Features/Commissions/Accruals/ReceiptCommissionBackfillActions.cs');
   const dto=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesContracts.cs');
   assert.match(handler,/PreviewReceiptCommissionBackfill/);
   assert.match(handler,/BackfillReceiptCommission/);
@@ -97,7 +97,7 @@ test('Payout actions distinguish draft, submission and adjustment without retire
 });
 
 test('One shared payout transitions through BGĐ approval with required adjustment rationale',()=>{
-  const actions=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
+  const actions=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutActions.cs');
   const endpoints=read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesOperationsEndpoints.cs');
   const model=read('../backend/src/KidsfitCRM.Api/Domain/ChannelSalesEntities.cs');
   assert.match(endpoints,/\/payouts\/\{id:long\}\/draft/);

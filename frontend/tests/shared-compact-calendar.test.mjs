@@ -7,7 +7,7 @@ const read=path=>readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const datePicker=read('src/components/common/forms/app-date-picker.tsx');
 const monthPicker=read('src/components/common/forms/app-month-picker.tsx');
 const accounting=read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-const backend=read('../backend/src/KidsfitCRM.Api/Features/AccountingPayoutEndpoints.cs');
+const backend=read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutEndpoints.cs');
 
 test('Shared date picker remains compact without replacing its date-only contract',()=>{
   assert.match(datePicker,/w-\[min\(250px,calc\(100vw-24px\)\)\]/);

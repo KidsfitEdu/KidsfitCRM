@@ -6,7 +6,7 @@ const read=p=>readFileSync(resolve(import.meta.dirname,'..',p),'utf8');
 const school=read('src/screens/CustomerCare/Customers/CustomersPage.tsx');
 const cases=read('src/screens/CustomerCare/Cases/CasesPage.tsx');
 const dashboard=read('src/screens/CustomerCare/Dashboard/DashboardPage.tsx');
-const endpoint=read('../backend/src/KidsfitCRM.Api/Features/CustomerCareEndpoints.cs');
+const endpoint=read('../backend/src/KidsfitCRM.Api/Features/CustomerCare/CustomerCareEndpoints.cs');
 const actions=read('src/components/common/admin-list-ui.tsx');
 
 test('CSKH list filters reuse AppSelect and preserve API enums and pagination',()=>{

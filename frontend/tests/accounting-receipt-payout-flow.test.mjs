@@ -4,10 +4,10 @@ import {resolve} from 'node:path';
 import test from 'node:test';
 const read = path => readFileSync(resolve(import.meta.dirname,'..',path),'utf8');
 const ui = read('src/screens/Accounting/Contracts/AccountingContractsPage.tsx');
-const actions = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesActions.cs');
-const finance = read('../backend/src/KidsfitCRM.Api/Features/ChannelSalesFinanceActions.cs');
-const endpoint = read('../backend/src/KidsfitCRM.Api/Features/AccountingContractEndpoints.cs');
-const evidence = read('../backend/src/KidsfitCRM.Api/Features/FinancialEvidenceEndpoints.cs');
+const actions = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Receipts/RevenueReceiptActions.cs');
+const finance = read('../backend/src/KidsfitCRM.Api/Features/Accounting/Payouts/AccountingPayoutActions.cs');
+const endpoint = read('../backend/src/KidsfitCRM.Api/Features/Contracts/Accounting/AccountingContractEndpoints.cs');
+const evidence = read('../backend/src/KidsfitCRM.Api/Features/Evidence/FinancialEvidenceEndpoints.cs');
 test('Receipt validates balance and reuses submitted identity for a retry',()=>{
   assert.ok(ui.includes('amount>schedule.amount_due-schedule.amount_received'));
   assert.ok(ui.includes('receiptAttempt.current?.signature!==signature'));

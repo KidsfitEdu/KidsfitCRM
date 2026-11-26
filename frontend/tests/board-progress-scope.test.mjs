@@ -9,8 +9,8 @@ const navigation=read('src/config/navigation.ts');
 const sections=read('src/config/role-pages.ts');
 const manager=read('src/components/roles/ManagerWorklists.tsx');
 const shared=read('src/components/crm/schools/school-progress-table.tsx');
-const api=read('../backend/src/KidsfitCRM.Api/Features/ManagerProgressEndpoints.cs');
-const journal=read('../backend/src/KidsfitCRM.Api/Features/CustomerWorkLogEndpoints.cs');
+const api=read('../backend/src/KidsfitCRM.Api/Features/Reports/ManagerProgressEndpoints.cs');
+const journal=read('../backend/src/KidsfitCRM.Api/Features/Schools/Approaches/CustomerWorkLogEndpoints.cs');
 
 test('Board progress is accessible from Board navigation and same View routing',()=>{
   assert.match(navigation,/role-board-progress/);

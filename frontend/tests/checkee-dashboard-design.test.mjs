@@ -6,7 +6,7 @@ const read=p=>readFileSync(resolve(import.meta.dirname,'..',p),'utf8');
 const support=read('src/screens/Checkee/Support/SupportPage.tsx');
 const verify=read('src/screens/Checkee/Verification/VerificationPage.tsx');
 const dashboard=read('src/screens/Checkee/Dashboard/DashboardPage.tsx');
-const api=read('../backend/src/KidsfitCRM.Api/Features/CheckeeVerificationEndpoints.cs');
+const api=read('../backend/src/KidsfitCRM.Api/Features/Checkee/Verification/CheckeeVerificationEndpoints.cs');
 test('CHECKEE technical filter uses shared AppSelect with stable server enum and paging',()=>{
   assert.match(support,/filters=\{<AppSelect/);
   assert.doesNotMatch(support,/filters=\{<select/);

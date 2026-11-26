@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import test from 'node:test';
 
 const front=readFileSync(resolve(import.meta.dirname,'../src/components/roles/ContractRenewalSalesPanel.tsx'),'utf8');
-const server=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/ContractRenewalEndpoints.cs'),'utf8');
+const server=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/Contracts/Renewals/ContractRenewalEndpoints.cs'),'utf8');
 const migration=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Infrastructure/Migrations/20261118043000_RenewalContractCodes.cs'),'utf8');
 
 test('Sales renewal form omits contract-code field, hint and request property',()=>{

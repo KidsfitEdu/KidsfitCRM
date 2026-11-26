@@ -3,7 +3,7 @@ import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 const source=readFileSync(resolve(import.meta.dirname,'../src/components/roles/SalesDashboard.tsx'),'utf8');
-const backend=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/SalesDashboardReportEndpoints.cs'),'utf8');
+const backend=readFileSync(resolve(import.meta.dirname,'../../backend/src/KidsfitCRM.Api/Features/Reports/SalesDashboardReportEndpoints.cs'),'utf8');
 test('Sales Dashboard uses account-scoped API for four cards and two charts',()=>{
   assert.match(source,/dashboard\/report\?period=/);
   assert.match(source,/AppMonthPicker/);
